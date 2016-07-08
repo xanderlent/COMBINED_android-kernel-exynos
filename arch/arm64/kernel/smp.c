@@ -62,6 +62,7 @@
 #include <asm/virt.h>
 
 #include <soc/samsung/debug-snapshot.h>
+#include <soc/samsung/exynos-sdm.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
 
@@ -855,6 +856,7 @@ static void ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
 	if (cpu_ops[cpu]->cpu_die)
 		cpu_ops[cpu]->cpu_die(cpu);
 #endif
+	exynos_sdm_flush_secdram();
 
 	/* just in case */
 	cpu_park_loop();
