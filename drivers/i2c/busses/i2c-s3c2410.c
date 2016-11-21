@@ -1211,6 +1211,11 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
 
+	ret = clk_prepare(i2c->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "I2C clock prepare failed\n");
+		return ret;
+	}
 
 	/* map the registers */
 
