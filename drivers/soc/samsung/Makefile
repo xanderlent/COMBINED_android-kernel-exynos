@@ -23,3 +23,6 @@ obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-powermode.o
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-pm.o
 obj-$(CONFIG_EXYNOS_PM_DVS)        += exynos-pm-dvs.o
 obj-$(CONFIG_EXYNOS_RGT)        += exynos-rgt.o
+
+# USI_V2
+obj-$(CONFIG_USI_V2) += usi_v2.o
