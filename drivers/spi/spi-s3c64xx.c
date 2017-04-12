@@ -21,13 +21,12 @@
 #include <mach/exynos-powermode.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
-#include <mach/exynos-fimc-is.h>
 
-#if defined(CONFIG_SAMSUNG_DMADEV)
 #include <linux/dma/dma-pl330.h>
-#endif
 
+#ifdef CONFIG_CPU_IDLE
 #include <mach/exynos-pm.h>
+#endif
 
 #include "../pinctrl/core.h"
 
@@ -313,7 +312,6 @@ static void s3c64xx_spi_dmacb(void *data)
 	spin_unlock_irqrestore(&sdd->lock, flags);
 }
 
-#if defined(CONFIG_SAMSUNG_DMADEV)
 /* FIXME: remove this section once arch/arm/mach-s3c64xx uses dmaengine */
 
 static struct s3c2410_dma_client s3c64xx_spi_dma_client = {
@@ -476,7 +474,6 @@ static void s3c64xx_spi_dma_stop(struct s3c64xx_spi_driver_data *sdd,
 	sdd->ops->stop((enum dma_ch)dma->ch);
 #endif
 }
-#endif
 
 static void s3c64xx_enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 				    struct spi_transfer *xfer, int dma_mode)
@@ -1997,12 +1994,6 @@ static const struct platform_device_id s3c64xx_spi_driver_ids[] = {
 	}, {
 		.name		= "s3c6410-spi",
 		.driver_data	= (kernel_ulong_t)&s3c6410_spi_port_config,
-	}, {
-		.name		= "s5p64x0-spi",
-		.driver_data	= (kernel_ulong_t)&s5p64x0_spi_port_config,
-	}, {
-		.name		= "s5pc100-spi",
-		.driver_data	= (kernel_ulong_t)&s5pc100_spi_port_config,
 	}, {
 		.name		= "s5pv210-spi",
 		.driver_data	= (kernel_ulong_t)&s5pv210_spi_port_config,
