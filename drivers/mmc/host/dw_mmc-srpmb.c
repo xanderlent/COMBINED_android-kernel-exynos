@@ -71,7 +71,7 @@ static void mmc_cmd_init(struct mmc_ioc_cmd *icmd)
 
 static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 {
-	int ret;
+	int ret = 0;
 	struct device *dev = ctx->dev;
 	static struct block_device *bdev = NULL;
 	struct gendisk *disk;
@@ -245,13 +245,14 @@ wout:
 		req->status_flag = PASS_STATUS;
 		break;
 	default:
-		dev_err(dev, "Fail to invalid command: %x\n", ret);
+		dev_err(dev, "Fail to invalid command: %x\n", req->type);
+		ret = -EINVAL;
 	}
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
 	wake_unlock(&ctx->wakelock);
 
-	return 0;
+	return ret;
 }
 
 static void mmc_rpmb_worker(struct work_struct *work)
