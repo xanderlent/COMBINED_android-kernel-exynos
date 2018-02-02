@@ -382,7 +382,7 @@ static struct ion_heap *__ion_system_contig_heap_create(void)
 	return heap;
 }
 
-int ion_system_contig_heap_create(void)
+static int __maybe_unused ion_system_contig_heap_create(void)
 {
 	struct ion_heap *heap;
 
@@ -395,6 +395,5 @@ int ion_system_contig_heap_create(void)
 }
 
 #ifndef CONFIG_ION_MODULE
-subsys_initcall_sync(ion_system_contig_heap_create);
 subsys_initcall_sync(ion_system_heap_create);
 #endif
