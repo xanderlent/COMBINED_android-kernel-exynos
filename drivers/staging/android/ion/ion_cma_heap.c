@@ -21,6 +21,7 @@
 struct ion_cma_heap {
 	struct ion_heap heap;
 	struct cma *cma;
+	unsigned int align_order;
 };
 
 #define to_cma_heap(x) container_of(x, struct ion_cma_heap, heap)
@@ -34,12 +35,9 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct sg_table *table;
 	struct page *pages;
 	unsigned long size = PAGE_ALIGN(len);
+	unsigned long align = cma_heap->align_order;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
-	unsigned long align = get_order(size);
 	int ret = -ENOMEM;
-
-	if (align > CONFIG_CMA_ALIGNMENT)
-		align = CONFIG_CMA_ALIGNMENT;
 
 	pages = cma_alloc(cma_heap->cma, nr_pages, align, false);
 	if (!pages) {
@@ -112,6 +110,26 @@ static struct ion_heap_ops ion_cma_ops = {
 	.unmap_kernel = ion_heap_unmap_kernel,
 };
 
+#ifdef CONFIG_ION_EXYNOS
+struct ion_heap *ion_cma_heap_create(struct cma *cma,
+				     struct ion_platform_heap *heap_data)
+{
+	struct ion_cma_heap *cma_heap;
+
+	cma_heap = kzalloc(sizeof(*cma_heap), GFP_KERNEL);
+	if (!cma_heap)
+		return ERR_PTR(-ENOMEM);
+
+	cma_heap->heap.ops = &ion_cma_ops;
+	cma_heap->cma = cma;
+	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
+	cma_heap->heap.name = kstrndup(heap_data->name,
+				       MAX_HEAP_NAME - 1, GFP_KERNEL);
+	cma_heap->align_order = get_order(heap_data->align);
+
+	return &cma_heap->heap;
+}
+#else /* !CONFIG_ION_EXYNOS */
 static struct ion_heap *__ion_cma_heap_create(struct cma *cma)
 {
 	struct ion_cma_heap *cma_heap;
@@ -154,3 +172,4 @@ int ion_add_cma_heaps(void)
 #ifndef CONFIG_ION_MODULE
 device_initcall(ion_add_cma_heaps);
 #endif
+#endif /* CONFIG_ION_EXYNOS */
