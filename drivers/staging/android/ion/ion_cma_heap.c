@@ -42,8 +42,11 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		align = CONFIG_CMA_ALIGNMENT;
 
 	pages = cma_alloc(cma_heap->cma, nr_pages, align, false);
-	if (!pages)
+	if (!pages) {
+		pr_err("%s: failed to allocate from %s(id %d), size %lu\n",
+		       __func__, cma_heap->heap.name, cma_heap->heap.id, len);
 		return -ENOMEM;
+	}
 
 	if (PageHighMem(pages)) {
 		unsigned long nr_clear_pages = nr_pages;
