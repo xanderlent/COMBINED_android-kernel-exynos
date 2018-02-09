@@ -14,6 +14,8 @@
 #include <linux/scatterlist.h>
 #include <linux/highmem.h>
 
+#include <asm/cacheflush.h>
+
 #include "ion.h"
 
 struct ion_cma_heap {
@@ -71,6 +73,12 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	buffer->priv_virt = pages;
 	buffer->sg_table = table;
+
+	memset(page_to_virt(pages), 0, len);
+
+	if (!(flags & ION_FLAG_CACHED))
+		__flush_dcache_area(page_to_virt(pages), len);
+
 	return 0;
 
 free_mem:

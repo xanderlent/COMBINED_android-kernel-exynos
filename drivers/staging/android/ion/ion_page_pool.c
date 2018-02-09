@@ -10,6 +10,8 @@
 #include <linux/swap.h>
 #include <linux/sched/signal.h>
 
+#include <asm/cacheflush.h>
+
 #include "ion.h"
 
 /*
@@ -83,8 +85,12 @@ struct page *ion_page_pool_alloc(struct ion_page_pool *pool)
 		page = ion_page_pool_remove(pool, false);
 	mutex_unlock(&pool->mutex);
 
-	if (!page)
+	if (!page) {
 		page = ion_page_pool_alloc_pages(pool);
+		if (!pool->cached)
+			__flush_dcache_area(page_to_virt(page),
+					    1 << (PAGE_SHIFT + pool->order));
+	}
 
 	return page;
 }
