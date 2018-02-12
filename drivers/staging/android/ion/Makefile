@@ -8,3 +8,4 @@ ion-alloc-$(CONFIG_ION_CHUNK_HEAP) += ion_chunk_heap.o
 ion-alloc-$(CONFIG_ION_CMA_HEAP) += ion_cma_heap.o
 ion-alloc-$(CONFIG_ION_TEST) += ion_test.o
 ion-alloc-$(CONFIG_ION_EXYNOS) += ion_fdt_exynos.o ion_buffer_protect.o ion_exynos.o
+obj-$(CONFIG_DMABUF_CONTAINER) += dmabuf_container.o
