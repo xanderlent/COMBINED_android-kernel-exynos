@@ -170,6 +170,32 @@ struct dma_buf *dmabuf_container_get_buffer(struct dma_buf *dmabuf, int index)
 	return bufcon->bufs[index];
 }
 
+/**
+ * dma_buf_get_any  - returns the dma_buf structure
+ * @fd:	[in]	fd associated with the dma_buf or dmabuf_container.
+ *
+ * On success, returns the any dma_buf structure on dmabuf container.
+ * associated with an fd, or a dmabuf related to fd if it is not dmabuf
+ * container. uses file's refcounting done by fget to increase refcount.
+ * returns ERR_PTR otherwise.
+ */
+struct dma_buf *dma_buf_get_any(int fd)
+{
+	struct dma_buf *dmabuf;
+
+	dmabuf = dma_buf_get(fd);
+
+	if (!IS_ERR(dmabuf) && dmabuf_container_get_count(dmabuf)) {
+		struct dma_buf *bufcon = dmabuf;
+
+		dmabuf = dmabuf_container_get_buffer(bufcon, 0);
+		dma_buf_put(bufcon);
+	}
+
+	return dmabuf;
+}
+EXPORT_SYMBOL_GPL(dma_buf_get_any);
+
 #define ION_IOC_CUSTOM_MAGIC	'I'
 
 #define MAX_BUFCON_BUFS 32

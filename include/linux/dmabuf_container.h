@@ -9,12 +9,13 @@
 #ifndef __DMABUF_CONTAINER_H__
 #define __DMABUF_CONTAINER_H__
 
-struct dma_buf;
+#include <linux/dma-buf.h>
 
 #ifdef CONFIG_DMABUF_CONTAINER
 bool is_dmabuf_container(struct dma_buf *dmabuf);
 int dmabuf_container_get_count(struct dma_buf *dmabuf);
 struct dma_buf *dmabuf_container_get_buffer(struct dma_buf *dmabuf, int index);
+struct dma_buf *dma_buf_get_any(int fd);
 #else
 static inline bool is_dmabuf_container(struct dma_buf *dmabuf)
 {
@@ -28,6 +29,10 @@ static inline struct dma_buf *dmabuf_container_get_buffer(struct dma_buf *dbuf,
 							  int index)
 {
 	return NULL;
+}
+static inline struct dma_buf *dma_buf_get_any(int fd)
+{
+	return dma_buf_get(fd);
 }
 #endif
 
