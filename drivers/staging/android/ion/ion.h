@@ -345,4 +345,7 @@ int ion_add_cma_heaps(void);
 int ion_system_heap_create(void);
 int ion_system_contig_heap_create(void);
 #endif
+void ion_contig_heap_show_buffers(struct ion_heap *heap,
+				  phys_addr_t base, size_t pool_size);
+
 #endif /* _ION_H */
