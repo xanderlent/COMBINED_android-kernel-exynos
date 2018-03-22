@@ -755,6 +755,8 @@ static int ion_device_create(void)
 	}
 
 	idev->debug_root = debugfs_create_dir("ion", NULL);
+	if (idev->debug_root)
+		ion_debug_initialize(idev);
 
 	exynos_ion_fixup(idev);
 	idev->buffers = RB_ROOT;
