@@ -197,6 +197,9 @@ static LIST_HEAD(drvdata_list);
 #define HSI2C_HS_TX_CLOCK			2500000
 #define HSI2C_FAST_PLUS_TX_CLOCK	1000000
 #define HSI2C_FS_TX_CLOCK			400000
+#define HSI2C_STAND_TX_CLOCK		100000
+
+#define HSI2C_STAND_SPD			3
 #define HSI2C_FAST_PLUS_SPD		2
 #define HSI2C_HIGH_SPD			1
 #define HSI2C_FAST_SPD			0
@@ -393,8 +396,8 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 
 	ipclk = (unsigned int)clk_get_rate(i2c->rate_clk);
 
-	if (mode == HSI2C_FAST_PLUS_SPD) {
-		op_clk = i2c->fs_plus_clock;
+	if (mode == HSI2C_STAND_SPD) {
+		op_clk = i2c->stand_clock;
 
 		fs_div = ipclk / (op_clk * 16);
 		fs_div &= 0xFF;
@@ -407,6 +410,28 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		writel(utemp | (uTSCL_H_FS << 0), i2c->regs + HSI2C_TIMING_FS2);
 
 		uTSTART_HD_FS = (25 * (ipclk / (1000 * 1000))) / ((fs_div + 1) * 10) - 1;
+		uTSTART_HD_FS = (0xFF << uTSTART_HD_FS) & 0xFF;
+		utemp = readl(i2c->regs + HSI2C_TIMING_FS1) & ~0x00FF0000;
+		writel(utemp | (uTSTART_HD_FS << 16), i2c->regs + HSI2C_TIMING_FS1);
+
+		dev_info(i2c->dev, "%s IPCLK = %d OP_CLK = %d DIV = %d Timing FS1(STAND) = 0x%X "
+				"TIMING FS2(STAND) = 0x%X TIMING FS3(STAND) = 0x%X\n",__func__, ipclk, op_clk, fs_div,
+				readl(i2c->regs + HSI2C_TIMING_FS1), readl(i2c->regs + HSI2C_TIMING_FS2),
+				readl(i2c->regs + HSI2C_TIMING_FS3));
+	} else if (mode == HSI2C_FAST_PLUS_SPD) {
+		op_clk = i2c->fs_plus_clock;
+
+		fs_div = ipclk / (op_clk * 15);
+		fs_div &= 0xFF;
+		utemp = readl(i2c->regs + HSI2C_TIMING_FS3) & ~0x00FF0000;
+		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
+
+		uTSCL_H_FS = (4 * (ipclk / (1000 * 1000))) / ((fs_div + 1) * 10);
+		uTSCL_H_FS = (0xFF << uTSCL_H_FS) & 0xFF;
+		utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x000000FF;
+		writel(utemp | (uTSCL_H_FS << 0), i2c->regs + HSI2C_TIMING_FS2);
+
+		uTSTART_HD_FS = (4 * (ipclk / (1000 * 1000))) / ((fs_div + 1) * 10) - 1;
 		uTSTART_HD_FS = (0xFF << uTSTART_HD_FS) & 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS1) & ~0x00FF0000;
 		writel(utemp | (uTSTART_HD_FS << 16), i2c->regs + HSI2C_TIMING_FS1);
@@ -497,6 +522,14 @@ static int exynos5_hsi2c_clock_setup(struct exynos5_i2c *i2c)
 	if (i2c->speed_mode == HSI2C_FAST_PLUS_SPD) {
 		if (exynos5_i2c_set_timing(i2c, HSI2C_FAST_PLUS_SPD)) {
 			dev_err(i2c->dev, "HSI2C FAST PLUS Clock set up failed\n");
+			return -EINVAL;
+		}
+	}
+
+	/* Configure the standard mode timing values */
+	if (i2c->speed_mode == HSI2C_STAND_SPD) {
+		if (exynos5_i2c_set_timing(i2c, HSI2C_STAND_SPD)) {
+			dev_err(i2c->dev, "HSI2C STAND Clock set up failed\n");
 			return -EINVAL;
 		}
 	}
@@ -1056,6 +1089,10 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		i2c->speed_mode = HSI2C_HIGH_SPD;
 		if (of_property_read_u32(np, "clock-frequency", &i2c->hs_clock))
 			i2c->hs_clock = HSI2C_HS_TX_CLOCK;
+	} else if (of_get_property(np, "samsung,stand-mode", NULL)) {
+		i2c->speed_mode = HSI2C_STAND_SPD;
+		if (of_property_read_u32(np, "clock-frequency", &i2c->stand_clock))
+			i2c->stand_clock = HSI2C_STAND_TX_CLOCK;
 	} else {
 		i2c->speed_mode = HSI2C_FAST_SPD;
 		if (of_property_read_u32(np, "clock-frequency", &i2c->fs_clock))
