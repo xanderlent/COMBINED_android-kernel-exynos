@@ -481,8 +481,11 @@ struct v4l2_buffer32 {
 		__s32		fd;
 	} m;
 	__u32			length;
-	__s32			fence_fd;
-	__u32			reserved;
+	__s32			reserved2;
+	union {
+		__u32		fence_fd;
+		__u32		reserved;
+	};
 };
 
 static int get_v4l2_plane32(struct v4l2_plane __user *p64,
@@ -600,6 +603,8 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *p64,
 
 	if (V4L2_TYPE_IS_OUTPUT(type))
 		if (assign_in_user(&p64->bytesused, &p32->bytesused) ||
+		    assign_in_user(&p64->reserved2, &p32->reserved2) ||
+		    assign_in_user(&p64->fence_fd, &p32->fence_fd) ||
 		    assign_in_user(&p64->field, &p32->field) ||
 		    assign_in_user(&p64->timestamp.tv_sec,
 				   &p32->timestamp.tv_sec) ||
