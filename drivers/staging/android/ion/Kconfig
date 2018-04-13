@@ -64,11 +64,3 @@ config ION_HPA_HEAP
 	  Choose this option to enable HPA heaps with Ion. This heap is backed
 	  by the High-order Pages Allocator (HPA). If your system needs HPA for
 	  some reason, you should say Y here.
-
-config DMABUF_CONTAINER
-	bool "dmabuf container"
-	depends on ION && ION_EXYNOS
-	help
-	  Choose this option to enable dmabuf container. dmabuf container is an
-	  aggregation of dma-buf buffers. It just has a collection of dma-bufs
-	  but actual buffer.
