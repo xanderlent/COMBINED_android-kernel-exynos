@@ -581,4 +581,9 @@ static inline void dma_buf_set_destructor(struct dma_buf *dmabuf,
 	dmabuf->dtor_data = dtor_data;
 }
 
+
+#ifdef CONFIG_DMA_BUF_CONTAINER
+struct dma_buf *dma_buf_get_any(int fd);
+#endif
+
 #endif /* __DMA_BUF_H__ */

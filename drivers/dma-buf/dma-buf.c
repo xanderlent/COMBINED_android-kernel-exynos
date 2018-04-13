@@ -42,6 +42,8 @@
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
 
+#include "dma-buf-container.h"
+
 static inline int is_dma_buf_file(struct file *);
 
 struct dma_buf_list {
@@ -420,6 +422,11 @@ static long dma_buf_ioctl(struct file *file,
 	case DMA_BUF_SET_NAME:
 		return dma_buf_set_name(dmabuf, (const char __user *)arg);
 
+#ifdef CONFIG_COMPAT
+	case DMA_BUF_COMPAT_IOCTL_MERGE:
+#endif
+	case DMA_BUF_IOCTL_MERGE:
+		return dma_buf_merge_ioctl(dmabuf, cmd, arg);
 	default:
 		return -ENOTTY;
 	}
