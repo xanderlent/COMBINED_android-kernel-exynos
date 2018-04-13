@@ -584,6 +584,11 @@ static inline void dma_buf_set_destructor(struct dma_buf *dmabuf,
 
 #ifdef CONFIG_DMA_BUF_CONTAINER
 struct dma_buf *dma_buf_get_any(int fd);
+#else
+static inline struct dma_buf *dma_buf_get_any(int fd)
+{
+	return dma_buf_get(fd);
+}
 #endif
 
 #endif /* __DMA_BUF_H__ */
