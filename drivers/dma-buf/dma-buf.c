@@ -43,6 +43,7 @@
 #include <uapi/linux/magic.h>
 
 #include "dma-buf-container.h"
+#include "dma-buf-trace.h"
 
 static inline int is_dma_buf_file(struct file *);
 
@@ -125,6 +126,8 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 
 	if (dmabuf->resv == (struct reservation_object *)&dmabuf[1])
 		reservation_object_fini(dmabuf->resv);
+
+	dmabuf_trace_free(dmabuf);
 
 	module_put(dmabuf->owner);
 	kfree(dmabuf->exp_name);
@@ -432,6 +435,10 @@ static long dma_buf_ioctl(struct file *file,
 		return dmabuf_container_set_mask_user(dmabuf, arg);
 	case DMA_BUF_IOCTL_CONTAINER_GET_MASK:
 		return dmabuf_container_get_mask_user(dmabuf, arg);
+	case DMA_BUF_IOCTL_TRACK:
+		return dmabuf_trace_track_buffer(dmabuf);
+	case DMA_BUF_IOCTL_UNTRACK:
+		return dmabuf_trace_untrack_buffer(dmabuf);
 	default:
 		return -ENOTTY;
 	}
@@ -619,6 +626,8 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	mutex_lock(&db_list.lock);
 	list_add(&dmabuf->list_node, &db_list.head);
 	mutex_unlock(&db_list.lock);
+
+	dmabuf_trace_alloc(dmabuf);
 
 	return dmabuf;
 
@@ -1381,7 +1390,7 @@ static const struct file_operations dma_buf_debug_fops = {
 	.release        = single_release,
 };
 
-static struct dentry *dma_buf_debugfs_dir;
+struct dentry *dma_buf_debugfs_dir;
 
 static int dma_buf_init_debugfs(void)
 {
