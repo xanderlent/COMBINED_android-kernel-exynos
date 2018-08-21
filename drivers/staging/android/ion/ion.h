@@ -96,6 +96,7 @@ struct ion_device {
 	struct rw_semaphore lock;
 	struct plist_head heaps;
 	struct dentry *debug_root;
+	struct dentry *heaps_debug_root;
 	int heap_cnt;
 };
 
@@ -346,8 +347,6 @@ int ion_add_cma_heaps(void);
 int ion_system_heap_create(void);
 int ion_system_contig_heap_create(void);
 #endif
-void ion_contig_heap_show_buffers(struct ion_heap *heap,
-				  phys_addr_t base, size_t pool_size);
 
 void *ion_buffer_kmap_get(struct ion_buffer *buffer);
 void ion_buffer_kmap_put(struct ion_buffer *buffer);

@@ -678,6 +678,8 @@ void ion_device_add_heap(struct ion_heap *heap)
 				    heap, &debug_shrink_fops);
 	}
 
+	ion_debug_heap_init(heap);
+
 	dev->heap_cnt++;
 	up_write(&dev->lock);
 }
