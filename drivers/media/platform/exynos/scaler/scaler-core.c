@@ -2603,10 +2603,19 @@ static bool sc_process_2nd_stage(struct sc_dev *sc, struct sc_ctx *ctx)
 static void sc_set_dithering(struct sc_ctx *ctx)
 {
 	struct sc_dev *sc = ctx->sc_dev;
+	struct sc_frame *s_frame = &ctx->s_frame;
+	struct sc_frame *d_frame = &ctx->d_frame;
 	unsigned int val = 0;
 
 	if (ctx->dith)
 		val = sc_dith_val(1, 1, 1);
+
+	if (sc->variant->pixfmt_10bit) {
+		if (sc_fmt_is_s10bit_yuv(s_frame->sc_fmt->pixelformat))
+			val |= SCALER_DITH_SRC_INV;
+		if (sc_fmt_is_s10bit_yuv(d_frame->sc_fmt->pixelformat))
+			val |= SCALER_DITH_DST_EN;
+	}
 
 	sc_dbg("dither value is 0x%x\n", val);
 	sc_hwset_dith(sc, val);

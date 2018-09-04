@@ -142,6 +142,8 @@
 #define SCALER_DITH_R_SHIFT		(6)
 #define SCALER_DITH_G_SHIFT		(3)
 #define SCALER_DITH_B_SHIFT		(0)
+#define SCALER_DITH_SRC_INV		(1 << 1)
+#define SCALER_DITH_DST_EN		(1 << 0)
 
 #define SCALER_VER			0x260
 
