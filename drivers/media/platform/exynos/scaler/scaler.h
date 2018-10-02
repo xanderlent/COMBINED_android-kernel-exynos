@@ -240,6 +240,7 @@ struct sc_variant {
 	u32 sc_down_min;
 	u32 sc_up_swmax;
 	u32 sc_down_swmin;
+	u32 minsize_srcplane;		/* zero if no limitation exists */
 	u8 blending:1;
 	u8 prescale:1;
 	u8 ratio_20bit:1;

@@ -385,6 +385,7 @@ static const struct sc_variant sc_variant[] = {
 		.ratio_20bit		= 1,
 		.initphase		= 1,
 		.pixfmt_10bit		= 1,
+		.minsize_srcplane	= 4096 + 1,
 	}, {
 		.limit_input = {
 			.min_w		= 16,
@@ -1288,6 +1289,7 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 	struct sc_frame *frame = &int_frame->frame;
 	unsigned int pixsize, bytesize;
 	unsigned int ext_size = 0, i;
+	u32 min_size = sc->variant->minsize_srcplane;
 
 	pixsize = frame->width * frame->height;
 	bytesize = (pixsize * frame->sc_fmt->bitperpixel[0]) >> 3;
@@ -1341,6 +1343,11 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 
 	for (i = 0; ext_size && i < frame->sc_fmt->num_comp; i++)
 		frame->addr.size[i] += (i == 0) ? ext_size : ext_size/2;
+
+	for (i = 0; i < frame->sc_fmt->num_comp; i++) {
+		if (frame->addr.size[i] < min_size)
+			frame->addr.size[i] = min_size;
+	}
 
 	memcpy(&int_frame->src_addr, &frame->addr, sizeof(int_frame->src_addr));
 	memcpy(&int_frame->dst_addr, &frame->addr, sizeof(int_frame->dst_addr));
@@ -1869,17 +1876,59 @@ static int sc_vb2_queue_setup(struct vb2_queue *vq,
 	return vb2_queue_init(vq);
 }
 
+/*
+ * This function should be used for source buffer only.
+ * In case of destination buffer, frame->bytesused[] is not valid.
+ */
+static int sc_check_src_plane_size(struct sc_ctx *ctx, struct vb2_buffer *vb,
+					 struct sc_frame *frame, u32 min_size)
+{
+	struct sg_table *sgt;
+	int i, ret = 0;
+
+	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type) || !min_size)
+		return ret;
+
+	for (i = 0; i < frame->sc_fmt->num_planes; i++) {
+		if (frame->bytesused[i] < min_size) {
+			sgt = (struct sg_table *)vb2_plane_cookie(vb, i);
+			if (!sgt) {
+				v4l2_err(&ctx->sc_dev->m2m.v4l2_dev,
+					"invalid sgt in plane %d\n", i);
+				return -EINVAL;
+			}
+
+			if (sg_nents_for_len(sgt->sgl, (u64)min_size) <= 0) {
+				ret = -EINVAL;
+				break;
+			}
+		}
+	}
+
+	if (ret)
+		v4l2_err(&ctx->sc_dev->m2m.v4l2_dev,
+			"plane%d size %d is smaller than %d\n",
+			i, frame->bytesused[i], min_size);
+
+	return ret;
+}
+
 static int sc_vb2_buf_prepare(struct vb2_buffer *vb)
 {
 	struct sc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct sc_frame *frame;
+	u32 min_size = ctx->sc_dev->variant->minsize_srcplane;
 	int i;
 
 	frame = ctx_get_frame(ctx, vb->vb2_queue->type);
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
 
-	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
+	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
+		/* Plane size checking is needed for source buffer */
+		if (sc_check_src_plane_size(ctx, vb, frame, min_size))
+			return -EINVAL;
+	} else {
 		for (i = 0; i < frame->sc_fmt->num_planes; i++)
 			vb2_set_plane_payload(vb, i, frame->bytesused[i]);
 	}
@@ -3376,17 +3425,57 @@ static int sc_m2m1shot_prepare_operation(struct m2m1shot_context *m21ctx,
 	return sc_prepare_denoise_filter(m21ctx->priv);
 }
 
+/*
+ * This function should be used for source buffer only.
+ * In case of destination buffer, plane->bytes_used is not valid.
+ */
+static int sc_m2m1shot_check_src_plane_size(
+			struct m2m1shot_buffer_plane_dma *plane,
+			enum dma_data_direction dir, u32 min_size)
+{
+	if ((dir != DMA_TO_DEVICE) || !min_size)
+		return 0;
+
+	if (plane->dmabuf) {
+		if (plane->bytes_used < min_size &&
+				plane->dmabuf->size < min_size)
+			return -EINVAL;
+	} else {
+		if (plane->bytes_used < min_size)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int sc_m2m1shot_prepare_buffer(struct m2m1shot_context *m21ctx,
 			struct m2m1shot_buffer_dma *buf_dma,
 			int plane,
 			enum dma_data_direction dir)
 {
+	struct sc_ctx *ctx = m21ctx->priv;
+	u32 min_size = ctx->sc_dev->variant->minsize_srcplane;
 	int ret;
 
 	ret = m2m1shot_map_dma_buf(m21ctx->m21dev->dev,
 				&buf_dma->plane[plane], dir);
 	if (ret)
 		return ret;
+
+	/* Plane size checking is needed for source buffer */
+	if (dir == DMA_TO_DEVICE) {
+		ret = sc_m2m1shot_check_src_plane_size(
+				&buf_dma->plane[plane], dir, min_size);
+		if (ret) {
+			dev_err(ctx->sc_dev->dev,
+				"plane%d size %d is smaller than %d\n",
+				plane, buf_dma->plane[plane].bytes_used,
+				min_size);
+			m2m1shot_unmap_dma_buf(m21ctx->m21dev->dev,
+					&buf_dma->plane[plane], dir);
+			return ret;
+		}
+	}
 
 	ret = m2m1shot_dma_addr_map(m21ctx->m21dev->dev, buf_dma, plane, dir);
 	if (ret) {
