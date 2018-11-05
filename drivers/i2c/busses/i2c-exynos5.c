@@ -37,7 +37,7 @@
 #include <soc/samsung/exynos-pm.h>
 #endif
 
-#if defined(CONFIG_CPU_IDLE)
+#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_CPU_IDLE)
 static LIST_HEAD(drvdata_list);
 #endif
 
@@ -1048,7 +1048,7 @@ static const struct i2c_algorithm exynos5_i2c_algorithm = {
 	.functionality		= exynos5_i2c_func,
 };
 
-#ifdef CONFIG_CPU_IDLE
+#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_CPU_IDLE)
 static int exynos5_i2c_notifier(struct notifier_block *self,
 				unsigned long cmd, void *v)
 {
@@ -1067,7 +1067,7 @@ static int exynos5_i2c_notifier(struct notifier_block *self,
 static struct notifier_block exynos5_i2c_notifier_block = {
 	.notifier_call = exynos5_i2c_notifier,
 };
-#endif /* CONFIG_CPU_IDLE */
+#endif /* CONFIG_EXYNOS_PM && CONFIG_CPU_IDLE */
 
 static int exynos5_i2c_probe(struct platform_device *pdev)
 {
@@ -1256,7 +1256,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 #endif
 #endif
 
-#if defined(CONFIG_CPU_IDLE)
+#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_CPU_IDLE)
 	list_add_tail(&i2c->node, &drvdata_list);
 #endif
 
@@ -1428,7 +1428,7 @@ static struct platform_driver exynos5_i2c_driver = {
 
 static int __init i2c_adap_exynos5_init(void)
 {
-#ifdef CONFIG_CPU_IDLE
+#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_CPU_IDLE)
 	exynos_pm_register_notifier(&exynos5_i2c_notifier_block);
 #endif
 	return platform_driver_register(&exynos5_i2c_driver);
