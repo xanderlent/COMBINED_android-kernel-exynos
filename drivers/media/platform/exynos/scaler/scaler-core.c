@@ -1873,7 +1873,7 @@ static int sc_vb2_queue_setup(struct vb2_queue *vq,
 	if (ret)
 		return ret;
 
-	return vb2_queue_init(vq);
+	return 0;
 }
 
 /*
