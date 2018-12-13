@@ -1319,7 +1319,7 @@ static int exynos5_i2c_suspend_noirq(struct device *dev)
 	int ret = 0;
 #endif
 
-	i2c_lock_adapter(&i2c->adap);
+	i2c_lock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 #ifdef CONFIG_I2C_SAMSUNG_HWACG
 #ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
@@ -1329,7 +1329,7 @@ static int exynos5_i2c_suspend_noirq(struct device *dev)
 #ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
-		i2c_unlock_adapter(&i2c->adap);
+		i2c_unlock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 		return ret;
 	}
 	writel(HSI2C_SW_RST, i2c->regs + HSI2C_CTL);
@@ -1343,7 +1343,7 @@ static int exynos5_i2c_suspend_noirq(struct device *dev)
 		exynos5_i2c_runtime_suspend(dev);
 
 	i2c->suspended = 1;
-	i2c_unlock_adapter(&i2c->adap);
+	i2c_unlock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 
 	return 0;
 }
@@ -1354,7 +1354,7 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 	int ret = 0;
 
-	i2c_lock_adapter(&i2c->adap);
+	i2c_lock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 
 	if (!pm_runtime_status_suspended(dev))
 		exynos5_i2c_runtime_resume(dev);
@@ -1367,7 +1367,7 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 #ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
-		i2c_unlock_adapter(&i2c->adap);
+		i2c_unlock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 		return ret;
 	}
 
@@ -1378,7 +1378,7 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
 	i2c->suspended = 0;
-	i2c_unlock_adapter(&i2c->adap);
+	i2c_unlock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 
 	return 0;
 }
