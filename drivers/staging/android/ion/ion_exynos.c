@@ -19,6 +19,7 @@
 #include <asm/cacheflush.h>
 #include <linux/idr.h>
 #include <linux/ion_exynos.h>
+#include <linux/dma-direct.h>
 
 #include "ion.h"
 #include "ion_exynos.h"

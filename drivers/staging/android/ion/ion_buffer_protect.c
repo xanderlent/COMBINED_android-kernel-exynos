@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/genalloc.h>
 #include <linux/smc.h>
+#include <linux/kmemleak.h>
 
 #include <asm/cacheflush.h>
 
