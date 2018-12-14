@@ -76,7 +76,7 @@ static inline dma_addr_t ion_iovmm_map_attr(struct dma_buf_attachment *attachmen
 {
 	return -ENODEV;
 }
-#define ion_iovmm_unmap(attachment, iova, map_attr) do { } while (0)
+#define ion_iovmm_unmap_attr(attachment, iova, map_attr) do { } while (0)
 
 #endif
 
