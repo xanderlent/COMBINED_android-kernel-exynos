@@ -167,7 +167,6 @@ static struct dma_buf_ops dmabuf_container_dma_buf_ops = {
 	.map_dma_buf = dmabuf_container_map_dma_buf,
 	.unmap_dma_buf = dmabuf_container_unmap_dma_buf,
 	.release = dmabuf_container_dma_buf_release,
-	.map_atomic = dmabuf_container_dma_buf_kmap,
 	.map = dmabuf_container_dma_buf_kmap,
 	.mmap = dmabuf_container_mmap,
 };
