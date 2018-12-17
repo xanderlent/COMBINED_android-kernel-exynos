@@ -98,14 +98,7 @@ struct page *ion_page_pool_alloc(struct ion_page_pool *pool, bool nozero)
 		page = ion_page_pool_remove(pool, false);
 	mutex_unlock(&pool->mutex);
 
-	if (!page) {
-		page = ion_page_pool_alloc_pages(pool, nozero);
-		if (page && !pool->cached)
-			__flush_dcache_area(page_to_virt(page),
-					    1 << (PAGE_SHIFT + pool->order));
-	}
-
-	return page;
+	return ion_page_pool_alloc_pages(pool, nozero);
 }
 
 void ion_page_pool_free(struct ion_page_pool *pool, struct page *page)

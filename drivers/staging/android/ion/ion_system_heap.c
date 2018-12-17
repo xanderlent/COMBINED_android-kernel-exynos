@@ -136,6 +136,12 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		goto free_table;
 	}
 
+	if (!(buffer->flags & ION_FLAG_CACHED)) {
+		list_for_each_entry(page, &pages, lru)
+			__dma_flush_area(page_to_virt(page),
+					 PAGE_SIZE << compound_order(page));
+	}
+
 	sg = table->sgl;
 	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
 		sg_set_page(sg, page, PAGE_SIZE << compound_order(page), 0);
