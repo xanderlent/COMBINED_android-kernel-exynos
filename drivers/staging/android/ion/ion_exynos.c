@@ -25,6 +25,11 @@
 #include "ion_exynos.h"
 #include "ion_debug.h"
 
+static inline bool ion_buffer_cached(struct ion_buffer *buffer)
+{
+	return !!(buffer->flags & ION_FLAG_CACHED);
+}
+
 struct dma_buf *ion_alloc_dmabuf(const char *heap_name,
 				 size_t len, unsigned int flags)
 {
