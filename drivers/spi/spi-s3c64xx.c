@@ -1725,7 +1725,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	exynos_usi_init(sdd);
 
 	/* Setup Deufult Mode */
-	s3c64xx_spi_hwinit(sdd);
+	s3c64xx_spi_hwinit(sdd,sdd->port_id);
 
 	spin_lock_init(&sdd->lock);
 	init_completion(&sdd->xfer_completion);
