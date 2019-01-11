@@ -1279,8 +1279,9 @@ static int sc_v4l2_s_crop(struct file *file, void *fh,
 			w_align, &rect.top, 0, frame->height - rect.height,
 			h_align, 0);
 
-	if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat))
-		rect.width = ALIGN(rect.width, 4);
+	if (!V4L2_TYPE_IS_OUTPUT(cr->type) &&
+			sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat))
+		rect.width = ALIGN_DOWN(rect.width, 4);
 
 	if ((rect.height > frame->height) || (rect.top > frame->height) ||
 		(rect.width > frame->width) || (rect.left > frame->width)) {
