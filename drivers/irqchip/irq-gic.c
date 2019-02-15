@@ -1010,7 +1010,7 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
 
 		/* Make it clear that broken DTs are... broken */
-		WARN_ON(*type == IRQ_TYPE_NONE);
+		WARN(*type == IRQ_TYPE_NONE, "Interrupt of type IRQ_TYPE_NONE is not allowed. hwirq:%lu", *hwirq);
 		return 0;
 	}
 
