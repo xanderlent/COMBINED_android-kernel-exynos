@@ -149,7 +149,8 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 
 	sgt = &buf->sg_table;
 
-	if (device_get_dma_attr(dev) == DEV_DMA_COHERENT)
+	if (!(memflags & VB2_DMA_SG_MEMFLAG_IOMMU_UNCACHED) &&
+	    (device_get_dma_attr(dev) == DEV_DMA_COHERENT))
 		ioprot |= IOMMU_CACHE;
 
 	buf->iova = iovmm_map(buf->dev, sgt->sgl, 0, size,
@@ -272,7 +273,8 @@ static void *vb2_dma_sg_get_userptr(struct device *dev, unsigned long vaddr,
 	for_each_sg(sgt->sgl, s, sgt->orig_nents, i)
 		s->dma_address = sg_phys(s);
 
-	if (device_get_dma_attr(dev) == DEV_DMA_COHERENT)
+	if (!(memflags & VB2_DMA_SG_MEMFLAG_IOMMU_UNCACHED) &&
+	    (device_get_dma_attr(dev) == DEV_DMA_COHERENT))
 		ioprot |= IOMMU_CACHE;
 
 	buf->iova = iovmm_map(buf->dev, sgt->sgl, 0, size,
@@ -578,7 +580,8 @@ static int vb2_dma_sg_map_dmabuf(void *mem_priv)
 	}
 
 	if ((buf->iova == 0) || IS_ERR_VALUE(buf->iova)) {
-		if (device_get_dma_attr(buf->dev) == DEV_DMA_COHERENT)
+		if (!(memflags & VB2_DMA_SG_MEMFLAG_IOMMU_UNCACHED) &&
+		    (device_get_dma_attr(buf->dev) == DEV_DMA_COHERENT))
 			ioprot |= IOMMU_CACHE;
 
 		buf->iova = ion_iovmm_map(buf->db_attach, 0, buf->size,
