@@ -197,6 +197,7 @@ static void __qbuf_work(struct work_struct *work);
  */
 static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 {
+	int memflags = call_vb_qop(vb, mem_flags, vb);
 	struct vb2_queue *q = vb->vb2_queue;
 	void *mem_priv;
 	int plane;
@@ -215,7 +216,8 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 
 		mem_priv = call_ptr_memop(vb, alloc,
 				q->alloc_devs[plane] ? : q->dev,
-				q->dma_attrs, size, q->dma_dir, q->gfp_flags);
+				q->dma_attrs, size, q->dma_dir, q->gfp_flags,
+				memflags);
 		if (IS_ERR_OR_NULL(mem_priv)) {
 			if (mem_priv)
 				ret = PTR_ERR(mem_priv);
@@ -915,6 +917,7 @@ EXPORT_SYMBOL_GPL(vb2_plane_cookie);
 
 static void vb2_process_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 {
+	int memflags = call_vb_qop(vb, mem_flags, vb);
 	struct vb2_queue *q = vb->vb2_queue;
 	unsigned long flags;
 	unsigned int plane;
@@ -935,7 +938,7 @@ static void vb2_process_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state
 		/* sync buffers */
 		for (plane = 0; plane < vb->num_planes; ++plane)
 			call_void_memop(vb, finish, vb->planes[plane].mem_priv,
-					vb->planes[plane].bytesused);
+					vb->planes[plane].bytesused, memflags);
 	}
 
 	spin_lock_irqsave(&q->done_lock, flags);
@@ -1030,6 +1033,7 @@ static int __prepare_userptr(struct vb2_buffer *vb, const void *pb)
 	unsigned int plane;
 	int ret = 0;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
+	int memflags = call_vb_qop(vb, mem_flags, vb);
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
@@ -1079,7 +1083,7 @@ static int __prepare_userptr(struct vb2_buffer *vb, const void *pb)
 		mem_priv = call_ptr_memop(vb, get_userptr,
 				q->alloc_devs[plane] ? : q->dev,
 				planes[plane].m.userptr,
-				planes[plane].length, q->dma_dir);
+				planes[plane].length, q->dma_dir, memflags);
 		if (IS_ERR(mem_priv)) {
 			dprintk(1, "failed acquiring userspace memory for plane %d\n",
 				plane);
@@ -1146,6 +1150,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
 	unsigned int plane;
 	int ret = 0;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
+	int memflags = call_vb_qop(vb, mem_flags, vb);
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
@@ -1222,7 +1227,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
 	 */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		ret = call_memop(vb, map_dmabuf, vb->planes[plane].mem_priv,
-				 planes[plane].bytesused);
+				 planes[plane].bytesused, memflags);
 		if (ret) {
 			dprintk(1, "failed to map dmabuf for plane %d\n",
 				plane);
@@ -1298,6 +1303,7 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 
 static int __buf_prepare(struct vb2_buffer *vb, const void *pb)
 {
+	int memflags = call_vb_qop(vb, mem_flags, vb);
 	struct vb2_queue *q = vb->vb2_queue;
 	unsigned int plane;
 	int ret;
@@ -1333,7 +1339,7 @@ static int __buf_prepare(struct vb2_buffer *vb, const void *pb)
 	/* sync buffers */
 	for (plane = 0; plane < vb->num_planes; ++plane)
 		call_void_memop(vb, prepare, vb->planes[plane].mem_priv,
-				vb->planes[plane].bytesused);
+				vb->planes[plane].bytesused, memflags);
 
 	vb->state = VB2_BUF_STATE_PREPARED;
 
@@ -1964,6 +1970,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	 */
 	for (i = 0; i < q->num_buffers; ++i) {
 		struct vb2_buffer *vb = q->bufs[i];
+		int memflags = call_vb_qop(vb, mem_flags, vb);
 
 		if (vb->state == VB2_BUF_STATE_PREPARED ||
 		    vb->state == VB2_BUF_STATE_QUEUED) {
@@ -1971,7 +1978,8 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 
 			for (plane = 0; plane < vb->num_planes; ++plane)
 				call_void_memop(vb, finish,
-						vb->planes[plane].mem_priv, 0);
+						vb->planes[plane].mem_priv,
+						0, memflags);
 		}
 
 		if (vb->state != VB2_BUF_STATE_DEQUEUED) {
