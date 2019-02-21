@@ -481,8 +481,10 @@ static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
 #ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&sdd->pdev->dev);
 	ret = pm_runtime_put_autosuspend(&sdd->pdev->dev);
-	if(ret < 0)
+	if (ret < 0) {
+		dev_err(&sdd->pdev->dev, "pm_runtime_put_autosuspend fails. ret: %d", ret);
 		return ret;
+	}
 #endif
 
 	return 0;
