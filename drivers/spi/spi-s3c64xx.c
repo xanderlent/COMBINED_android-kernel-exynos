@@ -1547,7 +1547,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-#if !defined(CONFIG_VIDEO_EXYNOS_FIMC_IS) && !defined(CONFIG_VIDEO_EXYNOS_FIMC_IS2)
+#if !defined(CONFIG_VIDEO_EXYNOS_PABLO_ISP)
 	if (sci->domain != DOMAIN_TOP)
 		return -ENODEV;
 #endif
@@ -1908,7 +1908,7 @@ static int s3c64xx_spi_runtime_resume(struct device *dev)
 		clk_prepare_enable(sdd->clk);
 	}
 
-#if defined(CONFIG_VIDEO_EXYNOS_FIMC_IS) || defined(CONFIG_VIDEO_EXYNOS_FIMC_IS2)
+#if defined(CONFIG_VIDEO_EXYNOS_PABLO_ISP)
 	else if (sci->domain == DOMAIN_CAM1 || sci->domain == DOMAIN_ISP) {
 #ifdef CONFIG_EXYNOS_CPUPM
 		exynos_update_ip_idle_status(sdd->idle_ip_index, 0);
