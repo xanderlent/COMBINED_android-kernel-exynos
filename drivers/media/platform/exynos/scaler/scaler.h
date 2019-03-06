@@ -93,6 +93,8 @@ extern int sc_log_level;
 #define sc_fmt_is_s10bit_yuv(x)	((x == V4L2_PIX_FMT_NV12M_S10B) || \
 		(x == V4L2_PIX_FMT_NV12N_10B) || (x == V4L2_PIX_FMT_NV16M_S10B) || \
 		(x == V4L2_PIX_FMT_NV61M_S10B))
+#define sc_fmt_is_sbwc(x)	((x == V4L2_PIX_FMT_NV12M_SBWC_8B) || \
+		(x == V4L2_PIX_FMT_NV12M_SBWC_10B))
 #define sc_dith_val(a, b, c)	((a << SCALER_DITH_R_SHIFT) |	\
 		(b << SCALER_DITH_G_SHIFT) | (c << SCALER_DITH_B_SHIFT))
 

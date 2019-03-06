@@ -317,6 +317,25 @@ static const struct sc_fmt sc_formats[] = {
 		.num_planes	= 2,
 		.num_comp	= 2,
 		.h_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CbCr SBWC 8 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV12M_SBWC_8B,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P |
+					SCALER_CFG_SBWC_FORMAT,
+		.bitperpixel	= { 8, 4 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CbCr SBWC 10 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV12M_SBWC_10B,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P	|
+					SCALER_CFG_SBWC_FORMAT	|
+					SCALER_CFG_10BIT_SBWC,
+		.bitperpixel	= { 10, 5 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
 	},
 };
 
@@ -885,6 +904,7 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 				u32 *ysize, u32 *csize, bool only_8bit)
 {
 	int ret = 0;
+	int c_padding = 0;
 
 	switch (pixelformat) {
 	case V4L2_PIX_FMT_NV12M_S10B:
@@ -896,6 +916,14 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 	case V4L2_PIX_FMT_NV61M_S10B:
 			*ysize = NV16M_Y_SIZE(width, height);
 			*csize = NV16M_CBCR_SIZE(width, height);
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWC_8B:
+			*ysize = SBWC_8B_Y_SIZE(width, height);
+			*csize = SBWC_8B_CBCR_SIZE(width, height);
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWC_10B:
+			*ysize = SBWC_10B_Y_SIZE(width, height);
+			*csize = SBWC_10B_CBCR_SIZE(width, height);
 		break;
 	default:
 		ret = -EINVAL;
@@ -910,16 +938,26 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 	case V4L2_PIX_FMT_NV12N_10B:
 			*ysize += NV12M_Y_2B_SIZE(width, height);
 			*csize += NV12M_CBCR_2B_SIZE(width, height);
+			c_padding = 256;
 		break;
 	case V4L2_PIX_FMT_NV16M_S10B:
 	case V4L2_PIX_FMT_NV61M_S10B:
 			*ysize += NV16M_Y_2B_SIZE(width, height);
 			*csize += NV16M_CBCR_2B_SIZE(width, height);
+			c_padding = 256;
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWC_8B:
+			*ysize += SBWC_8B_Y_HEADER_SIZE(width, height);
+			*csize += SBWC_8B_CBCR_HEADER_SIZE(width, height);
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWC_10B:
+			*ysize += SBWC_10B_Y_HEADER_SIZE(width, height);
+			*csize += SBWC_10B_CBCR_HEADER_SIZE(width, height);
 		break;
 	}
 
-	/* Do not consider extra size for 2bit CbCr */
-	*csize -= 256;
+	/* Do not consider extra size for 2bit CbCr (for S10B only) */
+	*csize -= c_padding;
 
 	return ret;
 }
@@ -998,7 +1036,8 @@ static int sc_v4l2_try_fmt_mplane(struct file *file, void *fh,
 	if (ctx->sc_dev->variant->extra_buf && V4L2_TYPE_IS_OUTPUT(f->type))
 		ext_size = sc_ext_buf_size(pixm->width);
 
-	if (sc_fmt_is_s10bit_yuv(sc_fmt->pixelformat))
+	if (sc_fmt_is_s10bit_yuv(sc_fmt->pixelformat) ||
+			sc_fmt_is_sbwc(sc_fmt->pixelformat))
 		return sc_calc_fmt_s10b_size(sc_fmt, pixm, ext_size);
 
 	for (i = 0; i < pixm->num_planes; ++i) {
@@ -1107,6 +1146,16 @@ static int sc_v4l2_s_fmt_mplane(struct file *file, void *fh,
 		frame->pre_multi = true;
 	else
 		frame->pre_multi = false;
+
+	if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
+		if (!IS_ALIGNED(pixm->width, 32) ||
+				!IS_ALIGNED(pixm->height, 4)) {
+			dev_err(ctx->sc_dev->dev,
+				"%s: buffer (%d x %d) is not aligned by 32x4\n",
+				__func__, pixm->width, pixm->height);
+			return -EINVAL;
+		}
+	}
 
 	frame->width = pixm->width;
 	frame->height = pixm->height;
@@ -1402,7 +1451,8 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 		frame->addr.size[SC_PLANE_Y] = bytesize;
 		break;
 	case 2:
-		if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat)) {
+		if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) ||
+				sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
 			sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 					frame->width, frame->height,
 					&frame->addr.size[SC_PLANE_Y],
@@ -1673,6 +1723,22 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 	v4l_bound_align_image(&crop.width, limit->min_w, limit->max_w,
 			walign, &crop.height, limit->min_h,
 			limit->max_h, halign, 0);
+
+	/* align up for scale down, align down for scale up */
+	if (sc_fmt_is_sbwc(ctx->d_frame.sc_fmt->pixelformat)) {
+		if (!IS_ALIGNED(crop.width, 32)) {
+			if (*v_ratio > SCALE_RATIO_CONST(4, 1))
+				crop.width = ALIGN(crop.width, 32);
+			else
+				crop.width = ALIGN_DOWN(crop.width, 32);
+		}
+		if (!IS_ALIGNED(crop.height, 4)) {
+			if (*h_ratio > SCALE_RATIO_CONST(4, 1))
+				crop.height = ALIGN(crop.height, 4);
+			else
+				crop.height = ALIGN_DOWN(crop.height, 4);
+		}
+	}
 
 	*h_ratio = SCALE_RATIO(src_width, crop.width);
 	*v_ratio = SCALE_RATIO(src_height, crop.height);
@@ -3133,7 +3199,8 @@ static int sc_get_bufaddr(struct sc_dev *sc, struct vb2_buffer *vb2buf,
 			}
 		} else if (frame->sc_fmt->num_planes == 2) {
 			frame->addr.ioaddr[SC_PLANE_CB] = vb2_dma_sg_plane_dma_addr(vb2buf, 1);
-			if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat))
+			if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) ||
+					sc_fmt_is_sbwc(frame->sc_fmt->pixelformat))
 				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 						frame->width, frame->height,
 						&frame->addr.size[SC_PLANE_Y],
@@ -3461,6 +3528,16 @@ static int sc_m2m1shot_prepare_format(struct m2m1shot_context *m21ctx,
 		return -EINVAL;
 	}
 
+	if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
+		if (!IS_ALIGNED(fmt->width, 32) ||
+				!IS_ALIGNED(fmt->height, 4)) {
+			dev_err(ctx->sc_dev->dev,
+				"%s: buffer (%d x %d) is not aligned by 32x4\n",
+				__func__, fmt->width, fmt->height);
+			return -EINVAL;
+		}
+	}
+
 	for (i = 0; i < frame->sc_fmt->num_planes; i++) {
 		if (sc_fmt_is_ayv12(fmt->fmt)) {
 			unsigned int y_size, c_span;
@@ -3647,7 +3724,8 @@ static void sc_m2m1shot_get_bufaddr(struct sc_dev *sc,
 		} else if (frame->sc_fmt->num_planes == 2) {
 			frame->addr.ioaddr[SC_PLANE_CB] = buf->plane[1].dma_addr;
 
-			if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat))
+			if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) ||
+					sc_fmt_is_sbwc(frame->sc_fmt->pixelformat))
 				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 						frame->width, frame->height,
 						&frame->addr.size[SC_PLANE_Y],

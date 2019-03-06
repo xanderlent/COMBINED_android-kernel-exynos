@@ -779,27 +779,42 @@ void sc_hwset_polyphase_vcoef(struct sc_dev *sc,
 	}
 }
 
+static inline int sc_get_sbwc_span_bytes(const struct sc_fmt *fmt, int width)
+{
+	if ((fmt->cfg_val & SCALER_CFG_10BIT_MASK) == SCALER_CFG_10BIT_SBWC)
+		return width * 5;
+
+	return width * 4;
+}
+
 void sc_hwset_src_imgsize(struct sc_dev *sc, struct sc_frame *frame)
 {
 	unsigned long cfg = 0;
 
 	cfg &= ~(SCALER_SRC_CSPAN_MASK | SCALER_SRC_YSPAN_MASK);
-	cfg |= frame->width;
 
-	/*
-	 * TODO: C width should be half of Y width
-	 * but, how to get the diffferent c width from user
-	 * like AYV12 format
-	 */
-	if (frame->sc_fmt->num_comp == 2)
-		cfg |= (frame->width << frame->sc_fmt->cspan) << 16;
-	if (frame->sc_fmt->num_comp == 3) {
-		if (sc_fmt_is_ayv12(frame->sc_fmt->pixelformat))
-			cfg |= ALIGN(frame->width >> 1, 16) << 16;
-		else if (frame->sc_fmt->cspan) /* YUV444 */
-			cfg |= frame->width << 16;
-		else
-			cfg |= (frame->width >> 1) << 16;
+	if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
+		int span = sc_get_sbwc_span_bytes(frame->sc_fmt, frame->width);
+
+		cfg = span | (span << 16);
+	} else {
+		cfg |= frame->width;
+
+		/*
+		 * TODO: C width should be half of Y width
+		 * but, how to get the diffferent c width from user
+		 * like AYV12 format
+		 */
+		if (frame->sc_fmt->num_comp == 2) {
+			cfg |= (frame->width << frame->sc_fmt->cspan) << 16;
+		} else if (frame->sc_fmt->num_comp == 3) {
+			if (sc_fmt_is_ayv12(frame->sc_fmt->pixelformat))
+				cfg |= ALIGN(frame->width >> 1, 16) << 16;
+			else if (frame->sc_fmt->cspan) /* YUV444 */
+				cfg |= frame->width << 16;
+			else
+				cfg |= (frame->width >> 1) << 16;
+		}
 	}
 
 	writel(cfg, sc->regs + SCALER_SRC_SPAN);
@@ -830,22 +845,29 @@ void sc_hwset_dst_imgsize(struct sc_dev *sc, struct sc_frame *frame)
 	unsigned long cfg = 0;
 
 	cfg &= ~(SCALER_DST_CSPAN_MASK | SCALER_DST_YSPAN_MASK);
-	cfg |= frame->width;
 
-	/*
-	 * TODO: C width should be half of Y width
-	 * but, how to get the diffferent c width from user
-	 * like AYV12 format
-	 */
-	if (frame->sc_fmt->num_comp == 2)
-		cfg |= (frame->width << frame->sc_fmt->cspan) << 16;
-	if (frame->sc_fmt->num_comp == 3) {
-		if (sc_fmt_is_ayv12(frame->sc_fmt->pixelformat))
-			cfg |= ALIGN(frame->width >> 1, 16) << 16;
-		else if (frame->sc_fmt->cspan) /* YUV444 */
-			cfg |= frame->width << 16;
-		else
-			cfg |= (frame->width >> 1) << 16;
+	if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
+		int span = sc_get_sbwc_span_bytes(frame->sc_fmt, frame->width);
+
+		cfg = span | (span << 16);
+	} else {
+		cfg |= frame->width;
+
+		/*
+		 * TODO: C width should be half of Y width
+		 * but, how to get the diffferent c width from user
+		 * like AYV12 format
+		 */
+		if (frame->sc_fmt->num_comp == 2)
+			cfg |= (frame->width << frame->sc_fmt->cspan) << 16;
+		if (frame->sc_fmt->num_comp == 3) {
+			if (sc_fmt_is_ayv12(frame->sc_fmt->pixelformat))
+				cfg |= ALIGN(frame->width >> 1, 16) << 16;
+			else if (frame->sc_fmt->cspan) /* YUV444 */
+				cfg |= frame->width << 16;
+			else
+				cfg |= (frame->width >> 1) << 16;
+		}
 	}
 
 	writel(cfg, sc->regs + SCALER_DST_SPAN);
@@ -870,8 +892,15 @@ static void sc_hwset_src_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 	writel(caddr_2bit, sc->regs + SCALER_SRC_2BIT_C_BASE);
 
 	cfg &= ~(SCALER_SRC_2BIT_CSPAN_MASK | SCALER_SRC_2BIT_YSPAN_MASK);
-	cfg |= ALIGN(frame->width, 16);
-	cfg |= (ALIGN(frame->width, 16) << frame->sc_fmt->cspan) << 16;
+
+	if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
+		cfg |= ALIGN(frame->width / 64, 16);
+		cfg |= ALIGN(frame->width / 64, 16) << 16;
+	} else {
+		cfg |= ALIGN(frame->width, 16);
+		cfg |= (ALIGN(frame->width, 16) << frame->sc_fmt->cspan) << 16;
+	}
+
 	writel(cfg, sc->regs + SCALER_SRC_2BIT_SPAN);
 }
 
@@ -883,7 +912,8 @@ void sc_hwset_src_addr(struct sc_dev *sc, struct sc_frame *frame)
 	writel(addr->ioaddr[SC_PLANE_CB], sc->regs + SCALER_SRC_CB_BASE);
 	writel(addr->ioaddr[SC_PLANE_CR], sc->regs + SCALER_SRC_CR_BASE);
 
-	if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) &&
+	if ((sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) ||
+			sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) &&
 			sc->variant->pixfmt_10bit)
 		sc_hwset_src_2bit_addr(sc, frame);
 }
@@ -905,8 +935,15 @@ static void sc_hwset_dst_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 	writel(caddr_2bit, sc->regs + SCALER_DST_2BIT_C_BASE);
 
 	cfg &= ~(SCALER_DST_2BIT_CSPAN_MASK | SCALER_DST_2BIT_YSPAN_MASK);
-	cfg |= ALIGN(frame->width, 16);
-	cfg |= (ALIGN(frame->width, 16) << frame->sc_fmt->cspan) << 16;
+
+	if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
+		cfg |= ALIGN(frame->width / 64, 16);
+		cfg |= ALIGN(frame->width / 64, 16) << 16;
+	} else {
+		cfg |= ALIGN(frame->width, 16);
+		cfg |= (ALIGN(frame->width, 16) << frame->sc_fmt->cspan) << 16;
+	}
+
 	writel(cfg, sc->regs + SCALER_DST_2BIT_SPAN);
 }
 
@@ -918,7 +955,8 @@ void sc_hwset_dst_addr(struct sc_dev *sc, struct sc_frame *frame)
 	writel(addr->ioaddr[SC_PLANE_CB], sc->regs + SCALER_DST_CB_BASE);
 	writel(addr->ioaddr[SC_PLANE_CR], sc->regs + SCALER_DST_CR_BASE);
 
-	if (sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) &&
+	if ((sc_fmt_is_s10bit_yuv(frame->sc_fmt->pixelformat) ||
+			sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) &&
 			sc->variant->pixfmt_10bit)
 		sc_hwset_dst_2bit_addr(sc, frame);
 }
