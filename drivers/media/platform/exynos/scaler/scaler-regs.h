@@ -40,6 +40,8 @@
 #define SCALER_INT_EN_ALL		0x807fffff
 #define SCALER_INT_EN_ALL_v3		0x82ffffff
 #define SCALER_INT_EN_ALL_v4		0xb2ffffff
+#define SCALER_INT_EN_ALL_v5		0xe0ffffff
+#define SCALER_INT_EN_DEFAULT		0xffffffff
 #define SCALER_INT_OK(status)		((status) == SCALER_INT_EN_FRAME_END)
 
 #define SCALER_INT_STATUS		0x0c
@@ -268,15 +270,11 @@ static inline void sc_hwset_flip_rotation(struct sc_dev *sc, u32 flip_rot_cfg)
 
 static inline void sc_hwset_int_en(struct sc_dev *sc)
 {
-	unsigned int val;
+	unsigned int val = SCALER_INT_EN_DEFAULT;
 
-	if (sc->version < SCALER_VERSION(3, 0, 0))
-		val = SCALER_INT_EN_ALL;
-	else if (sc->version < SCALER_VERSION(4, 0, 1) ||
-			sc->version == SCALER_VERSION(4, 2, 0))
-		val = SCALER_INT_EN_ALL_v3;
-	else
-		val = SCALER_INT_EN_ALL_v4;
+	if (sc->variant->int_en_mask)
+		val = sc->variant->int_en_mask;
+
 	__raw_writel(val, sc->regs + SCALER_INT_EN);
 }
 
