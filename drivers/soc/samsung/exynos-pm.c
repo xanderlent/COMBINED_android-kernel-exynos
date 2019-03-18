@@ -40,6 +40,15 @@
 extern u32 exynos_eint_to_pin_num(int eint);
 #define EXYNOS_EINT_PEND(b, x)      ((b) + 0xA00 + (((x) >> 3) * 4))
 
+#ifdef CONFIG_PM_WAKELOCKS
+extern int pm_wake_lock(const char *buf);
+#else
+inline int pm_wake_lock(const char *buf)
+{
+	return 0;
+}
+#endif
+
 struct exynos_pm_info {
 	void __iomem *eint_base;		/* GPIO_ALIVE base to check wkup reason */
 	void __iomem *gic_base;			/* GICD_ISPENDRn base to check wkup reason */
@@ -371,6 +380,7 @@ static __init int exynos_pm_drvinit(void)
 
 	if (of_have_populated_dt()) {
 		struct device_node *np;
+		unsigned int wake_lock = 0;
 		np = of_find_compatible_node(NULL, NULL, "samsung,exynos-pm");
 		if (!np) {
 			pr_err("%s %s: unabled to find compatible node (%s)\n",
@@ -443,6 +453,14 @@ static __init int exynos_pm_drvinit(void)
 			pm_info->extra_wakeup_stat = kzalloc(sizeof(unsigned int) * ret, GFP_KERNEL);
 			of_property_read_u32_array(np, "extra_wakeup_stat", pm_info->extra_wakeup_stat, ret);
 		}
+
+		ret = of_property_read_u32(np, "wake_lock", &wake_lock);
+		if (ret)
+			pr_info("%s %s: unabled to get wake_lock from DT\n",
+					EXYNOS_PM_PREFIX, __func__);
+
+		if (wake_lock)
+			pm_wake_lock("exynos-pm_wake_lock");
 	} else {
 		pr_err("%s %s: failed to have populated device tree\n",
 					EXYNOS_PM_PREFIX, __func__);
