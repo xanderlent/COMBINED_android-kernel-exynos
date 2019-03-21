@@ -63,6 +63,11 @@ static void ion_buffer_add(struct ion_device *dev,
 
 	rb_link_node(&buffer->node, parent, p);
 	rb_insert_color(&buffer->node, &dev->buffers);
+
+	get_task_comm(buffer->task_comm, current->group_leader);
+	get_task_comm(buffer->thread_comm, current);
+	buffer->pid = current->group_leader->pid;
+	buffer->tid = current->pid;
 }
 
 static void track_buffer_created(struct ion_buffer *buffer)
