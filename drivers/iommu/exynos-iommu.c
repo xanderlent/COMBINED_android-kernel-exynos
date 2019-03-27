@@ -159,16 +159,18 @@ void exynos_sysmmu_tlb_invalidate(struct iommu_domain *iommu_domain,
 static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data,
 			int *flags, unsigned long *addr, bool is_secure)
 {
-	unsigned long itype;
+	unsigned long itype, vmid;
 	u32 info;
 
 	itype =  __ffs(__sysmmu_get_intr_status(data, is_secure));
+	vmid = itype / 4;
+	itype %= 4;
 	if (WARN_ON(!(itype < SYSMMU_FAULT_UNKNOWN)))
 		itype = SYSMMU_FAULT_UNKNOWN;
 	else
-		*addr = __sysmmu_get_fault_address(data, is_secure);
+		*addr = __sysmmu_get_fault_address(data, is_secure, vmid);
 
-	info = __sysmmu_get_fault_trans_info(data, is_secure);
+	info = __sysmmu_get_fault_trans_info(data, is_secure, vmid);
 	*flags = MMU_IS_READ_FAULT(info) ?
 		IOMMU_FAULT_READ : IOMMU_FAULT_WRITE;
 	*flags |= SYSMMU_FAULT_FLAG(itype);

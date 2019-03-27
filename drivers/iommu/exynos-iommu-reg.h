@@ -657,23 +657,27 @@ static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *drvdata,
 }
 
 static inline u32 __sysmmu_get_fault_address(struct sysmmu_drvdata *drvdata,
-					bool is_secure)
+					bool is_secure, unsigned long vmid)
 {
 	if (is_secure)
 		return __secure_info_read(
-				MMU_SECURE_OFFSET(drvdata, IDX_FAULT_VA));
+			MMU_SECURE_OFFSET(drvdata, IDX_FAULT_VA)
+						+ (vmid * 0x10));
 	else
-		return readl_relaxed(MMU_OFFSET(drvdata, IDX_FAULT_VA));
+		return readl_relaxed(MMU_OFFSET(drvdata, IDX_FAULT_VA)
+							+ (vmid * 0x10));
 }
 
 static inline u32 __sysmmu_get_fault_trans_info(struct sysmmu_drvdata *drvdata,
-					bool is_secure)
+					bool is_secure, unsigned long vmid)
 {
 	if (is_secure)
 		return __secure_info_read(
-			MMU_SECURE_OFFSET(drvdata, IDX_FAULT_TRANS_INFO));
+			MMU_SECURE_OFFSET(drvdata, IDX_FAULT_TRANS_INFO)
+							+ (vmid * 0x10));
 	else
-		return readl_relaxed(MMU_OFFSET(drvdata, IDX_FAULT_TRANS_INFO));
+		return readl_relaxed(MMU_OFFSET(drvdata, IDX_FAULT_TRANS_INFO)
+							+ (vmid * 0x10));
 }
 
 static inline u32 __sysmmu_get_hw_version(struct sysmmu_drvdata *data)
