@@ -358,6 +358,7 @@ static const struct sc_fmt sc_formats[] = {
 		.num_planes	= 2,
 		.num_comp	= 2,
 		.h_shift	= 1,
+		.v_shift	= 1,
 	}, {
 		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CbCr SBWC 10 bit",
 		.pixelformat	= V4L2_PIX_FMT_NV12M_SBWC_10B,
@@ -368,6 +369,49 @@ static const struct sc_fmt sc_formats[] = {
 		.num_planes	= 2,
 		.num_comp	= 2,
 		.h_shift	= 1,
+		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CrCb SBWC 8 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV21M_SBWC_8B,
+		.cfg_val	= SCALER_CFG_FMT_YCRCB420_2P |
+					SCALER_CFG_SBWC_FORMAT,
+		.bitperpixel	= { 8, 4 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
+		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CrCb SBWC 10 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV21M_SBWC_10B,
+		.cfg_val	= SCALER_CFG_FMT_YCRCB420_2P	|
+					SCALER_CFG_SBWC_FORMAT	|
+					SCALER_CFG_10BIT_SBWC,
+		.bitperpixel	= { 10, 5 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
+		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous, Y/CbCr SBWC 8 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV12N_SBWC_8B,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P |
+					SCALER_CFG_SBWC_FORMAT,
+		.bitperpixel	= { 8, 4 },
+		.num_planes	= 1,
+		.num_comp	= 2,
+		.h_shift	= 1,
+		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous, Y/CbCr SBWC 10 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV12N_SBWC_10B,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P	|
+					SCALER_CFG_SBWC_FORMAT	|
+					SCALER_CFG_10BIT_SBWC,
+		.bitperpixel	= { 10, 5 },
+		.num_planes	= 1,
+		.num_comp	= 2,
+		.h_shift	= 1,
+		.v_shift	= 1,
 	},
 };
 
@@ -961,10 +1005,14 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 			*csize = NV16M_CBCR_SIZE(width, height);
 		break;
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
+	case V4L2_PIX_FMT_NV21M_SBWC_8B:
+	case V4L2_PIX_FMT_NV12N_SBWC_8B:
 			*ysize = SBWC_8B_Y_SIZE(width, height);
 			*csize = SBWC_8B_CBCR_SIZE(width, height);
 		break;
 	case V4L2_PIX_FMT_NV12M_SBWC_10B:
+	case V4L2_PIX_FMT_NV21M_SBWC_10B:
+	case V4L2_PIX_FMT_NV12N_SBWC_10B:
 			*ysize = SBWC_10B_Y_SIZE(width, height);
 			*csize = SBWC_10B_CBCR_SIZE(width, height);
 		break;
@@ -990,10 +1038,14 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 			c_padding = 256;
 		break;
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
+	case V4L2_PIX_FMT_NV21M_SBWC_8B:
+	case V4L2_PIX_FMT_NV12N_SBWC_8B:
 			*ysize += SBWC_8B_Y_HEADER_SIZE(width, height);
 			*csize += SBWC_8B_CBCR_HEADER_SIZE(width, height);
 		break;
 	case V4L2_PIX_FMT_NV12M_SBWC_10B:
+	case V4L2_PIX_FMT_NV21M_SBWC_10B:
+	case V4L2_PIX_FMT_NV12N_SBWC_10B:
 			*ysize += SBWC_10B_Y_HEADER_SIZE(width, height);
 			*csize += SBWC_10B_CBCR_HEADER_SIZE(width, height);
 		break;
@@ -3241,6 +3293,13 @@ static int sc_get_bufaddr(struct sc_dev *sc, struct vb2_buffer *vb2buf,
 					NV12N_10B_CBCR_BASE(frame->addr.ioaddr[SC_PLANE_Y], w, h);
 				frame->addr.size[SC_PLANE_Y] = NV12N_Y_SIZE(w, h);
 				frame->addr.size[SC_PLANE_CB] = NV12N_CBCR_SIZE(w, h);
+			} else if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
+				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
+						frame->width, frame->height,
+						&frame->addr.size[SC_PLANE_Y],
+						&frame->addr.size[SC_PLANE_CB], false);
+				frame->addr.ioaddr[SC_PLANE_CB] =
+					frame->addr.ioaddr[SC_PLANE_Y] + frame->addr.size[SC_PLANE_Y];
 			} else {
 				if (frame->sc_fmt->pixelformat == V4L2_PIX_FMT_NV12_P010)
 					pixsize *= 2;
@@ -3765,6 +3824,13 @@ static void sc_m2m1shot_get_bufaddr(struct sc_dev *sc,
 					NV12N_10B_CBCR_BASE(frame->addr.ioaddr[SC_PLANE_Y], w, h);
 				frame->addr.size[SC_PLANE_Y] = NV12N_Y_SIZE(w, h);
 				frame->addr.size[SC_PLANE_CB] = NV12N_CBCR_SIZE(w, h);
+			} else if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
+				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
+						frame->width, frame->height,
+						&frame->addr.size[SC_PLANE_Y],
+						&frame->addr.size[SC_PLANE_CB], false);
+				frame->addr.ioaddr[SC_PLANE_CB] =
+					frame->addr.ioaddr[SC_PLANE_Y] + frame->addr.size[SC_PLANE_Y];
 			} else {
 				if (frame->sc_fmt->pixelformat == V4L2_PIX_FMT_NV12_P010)
 					pixsize *= 2;
