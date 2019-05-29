@@ -1824,18 +1824,10 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 
 	/* align up for scale down, align down for scale up */
 	if (sc_fmt_is_sbwc(ctx->d_frame.sc_fmt->pixelformat)) {
-		if (!IS_ALIGNED(crop.width, 32)) {
-			if (*v_ratio > SCALE_RATIO_CONST(4, 1))
-				width = ALIGN(crop.width, 32);
-			else
-				width = ALIGN_DOWN(crop.width, 32);
-		}
-		if (!IS_ALIGNED(crop.height, 4)) {
-			if (*h_ratio > SCALE_RATIO_CONST(4, 1))
-				height = ALIGN(crop.height, 4);
-			else
-				height = ALIGN_DOWN(crop.height, 4);
-		}
+		if (!IS_ALIGNED(crop.width, 32))
+			width = ALIGN(crop.width, 32);
+		if (!IS_ALIGNED(crop.height, 4))
+			height = ALIGN(crop.height, 4);
 	}
 
 	*h_ratio = SCALE_RATIO(src_width, crop.width);
@@ -1856,10 +1848,8 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 				sizeof(ctx->d_frame));
 		memcpy(&ctx->i_frame->frame.crop, &crop, sizeof(crop));
 
-		if (width)
-			ctx->i_frame->frame.width = width;
-		if (height)
-			ctx->i_frame->frame.height = height;
+		ctx->i_frame->frame.width = width;
+		ctx->i_frame->frame.height = height;
 
 		free_intermediate_frame(ctx);
 		if (!initialize_initermediate_frame(ctx)) {
@@ -1930,6 +1920,8 @@ static int sc_prepare_denoise_filter(struct sc_ctx *ctx)
 	memcpy(&ctx->i_frame->frame, &ctx->d_frame, sizeof(ctx->d_frame));
 	ctx->i_frame->frame.crop.width = ctx->dnoise_ft.w;
 	ctx->i_frame->frame.crop.height = ctx->dnoise_ft.h;
+	ctx->i_frame->frame.width = 0;
+	ctx->i_frame->frame.height = 0;
 
 	free_intermediate_frame(ctx);
 	if (!initialize_initermediate_frame(ctx)) {
