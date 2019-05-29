@@ -3966,6 +3966,8 @@ static int __attribute__((unused)) sc_sysmmu_fault_handler(struct iommu_domain *
 	if (test_bit(DEV_RUN, &sc->state)) {
 		dev_info(dev, "System MMU fault called for IOVA %#lx\n", iova);
 		sc_hwregs_dump(sc);
+		if (sc->current_ctx)
+			sc_ctx_dump(sc->current_ctx);
 	}
 
 	return 0;
