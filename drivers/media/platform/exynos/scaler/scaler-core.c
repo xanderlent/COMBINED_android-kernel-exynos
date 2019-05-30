@@ -1717,8 +1717,10 @@ static bool initialize_initermediate_frame(struct sc_ctx *ctx)
 
 	frame->crop.top = 0;
 	frame->crop.left = 0;
-	frame->width = frame->crop.width;
-	frame->height = frame->crop.height;
+	if (!frame->width)
+		frame->width = frame->crop.width;
+	if (!frame->height)
+		frame->height = frame->crop.height;
 
 	/*
 	 * Check if intermeidate frame is already initialized by a previous
@@ -1781,6 +1783,7 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 	struct v4l2_rect crop = ctx->d_frame.crop;
 	const struct sc_size_limit *limit;
 	unsigned int halign = 0, walign = 0;
+	unsigned short width = 0, height = 0;
 	const struct sc_fmt *target_fmt = ctx->d_frame.sc_fmt;
 
 	if (!allocate_intermediate_frame(ctx))
@@ -1823,15 +1826,15 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 	if (sc_fmt_is_sbwc(ctx->d_frame.sc_fmt->pixelformat)) {
 		if (!IS_ALIGNED(crop.width, 32)) {
 			if (*v_ratio > SCALE_RATIO_CONST(4, 1))
-				crop.width = ALIGN(crop.width, 32);
+				width = ALIGN(crop.width, 32);
 			else
-				crop.width = ALIGN_DOWN(crop.width, 32);
+				width = ALIGN_DOWN(crop.width, 32);
 		}
 		if (!IS_ALIGNED(crop.height, 4)) {
 			if (*h_ratio > SCALE_RATIO_CONST(4, 1))
-				crop.height = ALIGN(crop.height, 4);
+				height = ALIGN(crop.height, 4);
 			else
-				crop.height = ALIGN_DOWN(crop.height, 4);
+				height = ALIGN_DOWN(crop.height, 4);
 		}
 	}
 
@@ -1852,6 +1855,12 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 		memcpy(&ctx->i_frame->frame, &ctx->d_frame,
 				sizeof(ctx->d_frame));
 		memcpy(&ctx->i_frame->frame.crop, &crop, sizeof(crop));
+
+		if (width)
+			ctx->i_frame->frame.width = width;
+		if (height)
+			ctx->i_frame->frame.height = height;
+
 		free_intermediate_frame(ctx);
 		if (!initialize_initermediate_frame(ctx)) {
 			free_intermediate_frame(ctx);
