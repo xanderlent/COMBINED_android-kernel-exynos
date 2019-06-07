@@ -88,7 +88,7 @@ extern int sc_log_level;
 		(x == V4L2_PIX_FMT_YVU420) || (x == V4L2_PIX_FMT_NV12) || \
 		(x == V4L2_PIX_FMT_NV21) || (x == V4L2_PIX_FMT_NV12M) || \
 		(x == V4L2_PIX_FMT_NV21M) || (x == V4L2_PIX_FMT_YUV420M) || \
-		(x == V4L2_PIX_FMT_YVU420M) || (x == V4L2_PIX_FMT_NV12MT_16X16))
+		(x == V4L2_PIX_FMT_YVU420M))
 #define sc_fmt_is_ayv12(x)	((x) == V4L2_PIX_FMT_YVU420)
 #define sc_fmt_is_s10bit_yuv(x)	((x == V4L2_PIX_FMT_NV12M_S10B) || \
 		(x == V4L2_PIX_FMT_NV12N_10B) || (x == V4L2_PIX_FMT_NV16M_S10B) || \

@@ -50,7 +50,6 @@
 #define SCALER_SRC_CFG			0x10
 
 /* Source Image Configuration */
-#define SCALER_CFG_TILE_EN		(1 << 10)
 #define SCALER_CFG_VHALF_PHASE_EN	(1 << 9)
 #define SCALER_CFG_BIG_ENDIAN		(1 << 8)
 #define SCALER_CFG_SBWC_FORMAT		(1 << 9)

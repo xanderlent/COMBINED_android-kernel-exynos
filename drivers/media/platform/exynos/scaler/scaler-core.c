@@ -178,16 +178,6 @@ static const struct sc_fmt sc_formats[] = {
 		.h_shift	= 1,
 		.v_shift	= 1,
 	}, {
-		.name		= "YUV 4:2:0 non-contiguous 2-planar, Y/CbCr, tiled",
-		.pixelformat	= V4L2_PIX_FMT_NV12MT_16X16,
-		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P |
-					SCALER_CFG_TILE_EN,
-		.bitperpixel	= { 8, 4 },
-		.num_planes	= 2,
-		.num_comp	= 2,
-		.h_shift	= 1,
-		.v_shift	= 1,
-	}, {
 		.name		= "YUV 4:2:0 contiguous 3-planar, Y/Cb/Cr",
 		.pixelformat	= V4L2_PIX_FMT_YUV420,	/* I420 */
 		.cfg_val	= SCALER_CFG_FMT_YCBCR420_3P,
@@ -896,13 +886,6 @@ static const struct sc_fmt *sc_find_format(struct sc_dev *sc,
 	for (i = 0; i < ARRAY_SIZE(sc_formats); ++i) {
 		sc_fmt = &sc_formats[i];
 		if (sc_fmt->pixelformat == pixfmt) {
-			if (!!(sc_fmt->cfg_val & SCALER_CFG_TILE_EN)) {
-				/* tile mode is not supported from v3.0.0 */
-				if (sc->version >= SCALER_VERSION(3, 0, 0))
-					return NULL;
-				if (!output_buf)
-					return NULL;
-			}
 			/* bytes swap is not supported under v2.1.0 */
 			if (!!(sc_fmt->cfg_val & SCALER_CFG_SWAP_MASK) &&
 					(sc->version < SCALER_VERSION(2, 1, 0)))
