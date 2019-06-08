@@ -472,22 +472,32 @@ static struct sc_bl_op_val sc_bl_op_tbl[] = {
 	{ONE,	 ONE,	ONE,	ONE},		/* ADD */
 };
 
-int sc_hwset_src_image_format(struct sc_dev *sc, const struct sc_fmt *fmt)
+int sc_hwset_src_image_format(struct sc_dev *sc, struct sc_frame *frame)
 {
-	writel(fmt->cfg_val, sc->regs + SCALER_SRC_CFG);
+	u32 val = frame->sc_fmt->cfg_val;
+
+	if (sc_fmt_is_sbwc_lossy(frame->sc_fmt->pixelformat))
+		val |= SCALER_CFG_SBWC_LOSSY_BYTES32NUM(frame->byte32num);
+
+	writel(val, sc->regs + SCALER_SRC_CFG);
 	return 0;
 }
 
-int sc_hwset_dst_image_format(struct sc_dev *sc, const struct sc_fmt *fmt)
+int sc_hwset_dst_image_format(struct sc_dev *sc, struct sc_frame *frame)
 {
-	writel(fmt->cfg_val, sc->regs + SCALER_DST_CFG);
+	u32 val = frame->sc_fmt->cfg_val;
+
+	if (sc_fmt_is_sbwc_lossy(frame->sc_fmt->pixelformat))
+		val |= SCALER_CFG_SBWC_LOSSY_BYTES32NUM(frame->byte32num);
+
+	writel(val, sc->regs + SCALER_DST_CFG);
 
 	/*
 	 * When output format is RGB,
 	 * CSC_Y_OFFSET_DST_EN should be 0
 	 * to avoid color distortion
 	 */
-	if (fmt->is_rgb) {
+	if (frame->sc_fmt->is_rgb) {
 		writel(readl(sc->regs + SCALER_CFG) &
 					~SCALER_CFG_CSC_Y_OFFSET_DST,
 				sc->regs + SCALER_CFG);
@@ -779,8 +789,14 @@ void sc_hwset_polyphase_vcoef(struct sc_dev *sc,
 	}
 }
 
-static inline int sc_get_sbwc_span_bytes(const struct sc_fmt *fmt, int width)
+static inline int sc_get_sbwc_span_bytes(const struct sc_fmt *fmt,
+					int width, unsigned short ratio)
 {
+	/* Lossy case */
+	if (fmt->cfg_val & SCALER_CFG_SBWC_LOSSY)
+		return SBWCL_STRIDE(width, ratio);
+
+	/* Lossless case */
 	if ((fmt->cfg_val & SCALER_CFG_10BIT_MASK) == SCALER_CFG_10BIT_SBWC)
 		return width * 5;
 
@@ -794,7 +810,8 @@ void sc_hwset_src_imgsize(struct sc_dev *sc, struct sc_frame *frame)
 	cfg &= ~(SCALER_SRC_CSPAN_MASK | SCALER_SRC_YSPAN_MASK);
 
 	if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
-		int span = sc_get_sbwc_span_bytes(frame->sc_fmt, frame->width);
+		int span = sc_get_sbwc_span_bytes(frame->sc_fmt,
+					frame->width, frame->byte32num);
 
 		cfg = span | (span << 16);
 	} else {
@@ -847,7 +864,8 @@ void sc_hwset_dst_imgsize(struct sc_dev *sc, struct sc_frame *frame)
 	cfg &= ~(SCALER_DST_CSPAN_MASK | SCALER_DST_YSPAN_MASK);
 
 	if (sc_fmt_is_sbwc(frame->sc_fmt->pixelformat)) {
-		int span = sc_get_sbwc_span_bytes(frame->sc_fmt, frame->width);
+		int span = sc_get_sbwc_span_bytes(frame->sc_fmt,
+					frame->width, frame->byte32num);
 
 		cfg = span | (span << 16);
 	} else {
@@ -874,7 +892,7 @@ void sc_hwset_dst_imgsize(struct sc_dev *sc, struct sc_frame *frame)
 }
 
 int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
-				u32 *ysize, u32 *csize, bool only_8bit);
+		u32 *ysize, u32 *csize, bool only_8bit, unsigned short ratio);
 static void sc_hwset_src_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 {
 	u32 yaddr_2bit, caddr_2bit;
@@ -884,7 +902,7 @@ static void sc_hwset_src_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 
 	sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 				frame->width, frame->height,
-				&yaddr_2bit, &caddr_2bit, true);
+				&yaddr_2bit, &caddr_2bit, true, 0);
 	yaddr_2bit += frame->addr.ioaddr[SC_PLANE_Y];
 	caddr_2bit += frame->addr.ioaddr[SC_PLANE_CB];
 
@@ -927,7 +945,7 @@ static void sc_hwset_dst_2bit_addr(struct sc_dev *sc, struct sc_frame *frame)
 
 	sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 				frame->width, frame->height,
-				&yaddr_2bit, &caddr_2bit, true);
+				&yaddr_2bit, &caddr_2bit, true, 0);
 	yaddr_2bit += frame->addr.ioaddr[SC_PLANE_Y];
 	caddr_2bit += frame->addr.ioaddr[SC_PLANE_CB];
 

@@ -52,6 +52,7 @@
 /* Source Image Configuration */
 #define SCALER_CFG_VHALF_PHASE_EN	(1 << 9)
 #define SCALER_CFG_BIG_ENDIAN		(1 << 8)
+#define SCALER_CFG_SBWC_LOSSY		(1 << 10)
 #define SCALER_CFG_SBWC_FORMAT		(1 << 9)
 #define SCALER_CFG_10BIT_P010		(1 << 7)
 #define SCALER_CFG_10BIT_S10		(2 << 7)
@@ -86,6 +87,7 @@
 #define SCALER_CFG_FMT_ABGR2101010	(0x19 << 0)
 #define SCALER_CFG_FMT_RGBA1010102	(0x1a << 0)
 #define SCALER_CFG_FMT_BGRA1010102	(0x1b << 0)
+#define SCALER_CFG_SBWC_LOSSY_BYTES32NUM(x)	(((x) & 0x7) << 11)
 
 /* Source Y Base Address */
 #define SCALER_SRC_Y_BASE		0x14

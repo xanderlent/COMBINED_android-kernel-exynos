@@ -402,6 +402,29 @@ static const struct sc_fmt sc_formats[] = {
 		.num_comp	= 2,
 		.h_shift	= 1,
 		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CbCr SBWC lossy 8 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV12M_SBWCL_8B,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P	|
+					SCALER_CFG_SBWC_LOSSY	|
+					SCALER_CFG_SBWC_FORMAT,
+		.bitperpixel	= { 6, 3 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
+		.v_shift	= 1,
+	}, {
+		.name		= "YUV 4:2:0 contiguous 2-planar, Y/CbCr SBWC lossy 10 bit",
+		.pixelformat	= V4L2_PIX_FMT_NV12M_SBWCL_10B,
+		.cfg_val	= SCALER_CFG_FMT_YCBCR420_2P	|
+					SCALER_CFG_SBWC_LOSSY	|
+					SCALER_CFG_SBWC_FORMAT	|
+					SCALER_CFG_10BIT_SBWC,
+		.bitperpixel	= { 8, 4 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.h_shift	= 1,
+		.v_shift	= 1,
 	},
 };
 
@@ -972,7 +995,7 @@ static int sc_v4l2_g_fmt_mplane(struct file *file, void *fh,
 }
 
 int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
-				u32 *ysize, u32 *csize, bool only_8bit)
+		u32 *ysize, u32 *csize, bool only_8bit, u8 byte32num)
 {
 	int ret = 0;
 	int c_padding = 0;
@@ -999,6 +1022,11 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 	case V4L2_PIX_FMT_NV12N_SBWC_10B:
 			*ysize = SBWC_10B_Y_SIZE(width, height);
 			*csize = SBWC_10B_CBCR_SIZE(width, height);
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWCL_8B:
+	case V4L2_PIX_FMT_NV12M_SBWCL_10B:
+			*ysize = SBWCL_Y_SIZE(width, height, byte32num);
+			*csize = SBWCL_CBCR_SIZE(width, height, byte32num);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1033,6 +1061,10 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 			*ysize += SBWC_10B_Y_HEADER_SIZE(width, height);
 			*csize += SBWC_10B_CBCR_HEADER_SIZE(width, height);
 		break;
+	case V4L2_PIX_FMT_NV12M_SBWCL_8B:
+	case V4L2_PIX_FMT_NV12M_SBWCL_10B:
+		/* Do nothing */
+		break;
 	}
 
 	/* Do not consider extra size for 2bit CbCr (for S10B only) */
@@ -1041,9 +1073,26 @@ int sc_calc_s10b_planesize(u32 pixelformat, u32 width, u32 height,
 	return ret;
 }
 
+static int get_lossy_byte32num(const struct sc_fmt *sc_fmt, __u8 blocksize)
+{
+	int i;
+	__u8 avail_size[] = { 0, 0, 64, 96, 128 };
+	__u8 min = 2, max = 3;
+
+	if ((sc_fmt->cfg_val & SCALER_CFG_10BIT_MASK) == SCALER_CFG_10BIT_SBWC)
+		max = 4;
+
+	for (i = min; i <= max; i++)
+		if (avail_size[i] == blocksize)
+			return i;
+
+	return 0;
+}
+
 static int sc_calc_fmt_s10b_size(const struct sc_fmt *sc_fmt,
 		struct v4l2_pix_format_mplane *pixm, unsigned int ext_size)
 {
+	__u8 byte32num = 0;
 	int i, ret;
 
 	BUG_ON(sc_fmt->num_comp != 2);
@@ -1052,10 +1101,18 @@ static int sc_calc_fmt_s10b_size(const struct sc_fmt *sc_fmt,
 		pixm->plane_fmt[i].bytesperline = (pixm->width *
 				sc_fmt->bitperpixel[i]) >> 3;
 
+	if (sc_fmt_is_sbwc_lossy(sc_fmt->pixelformat)) {
+		byte32num = get_lossy_byte32num(sc_fmt, pixm->flags);
+		if (!byte32num) {
+			pr_err("Wrong blocksize(%d) for lossy\n", pixm->flags);
+			return -EINVAL;
+		}
+	}
+
 	ret = sc_calc_s10b_planesize(sc_fmt->pixelformat,
 			pixm->width, pixm->height,
 			&pixm->plane_fmt[0].sizeimage,
-			&pixm->plane_fmt[1].sizeimage, false);
+			&pixm->plane_fmt[1].sizeimage, false, byte32num);
 	if (ret) {
 		pr_err("Scaler doesn't support %s format\n", sc_fmt->name);
 		return ret;
@@ -1234,7 +1291,19 @@ static int sc_v4l2_s_fmt_mplane(struct file *file, void *fh,
 				__func__, pixm->width, pixm->height);
 			return -EINVAL;
 		}
+
+		if (sc_fmt_is_sbwc_lossy(frame->sc_fmt->pixelformat)) {
+			frame->byte32num = get_lossy_byte32num(frame->sc_fmt,
+								pixm->flags);
+			if (!frame->byte32num) {
+				dev_err(ctx->sc_dev->dev,
+					"%s: invalid lossy blocksize(%d)",
+					__func__, pixm->flags);
+				return -EINVAL;
+			}
+		}
 	}
+
 
 	frame->width = pixm->width;
 	frame->height = pixm->height;
@@ -1536,7 +1605,7 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 					frame->width, frame->height,
 					&frame->addr.size[SC_PLANE_Y],
 					&frame->addr.size[SC_PLANE_CB],
-					false);
+					false, frame->byte32num);
 		} else if (frame->sc_fmt->num_planes == 1) {
 			if (frame->sc_fmt->pixelformat == V4L2_PIX_FMT_NV12_P010)
 				pixsize *= 2;
@@ -2859,8 +2928,8 @@ static bool sc_process_2nd_stage(struct sc_dev *sc, struct sc_ctx *ctx)
 			walign, &s_frame->crop.height, limit->min_h,
 			limit->max_h, halign, 0);
 
-	sc_hwset_src_image_format(sc, s_frame->sc_fmt);
-	sc_hwset_dst_image_format(sc, d_frame->sc_fmt);
+	sc_hwset_src_image_format(sc, s_frame);
+	sc_hwset_dst_image_format(sc, d_frame);
 	sc_hwset_src_imgsize(sc, s_frame);
 	sc_hwset_dst_imgsize(sc, d_frame);
 
@@ -3033,8 +3102,8 @@ static int sc_run_next_job(struct sc_dev *sc)
 
 	sc_set_csc_coef(ctx);
 
-	sc_hwset_src_image_format(sc, s_frame->sc_fmt);
-	sc_hwset_dst_image_format(sc, d_frame->sc_fmt);
+	sc_hwset_src_image_format(sc, s_frame);
+	sc_hwset_dst_image_format(sc, d_frame);
 
 	sc_hwset_pre_multi_format(sc, s_frame->pre_multi, d_frame->pre_multi);
 
@@ -3305,7 +3374,8 @@ static int sc_get_bufaddr(struct sc_dev *sc, struct vb2_buffer *vb2buf,
 				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 						frame->width, frame->height,
 						&frame->addr.size[SC_PLANE_Y],
-						&frame->addr.size[SC_PLANE_CB], false);
+						&frame->addr.size[SC_PLANE_CB],
+						false, frame->byte32num);
 				frame->addr.ioaddr[SC_PLANE_CB] =
 					frame->addr.ioaddr[SC_PLANE_Y] + frame->addr.size[SC_PLANE_Y];
 			} else {
@@ -3322,7 +3392,8 @@ static int sc_get_bufaddr(struct sc_dev *sc, struct vb2_buffer *vb2buf,
 				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 						frame->width, frame->height,
 						&frame->addr.size[SC_PLANE_Y],
-						&frame->addr.size[SC_PLANE_CB], false);
+						&frame->addr.size[SC_PLANE_CB],
+						false, frame->byte32num);
 			else
 				sc_calc_planesize(frame, pixsize);
 		}
@@ -3836,7 +3907,8 @@ static void sc_m2m1shot_get_bufaddr(struct sc_dev *sc,
 				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 						frame->width, frame->height,
 						&frame->addr.size[SC_PLANE_Y],
-						&frame->addr.size[SC_PLANE_CB], false);
+						&frame->addr.size[SC_PLANE_CB],
+						false, frame->byte32num);
 				frame->addr.ioaddr[SC_PLANE_CB] =
 					frame->addr.ioaddr[SC_PLANE_Y] + frame->addr.size[SC_PLANE_Y];
 			} else {
@@ -3854,7 +3926,8 @@ static void sc_m2m1shot_get_bufaddr(struct sc_dev *sc,
 				sc_calc_s10b_planesize(frame->sc_fmt->pixelformat,
 						frame->width, frame->height,
 						&frame->addr.size[SC_PLANE_Y],
-						&frame->addr.size[SC_PLANE_CB], false);
+						&frame->addr.size[SC_PLANE_CB],
+						false, frame->byte32num);
 			else
 				sc_calc_planesize(frame, pixsize);
 		}

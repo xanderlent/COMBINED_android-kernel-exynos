@@ -93,14 +93,22 @@ extern int sc_log_level;
 #define sc_fmt_is_s10bit_yuv(x)	((x == V4L2_PIX_FMT_NV12M_S10B) || \
 		(x == V4L2_PIX_FMT_NV12N_10B) || (x == V4L2_PIX_FMT_NV16M_S10B) || \
 		(x == V4L2_PIX_FMT_NV61M_S10B))
+#define sc_fmt_is_sbwc_lossy(x)	((x == V4L2_PIX_FMT_NV12M_SBWCL_8B) || \
+		(x == V4L2_PIX_FMT_NV12M_SBWCL_10B))
 #define sc_fmt_is_sbwc(x)	((x == V4L2_PIX_FMT_NV12M_SBWC_8B) || \
 		(x == V4L2_PIX_FMT_NV12M_SBWC_10B) || (x == V4L2_PIX_FMT_NV21M_SBWC_8B) || \
 		(x == V4L2_PIX_FMT_NV21M_SBWC_10B) || (x == V4L2_PIX_FMT_NV12N_SBWC_8B) || \
-		(x == V4L2_PIX_FMT_NV12N_SBWC_10B))
+		(x == V4L2_PIX_FMT_NV12N_SBWC_10B) || sc_fmt_is_sbwc_lossy(x))
 #define sc_dith_val(a, b, c)	((a << SCALER_DITH_R_SHIFT) |	\
 		(b << SCALER_DITH_G_SHIFT) | (c << SCALER_DITH_B_SHIFT))
 
 #define SCALER_VERSION(x, y, z) (((x) << 16) | ((y) << 8) | (z))
+
+/* SBWC lossy buffer size */
+#define SBWCL_BLOCK_COUNT(w, h)		(ALIGN(w, 32) * ALIGN(h, 4) / 128)
+#define SBWCL_Y_SIZE(w, h, r)		(SBWCL_BLOCK_COUNT(w, h) * 32 * (r))
+#define SBWCL_CBCR_SIZE(w, h, r)	(SBWCL_BLOCK_COUNT(w, h) * 16 * (r))
+#define SBWCL_STRIDE(w, r)		(ALIGN(w, 32) * (r))
 
 #define SC_FMT_PREMULTI_FLAG	10
 
@@ -305,6 +313,7 @@ struct sc_frame {
 
 	struct sc_addr			addr;
 	__u32			bytesused[SC_MAX_PLANES];
+	__u8			byte32num;
 	bool			pre_multi;
 };
 
@@ -522,8 +531,8 @@ static inline struct sc_frame *ctx_get_frame(struct sc_ctx *ctx,
 	return frame;
 }
 
-int sc_hwset_src_image_format(struct sc_dev *sc, const struct sc_fmt *);
-int sc_hwset_dst_image_format(struct sc_dev *sc, const struct sc_fmt *);
+int sc_hwset_src_image_format(struct sc_dev *sc, struct sc_frame *frame);
+int sc_hwset_dst_image_format(struct sc_dev *sc, struct sc_frame *frame);
 void sc_hwset_pre_multi_format(struct sc_dev *sc, bool src, bool dst);
 void sc_hwset_blend(struct sc_dev *sc, enum sc_blend_op bl_op, bool pre_multi,
 		unsigned char g_alpha);
