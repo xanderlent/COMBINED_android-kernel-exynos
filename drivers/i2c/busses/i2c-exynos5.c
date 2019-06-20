@@ -691,6 +691,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 			      struct i2c_msg *msgs, int stop)
 {
 	unsigned long timeout;
+	unsigned long timeout_max;
 	unsigned long trans_status;
 	unsigned long i2c_ctl;
 	unsigned long i2c_auto_conf;
@@ -705,6 +706,14 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	i2c->msg = msgs;
 	i2c->msg_ptr = 0;
 	i2c->trans_done = 0;
+
+	/* (length * (bits + ack) * (s/ms) * / freq) */
+	timeout_max = (i2c->msg->len * 9 * 1000 / i2c->clock_frequency);
+	/* for tolerance */
+	timeout_max += timeout_max * 2 / 10;
+	/* Minimum timeout is 100ms */
+	if (timeout_max < 100)
+		timeout_max = 100;
 
 	reinit_completion(&i2c->msg_complete);
 
@@ -787,7 +796,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	ret = -EAGAIN;
 	if (msgs->flags & I2C_M_RD) {
 		if (operation_mode == HSI2C_POLLING) {
-			timeout = jiffies + EXYNOS5_I2C_TIMEOUT;
+			timeout = jiffies + msecs_to_jiffies(timeout_max);
 			while (time_before(jiffies, timeout)){
 				if ((readl(i2c->regs + HSI2C_FIFO_STATUS) &
 					HSI2C_RX_FIFO_EMPTY) == 0) {
@@ -812,7 +821,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 			}
 		} else {
 			timeout = wait_for_completion_timeout
-				(&i2c->msg_complete, EXYNOS5_I2C_TIMEOUT);
+				(&i2c->msg_complete, msecs_to_jiffies(timeout_max));
 
 			ret = 0;
 
@@ -851,7 +860,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 		if (operation_mode == HSI2C_POLLING) {
 			unsigned long int_status;
 			unsigned long fifo_status;
-			timeout = jiffies + EXYNOS5_I2C_TIMEOUT;
+			timeout = jiffies + msecs_to_jiffies(timeout_max);
 			while (time_before(jiffies, timeout) &&
 				(i2c->msg_ptr < i2c->msg->len)) {
 				if ((readl(i2c->regs + HSI2C_FIFO_STATUS)
@@ -1095,18 +1104,22 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		i2c->speed_mode = HSI2C_FAST_PLUS_SPD;
 		if (of_property_read_u32(np, "clock-frequency", &i2c->fs_plus_clock))
 			i2c->fs_plus_clock = HSI2C_FAST_PLUS_TX_CLOCK;
+		i2c->clock_frequency = i2c->fs_plus_clock;
 	} else if (of_get_property(np, "samsung,hs-mode", NULL)) {
 		i2c->speed_mode = HSI2C_HIGH_SPD;
 		if (of_property_read_u32(np, "clock-frequency", &i2c->hs_clock))
 			i2c->hs_clock = HSI2C_HS_TX_CLOCK;
+		i2c->clock_frequency = i2c->hs_clock;
 	} else if (of_get_property(np, "samsung,stand-mode", NULL)) {
 		i2c->speed_mode = HSI2C_STAND_SPD;
 		if (of_property_read_u32(np, "clock-frequency", &i2c->stand_clock))
 			i2c->stand_clock = HSI2C_STAND_TX_CLOCK;
+		i2c->clock_frequency = i2c->stand_clock;
 	} else {
 		i2c->speed_mode = HSI2C_FAST_SPD;
 		if (of_property_read_u32(np, "clock-frequency", &i2c->fs_clock))
 			i2c->fs_clock = HSI2C_FS_TX_CLOCK;
+		i2c->clock_frequency = i2c->fs_clock;
 	}
 
 	/* Mode of operation Polling/Interrupt mode */
