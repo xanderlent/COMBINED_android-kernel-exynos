@@ -28,12 +28,18 @@ struct usi_v2_data {
 	void __iomem	*base;
 	int 		mode;
 	int		ch_id;
+	int		secure_mode;
 };
 
 static const struct usi_v2_mode usi_v2_modes[] = {
 	{ .val = I2C_SW_CONF ,     .name = "i2c" },
 	{ .val = SPI_SW_CONF ,     .name = "spi" },
 	{ .val = UART_SW_CONF ,    .name = "uart" },
+};
+
+enum {
+	NONSECURE_MODE = 0,
+	SECURE_MODE = 1,
 };
 
 static int get_usi_v2_mode(const char* mode_name)
@@ -82,6 +88,20 @@ static int usi_v2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
+	if (of_get_property(node, "secure-mode", NULL)) {
+		dev_info(&pdev->dev,
+			"secure-mode. Accessing usi register isn't allowed\n");
+		data->secure_mode = SECURE_MODE;
+	}
+	else
+		data->secure_mode = NONSECURE_MODE;
+
+	if (data->secure_mode == SECURE_MODE) {
+		dev_info(&pdev->dev,
+			"usi configuration for secure channel is skipped\n");
+		return 0;
+	}
+
 	writel(data->mode, data->base);
 
 	dev_info(&pdev->dev, "usi_v2_probe() mode:%d\n", data->mode);
@@ -101,6 +121,12 @@ static int usi_v2_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct usi_v2_data *data = platform_get_drvdata(pdev);
 	int ret;
+
+	if (data->secure_mode == SECURE_MODE) {
+		dev_info(&pdev->dev,
+			"usi configuration for secure channel is skipped\n");
+		return 0;
+	}
 
 	if (data->mode && data->base) {
 		writel(data->mode, data->base);
