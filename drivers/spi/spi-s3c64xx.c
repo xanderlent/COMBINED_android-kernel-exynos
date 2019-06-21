@@ -1212,6 +1212,14 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 		return -ENODEV;
 	}
 
+	sci = sdd->cntrlr_info;
+
+	if (sci->secure_mode == SECURE_MODE) {
+		dev_info(&spi->dev,
+				"spi configuration for secure channel is skipped\n");
+		return 0;
+	}
+
 	if (!spi_get_ctldata(spi)) {
 		if(cs->line != 0) {
 			err = gpio_request_one(cs->line, GPIOF_OUT_INIT_HIGH,
@@ -1226,8 +1234,6 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 		spi_set_ctldata(spi, cs);
 	}
-
-	sci = sdd->cntrlr_info;
 
 	spin_lock_irqsave(&sdd->lock, flags);
 
@@ -1375,6 +1381,7 @@ static irqreturn_t s3c64xx_spi_irq(int irq, void *data)
 
 static void exynos_usi_init(struct s3c64xx_spi_driver_data *sdd)
 {
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 
 	/* USI_RESET is active High signal.
@@ -1382,6 +1389,10 @@ static void exynos_usi_init(struct s3c64xx_spi_driver_data *sdd)
 	 * Due to this feature, the USI_RESET must be cleared (set as '0')
 	 * before transaction starts.
 	 */
+
+	if (sci->secure_mode == SECURE_MODE)
+		return;
+
 	writel(USI_RESET, regs + USI_CON);
 }
 
@@ -1390,6 +1401,9 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	unsigned int val;
+
+	if (sci->secure_mode == SECURE_MODE)
+		return;
 
 	sdd->cur_speed = 0;
 
@@ -1448,8 +1462,10 @@ static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 	else
 		sci->swap_mode = NO_SWAP_MODE;
 
-	if (of_get_property(dev->of_node, "secure-mode", NULL))
+	if (of_get_property(dev->of_node, "secure-mode", NULL)) {
+		dev_info(dev, "secure-mode. Accessing spi register isn't allowed\n");
 		sci->secure_mode = SECURE_MODE;
+	}
 	else
 		sci->secure_mode = NONSECURE_MODE;
 
@@ -1748,9 +1764,10 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	writel(S3C64XX_SPI_INT_RX_OVERRUN_EN | S3C64XX_SPI_INT_RX_UNDERRUN_EN |
-	       S3C64XX_SPI_INT_TX_OVERRUN_EN | S3C64XX_SPI_INT_TX_UNDERRUN_EN,
-	       sdd->regs + S3C64XX_SPI_INT_EN);
+	if (sci->secure_mode != SECURE_MODE)
+		writel(S3C64XX_SPI_INT_RX_OVERRUN_EN | S3C64XX_SPI_INT_RX_UNDERRUN_EN |
+				S3C64XX_SPI_INT_TX_OVERRUN_EN | S3C64XX_SPI_INT_TX_UNDERRUN_EN,
+				sdd->regs + S3C64XX_SPI_INT_EN);
 
 #ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&pdev->dev);
