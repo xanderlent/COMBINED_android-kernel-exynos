@@ -108,8 +108,9 @@ typedef u32 sysmmu_pte_t;
 #define CTRL_BLOCK_DISABLE 0x3
 
 #define CFG_MASK	0x301F1F8C	/* Bit 29-28, 20-16, 12-7, 3-2 */
-#define CFG_MASK_GLOBAL	0x300F100C	/* Bit 29-28, 20-16, 12, 3-2 */
-#define CFG_MASK_VM	0x00000F80	/* Bit 11-7 */
+#define CFG_MASK_GLOBAL	0x00000F80	/* Bit 11, 10-7 */
+#define CFG_MASK_VM	0xB00F1004	/* Bit 31, 29, 28, 19-16, 12, 2 */
+
 #define CFG_ACGEN	(1 << 24)
 #define CFG_FLPDCACHE	(1 << 20)
 #define CFG_QOS_OVRRIDE (1 << 11)
