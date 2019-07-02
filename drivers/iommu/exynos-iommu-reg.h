@@ -32,15 +32,15 @@ static inline u32 __secure_info_read(unsigned int addr)
 
 static inline void __sysmmu_tlb_invalidate_all(struct sysmmu_drvdata *drvdata)
 {
-	writel(0x1, MMU_OFFSET(drvdata, IDX_ALL_INV));
+	writel(0x1, MMU_REG(drvdata, IDX_ALL_INV));
 }
 
 static inline void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *drvdata,
 				dma_addr_t iova, size_t size)
 {
-	writel_relaxed(iova, MMU_OFFSET(drvdata, IDX_RANGE_INV_START));
-	writel_relaxed(size - 1 + iova, MMU_OFFSET(drvdata, IDX_RANGE_INV_END));
-	writel(0x1, MMU_OFFSET(drvdata, IDX_RANGE_INV));
+	writel_relaxed(iova, MMU_REG(drvdata, IDX_RANGE_INV_START));
+	writel_relaxed(size - 1 + iova, MMU_REG(drvdata, IDX_RANGE_INV_END));
+	writel(0x1, MMU_REG(drvdata, IDX_RANGE_INV));
 	SYSMMU_EVENT_LOG_TLB_INV_RANGE(SYSMMU_DRVDATA_TO_LOG(drvdata),
 					iova, iova + size);
 }
@@ -48,7 +48,7 @@ static inline void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *drvdata,
 static inline void __sysmmu_set_ptbase(struct sysmmu_drvdata *drvdata,
 					phys_addr_t pfn_pgtable)
 {
-	writel_relaxed(pfn_pgtable, MMU_OFFSET(drvdata, IDX_FLPT_BASE));
+	writel_relaxed(pfn_pgtable, MMU_REG(drvdata, IDX_FLPT_BASE));
 	__sysmmu_tlb_invalidate_all(drvdata);
 
 	SYSMMU_EVENT_LOG_TLB_INV_ALL(
@@ -108,12 +108,12 @@ static inline unsigned int dump_tlb_entry_port_type(
 			int idx_way, int idx_set, int idx_sub)
 {
 	if (MMU_TLB_ENTRY_VALID(
-			readl_relaxed(MMU_OFFSET(drvdata, IDX_TLB_ATTR)))) {
+			readl_relaxed(MMU_REG(drvdata, IDX_TLB_ATTR)))) {
 		u32 vpn, ppn, attr;
 
-		vpn = readl_relaxed(MMU_OFFSET(drvdata, IDX_TLB_VPN));
-		ppn = readl_relaxed(MMU_OFFSET(drvdata, IDX_TLB_PPN));
-		attr = readl_relaxed(MMU_OFFSET(drvdata, IDX_TLB_ATTR));
+		vpn = readl_relaxed(MMU_REG(drvdata, IDX_TLB_VPN));
+		ppn = readl_relaxed(MMU_REG(drvdata, IDX_TLB_PPN));
+		attr = readl_relaxed(MMU_REG(drvdata, IDX_TLB_ATTR));
 
 		pr_crit("[%02d][%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
 			idx_way, idx_set, vpn, ppn, attr);
@@ -192,10 +192,30 @@ static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link,
 	}
 }
 
+static unsigned int dump_tlb_entry_port(struct sysmmu_drvdata *drvdata,
+					phys_addr_t pgtable,
+					int tlb, int way, int num_set)
+{
+	int cnt = 0;
+	int set, sline;
+
+	for (set = 0; set < num_set; set++) {
+		for (sline = 0; sline < MMU_NUM_TLB_SUBLINE; sline++) {
+			writel_relaxed(MMU_CAPA1_SET_TLB_READ_ENTRY(tlb, set,
+								    way, sline),
+				       MMU_REG(drvdata, IDX_TLB_READ));
+			cnt += dump_tlb_entry_port_type(drvdata, pgtable,
+							way, set, sline);
+		}
+	}
+
+	return cnt;
+}
+
 static inline void dump_sysmmu_tlb_port(struct sysmmu_drvdata *drvdata,
 							phys_addr_t pgtable)
 {
-	int t, i, j, k;
+	int t, i;
 	u32 capa0, capa1, info;
 	u32 sbb_vpn, sbb_link;
 	unsigned int cnt;
@@ -221,35 +241,25 @@ static inline void dump_sysmmu_tlb_port(struct sysmmu_drvdata *drvdata,
 
 		pr_crit("TLB.%d has %d way, %d set.\n", t, num_way, num_set);
 		pr_crit("------------- TLB[WAY][SET][ENTRY] -------------\n");
-		for (i = 0, cnt = 0; i < num_way; i++) {
-			for (j = 0; j < num_set; j++) {
-				for (k = 0; k < MMU_NUM_TLB_SUBLINE; k++) {
-					writel_relaxed(
-						MMU_CAPA1_SET_TLB_READ_ENTRY(t, j, i, k),
-						MMU_OFFSET(drvdata, IDX_TLB_READ));
-					cnt += dump_tlb_entry_port_type(
-						drvdata, pgtable, i, j, k);
-				}
-			}
-		}
+		for (i = 0, cnt = 0; i < num_way; i++)
+			cnt += dump_tlb_entry_port(drvdata, pgtable,
+						   t, i, num_set);
 	}
 	if (!cnt)
 		pr_crit(">> No Valid TLB Entries\n");
 
 	pr_crit("--- SBB(Second-Level Page Table Base Address Buffer) ---\n");
 	for (i = 0, cnt = 0; i < num_sbb; i++) {
-		writel_relaxed(i, MMU_OFFSET(drvdata, IDX_SBB_READ));
+		writel_relaxed(i, MMU_REG(drvdata, IDX_SBB_READ));
 		if (MMU_SBB_ENTRY_VALID(readl_relaxed(
-					MMU_OFFSET(drvdata, IDX_SBB_VPN)))) {
-			sbb_vpn = readl_relaxed(
-					MMU_OFFSET(drvdata, IDX_SBB_VPN));
+					MMU_REG(drvdata, IDX_SBB_VPN)))) {
+			sbb_vpn = readl_relaxed(MMU_REG(drvdata, IDX_SBB_VPN));
 			sbb_link = readl_relaxed(
-					MMU_OFFSET(drvdata, IDX_SBB_LINK));
+					MMU_REG(drvdata, IDX_SBB_LINK));
 
 			pr_crit("[%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x",
 				i, sbb_vpn, sbb_link,
-				readl_relaxed(
-					MMU_OFFSET(drvdata, IDX_SBB_ATTR)));
+				readl_relaxed(MMU_REG(drvdata, IDX_SBB_ATTR)));
 			sysmmu_sbb_compare(sbb_vpn, sbb_link, pgtable);
 			cnt++;
 		}
@@ -308,7 +318,7 @@ static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
 	pr_crit("ADDR: %pa(VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
 		&phys, sfrbase,
 		readl_relaxed(sfrbase + REG_MMU_CTRL),
-		readl_relaxed(MMU_OFFSET(drvdata, IDX_FLPT_BASE)));
+		readl_relaxed(MMU_REG(drvdata, IDX_FLPT_BASE)));
 	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
 		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
 		readl_relaxed(sfrbase + REG_MMU_CFG),
@@ -334,11 +344,10 @@ static inline void show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 	unsigned int sfrbase = drvdata->securebase;
 	const char *port_name = NULL;
 
-	pgtable = __secure_info_read(MMU_SECURE_OFFSET(drvdata, IDX_FLPT_BASE));
+	pgtable = __secure_info_read(MMU_SEC_REG(drvdata, IDX_FLPT_BASE));
 	pgtable <<= PAGE_SHIFT;
 
-	info = __secure_info_read(
-			MMU_SECURE_OFFSET(drvdata, IDX_FAULT_TRANS_INFO));
+	info = __secure_info_read(MMU_SEC_REG(drvdata, IDX_FAULT_TRANS_INFO));
 
 	of_property_read_string(drvdata->sysmmu->of_node,
 					"port-name", &port_name);
@@ -378,7 +387,7 @@ static inline void show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 	pr_crit("ADDR: %#x, MMU_CTRL: %#010x, PT_BASE: %#010x\n",
 		sfrbase,
 		__secure_info_read(sfrbase + REG_MMU_CTRL),
-		__secure_info_read(MMU_SECURE_OFFSET(drvdata, IDX_FLPT_BASE)));
+		__secure_info_read(MMU_SEC_REG(drvdata, IDX_FLPT_BASE)));
 	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
 		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
 		__secure_info_read(sfrbase + REG_MMU_CFG),
@@ -401,10 +410,10 @@ static inline int show_fault_information(struct sysmmu_drvdata *drvdata,
 	const char *port_name = NULL;
 	static int ptw_count = 0;
 
-	pgtable = readl_relaxed(MMU_OFFSET(drvdata, IDX_FLPT_BASE));
+	pgtable = readl_relaxed(MMU_REG(drvdata, IDX_FLPT_BASE));
 	pgtable <<= PAGE_SHIFT;
 
-	info = readl_relaxed(MMU_OFFSET(drvdata, IDX_FAULT_TRANS_INFO));
+	info = readl_relaxed(MMU_REG(drvdata, IDX_FAULT_TRANS_INFO));
 
 	of_property_read_string(drvdata->sysmmu->of_node,
 					"port-name", &port_name);
@@ -676,11 +685,9 @@ static inline u32 __sysmmu_get_fault_address(struct sysmmu_drvdata *drvdata,
 {
 	if (is_secure)
 		return __secure_info_read(
-			MMU_SECURE_OFFSET(drvdata, IDX_FAULT_VA)
-						+ (vmid * 0x10));
+				MMU_SEC_VM_REG(drvdata, IDX_FAULT_VA, vmid));
 	else
-		return readl_relaxed(MMU_OFFSET(drvdata, IDX_FAULT_VA)
-							+ (vmid * 0x10));
+		return readl_relaxed(MMU_VM_REG(drvdata, IDX_FAULT_VA, vmid));
 }
 
 static inline u32 __sysmmu_get_fault_trans_info(struct sysmmu_drvdata *drvdata,
@@ -688,11 +695,10 @@ static inline u32 __sysmmu_get_fault_trans_info(struct sysmmu_drvdata *drvdata,
 {
 	if (is_secure)
 		return __secure_info_read(
-			MMU_SECURE_OFFSET(drvdata, IDX_FAULT_TRANS_INFO)
-							+ (vmid * 0x10));
+			MMU_SEC_VM_REG(drvdata, IDX_FAULT_TRANS_INFO, vmid));
 	else
-		return readl_relaxed(MMU_OFFSET(drvdata, IDX_FAULT_TRANS_INFO)
-							+ (vmid * 0x10));
+		return readl_relaxed(
+			MMU_VM_REG(drvdata, IDX_FAULT_TRANS_INFO, vmid));
 }
 
 static inline u32 __sysmmu_get_hw_version(struct sysmmu_drvdata *data)

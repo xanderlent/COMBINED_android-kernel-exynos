@@ -283,10 +283,14 @@ enum {
 	MAX_REG_IDX,
 };
 
-#define MMU_OFFSET(drvdata, offset_idx)			\
+#define MMU_REG(drvdata, offset_idx)			\
 		((drvdata)->sfrbase + (drvdata)->reg_set[offset_idx])
-#define MMU_SECURE_OFFSET(drvdata, offset_idx)		\
+#define MMU_VM_REG(drvdata, offset_idx, vmid)		\
+	((drvdata)->sfrbase + (drvdata)->reg_set[offset_idx] + (vmid) * 0x10)
+#define MMU_SEC_REG(drvdata, offset_idx)		\
 		((drvdata)->securebase + (drvdata)->reg_set[offset_idx])
+#define MMU_SEC_VM_REG(drvdata, offset_idx, vmid)	\
+	((drvdata)->securebase + (drvdata)->reg_set[offset_idx], (vmid) * 0x10)
 
 /*
  * This structure exynos specific generalization of struct iommu_domain.
