@@ -11,6 +11,7 @@
 #include <dt-bindings/sysmmu/sysmmu.h>
 
 #define is_secure_info_fail(x)	((((x) >> 16) & 0xffff) == 0xdead)
+#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 static inline u32 __secure_info_read(unsigned int addr)
 {
 	u32 ret;
@@ -22,6 +23,12 @@ static inline u32 __secure_info_read(unsigned int addr)
 
 	return ret;
 }
+#else
+static inline u32 __secure_info_read(unsigned int addr)
+{
+	return 0;
+}
+#endif
 
 static inline void __sysmmu_tlb_invalidate_all(void __iomem *sfrbase)
 {
