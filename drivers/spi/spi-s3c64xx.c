@@ -1457,7 +1457,7 @@ static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 	else
 		sci->dma_mode = CPU_MODE;
 
-	if (of_get_property(dev->of_node, "swap-mode", NULL))
+	if (!of_property_read_u32(dev->of_node, "swap-mode", &temp) && !(temp == 0))
 		sci->swap_mode = SWAP_MODE;
 	else
 		sci->swap_mode = NO_SWAP_MODE;
