@@ -710,7 +710,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	/* (length * (bits + ack) * (s/ms) * / freq) */
 	timeout_max = (i2c->msg->len * 9 * 1000 / i2c->clock_frequency);
 	/* for tolerance */
-	timeout_max += timeout_max * 2 / 10;
+	timeout_max += timeout_max * 5 / 10;
 	/* Minimum timeout is 100ms */
 	if (timeout_max < 100)
 		timeout_max = 100;
