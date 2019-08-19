@@ -91,7 +91,7 @@ static void dbg(const char *fmt, ...)
 #define S3C24XX_SERIAL_MINOR	64
 
 /* Baudrate definition*/
-#define MAX_BAUD	3000000
+#define MAX_BAUD	4000000
 #define MIN_BAUD	0
 
 #define DEFAULT_SOURCE_CLK	200000000
