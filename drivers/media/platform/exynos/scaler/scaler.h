@@ -496,6 +496,7 @@ struct sc_ctx {
 	struct sc_csc			csc;
 	struct sc_init_phase		init_phase;
 	struct sc_dnoise_filter		dnoise_ft;
+	struct delayed_work		qos_work;
 	struct sc_qos_request		pm_qos;
 	int				pm_qos_lv;
 	int				framerate;
