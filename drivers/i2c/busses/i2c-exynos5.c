@@ -664,6 +664,17 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 	unsigned long trans_status;
 	unsigned char byte;
 
+	if (!i2c) {
+		pr_err("irq nodev (irqno:%d)\n", irqno);
+		return IRQ_HANDLED;
+	}
+
+	if (i2c->msg == NULL || readl(i2c->regs + HSI2C_INT_ENABLE) == 0x0) {
+		pr_err("invalid irq (irqno:%d)\n", irqno);
+		reg_val = readl(i2c->regs + HSI2C_INT_STATUS);
+		goto out;
+	}
+
 	if (i2c->msg->flags & I2C_M_RD) {
 		while ((readl(i2c->regs + HSI2C_FIFO_STATUS) &
 			0x1000000) == 0) {
