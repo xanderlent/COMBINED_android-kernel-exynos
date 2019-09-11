@@ -1264,24 +1264,6 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 
 	init_completion(&i2c->msg_complete);
 
-	if (i2c->operation_mode == HSI2C_INTERRUPT) {
-		i2c->irq = ret = irq_of_parse_and_map(np, 0);
-		if (ret <= 0) {
-			dev_err(&pdev->dev, "cannot find HS-I2C IRQ\n");
-			ret = -EINVAL;
-			goto err_clk1;
-		}
-
-		ret = devm_request_irq(&pdev->dev, i2c->irq,
-					exynos5_i2c_irq, 0, dev_name(&pdev->dev), i2c);
-		disable_irq(i2c->irq);
-
-		if (ret != 0) {
-			dev_err(&pdev->dev, "cannot request HS-I2C IRQ %d\n",
-					i2c->irq);
-			goto err_clk1;
-		}
-	}
 	platform_set_drvdata(pdev, i2c);
 #ifdef CONFIG_PM
 	pm_runtime_get_sync(&pdev->dev);
@@ -1303,6 +1285,25 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	exynos5_i2c_clr_pend_irq(i2c);
 	/* Reset i2c SFR from u-boot or misc causes */
 	exynos5_i2c_reset(i2c);
+
+	if (i2c->operation_mode == HSI2C_INTERRUPT) {
+		i2c->irq = ret = irq_of_parse_and_map(np, 0);
+		if (ret <= 0) {
+			dev_err(&pdev->dev, "cannot find HS-I2C IRQ\n");
+			ret = -EINVAL;
+			goto err_clk1;
+		}
+
+		ret = devm_request_irq(&pdev->dev, i2c->irq,
+					exynos5_i2c_irq, 0, dev_name(&pdev->dev), i2c);
+		disable_irq(i2c->irq);
+
+		if (ret != 0) {
+			dev_err(&pdev->dev, "cannot request HS-I2C IRQ %d\n",
+					i2c->irq);
+			goto err_clk1;
+		}
+	}
 
 	ret = exynos5_hsi2c_clock_setup(i2c);
 	if (ret)
