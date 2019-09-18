@@ -498,6 +498,7 @@ struct sc_ctx {
 	struct sc_dnoise_filter		dnoise_ft;
 	struct delayed_work		qos_work;
 	struct sc_qos_request		pm_qos;
+	struct mutex			pm_qos_lock;
 	int				pm_qos_lv;
 	int				framerate;
 };
