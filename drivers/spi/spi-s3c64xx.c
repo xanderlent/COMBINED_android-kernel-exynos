@@ -804,11 +804,16 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
 
 	if (sdd->port_conf->clk_from_cmu) {
+
+		if (clk_get_rate(sdd->src_clk) != (sdd->cur_speed * 4)) {
 		/* There is a quarter-multiplier before the SPI */
-		ret = clk_set_rate(sdd->src_clk, sdd->cur_speed * 4);
-		if (ret < 0)
-			dev_err(&sdd->pdev->dev, "SPI clk set failed\n");
-		else
+			ret = clk_set_rate(sdd->src_clk, sdd->cur_speed * 4);
+			if (ret < 0)
+				dev_err(&sdd->pdev->dev, "SPI clk set failed\n");
+			else
+				dev_err(&sdd->pdev->dev, "Set SPI clock rate: %u(%lu)\n",
+						sdd->cur_speed, clk_get_rate(sdd->src_clk));
+		} else
 			dev_err(&sdd->pdev->dev, "Set SPI clock rate: %u(%lu)\n",
 					sdd->cur_speed, clk_get_rate(sdd->src_clk));
 
