@@ -451,7 +451,7 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
 
 		if (!i2c->tscl_h) {
-			uTSCL_H_FS = (4 * (ipclk / (1000 * 1000))) / ((fs_div + 1) * 10);
+			uTSCL_H_FS = ((ipclk / (1000 * 1000)) * 35 / 10) / ((fs_div + 1) * 10);
 			uTSCL_H_FS = (0xFF << uTSCL_H_FS) & 0xFF;
 		} else {
 			uTSCL_H_FS = i2c->tscl_h;
