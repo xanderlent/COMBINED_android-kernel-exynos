@@ -886,7 +886,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 			}
 		} else {
 			timeout = wait_for_completion_timeout
-				(&i2c->msg_complete, EXYNOS5_I2C_TIMEOUT);
+				(&i2c->msg_complete, msecs_to_jiffies(timeout_max));
 			disable_irq(i2c->irq);
 
 			if (timeout == 0) {
