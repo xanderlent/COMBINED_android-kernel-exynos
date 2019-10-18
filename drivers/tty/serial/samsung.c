@@ -544,6 +544,9 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 
 	spin_lock_irqsave(&port->lock, flags);
 
+	__set_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
+	wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
+
 	while (max_count-- > 0) {
 		/*
 		 * Receive all characters known to be in FIFO
@@ -552,10 +555,8 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 		if (fifocnt == 0) {
 			ufstat = rd_regl(port, S3C2410_UFSTAT);
 			fifocnt = s3c24xx_serial_rx_fifocnt(ourport, ufstat);
-			if (fifocnt == 0) {
-				wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
+			if (fifocnt == 0)
 				break;
-			}
 		}
 		fifocnt--;
 
@@ -639,6 +640,8 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 
 	if (ourport->uart_logging && trace_cnt)
 		uart_copy_to_local_buf(1, &ourport->uart_local_buf, trace_buf, trace_cnt);
+
+	__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
 
 	spin_unlock_irqrestore(&port->lock, flags);
 	tty_insert_flip_string(&port->state->port, insert_buf, insert_cnt);
@@ -912,6 +915,7 @@ err:
 static int s3c64xx_serial_startup(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
+	unsigned long flags;
 	int ret;
 
 	dbg("s3c64xx_serial_startup: port=%p (%08llx,%p)\n",
@@ -920,7 +924,9 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	ourport->cfg->wake_peer[port->line] =
 				s3c2410_serial_wake_peer[port->line];
 
+	spin_lock_irqsave(&port->lock, flags);
 	wr_regl(port, S3C64XX_UINTM, 0xf);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	if (ourport->use_default_irq == 1)
 		ret = devm_request_irq(port->dev, port->irq, s3c64xx_serial_handle_irq,
@@ -941,7 +947,9 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	ourport->tx_claimed = 1;
 
 	/* Enable Rx Interrupt */
+	spin_lock_irqsave(&port->lock, flags);
 	__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
+	spin_unlock_irqrestore(&port->lock, flags);
 	dbg("s3c64xx_serial_startup ok\n");
 	return ret;
 }
@@ -1758,6 +1766,7 @@ void s3c24xx_serial_rx_fifo_wait(void)
 	unsigned int fifo_stat;
 	unsigned long wait_time;
 	unsigned int fifo_count;
+	unsigned long flags;
 
 	fifo_count = 0;
 
@@ -1766,6 +1775,9 @@ void s3c24xx_serial_rx_fifo_wait(void)
 			continue;
 
 		port = &ourport->port;
+
+		spin_lock_irqsave(&port->lock, flags);
+
 		fifo_stat = rd_regl(port, S3C2410_UFSTAT);
 		fifo_count = s3c24xx_serial_rx_fifocnt(ourport, fifo_stat);
 		if (fifo_count) {
@@ -1780,6 +1792,8 @@ void s3c24xx_serial_rx_fifo_wait(void)
 			fifo_stat = rd_regl(port, S3C2410_UFSTAT);
 			cpu_relax();
 		} while (s3c24xx_serial_rx_fifocnt(ourport, fifo_stat) && time_before(jiffies, wait_time));
+
+		spin_unlock_irqrestore(&port->lock, flags);
 
 		if (rx_enabled(port))
 			s3c24xx_serial_stop_rx(port);
