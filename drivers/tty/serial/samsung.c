@@ -116,12 +116,14 @@ EXPORT_SYMBOL_GPL(s3c2410_serial_wake_peer);
 
 #define RTS_PINCTRL			(1)
 #define DEFAULT_PINCTRL		(0)
+
+static void s3c24xx_serial_rx_fifo_wait(struct s3c24xx_uart_port *ourport);
+
 unsigned char uart_log_buf[256] = {0, };
 
 /* Allocate 800KB of buffer for UART logging */
 #define LOG_BUFFER_SIZE		(0xC8000)
 struct s3c24xx_uart_port *panic_port;
-static void s3c24xx_serial_rx_fifo_wait(void);
 
 static int exynos_s3c24xx_panic_handler(struct notifier_block *nb,
 								unsigned long l, void *p)
@@ -1764,10 +1766,9 @@ static inline struct s3c24xx_serial_drv_data *s3c24xx_get_driver_data(
 			platform_get_device_id(pdev)->driver_data;
 }
 
-void s3c24xx_serial_rx_fifo_wait(void)
+static void s3c24xx_serial_rx_fifo_wait(struct s3c24xx_uart_port *ourport)
 {
-	struct s3c24xx_uart_port *ourport;
-	struct uart_port *port;
+	struct uart_port *port = &ourport->port;
 	unsigned int fifo_stat;
 	unsigned long wait_time;
 	unsigned int fifo_count;
@@ -1775,36 +1776,28 @@ void s3c24xx_serial_rx_fifo_wait(void)
 
 	fifo_count = 0;
 
-	list_for_each_entry(ourport, &drvdata_list, node) {
-		if (ourport->port.line != CONFIG_S3C_LOWLEVEL_UART_PORT)
-			continue;
+	spin_lock_irqsave(&port->lock, flags);
 
-		port = &ourport->port;
-
-		spin_lock_irqsave(&port->lock, flags);
-
-		fifo_stat = rd_regl(port, S3C2410_UFSTAT);
-		fifo_count = s3c24xx_serial_rx_fifocnt(ourport, fifo_stat);
-		if (fifo_count) {
-			uart_clock_enable(ourport);
-			__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
-			uart_clock_disable(ourport);
-			rx_enabled(port) = 1;
-		}
-		wait_time = jiffies + HZ;
-		do {
-			port = &ourport->port;
-			fifo_stat = rd_regl(port, S3C2410_UFSTAT);
-			cpu_relax();
-		} while (s3c24xx_serial_rx_fifocnt(ourport, fifo_stat) && time_before(jiffies, wait_time));
-
-		spin_unlock_irqrestore(&port->lock, flags);
-
-		if (rx_enabled(port))
-			s3c24xx_serial_stop_rx(port);
+	fifo_stat = rd_regl(port, S3C2410_UFSTAT);
+	fifo_count = s3c24xx_serial_rx_fifocnt(ourport, fifo_stat);
+	if (fifo_count) {
+		uart_clock_enable(ourport);
+		__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
+		uart_clock_disable(ourport);
+		rx_enabled(port) = 1;
 	}
+	wait_time = jiffies + HZ;
+	do {
+		port = &ourport->port;
+		fifo_stat = rd_regl(port, S3C2410_UFSTAT);
+		cpu_relax();
+	} while (s3c24xx_serial_rx_fifocnt(ourport, fifo_stat) && time_before(jiffies, wait_time));
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	if (rx_enabled(port))
+		s3c24xx_serial_stop_rx(port);
 }
-EXPORT_SYMBOL_GPL(s3c24xx_serial_rx_fifo_wait);
 
 void s3c24xx_serial_fifo_wait(void)
 {
@@ -2172,7 +2165,7 @@ static int s3c24xx_serial_suspend(struct device *dev)
 			change_uart_gpio(RTS_PINCTRL, ourport);
 
 		udelay(300);//dealy for sfr update
-		s3c24xx_serial_rx_fifo_wait();
+		s3c24xx_serial_rx_fifo_wait(ourport);
 
 		uart_suspend_port(&s3c24xx_uart_drv, port);
 #ifdef CONFIG_SERIAL_SAMSUNG_HWACG
