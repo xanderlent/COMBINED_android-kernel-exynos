@@ -1248,8 +1248,6 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	umcon = rd_regl(port, S3C2410_UMCON);
 	if (termios->c_cflag & CRTSCTS) {
 		umcon |= S3C2410_UMCOM_AFC;
-		/* Disable RTS when RX FIFO contains 63 bytes */
-		umcon &= ~S3C2412_UMCON_AFC_8;
 		port->status = UPSTAT_AUTOCTS;
 	} else {
 		umcon &= ~S3C2410_UMCOM_AFC;
@@ -1572,6 +1570,7 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	unsigned long ucon = rd_regl(port, S3C2410_UCON);
+	unsigned long umcon = rd_regl(port, S3C2410_UMCON);
 	unsigned int ucon_mask;
 
 	ucon_mask = info->clksel_mask;
@@ -1583,6 +1582,12 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 		dev_err(port->dev, "Change Loopback mode!\n");
 		ucon |= S3C2443_UCON_LOOPBACK;
 	}
+
+	/* Set rts trigger level */
+	umcon &= ~S5PV210_UMCON_RTSTRIG32;
+	if (ourport->rts_trig_level && info->rts_trig_shift)
+		umcon |= ourport->rts_trig_level << info->rts_trig_shift;
+	wr_regl(port, S3C2410_UMCON, umcon);
 
 	/* To prevent unexpected Interrupt before enabling the channel */
 	wr_regl(port, S3C64XX_UINTM, 0xf);
@@ -1921,6 +1926,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	int index = probe_index;
 	int ret, fifo_size;
 	int port_index = probe_index;
+	int rts_trig_level;
 
 	dbg("s3c24xx_serial_probe(%p) %d\n", pdev, index);
 
@@ -1992,6 +1998,10 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 			if (IS_ERR(ourport->uart_pinctrl_default))
 				dev_err(&pdev->dev, "Can't get Default pinstate!!!\n");
 		}
+	}
+	if (!of_property_read_u32(pdev->dev.of_node, "samsung,rts-trig-level",
+				 &rts_trig_level)) {
+		ourport->rts_trig_level = rts_trig_level;
 	}
 
 	if (!of_property_read_u32(pdev->dev.of_node, "samsung,fifo-size",
@@ -2602,6 +2612,7 @@ static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 		.tx_fifofull	= S5PV210_UFSTAT_TXFULL,	\
 		.tx_fifomask	= S5PV210_UFSTAT_TXMASK,	\
 		.tx_fifoshift	= S5PV210_UFSTAT_TXSHIFT,	\
+		.rts_trig_shift = S5PV210_UMCON_RTSTRIG_SHIFT,	\
 		.def_clk_sel	= S3C2410_UCON_CLKSEL0,		\
 		.num_clks	= 1,				\
 		.clksel_mask	= 0,				\
