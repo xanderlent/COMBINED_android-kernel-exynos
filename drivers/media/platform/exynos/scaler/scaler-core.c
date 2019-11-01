@@ -2504,6 +2504,7 @@ static void sc_set_framerate(struct sc_ctx *ctx, int framerate)
 		cancel_delayed_work(&ctx->qos_work);
 		sc_remove_devfreq(&ctx->pm_qos, ctx->sc_dev->qos_table);
 		ctx->framerate = 0;
+		ctx->pm_qos_lv = -1;
 	} else {
 		if (framerate != ctx->framerate) {
 			ctx->framerate = framerate;
@@ -2866,6 +2867,7 @@ static void sc_timeout_qos_work(struct work_struct *work)
 
 	sc_remove_devfreq(&ctx->pm_qos, ctx->sc_dev->qos_table);
 	ctx->framerate = 0;
+	ctx->pm_qos_lv = -1;
 
 	mutex_unlock(&ctx->pm_qos_lock);
 }
