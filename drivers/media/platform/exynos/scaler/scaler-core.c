@@ -3747,9 +3747,24 @@ static void sc_m2m_device_run(void *priv)
 	struct sc_ctx *ctx = priv;
 	struct sc_dev *sc = ctx->sc_dev;
 	struct sc_frame *s_frame, *d_frame, *src_blend_frame;
+	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb_v4l2, *dst_vb_v4l2;
 
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
+
+	src_vb = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
+	dst_vb = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
+
+	if (src_vb->state == VB2_BUF_STATE_ERROR ||
+	    dst_vb->state == VB2_BUF_STATE_ERROR) {
+		src_vb_v4l2 = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
+		dst_vb_v4l2 = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
+
+		v4l2_m2m_buf_done(src_vb_v4l2, VB2_BUF_STATE_ERROR);
+		v4l2_m2m_buf_done(dst_vb_v4l2, VB2_BUF_STATE_ERROR);
+		return;
+	}
 
 	if (sc->variant->blending && ctx->bl_op) {
 		src_blend_frame = &ctx->src_blend_frame;
@@ -3760,9 +3775,8 @@ static void sc_m2m_device_run(void *priv)
 	} else
 		src_blend_frame = NULL;
 
-	sc_get_bufaddr(sc, v4l2_m2m_next_src_buf(ctx->m2m_ctx),	s_frame,
-							src_blend_frame);
-	sc_get_bufaddr(sc, v4l2_m2m_next_dst_buf(ctx->m2m_ctx), d_frame, NULL);
+	sc_get_bufaddr(sc, src_vb, s_frame, src_blend_frame);
+	sc_get_bufaddr(sc, dst_vb, d_frame, NULL);
 
 	sc_add_context_and_run(sc, ctx);
 }
