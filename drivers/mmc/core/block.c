@@ -355,7 +355,7 @@ static struct mmc_blk_ioc_data *mmc_blk_ioctl_copy_from_user(
 	struct mmc_blk_ioc_data *idata;
 	int err;
 
-	idata = kmalloc(sizeof(*idata), GFP_KERNEL);
+	idata = kmalloc(sizeof(*idata), GFP_NOIO);
 	if (!idata) {
 		err = -ENOMEM;
 		goto out;
