@@ -46,6 +46,8 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #include <asm/irq.h>
 
@@ -125,6 +127,9 @@ unsigned char uart_log_buf[256] = {0, };
 #define LOG_BUFFER_SIZE		(0xC8000)
 
 #define LOG_REG_DEBUG_LEN	(91)
+#define USI_SW_CONF_MASK	(0x7 << 0)
+#define USI_UART_SW_CONF	(1<<0)
+
 struct s3c24xx_uart_port *panic_port;
 
 static int exynos_s3c24xx_panic_handler(struct notifier_block *nb,
@@ -1920,6 +1925,7 @@ static struct notifier_block s3c24xx_serial_notifier_block = {
 static int s3c24xx_serial_probe(struct platform_device *pdev)
 {
 	struct s3c24xx_uart_port *ourport;
+	struct device *dev = &pdev->dev;
 	int index = probe_index;
 	int ret, fifo_size;
 	int port_index = probe_index;
@@ -1937,6 +1943,19 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		}
 	}
 	ourport = &s3c24xx_serial_ports[port_index];
+
+	if (of_property_read_u32(dev->of_node, "samsung,usi-offset", &ourport->usi_offset)) {
+		dev_warn(dev, "usi offset is not specified\n");
+	}
+
+	ourport->usi_reg = syscon_regmap_lookup_by_phandle(dev->of_node,
+						"samsung,usi-phandle");
+	if (IS_ERR(ourport->usi_reg)) {
+		dev_info(dev, "no lookup for usi-phandle.\n");
+	} else {
+		regmap_update_bits(ourport->usi_reg, ourport->usi_offset,
+			USI_SW_CONF_MASK, USI_UART_SW_CONF);
+	}
 
 	if (ourport->port.line != port_index)
 		ourport = exynos_serial_default_port(port_index);
@@ -2218,6 +2237,10 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
+		if (!IS_ERR(ourport->usi_reg))
+			regmap_update_bits(ourport->usi_reg, ourport->usi_offset,
+					USI_SW_CONF_MASK, USI_UART_SW_CONF);
+
 		/* restore IRQ mask */
 		if (s3c24xx_serial_has_interrupt_mask(port)) {
 			unsigned int uintm = 0xf;

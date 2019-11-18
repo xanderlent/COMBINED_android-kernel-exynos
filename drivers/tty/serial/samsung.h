@@ -86,6 +86,9 @@ struct s3c24xx_uart_port {
 	unsigned int		rts_control;
 	unsigned int		rts_trig_level;
 
+	struct regmap			*usi_reg;
+	unsigned int			usi_offset;
+
 	/* reference to platform data */
 	struct s3c2410_uartcfg		*cfg;
 
