@@ -27,6 +27,8 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include "../../pinctrl/core.h"
 #include "i2c-exynos5.h"
 
@@ -221,6 +223,9 @@ static LIST_HEAD(drvdata_list);
 #define USI_HWACG_CLKSTOP_ON		(1<<2)
 
 #define FIFO_TRIG_CRITERIA	(8)
+
+#define USI_SW_CONF_MASK	(0x7 << 0)
+#define USI_I2C_SW_CONF		(1<<2)
 
 static const struct of_device_id exynos5_i2c_match[] = {
 	{ .compatible = "samsung,exynos5-hsi2c" },
@@ -1141,6 +1146,7 @@ static struct notifier_block exynos5_i2c_notifier_block = {
 static int exynos5_i2c_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct exynos5_i2c *i2c;
 	struct resource *mem;
 	int ret;
@@ -1154,6 +1160,18 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	if (!i2c) {
 		dev_err(&pdev->dev, "no memory for state\n");
 		return -ENOMEM;
+	}
+
+	if (of_property_read_u32(np, "samsung,usi-offset", &i2c->usi_offset))
+		dev_warn(dev, "usi offset is not specified\n");
+
+	i2c->usi_reg = syscon_regmap_lookup_by_phandle(dev->of_node,
+						"samsung,usi-phandle");
+	if (IS_ERR(i2c->usi_reg)) {
+		dev_info(dev, "no lookup for usi-phandle.\n");
+	} else {
+		regmap_update_bits(i2c->usi_reg, i2c->usi_offset,
+			USI_SW_CONF_MASK, USI_I2C_SW_CONF);
 	}
 
 	if (of_property_read_u32(np, "default-clk", &i2c->default_clk))
@@ -1451,6 +1469,10 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 	int ret = 0;
+
+	if (!IS_ERR(i2c->usi_reg))
+		regmap_update_bits(i2c->usi_reg, i2c->usi_offset,
+			USI_SW_CONF_MASK, USI_I2C_SW_CONF);
 
 	i2c_lock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 

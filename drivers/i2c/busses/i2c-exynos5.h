@@ -29,6 +29,8 @@ struct exynos5_i2c {
 	struct clk		*rate_clk;
 	struct device		*dev;
 	int			state;
+	struct regmap		*usi_reg;
+	unsigned int		usi_offset;
 
 	/*
 	 * Since the TRANS_DONE bit is cleared on read, and we may read it
