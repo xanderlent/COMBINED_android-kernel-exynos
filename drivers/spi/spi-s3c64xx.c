@@ -18,6 +18,8 @@
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
@@ -146,6 +148,9 @@ static LIST_HEAD(drvdata_list);
 
 /* MAX SIZE of COUNT_VALUE in PACKET_CNT_REG */
 #define S3C64XX_SPI_PACKET_CNT_MAX 0xfff0
+
+#define USI_SW_CONF_MASK	(0x7<<0)
+#define USI_SPI_SW_CONF		(1<<1)
 
 /**
  * struct s3c64xx_spi_info - SPI Controller hardware info
@@ -1545,6 +1550,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource	*mem_res;
 	struct resource	*res;
+	struct device *dev = &pdev->dev;
 	struct s3c64xx_spi_driver_data *sdd;
 	struct s3c64xx_spi_info *sci = dev_get_platdata(&pdev->dev);
 	struct spi_master *master;
@@ -1565,6 +1571,21 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	if (!sci) {
 		dev_err(&pdev->dev, "platform_data missing!\n");
 		return -ENODEV;
+	}
+
+	if (of_property_read_u32(dev->of_node, "samsung,usi-offset", &sci->usi_offset)) {
+		dev_warn(dev, "usi offset is not specified\n");
+	}
+
+	sci->usi_reg = syscon_regmap_lookup_by_phandle(dev->of_node,
+						"samsung,usi-phandle");
+	if (sci->secure_mode != SECURE_MODE) {
+		if (IS_ERR(sci->usi_reg)) {
+			dev_info(dev, "no lookup for usi-phandle.\n");
+		} else {
+			regmap_update_bits(sci->usi_reg, sci->usi_offset,
+					USI_SW_CONF_MASK, USI_SPI_SW_CONF);
+		}
 	}
 
 #if !defined(CONFIG_VIDEO_EXYNOS_PABLO_ISP)
@@ -2074,6 +2095,12 @@ static int s3c64xx_spi_resume_noirq(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
+
+	if (sci->secure_mode != SECURE_MODE) {
+		if (!IS_ERR(sci->usi_reg))
+			regmap_update_bits(sci->usi_reg, sci->usi_offset,
+					USI_SW_CONF_MASK, USI_SPI_SW_CONF);
+	}
 
 	if (sci->dma_mode == DMA_MODE)
 		return 0;
