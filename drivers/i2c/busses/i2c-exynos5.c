@@ -383,8 +383,8 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 	unsigned int ipclk;
 	unsigned int op_clk;
 
-	u32 hs_div, uTSCL_H_HS, uTSTART_HD_HS;
-	u32 fs_div, uTSCL_H_FS, uTSTART_HD_FS;
+	u32 hs_div, uTSCL_H_HS, uTSCL_L_HS, uTSTART_HD_HS;
+	u32 fs_div, uTSCL_H_FS, uTSCL_L_FS, uTSTART_HD_FS;
 	u32 utemp;
 
 	if (i2c->default_clk) {
@@ -407,10 +407,20 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS3) & ~0x00FF0000;
 		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
 
-		uTSCL_H_FS = (25 *(ipclk / (1000 * 1000))) / ((fs_div + 1) * 10);
-		uTSCL_H_FS = (0xFF << uTSCL_H_FS) & 0xFF;
+		if (!i2c->tscl_h) {
+			uTSCL_H_FS = (25 *(ipclk / (1000 * 1000))) / ((fs_div + 1) * 10);
+			uTSCL_H_FS = (0xFF << uTSCL_H_FS) & 0xFF;
+		} else {
+			uTSCL_H_FS = i2c->tscl_h;
+		}
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x000000FF;
 		writel(utemp | (uTSCL_H_FS << 0), i2c->regs + HSI2C_TIMING_FS2);
+
+		if (i2c->tscl_l) {
+			uTSCL_L_FS = i2c->tscl_l;
+			utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x0000FF00;
+			writel(utemp | (uTSCL_L_FS << 8), i2c->regs + HSI2C_TIMING_FS2);
+		}
 
 		uTSTART_HD_FS = (25 * (ipclk / (1000 * 1000))) / ((fs_div + 1) * 10) - 1;
 		uTSTART_HD_FS = (0xFF << uTSTART_HD_FS) & 0xFF;
@@ -432,10 +442,20 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS3) & ~0x00FF0000;
 		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
 
-		uTSCL_H_FS = (4 * (ipclk / (1000 * 1000))) / ((fs_div + 1) * 10);
-		uTSCL_H_FS = (0xFF << uTSCL_H_FS) & 0xFF;
+		if (!i2c->tscl_h) {
+			uTSCL_H_FS = (4 * (ipclk / (1000 * 1000))) / ((fs_div + 1) * 10);
+			uTSCL_H_FS = (0xFF << uTSCL_H_FS) & 0xFF;
+		} else {
+			uTSCL_H_FS = i2c->tscl_h;
+		}
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x000000FF;
 		writel(utemp | (uTSCL_H_FS << 0), i2c->regs + HSI2C_TIMING_FS2);
+
+		if (i2c->tscl_l) {
+			uTSCL_L_FS = i2c->tscl_l;
+			utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x0000FF00;
+			writel(utemp | (uTSCL_L_FS << 8), i2c->regs + HSI2C_TIMING_FS2);
+		}
 
 		uTSTART_HD_FS = (4 * (ipclk / (1000 * 1000))) / ((fs_div + 1) * 10) - 1;
 		uTSTART_HD_FS = (0xFF << uTSTART_HD_FS) & 0xFF;
@@ -458,12 +478,22 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		utemp = readl(i2c->regs + HSI2C_TIMING_HS3) & ~0x00FF0000;
 		writel(utemp | (hs_div << 16), i2c->regs + HSI2C_TIMING_HS3);
 
-		uTSCL_H_HS = ((7 * ipclk) / (1000 * 1000)) / ((hs_div + 1) * 100);
-		/* make to 0 into TSCL_H_HS from LSB */
-		uTSCL_H_HS = (0xFFFFFFFF >> uTSCL_H_HS) << uTSCL_H_HS;
-		uTSCL_H_HS &= 0xFF;
+		if (!i2c->tscl_h) {
+			uTSCL_H_HS = ((7 * ipclk) / (1000 * 1000)) / ((hs_div + 1) * 100);
+			/* make to 0 into TSCL_H_HS from LSB */
+			uTSCL_H_HS = (0xFFFFFFFF >> uTSCL_H_HS) << uTSCL_H_HS;
+			uTSCL_H_HS &= 0xFF;
+		} else {
+			uTSCL_H_HS = i2c->tscl_h;
+		}
 		utemp = readl(i2c->regs + HSI2C_TIMING_HS2) & ~0x000000FF;
 		writel(utemp | (uTSCL_H_HS << 0), i2c->regs + HSI2C_TIMING_HS2);
+
+		if (i2c->tscl_l) {
+			uTSCL_L_HS = i2c->tscl_l;
+			utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x0000FF00;
+			writel(utemp | (uTSCL_L_HS << 8), i2c->regs + HSI2C_TIMING_FS2);
+		}
 
 		uTSTART_HD_HS = (7 * ipclk / (1000 * 1000)) / ((hs_div + 1) * 100) - 1;
 		/* make to 0 into uTSTART_HD_HS from LSB */
@@ -490,12 +520,22 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS3) & ~0x00FF0000;
 		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
 
-		uTSCL_H_FS = ((9 * ipclk) / (1000 * 1000)) / ((fs_div + 1) * 10);
-		/* make to 0 into TSCL_H_FS from LSB */
-		uTSCL_H_FS = (0xFFFFFFFF >> uTSCL_H_FS) << uTSCL_H_FS;
-		uTSCL_H_FS &= 0xFF;
+		if (!i2c->tscl_h) {
+			uTSCL_H_FS = ((9 * ipclk) / (1000 * 1000)) / ((fs_div + 1) * 10);
+			/* make to 0 into TSCL_H_FS from LSB */
+			uTSCL_H_FS = (0xFFFFFFFF >> uTSCL_H_FS) << uTSCL_H_FS;
+			uTSCL_H_FS &= 0xFF;
+		} else {
+			uTSCL_H_FS = i2c->tscl_h;
+		}
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x000000FF;
 		writel(utemp | (uTSCL_H_FS << 0), i2c->regs + HSI2C_TIMING_FS2);
+
+		if (i2c->tscl_l) {
+			uTSCL_L_FS = i2c->tscl_l;
+			utemp = readl(i2c->regs + HSI2C_TIMING_FS2) & ~0x0000FF00;
+			writel(utemp | (uTSCL_L_FS << 8), i2c->regs + HSI2C_TIMING_FS2);
+		}
 
 		uTSTART_HD_FS = (9 * ipclk / (1000 * 1000)) / ((fs_div + 1) * 10) - 1;
 		/* make to 0 into uTSTART_HD_FS from LSB */
@@ -1119,6 +1159,14 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 			i2c->fs_clock = HSI2C_FS_TX_CLOCK;
 		i2c->clock_frequency = i2c->fs_clock;
 	}
+
+	ret = of_property_read_u32(np, "samsung,tscl-h", &i2c->tscl_h);
+	if (!ret)
+		dev_warn(&pdev->dev, "tSCL_HIGH val: 0x%x\n", i2c->tscl_h);
+
+	ret = of_property_read_u32(np, "samsung,tscl-l", &i2c->tscl_l);
+	if (!ret)
+		dev_warn(&pdev->dev, "tSCL_LOW val: 0x%x\n", i2c->tscl_l);
 
 	/* Mode of operation Polling/Interrupt mode */
 	if (of_get_property(np, "samsung,polling-mode", NULL)) {
