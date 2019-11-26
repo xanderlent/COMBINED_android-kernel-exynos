@@ -955,6 +955,12 @@ config MMC_SDHCI_BRCMSTB
 
 	  If unsure, say Y.
 
+config MMC_SRPMB
+	bool "MMC Secure RPMB Support"
+	depends on MMC_DW
+	help
+	  This option activates mmc secure rpmb.
+
 config MMC_SDHCI_XENON
 	tristate "Marvell Xenon eMMC/SD/SDIO SDHCI driver"
 	depends on MMC_SDHCI_PLTFM
