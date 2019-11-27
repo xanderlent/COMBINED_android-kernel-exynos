@@ -1772,11 +1772,8 @@ static void s3c24xx_serial_rx_fifo_wait(struct s3c24xx_uart_port *ourport)
 	unsigned int fifo_stat;
 	unsigned long wait_time;
 	unsigned int fifo_count;
-	unsigned long flags;
 
 	fifo_count = 0;
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	fifo_stat = rd_regl(port, S3C2410_UFSTAT);
 	fifo_count = s3c24xx_serial_rx_fifocnt(ourport, fifo_stat);
@@ -1791,8 +1788,6 @@ static void s3c24xx_serial_rx_fifo_wait(struct s3c24xx_uart_port *ourport)
 			cpu_relax();
 		} while (s3c24xx_serial_rx_fifocnt(ourport, fifo_stat) && time_before(jiffies, wait_time));
 	}
-
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	if (rx_enabled(port))
 		s3c24xx_serial_stop_rx(port);
