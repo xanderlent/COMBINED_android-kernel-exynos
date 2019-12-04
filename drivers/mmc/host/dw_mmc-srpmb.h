@@ -84,4 +84,13 @@ struct rpmb_packet {
        u8      stuff[196];
 };
 
+struct mmc_rpmb_data {
+        struct device dev;
+        struct cdev chrdev;
+        int id;
+        unsigned int part_index;
+        struct mmc_blk_data *md;
+        struct list_head node;
+};
+
 #endif

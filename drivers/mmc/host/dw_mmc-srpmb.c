@@ -29,7 +29,7 @@
 #include "dw_mmc-srpmb.h"
 
 #define MMC_SRPMB_DEVICE_PROPNAME	"samsung,mmc-srpmb"
-#define MMC_BLOCK_NAME			"/dev/block/mmcblk0rpmb"
+#define MMC_CHR_NAME			"/dev/mmcblk0rpmb"
 
 #if defined(DEBUG_SRPMB)
 static void dump_packet(u8 *data, int len)
@@ -86,32 +86,45 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 {
 	int ret = 0;
 	struct device *dev = ctx->dev;
-	static struct block_device *bdev = NULL;
-	struct gendisk *disk;
-	static const struct block_device_operations *fops;
+	static struct cdev *cdev = NULL;
+	static const struct file_operations *fops;
 	struct mmc_ioc_cmd icmd;
 	struct rpmb_packet packet;
+	struct mmc_rpmb_data *rpmb = NULL;
+	static struct file *filp = NULL;
 	u8 *result_buf = NULL;
+	mm_segment_t old_fs;
 
 	dev_info(dev, "start rpmb workqueue with command(%d)\n", req->type);
 
-	/* get block device for mmc rpmb */
-	if (bdev == NULL) {
-		bdev = blkdev_get_by_path(MMC_BLOCK_NAME,
-				FMODE_READ|FMODE_WRITE, NULL);
-		if (IS_ERR(bdev)) {
-			dev_err(dev, "Fail to get block device for mmc srpmb\n");
-			return -EINVAL;
-		}
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
 
-		disk = bdev->bd_disk;
-		fops = disk->fops;
+	/* get filp for mmc rpmb */
+	if(filp == NULL) {
+		filp = filp_open(MMC_CHR_NAME, O_RDONLY, 0);
+		if(IS_ERR(filp)) {
+			dev_err(dev, "failed filp_open\n");
+			filp = NULL;
+			ret = -ENOENT;
+			goto out;
+		}
+		rpmb = filp->private_data;
+		if(rpmb == NULL) {
+			dev_err(dev, "No mmc rpmb data structure in filp, private_data\n");
+			filp = NULL;
+			ret = -ENOTTY;
+			goto out;
+		}
+		cdev = &rpmb->chrdev;
+		fops = cdev->ops;
 		if (!fops->srpmb_access) {
-			dev_err(dev, "No function pointer for srpmb access\n");
-			return -ENOTTY;
+			dev_err(dev, "No function pointer for srpmb_access\n");
+			filp = NULL;
+			ret = -ENOTTY;
+			goto out;
 		}
 	}
-
 	wake_lock(&ctx->wakelock);
 
 	/* Initialize mmc ioc command */
@@ -124,7 +137,7 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 		icmd.opcode = MMC_WRITE_MULTIPLE_BLOCK;
 		icmd.data_ptr = (unsigned long)req->rpmb_data;
 
-		ret = fops->srpmb_access(bdev, &icmd);
+		ret = fops->srpmb_access(filp, MMC_IOC_CMD, (unsigned long)NULL, &icmd);
 		if (ret != 0) {
 			update_rpmb_status_flag(ctx, req,
 					WRITE_COUNTER_SECURITY_OUT_ERROR);
@@ -138,7 +151,7 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 		icmd.flags = MMC_RSP_R1;
 		icmd.opcode = MMC_READ_MULTIPLE_BLOCK;
 
-		ret = fops->srpmb_access(bdev, &icmd);
+		ret = fops->srpmb_access(filp, MMC_IOC_CMD, (unsigned long)NULL, &icmd);
 		if (ret != 0) {
 			update_rpmb_status_flag(ctx, req,
 					WRITE_COUNTER_SECURITY_IN_ERROR);
@@ -170,7 +183,7 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 		}
 
 		/* program data packet */
-		ret = fops->srpmb_access(bdev, &icmd);
+		ret = fops->srpmb_access(filp, MMC_IOC_CMD, (unsigned long)NULL, &icmd);
 		if (ret != 0) {
 			update_rpmb_status_flag(ctx, req, WRITE_DATA_SECURITY_OUT_ERROR);
 			dev_err(dev, "Fail to write block for program data: %d\n", ret);
@@ -191,7 +204,7 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 		swap_packet((u8 *)&packet, result_buf);
 
 		/* result read request */
-		ret = fops->srpmb_access(bdev, &icmd);
+		ret = fops->srpmb_access(filp, MMC_IOC_CMD, (unsigned long)NULL, &icmd);
 		if (ret != 0) {
 			update_rpmb_status_flag(ctx, req, WRITE_DATA_SECURITY_OUT_ERROR);
 			dev_err(dev, "Fail to write block for result: %d\n", ret);
@@ -204,7 +217,7 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 		icmd.opcode = MMC_READ_MULTIPLE_BLOCK;
 
 		/* read multiple block for response */
-		ret = fops->srpmb_access(bdev, &icmd);
+		ret = fops->srpmb_access(filp, MMC_IOC_CMD, (unsigned long)NULL, &icmd);
 		if (ret != 0) {
 			update_rpmb_status_flag(ctx, req, WRITE_DATA_SECURITY_IN_ERROR);
 			dev_err(dev, "Fail to read block for response: %d\n", ret);
@@ -242,7 +255,7 @@ wout:
 		kfree(result_buf);
 
 		/* read data packet */
-		ret = fops->srpmb_access(bdev, &icmd);
+		ret = fops->srpmb_access(filp, MMC_IOC_CMD, (unsigned long)NULL, &icmd);
 		if (ret != 0) {
 			update_rpmb_status_flag(ctx, req, READ_DATA_SECURITY_OUT_ERROR);
 			dev_err(dev, "Fail to write block for read data: %d\n", ret);
@@ -263,7 +276,7 @@ wout:
 		}
 
 		/* read multiple block for response */
-		ret = fops->srpmb_access(bdev, &icmd);
+		ret = fops->srpmb_access(filp, MMC_IOC_CMD, (unsigned long)NULL, &icmd);
 		if (ret != 0) {
 			update_rpmb_status_flag(ctx, req, READ_DATA_SECURITY_IN_ERROR);
 			dev_err(dev, "Fail to read block for response: %d\n", ret);
@@ -285,7 +298,8 @@ wout:
 
 	wake_unlock(&ctx->wakelock);
 	dev_info(dev, "finish rpmb workqueue with command(%d)\n", req->type);
-
+out:
+ 	set_fs(old_fs);
 	return ret;
 }
 

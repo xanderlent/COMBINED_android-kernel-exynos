@@ -884,24 +884,6 @@ static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 }
 
-#ifdef CONFIG_MMC_SRPMB
-static int mmc_blk_srpmb_access(struct block_device *bdev, struct mmc_ioc_cmd *icmd)
-{
-	struct mmc_blk_data *md;
-	int ret;
-
-	ret = mmc_blk_check_blkdev(bdev);
-	if (ret)
-		return ret;
-	md = mmc_blk_get(bdev->bd_disk);
-	if (!md)
-		return -EINVAL;
-
-	ret = mmc_blk_ioctl_cmd(md, NULL, NULL, icmd);
-	return ret;
-}
-#endif
-
 #ifdef CONFIG_COMPAT
 static int mmc_blk_compat_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
@@ -918,9 +900,6 @@ static const struct block_device_operations mmc_bdops = {
 	.ioctl			= mmc_blk_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= mmc_blk_compat_ioctl,
-#endif
-#ifdef CONFIG_MMC_SRPMB
-	.srpmb_access		= mmc_blk_srpmb_access,
 #endif
 };
 
@@ -2553,6 +2532,34 @@ static long mmc_rpmb_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
+#ifdef CONFIG_MMC_SRPMB
+static long mmc_rpmb_access_ioctl(struct file *filp, unsigned int cmd,
+                           unsigned long arg, struct mmc_ioc_cmd *icmd)
+{
+        struct mmc_rpmb_data *rpmb = filp->private_data;
+        int ret;
+
+        switch (cmd) {
+        case MMC_IOC_CMD:
+                ret = mmc_blk_ioctl_cmd(rpmb->md,
+                                        (struct mmc_ioc_cmd __user *)arg,
+                                        rpmb,
+                                        icmd);
+                break;
+        case MMC_IOC_MULTI_CMD:
+                ret = mmc_blk_ioctl_multi_cmd(rpmb->md,
+                                        (struct mmc_ioc_multi_cmd __user *)arg,
+                                        rpmb);
+                break;
+        default:
+                ret = -EINVAL;
+                break;
+        }
+
+        return ret;
+}
+#endif
+
 #ifdef CONFIG_COMPAT
 static long mmc_rpmb_ioctl_compat(struct file *filp, unsigned int cmd,
 			      unsigned long arg)
@@ -2592,6 +2599,9 @@ static const struct file_operations mmc_rpmb_fileops = {
 	.unlocked_ioctl = mmc_rpmb_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = mmc_rpmb_ioctl_compat,
+#endif
+#ifdef CONFIG_MMC_SRPMB
+        .srpmb_access = mmc_rpmb_access_ioctl,
 #endif
 };
 

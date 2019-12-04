@@ -42,6 +42,10 @@
 #include <asm/byteorder.h>
 #include <uapi/linux/fs.h>
 
+#ifdef CONFIG_MMC_SRPMB
+#include <linux/mmc/ioctl.h>
+#endif
+
 struct backing_dev_info;
 struct bdi_writeback;
 struct bio;
@@ -1831,11 +1835,10 @@ struct file_operations {
 	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t,
 			u64);
 	int (*fadvise)(struct file *, loff_t, loff_t, int);
-
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
-	ANDROID_KABI_RESERVE(3);
-	ANDROID_KABI_RESERVE(4);
+#ifdef CONFIG_MMC_SRPMB
+        long (*srpmb_access)(struct file *, unsigned int,
+                           unsigned long, struct mmc_ioc_cmd *);
+#endif
 } __randomize_layout;
 
 struct inode_operations {
