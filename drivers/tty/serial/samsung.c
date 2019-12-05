@@ -1815,7 +1815,7 @@ void s3c24xx_serial_fifo_wait(void)
 }
 EXPORT_SYMBOL_GPL(s3c24xx_serial_fifo_wait);
 
-#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_CPU_IDLE)
+#if defined(CONFIG_CPU_IDLE)
 static int s3c24xx_serial_notifier(struct notifier_block *self,
 				unsigned long cmd, void *v)
 {
@@ -2699,7 +2699,7 @@ static int __init s3c24xx_serial_modinit(void)
 		return ret;
 	}
 
-#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_CPU_IDLE)
+#if defined(CONFIG_CPU_IDLE)
 	exynos_pm_register_notifier(&s3c24xx_serial_notifier_block);
 #endif
 
