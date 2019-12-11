@@ -1521,7 +1521,7 @@ static inline struct s3c64xx_spi_port_config *s3c64xx_spi_get_port_config(
 			 platform_get_device_id(pdev)->driver_data;
 }
 
-#if defined(CONFIG_CPU_IDLE) && defined(CONFIG_EXYNOS_PM)
+#if defined(CONFIG_CPU_IDLE)
 static int s3c64xx_spi_notifier(struct notifier_block *self,
 				unsigned long cmd, void *v)
 {
@@ -2240,7 +2240,7 @@ MODULE_ALIAS("platform:s3c64xx-spi");
 
 static int __init s3c64xx_spi_init(void)
 {
-#if defined(CONFIG_CPU_IDLE) && defined(CONFIT_EXYNOS_PM)
+#if defined(CONFIG_CPU_IDLE)
 	exynos_pm_register_notifier(&s3c64xx_spi_notifier_block);
 #endif
 	return platform_driver_probe(&s3c64xx_spi_driver, s3c64xx_spi_probe);
