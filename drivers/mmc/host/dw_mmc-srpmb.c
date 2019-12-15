@@ -459,6 +459,7 @@ static int mmc_srpmb_probe(struct platform_device *pdev)
 	struct _mmc_rpmb_ctx *ctx;
 	struct device *dev = &pdev->dev;
 
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
 	/* allocation for rpmb context */
 	ctx = kzalloc(sizeof(struct _mmc_rpmb_ctx), GFP_KERNEL);
 	if (!ctx) {
