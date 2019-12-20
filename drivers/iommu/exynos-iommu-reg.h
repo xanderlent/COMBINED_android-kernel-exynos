@@ -662,7 +662,8 @@ static inline void __sysmmu_enable_nocount(struct sysmmu_drvdata *drvdata)
 
 	writel(CTRL_ENABLE, drvdata->sfrbase + REG_MMU_CTRL);
 	if (drvdata->has_vcr)
-		writel(CTRL_ENABLE, drvdata->sfrbase + REG_MMU_CTRL_VM);
+		writel(CTRL_ENABLE | CTRL_FAULT_STALL_MODE,
+				drvdata->sfrbase + REG_MMU_CTRL_VM);
 
 	SYSMMU_EVENT_LOG_ENABLE(SYSMMU_DRVDATA_TO_LOG(drvdata));
 }
