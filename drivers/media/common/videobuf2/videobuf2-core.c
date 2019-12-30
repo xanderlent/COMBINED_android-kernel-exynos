@@ -984,7 +984,8 @@ static void vb2_process_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state
 
 void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 {
-	if (WARN_ON(vb->state != VB2_BUF_STATE_ACTIVE))
+	if (WARN_ON(vb->state != VB2_BUF_STATE_ACTIVE &&
+		    vb->state != VB2_BUF_STATE_ERROR))
 		return;
 
 	if (WARN_ON(state != VB2_BUF_STATE_DONE &&
@@ -1294,7 +1295,8 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 	else if (vb->state != VB2_BUF_STATE_ERROR)
 		vb->state = VB2_BUF_STATE_ACTIVE;
 
-	atomic_inc(&q->owned_by_drv_count);
+	if (vb->state == VB2_BUF_STATE_ACTIVE)
+		atomic_inc(&q->owned_by_drv_count);
 
 	trace_vb2_buf_queue(q, vb);
 
