@@ -1460,26 +1460,16 @@ static void __qbuf_work(struct work_struct *work)
 {
 	struct vb2_buffer *vb;
 	struct vb2_queue *q;
-
-	vb = container_of(work, struct vb2_buffer, qbuf_work);
-	q = vb->vb2_queue;
-
-	if (q->start_streaming_called && (vb->state == VB2_BUF_STATE_QUEUED ||
-					  vb->state == VB2_BUF_STATE_ERROR))
-		__enqueue_in_driver(vb);
-}
-
-static void vb2_qbuf_fence_cb(struct dma_fence *f, struct dma_fence_cb *cb)
-{
-	struct vb2_buffer *vb = container_of(cb, struct vb2_buffer, fence_cb);
 	unsigned long flags;
 
+	vb = container_of(work, struct vb2_buffer, qbuf_work);
+
 	spin_lock_irqsave(&vb->fence_cb_lock, flags);
-	del_timer(&vb->fence_timer);
 	if (!vb->in_fence) {
 		spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 		return;
 	}
+	del_timer(&vb->fence_timer);
 	/*
 	 * If the fence signals with an error we mark the buffer as such
 	 * and avoid using it by setting it to VB2_BUF_STATE_ERROR and
@@ -1496,6 +1486,17 @@ static void vb2_qbuf_fence_cb(struct dma_fence *f, struct dma_fence_cb *cb)
 	vb->in_fence = NULL;
 
 	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
+
+	q = vb->vb2_queue;
+
+	if (q->start_streaming_called && (vb->state == VB2_BUF_STATE_QUEUED ||
+					  vb->state == VB2_BUF_STATE_ERROR))
+		__enqueue_in_driver(vb);
+}
+
+static void vb2_qbuf_fence_cb(struct dma_fence *f, struct dma_fence_cb *cb)
+{
+	struct vb2_buffer *vb = container_of(cb, struct vb2_buffer, fence_cb);
 
 	schedule_work(&vb->qbuf_work);
 }
@@ -1526,9 +1527,12 @@ static void vb2_fence_timeout_handler(struct timer_list *t)
 				"signaled" : "active", fence->error);
 
 		dma_fence_remove_callback(vb->in_fence, &vb->fence_cb);
-		dma_fence_put(fence);
-		vb->in_fence = NULL;
-		vb->state = VB2_BUF_STATE_ERROR;
+		/*
+		 * set fence as error, then vb->state will become error
+		 * in __qbuf_work(). Remained process like dma_fence_put()
+		 * is also handled in __qbuf_work().
+		 */
+		dma_fence_set_error(vb->in_fence, -EFAULT);
 	}
 
 	fence = vb->out_fence;
