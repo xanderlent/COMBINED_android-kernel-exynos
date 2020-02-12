@@ -190,7 +190,7 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 			break;
 		}
 
-		result_buf = (u8 *)kzalloc(RPMB_PACKET_SIZE, GFP_KERNEL);
+		result_buf = (u8 *)kzalloc(RPMB_PACKET_SIZE, GFP_NOIO);
 		if (result_buf == NULL) {
 			dev_err(dev, "Memory allocation failed\n");
 			ret = -1;
@@ -240,7 +240,7 @@ wout:
 		icmd.opcode = MMC_WRITE_MULTIPLE_BLOCK;
 		icmd.data_ptr = (unsigned long)req->rpmb_data;
 
-		result_buf = (u8 *)kzalloc(RPMB_PACKET_SIZE, GFP_KERNEL);
+		result_buf = (u8 *)kzalloc(RPMB_PACKET_SIZE, GFP_NOIO);
 		if (result_buf == NULL) {
 			dev_err(dev, "Memory allocation failed\n");
 			ret = -1;
