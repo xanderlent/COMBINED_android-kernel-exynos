@@ -474,6 +474,15 @@ static int mmc_srpmb_probe(struct platform_device *pdev)
 		goto ctx_kfree;
 	}
 
+        /* initialize workqueue for mmc rpmb handler */
+	ctx->dev = dev;
+        ctx->srpmb_queue = alloc_workqueue("srpmb_wq",
+                WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_HIGHPRI, 1);
+        if (!ctx->srpmb_queue) {
+                dev_err(dev, "Fail to alloc workqueue for mmc srpmb\n");
+                goto notifier_free;
+        }
+
 	/* request irq for mmc rpmb handler */
 	ret = request_irq(ctx->irq, mmc_rpmb_interrupt,
 			IRQF_TRIGGER_RISING, pdev->name, ctx);
@@ -482,9 +491,7 @@ static int mmc_srpmb_probe(struct platform_device *pdev)
 		goto dma_free;
 	}
 
-	ctx->dev = dev;
 	ctx->pm_notifier.notifier_call = mmc_rpmb_pm_notifier;
-
 	ret = register_pm_notifier(&ctx->pm_notifier);
 	if (ret) {
 		dev_err(dev, "Fail to setup pm notifier\n");
@@ -492,14 +499,6 @@ static int mmc_srpmb_probe(struct platform_device *pdev)
 	}
 
 	INIT_WORK(&ctx->work, mmc_rpmb_worker);
-
-	/* initialize workqueue for mmc rpmb handler */
-	ctx->srpmb_queue = alloc_workqueue("srpmb_wq",
-		WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_HIGHPRI, 1);
-	if (!ctx->srpmb_queue) {
-		dev_err(dev, "Fail to alloc workqueue for mmc srpmb\n");
-		goto notifier_free;
-	}
 
 	platform_set_drvdata(pdev, ctx);
 	wake_lock_init(&ctx->wakelock, WAKE_LOCK_SUSPEND, "srpmb");
