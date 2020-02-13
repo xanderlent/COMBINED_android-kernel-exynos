@@ -1,0 +1,32 @@
+menuconfig EXYNOS_DEBUG
+        bool "Exynos Debug Features"
+        default n
+
+if EXYNOS_DEBUG
+menuconfig DEBUG_SNAPSHOT
+	tristate "Debug SnapShot Support"
+	depends on EXYNOS_DEBUG
+	default n
+
+config DEBUG_SNAPSHOT_FREQ_DOMAIN_NUM
+	int "Number of freq logging domain type"
+	depends on DEBUG_SNAPSHOT
+	range 4 32
+	default 32
+
+config DEBUG_SNAPSHOT_LOG_ITEM_SIZE
+	int "Number of logging item base size"
+	depends on DEBUG_SNAPSHOT
+	range 256 1024
+	default 1024
+
+config DEBUG_SNAPSHOT_SFRDUMP
+	tristate "Debug Snapshot SFRDUMP"
+	depends on DEBUG_SNAPSHOT
+	default n
+
+config DEBUG_SNAPSHOT_QUICKDUMP
+	tristate "Debug Snapshot quickdump"
+	depends on DEBUG_SNAPSHOT
+	default n
+endif

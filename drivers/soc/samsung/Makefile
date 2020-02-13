@@ -39,3 +39,6 @@ obj-$(CONFIG_EXYNOS_GNSS_IF) += gnssif/
 #
 # DVFS
 obj-$(CONFIG_EXYNOS_DVFS_MANAGER)	+= exynos-dm.o
+
+# DEBUG
+obj-$(CONFIG_EXYNOS_DEBUG)      += debug/

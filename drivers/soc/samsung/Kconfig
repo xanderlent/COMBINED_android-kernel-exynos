@@ -130,4 +130,5 @@ config EXYNOS_DVFS_MANAGER
 	  Enable DVFS Manager for Exynos SoC.
 	  This module controls constraint between each DVFS domains.
 
+source "drivers/soc/samsung/debug/Kconfig"
 endif
