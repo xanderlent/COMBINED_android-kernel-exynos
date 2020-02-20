@@ -344,7 +344,7 @@ static inline void show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 	unsigned int sfrbase = drvdata->securebase;
 	const char *port_name = NULL;
 
-	pgtable = __secure_info_read(MMU_SEC_REG(drvdata, IDX_FLPT_BASE));
+	pgtable = __secure_info_read(MMU_SEC_REG(drvdata, IDX_SEC_FLPT_BASE));
 	pgtable <<= PAGE_SHIFT;
 
 	info = __secure_info_read(MMU_SEC_REG(drvdata, IDX_FAULT_TRANS_INFO));
@@ -387,15 +387,11 @@ static inline void show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 	pr_crit("ADDR: %#x, MMU_CTRL: %#010x, PT_BASE: %#010x\n",
 		sfrbase,
 		__secure_info_read(sfrbase + REG_MMU_CTRL),
-		__secure_info_read(MMU_SEC_REG(drvdata, IDX_FLPT_BASE)));
+		__secure_info_read(MMU_SEC_REG(drvdata, IDX_SEC_FLPT_BASE)));
 	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
 		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
 		__secure_info_read(sfrbase + REG_MMU_CFG),
 		__secure_info_read(sfrbase + REG_MMU_STATUS));
-	if (drvdata->has_vcr)
-		pr_crit("MMU_CTRL_VM: %#010x, MMU_CFG_VM: %#010x\n",
-			__secure_info_read(sfrbase + REG_MMU_CTRL_VM),
-			__secure_info_read(sfrbase + REG_MMU_CFG_VM));
 
 finish:
 	pr_crit("----------------------------------------------------------\n");
