@@ -526,4 +526,6 @@ static inline void print_hex_dump_debug(const char *prefix_str, int prefix_type,
 }
 #endif
 
+typedef void (*hook_func_t)(const char *buf, size_t size, unsigned int id);
+extern void register_hook_logbuf(hook_func_t func);
 #endif
