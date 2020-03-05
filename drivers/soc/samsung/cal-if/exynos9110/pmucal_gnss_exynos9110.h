@@ -49,10 +49,10 @@ struct pmucal_seq gnss_reset_release[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "PMU_EVENT_INTERRUPT_ENABLE_GRP3", 0x11860000, 0x7f0c, (0x1 << 13), (0x1 << 13), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "PMU_EVENT_INTERRUPT_ENABLE_GRP3", 0x11860000, 0x7f0c, (0x1 << 29), (0x1 << 29), 0, 0, 0xffffffff, 0),
 };
-struct pmucal_seq gnss_gnss_active_clear[] = {
+struct pmucal_seq gnss_active_clear[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "GNSS_CTRL_NS", 0x11860000, 0x0040, (0x1 << 6), (0x1 << 6), 0, 0, 0xffffffff, 0),
 };
-struct pmucal_seq gnss_gnss_reset_req_clear[] = {
+struct pmucal_seq gnss_reset_req_clear[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "GNSS_CTRL_NS", 0x11860000, 0x0040, (0x1 << 8), (0x1 << 8), 0, 0, 0xffffffff, 0),
 };
 struct pmucal_gnss pmucal_gnss_list = {
@@ -60,13 +60,13 @@ struct pmucal_gnss pmucal_gnss_list = {
 		.status = gnss_status,
 		.reset_assert = gnss_reset_assert,
 		.reset_release = gnss_reset_release,
-		.gnss_active_clear = gnss_gnss_active_clear,
-		.gnss_reset_req_clear = gnss_gnss_reset_req_clear,
+		.active_clear = gnss_active_clear,
+		.gnss_reset_req_clear = gnss_reset_req_clear,
 		.num_init = ARRAY_SIZE(gnss_init),
 		.num_status = ARRAY_SIZE(gnss_status),
 		.num_reset_assert = ARRAY_SIZE(gnss_reset_assert),
 		.num_reset_release = ARRAY_SIZE(gnss_reset_release),
-		.num_gnss_active_clear = ARRAY_SIZE(gnss_gnss_active_clear),
-		.num_gnss_reset_req_clear = ARRAY_SIZE(gnss_gnss_reset_req_clear),
+		.num_active_clear = ARRAY_SIZE(gnss_active_clear),
+		.num_gnss_reset_req_clear = ARRAY_SIZE(gnss_reset_req_clear),
 };
 unsigned int pmucal_gnss_list_size = 1;

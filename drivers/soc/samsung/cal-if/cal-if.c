@@ -404,6 +404,11 @@ void cal_gnss_reset_req_clear(void)
 {
 	pmucal_gnss_reset_req_clear();
 }
+
+void cal_gnss_active_clear(void)
+{
+	pmucal_gnss_active_clear();
+}
 #endif
 
 #ifdef CONFIG_SHUB_PMUCAL
