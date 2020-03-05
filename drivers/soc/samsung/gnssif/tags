@@ -1,0 +1,687 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+AP2GNSS	gnss_prj.h	/^	AP2GNSS = 0,$/;"	e	enum:direction
+BAAW_GNSS_CMGP_ADDR	pmu-gnss.c	28;"	d	file:
+BAAW_GNSS_CMGP_ADDR	pmu-gnss.c	35;"	d	file:
+BAAW_GNSS_CMGP_SIZE	pmu-gnss.c	29;"	d	file:
+BAAW_GNSS_CMGP_SIZE	pmu-gnss.c	36;"	d	file:
+BAAW_GNSS_DBUS_ADDR	pmu-gnss.c	31;"	d	file:
+BAAW_GNSS_DBUS_ADDR	pmu-gnss.c	38;"	d	file:
+BAAW_GNSS_DBUS_SIZE	pmu-gnss.c	32;"	d	file:
+BAAW_GNSS_DBUS_SIZE	pmu-gnss.c	39;"	d	file:
+BCMD_CTRL_COUNT	include/gnss.h	/^	BCMD_CTRL_COUNT,$/;"	e	enum:gnss_bcmd_ctrl
+BCMD_WAKELOCK_TIMEOUT	gnss_keplerctl_device.c	33;"	d	file:
+BCMD_WAKELOCK_TIMEOUT	gnss_link_device_shmem.h	22;"	d
+CALLEE	include/gnss.h	187;"	d
+CALLER	gnss_prj.h	32;"	d
+CALLER	include/gnss.h	188;"	d
+CTRL0	include/gnss.h	/^	CTRL0,$/;"	e	enum:gnss_bcmd_ctrl
+CTRL1	include/gnss.h	/^	CTRL1,$/;"	e	enum:gnss_bcmd_ctrl
+CTRL2	include/gnss.h	/^	CTRL2,$/;"	e	enum:gnss_bcmd_ctrl
+CTRL3	include/gnss.h	/^	CTRL3,$/;"	e	enum:gnss_bcmd_ctrl
+EXYNOS_CH_ID_OFFSET	include/exynos_ipc.h	38;"	d
+EXYNOS_CH_SEQ_OFFSET	include/exynos_ipc.h	41;"	d
+EXYNOS_CH_SEQ_SIZE	include/exynos_ipc.h	42;"	d
+EXYNOS_CH_SIZE	include/exynos_ipc.h	39;"	d
+EXYNOS_DATA_LOOPBACK_CHANNEL	include/exynos_ipc.h	46;"	d
+EXYNOS_FMT_NUM	include/exynos_ipc.h	48;"	d
+EXYNOS_FRAG_CONFIG_OFFSET	include/exynos_ipc.h	32;"	d
+EXYNOS_FRAG_CONFIG_SIZE	include/exynos_ipc.h	33;"	d
+EXYNOS_FRAME_SEQ_OFFSET	include/exynos_ipc.h	29;"	d
+EXYNOS_FRAME_SIZE	include/exynos_ipc.h	30;"	d
+EXYNOS_GNSS	pmu-gnss.c	19;"	d	file:
+EXYNOS_HEADER_SIZE	include/exynos_ipc.h	44;"	d
+EXYNOS_LEN_OFFSET	include/exynos_ipc.h	35;"	d
+EXYNOS_LEN_SIZE	include/exynos_ipc.h	36;"	d
+EXYNOS_MBOX_INTCR0	gnss_mbox.h	23;"	d
+EXYNOS_MBOX_INTCR1	gnss_mbox.h	28;"	d
+EXYNOS_MBOX_INTGR0	gnss_mbox.h	22;"	d
+EXYNOS_MBOX_INTGR1	gnss_mbox.h	27;"	d
+EXYNOS_MBOX_INTMR0	gnss_mbox.h	24;"	d
+EXYNOS_MBOX_INTMR1	gnss_mbox.h	29;"	d
+EXYNOS_MBOX_INTMSR0	gnss_mbox.h	26;"	d
+EXYNOS_MBOX_INTMSR1	gnss_mbox.h	31;"	d
+EXYNOS_MBOX_INTSR0	gnss_mbox.h	25;"	d
+EXYNOS_MBOX_INTSR1	gnss_mbox.h	30;"	d
+EXYNOS_MBOX_ISSR0	gnss_mbox.h	32;"	d
+EXYNOS_MBOX_ISSR1	gnss_mbox.h	33;"	d
+EXYNOS_MBOX_ISSR2	gnss_mbox.h	34;"	d
+EXYNOS_MBOX_ISSR3	gnss_mbox.h	35;"	d
+EXYNOS_MBOX_MCUCTLR	gnss_mbox.h	21;"	d
+EXYNOS_MULTI_LAST_MASK	include/exynos_ipc.h	23;"	d
+EXYNOS_MULTI_START_MASK	include/exynos_ipc.h	22;"	d
+EXYNOS_PMU_GNSS_CTRL_NS	pmu-gnss.h	24;"	d
+EXYNOS_RFS_NUM	include/exynos_ipc.h	49;"	d
+EXYNOS_SET_CONN_TZPC	pmu-gnss.c	21;"	d	file:
+EXYNOS_SINGLE_MASK	include/exynos_ipc.h	21;"	d
+EXYNOS_START_MASK	include/exynos_ipc.h	25;"	d
+EXYNOS_START_OFFSET	include/exynos_ipc.h	26;"	d
+EXYNOS_START_SIZE	include/exynos_ipc.h	27;"	d
+GNSS2AP	gnss_prj.h	/^	GNSS2AP = 1,$/;"	e	enum:direction
+GNSS_ACTIVE_REQ_CLR	pmu-gnss.h	25;"	d
+GNSS_INT_ACTIVE_CLEAR	pmu-gnss.h	/^	GNSS_INT_ACTIVE_CLEAR,$/;"	e	enum:gnss_int_clear
+GNSS_INT_WAKEUP_CLEAR	pmu-gnss.h	/^	GNSS_INT_WAKEUP_CLEAR,$/;"	e	enum:gnss_int_clear
+GNSS_INT_WDT_RESET_CLEAR	pmu-gnss.h	/^	GNSS_INT_WDT_RESET_CLEAR,$/;"	e	enum:gnss_int_clear
+GNSS_IOCTL_CHANGE_SENSOR_GPIO	gnss_prj.h	43;"	d
+GNSS_IOCTL_CHANGE_TCXO_MODE	gnss_prj.h	44;"	d
+GNSS_IOCTL_LOAD_FIRMWARE	gnss_prj.h	39;"	d
+GNSS_IOCTL_READ_FIRMWARE	gnss_prj.h	42;"	d
+GNSS_IOCTL_REQ_BCMD	gnss_prj.h	41;"	d
+GNSS_IOCTL_REQ_FAULT_INFO	gnss_prj.h	40;"	d
+GNSS_IOCTL_RESET	gnss_prj.h	38;"	d
+GNSS_IOCTL_SET_SENSOR_POWER	gnss_prj.h	45;"	d
+GNSS_IOC_MAGIC	gnss_prj.h	36;"	d
+GNSS_IPC_COUNT	include/gnss.h	/^	GNSS_IPC_COUNT,$/;"	e	enum:gnss_ipc_vector
+GNSS_IPC_MBOX	include/gnss.h	/^	GNSS_IPC_MBOX,$/;"	e	enum:gnss_ipc_vector
+GNSS_IPC_SHMEM	include/gnss.h	/^	GNSS_IPC_SHMEM,$/;"	e	enum:gnss_ipc_vector
+GNSS_MAX_NAME_LEN	gnss_prj.h	87;"	d
+GNSS_POWER_OFF	pmu-gnss.h	/^	GNSS_POWER_OFF,$/;"	e	enum:gnss_mode
+GNSS_POWER_ON	pmu-gnss.h	/^	GNSS_POWER_ON,$/;"	e	enum:gnss_mode
+GNSS_REG_COUNT	include/gnss.h	/^	GNSS_REG_COUNT,$/;"	e	enum:gnss_reg_type
+GNSS_REG_RX_HEAD	include/gnss.h	/^	GNSS_REG_RX_HEAD,$/;"	e	enum:gnss_reg_type
+GNSS_REG_RX_IPC_MSG	include/gnss.h	/^	GNSS_REG_RX_IPC_MSG,$/;"	e	enum:gnss_reg_type
+GNSS_REG_RX_TAIL	include/gnss.h	/^	GNSS_REG_RX_TAIL,$/;"	e	enum:gnss_reg_type
+GNSS_REG_TX_HEAD	include/gnss.h	/^	GNSS_REG_TX_HEAD,$/;"	e	enum:gnss_reg_type
+GNSS_REG_TX_IPC_MSG	include/gnss.h	/^	GNSS_REG_TX_IPC_MSG,$/;"	e	enum:gnss_reg_type
+GNSS_REG_TX_TAIL	include/gnss.h	/^	GNSS_REG_TX_TAIL,$/;"	e	enum:gnss_reg_type
+GNSS_RESET	pmu-gnss.h	/^	GNSS_RESET,$/;"	e	enum:gnss_mode
+HDLC_HEADER_MAX_SIZE	gnss_prj.h	85;"	d
+HEAD	gnss_link_device_memory.h	/^	HEAD,$/;"	e	enum:circ_ptr_type
+IPC_WAKELOCK_TIMEOUT	gnss_link_device_shmem.h	21;"	d
+LOG_TAG	include/gnss.h	186;"	d
+MAX_DIR	gnss_prj.h	/^	MAX_DIR = 2$/;"	e	enum:direction
+MAX_HEX_LEN	gnss_prj.h	89;"	d
+MAX_IOD_RXQ_LEN	gnss_prj.h	34;"	d
+MAX_MBOX_NUM	gnss_mbox.h	41;"	d
+MAX_MBOX_REGION	gnss_mbox.h	/^	MAX_MBOX_REGION,$/;"	e	enum:gnss_mbox_region
+MAX_MEM_LOG_CNT	gnss_link_device_memory.h	160;"	d
+MAX_NAME_LEN	gnss_prj.h	90;"	d
+MAX_NAME_LEN	include/gnss.h	21;"	d
+MAX_PREFIX_LEN	gnss_prj.h	91;"	d
+MAX_RETRY_CNT	gnss_link_device_memory.h	26;"	d
+MAX_SKB_TXQ_DEPTH	gnss_link_device_memory.h	24;"	d
+MAX_STR_LEN	gnss_prj.h	92;"	d
+MAX_TIMEOUT_CNT	gnss_link_device_memory.h	22;"	d
+MAX_TRACE_SIZE	gnss_link_device_memory.h	161;"	d
+MBOX_MCUCTLR_MSWRST	gnss_mbox.h	38;"	d
+MBOX_REGION_GNSS	gnss_mbox.h	/^	MBOX_REGION_GNSS,$/;"	e	enum:gnss_mbox_region
+MEMBASE_ADDR_MASK	pmu-gnss.h	16;"	d
+MEMBASE_ADDR_OFFSET	pmu-gnss.h	17;"	d
+MEMBASE_ADDR_SHIFT	pmu-gnss.h	15;"	d
+MEMBASE_GNSS_ADDR	pmu-gnss.h	20;"	d
+MEMBASE_GNSS_ADDR_2ND	pmu-gnss.h	21;"	d
+NUM_GNSS_MODE	pmu-gnss.h	/^	NUM_GNSS_MODE,$/;"	e	enum:gnss_mode
+POWER_OFF	pmu-gnss.c	152;"	d	file:
+POWER_ON	pmu-gnss.c	151;"	d	file:
+REQ_BCMD_TIMEOUT	gnss_keplerctl_device.c	34;"	d	file:
+RX	gnss_prj.h	/^	RX = 1,$/;"	e	enum:direction
+SENSOR_OFF	gnss_prj.h	/^	SENSOR_OFF,$/;"	e	enum:sensor_power
+SENSOR_ON	gnss_prj.h	/^	SENSOR_ON,$/;"	e	enum:sensor_power
+STATE_FAULT	gnss_prj.h	/^	STATE_FAULT, \/* ACTIVE\/WDT *\/$/;"	e	enum:gnss_state
+STATE_FIRMWARE_DL	gnss_prj.h	/^	STATE_FIRMWARE_DL, \/* no firmware *\/$/;"	e	enum:gnss_state
+STATE_HOLD_RESET	gnss_prj.h	/^	STATE_HOLD_RESET,$/;"	e	enum:gnss_state
+STATE_OFFLINE	gnss_prj.h	/^	STATE_OFFLINE,$/;"	e	enum:gnss_state
+STATE_ONLINE	gnss_prj.h	/^	STATE_ONLINE,$/;"	e	enum:gnss_state
+SW_INIT_TIMEOUT	gnss_keplerctl_device.c	35;"	d	file:
+TAIL	gnss_link_device_memory.h	/^	TAIL,$/;"	e	enum:circ_ptr_type
+TCXO_NON_SHARED_MODE	pmu-gnss.h	/^	TCXO_NON_SHARED_MODE = 1,$/;"	e	enum:gnss_tcxo_mode
+TCXO_SHARED_MODE	pmu-gnss.h	/^	TCXO_SHARED_MODE = 0,$/;"	e	enum:gnss_tcxo_mode
+TX	gnss_prj.h	/^	TX = 0,$/;"	e	enum:direction
+WAKE_TIME	gnss_io_device.c	33;"	d	file:
+__EXYNOS_IPC_H__	include/exynos_ipc.h	16;"	d
+__EXYNOS_PMU_GNSS_H	pmu-gnss.h	13;"	d
+__GNSSIF_VERSION_H__	gnssif_version.h	16;"	d
+__GNSS_IF_H__	include/gnss.h	16;"	d
+__GNSS_LINK_DEVICE_MEMORY_H__	gnss_link_device_memory.h	16;"	d
+__GNSS_LINK_DEVICE_SHMEM_H__	gnss_link_device_shmem.h	16;"	d
+__GNSS_MBOX_H__	gnss_mbox.h	16;"	d
+__GNSS_PRJ_H__	gnss_prj.h	16;"	d
+__GNSS_UTILS_H__	gnss_utils.h	16;"	d
+__current_link	gnss_prj.h	/^	struct link_device *__current_link;$/;"	m	struct:io_device	typeref:struct:io_device::link_device
+__packed	gnss_prj.h	/^} __packed;$/;"	v	typeref:struct:fmt_hdr
+__packed	gnss_prj.h	/^} __packed;$/;"	v	typeref:struct:skbuff_private
+_gnss_mbox	gnss_mbox.c	/^static struct gnss_mbox_drv_data _gnss_mbox[MAX_MBOX_REGION];$/;"	v	typeref:struct:gnss_mbox_drv_data	file:
+active	include/gnss.h	/^	bool active;$/;"	m	struct:gnss_irq
+addr	include/gnss.h	/^	u32 __iomem *addr;$/;"	m	struct:gnss_shared_reg_value
+addr	include/gnss.h	/^	u8 __iomem *addr;$/;"	m	struct:gnss_fault_data_area_value
+alloc_gnss_reg	gnss_main.c	/^static int alloc_gnss_reg(struct device *dev, struct gnss_shared_reg **areg,$/;"	f	file:
+app	gnss_prj.h	/^	char *app;$/;"	m	struct:io_device
+app	include/gnss.h	/^	char *app;$/;"	m	struct:gnss_io_t
+baaw_cmgp_reg	pmu-gnss.c	/^static void __iomem *baaw_cmgp_reg;$/;"	v	file:
+baaw_dbus_reg	pmu-gnss.c	/^static void __iomem *baaw_dbus_reg;$/;"	v	file:
+base	gnss_mbox.h	/^	void __iomem *base;$/;"	m	struct:gnss_mbox_drv_data
+bcmd_cmpl	gnss_prj.h	/^	struct completion bcmd_cmpl;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::completion
+boot_msg	gnss_utils.h	/^	u8 boot_msg;$/;"	m	struct:gnss_log
+buff	gnss_link_device_memory.h	/^	u8 *buff;$/;"	m	struct:circ_status
+buff	gnss_link_device_shmem.h	/^	u8  __iomem *buff;$/;"	m	struct:shmem_circ
+ccore_qch_lh_gnss	gnss_prj.h	/^	struct clk *ccore_qch_lh_gnss;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::clk
+cfg	include/exynos_ipc.h	/^	struct frag_config cfg;$/;"	m	struct:exynos_link_header	typeref:struct:exynos_link_header::frag_config
+ch_cnt	include/exynos_ipc.h	/^	u8 ch_cnt[255];$/;"	m	struct:exynos_seq_num
+ch_id	include/exynos_ipc.h	/^	u8 ch_id;$/;"	m	struct:exynos_link_header
+ch_seq	include/exynos_ipc.h	/^	u8 ch_seq;$/;"	m	struct:exynos_link_header
+change_sensor_gpio	gnss_prj.h	/^	int (*change_sensor_gpio)(struct gnss_ctl *);$/;"	m	struct:gnssctl_ops
+change_tcxo_mode	gnss_io_device.c	/^static int change_tcxo_mode(struct gnss_ctl *gc, unsigned long arg)$/;"	f	file:
+change_tcxo_mode	pmu-gnss.h	/^	int (*change_tcxo_mode)(enum gnss_tcxo_mode);$/;"	m	struct:gnssctl_pmu_ops
+check_apm_int_pending	pmu-gnss.c	/^static bool check_apm_int_pending()$/;"	f	file:
+circ_dir	gnss_link_device_memory.h	/^static const inline char *circ_dir(enum direction dir)$/;"	f
+circ_get_space	gnss_link_device_memory.h	/^static inline u32 circ_get_space(u32 qsize, u32 in, u32 out)$/;"	f
+circ_get_usage	gnss_link_device_memory.h	/^static inline u32 circ_get_usage(u32 qsize, u32 in, u32 out)$/;"	f
+circ_new_pointer	gnss_link_device_memory.h	/^static inline u32 circ_new_pointer(u32 qsize, u32 p, u32 len)$/;"	f
+circ_ptr	gnss_link_device_memory.h	/^static const inline char *circ_ptr(enum circ_ptr_type ptr)$/;"	f
+circ_ptr_type	gnss_link_device_memory.h	/^enum circ_ptr_type {$/;"	g
+circ_read	gnss_link_device_memory.h	/^static inline void circ_read(void *dst, void *src, u32 qsize, u32 out, u32 len)$/;"	f
+circ_stat	gnss_link_device_memory.h	/^	struct circ_status circ_stat;$/;"	m	struct:trace_data	typeref:struct:trace_data::circ_status
+circ_status	gnss_link_device_memory.h	/^struct circ_status {$/;"	s
+circ_valid	gnss_link_device_memory.h	/^static inline bool circ_valid(u32 qsize, u32 in, u32 out)$/;"	f
+circ_write	gnss_link_device_memory.h	/^static inline void circ_write(void *dst, void *src, u32 qsize, u32 in, u32 len)$/;"	f
+clear_int	pmu-gnss.h	/^	int (*clear_int)(enum gnss_int_clear);$/;"	m	struct:gnssctl_pmu_ops
+clear_shmem_map	gnss_link_device_shmem.h	/^static inline void clear_shmem_map(struct shmem_link_device *shmd)$/;"	f
+cmd_id	gnss_prj.h	/^	u16 cmd_id;$/;"	m	struct:kepler_bcmd_args
+control	gnss_prj.h	/^	u8 control;$/;"	m	struct:fmt_hdr
+copy_reserved_from_user	gnss_prj.h	/^	int (*copy_reserved_from_user)(struct link_device *ld, u32 offset, \\$/;"	m	struct:link_device
+copy_reserved_to_user	gnss_prj.h	/^	int (*copy_reserved_to_user)(struct link_device *ld, u32 offset, \\$/;"	m	struct:link_device
+create_ctl_device	gnss_main.c	/^static struct gnss_ctl *create_ctl_device(struct platform_device *pdev)$/;"	f	file:
+create_io_device	gnss_main.c	/^static struct io_device *create_io_device(struct platform_device *pdev,$/;"	f	file:
+create_link_device_shmem	gnss_link_device_shmem.c	/^struct link_device *create_link_device_shmem(struct platform_device *pdev)$/;"	f
+data	gnss_link_device_memory.h	/^	u8 *data;$/;"	m	struct:trace_data
+data	gnss_mbox.h	/^	void *data;$/;"	m	struct:gnss_mbox_ipc_handler
+debug_log	gnss_utils.h	/^	u8 debug_log;$/;"	m	struct:gnss_log
+dev	gnss_link_device_shmem.h	/^	struct shmem_ipc_device *dev;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::shmem_ipc_device
+dev	gnss_link_device_shmem.h	/^	struct shmem_ipc_device dev;$/;"	m	struct:shmem_ipc_map	typeref:struct:shmem_ipc_map::shmem_ipc_device
+dev	gnss_prj.h	/^	struct device *dev;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::device
+device	include/gnss.h	/^	u32 device;$/;"	m	struct:gnss_fault_data_area
+device	include/gnss.h	/^	u32 device;$/;"	m	struct:gnss_shared_reg
+device_node_name	include/gnss.h	/^	char *device_node_name;$/;"	m	struct:gnss_pdata
+dir	gnss_link_device_memory.h	/^	enum direction dir;$/;"	m	struct:mem_status	typeref:enum:mem_status::direction
+dir_str	gnss_utils.h	/^static const inline char *dir_str(enum direction dir)$/;"	f
+direction	gnss_prj.h	/^enum direction {$/;"	g
+direction_string	gnss_utils.h	/^static const char * const direction_string[] = {$/;"	v
+dt_reg_prop_table	gnss_main.c	/^const char *dt_reg_prop_table[GNSS_REG_COUNT] = {$/;"	v
+dump2hex	gnss_utils.c	/^static inline int dump2hex(char *buff, const char *data, size_t len)$/;"	f	file:
+dump_fault_to_user	gnss_prj.h	/^	int (*dump_fault_to_user)(struct link_device *ld, \\$/;"	m	struct:link_device
+dump_msg	gnss_utils.h	/^	u8 dump_msg;$/;"	m	struct:gnss_log
+dump_size	gnss_prj.h	/^	u32 dump_size;$/;"	m	struct:kepler_fault_args
+dump_size	gnss_prj.h	/^	u32 dump_size;$/;"	m	struct:kepler_fault_args32
+dumped_data	gnss_prj.h	/^	char *dumped_data;$/;"	m	struct:kepler_fault_args
+dumped_data	gnss_prj.h	/^	compat_uptr_t dumped_data;$/;"	m	struct:kepler_fault_args32
+dwork	gnss_prj.h	/^	struct delayed_work dwork;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::delayed_work
+exynos_build_header	gnss_io_device.c	/^static void exynos_build_header(struct io_device *iod, struct link_device *ld,$/;"	f	file:
+exynos_calc_padding_size	include/exynos_ipc.h	/^static inline unsigned int exynos_calc_padding_size(unsigned int len)$/;"	f
+exynos_ch	gnss_prj.h	/^		exynos_ch:8,$/;"	m	struct:skbuff_private
+exynos_frame_data	include/exynos_ipc.h	/^struct exynos_frame_data {$/;"	s
+exynos_get_ch	include/exynos_ipc.h	/^static inline u8 exynos_get_ch(u8 *frm)$/;"	f
+exynos_get_frame_len	include/exynos_ipc.h	/^static inline unsigned int exynos_get_frame_len(u8 *frm)$/;"	f
+exynos_get_total_len	include/exynos_ipc.h	/^static inline unsigned int exynos_get_total_len(u8 *frm)$/;"	f
+exynos_init_gnss_io_device	gnss_io_device.c	/^int exynos_init_gnss_io_device(struct io_device *iod)$/;"	f
+exynos_link_header	include/exynos_ipc.h	/^struct __packed exynos_link_header {$/;"	s
+exynos_multi_last_valid	include/exynos_ipc.h	/^static inline bool exynos_multi_last_valid(u8 *frm)$/;"	f
+exynos_multi_start_valid	include/exynos_ipc.h	/^static inline bool exynos_multi_start_valid(u8 *frm)$/;"	f
+exynos_padding_exist	include/exynos_ipc.h	/^static inline bool exynos_padding_exist(u8 *frm)$/;"	f
+exynos_seq_num	include/exynos_ipc.h	/^struct __packed exynos_seq_num {$/;"	s
+exynos_single_frame	include/exynos_ipc.h	/^static inline bool exynos_single_frame(u8 *frm)$/;"	f
+exynos_start_valid	include/exynos_ipc.h	/^static inline bool exynos_start_valid(u8 *frm)$/;"	f
+f_data	gnss_prj.h	/^	struct exynos_frame_data f_data;$/;"	m	struct:fragmented_data	typeref:struct:fragmented_data::exynos_frame_data
+fault_cmpl	gnss_prj.h	/^	struct completion fault_cmpl;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::completion
+fault_info	include/gnss.h	/^	struct gnss_fault_data_area fault_info;$/;"	m	struct:gnss_pdata	typeref:struct:gnss_pdata::gnss_fault_data_area
+fault_mem	gnss_link_device_shmem.h	/^	struct shmem_region fault_mem;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::shmem_region
+firmware_bin	gnss_prj.h	/^	char *firmware_bin;$/;"	m	struct:kepler_firmware_args
+firmware_bin	gnss_prj.h	/^	compat_uptr_t firmware_bin;$/;"	m	struct:kepler_firmware_args32
+firmware_size	gnss_prj.h	/^	u32 firmware_size;$/;"	m	struct:kepler_firmware_args
+firmware_size	gnss_prj.h	/^	u32 firmware_size;$/;"	m	struct:kepler_firmware_args32
+flags	gnss_prj.h	/^	u16 flags;$/;"	m	struct:kepler_bcmd_args
+flags	include/gnss.h	/^	unsigned long flags;$/;"	m	struct:gnss_irq
+fmt_hdr	gnss_prj.h	/^struct fmt_hdr {$/;"	s
+fmt_msg	gnss_utils.h	/^	u8 fmt_msg;$/;"	m	struct:gnss_log
+fmt_tx_dwork	gnss_prj.h	/^	struct delayed_work fmt_tx_dwork;$/;"	m	struct:link_device	typeref:struct:link_device::delayed_work
+fmt_tx_work	gnss_link_device_shmem.c	/^static void fmt_tx_work(struct work_struct *ws)$/;"	f	file:
+frag_config	include/exynos_ipc.h	/^struct __packed frag_config {$/;"	s
+frag_len	gnss_prj.h	/^	u32 frag_len;$/;"	m	struct:header_data
+fragdata	gnss_prj.h	148;"	d
+fragmented_data	gnss_prj.h	/^struct fragmented_data {$/;"	s
+fragments	gnss_prj.h	/^	struct fragmented_data fragments;$/;"	m	struct:io_device	typeref:struct:io_device::fragmented_data
+frame_cnt	include/exynos_ipc.h	/^	u16 frame_cnt;$/;"	m	struct:exynos_seq_num
+frame_first	include/exynos_ipc.h	/^	u8 frame_first:1,$/;"	m	struct:frag_config
+frame_index	include/exynos_ipc.h	/^	u8 frame_index;$/;"	m	struct:frag_config
+frame_last	include/exynos_ipc.h	/^	frame_last:1,$/;"	m	struct:frag_config
+frm_ctrl	gnss_prj.h	/^		frm_ctrl:8;$/;"	m	struct:skbuff_private
+g_shmem_base	pmu-gnss.c	/^static u32 g_shmem_base;$/;"	v	file:
+g_shmem_size	pmu-gnss.c	/^static u32 g_shmem_size;$/;"	v	file:
+gc	gnss_prj.h	/^	struct gnss_ctl *gc;$/;"	m	struct:io_device	typeref:struct:io_device::gnss_ctl
+gc	gnss_prj.h	/^	struct gnss_ctl *gc;$/;"	m	struct:link_device	typeref:struct:link_device::gnss_ctl
+gc_fault_wake_lock	gnss_prj.h	/^	struct wake_lock gc_fault_wake_lock;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::wake_lock
+get_current_link	gnss_prj.h	233;"	d
+get_gnss_state_str	gnss_prj.h	/^static const inline char *get_gnss_state_str(int state)$/;"	f
+get_gnssif_driver_version	gnss_utils.c	/^const char *get_gnssif_driver_version(void)$/;"	f
+get_nc_region	gnss_link_device_shmem.c	/^static void __iomem *get_nc_region(phys_addr_t base, size_t size)$/;"	f	file:
+get_rxq_buff	gnss_link_device_shmem.h	/^static inline u8 *get_rxq_buff(struct shmem_link_device *shmd)$/;"	f
+get_rxq_buff_size	gnss_link_device_shmem.h	/^static inline u32 get_rxq_buff_size(struct shmem_link_device *shmd)$/;"	f
+get_rxq_head	gnss_link_device_shmem.h	/^static inline u32 get_rxq_head(struct shmem_link_device *shmd)$/;"	f
+get_rxq_rcvd	gnss_link_device_shmem.h	/^static inline int get_rxq_rcvd(struct shmem_link_device *shmd,$/;"	f
+get_rxq_tail	gnss_link_device_shmem.h	/^static inline u32 get_rxq_tail(struct shmem_link_device *shmd)$/;"	f
+get_shmem_status	gnss_link_device_shmem.c	/^static void get_shmem_status(struct shmem_link_device *shmd,$/;"	f	file:
+get_txq_buff	gnss_link_device_shmem.h	/^static inline u8 *get_txq_buff(struct shmem_link_device *shmd)$/;"	f
+get_txq_buff_size	gnss_link_device_shmem.h	/^static inline u32 get_txq_buff_size(struct shmem_link_device *shmd)$/;"	f
+get_txq_head	gnss_link_device_shmem.h	/^static inline u32 get_txq_head(struct shmem_link_device *shmd)$/;"	f
+get_txq_space	gnss_link_device_shmem.h	/^static inline int get_txq_space(struct shmem_link_device *shmd,$/;"	f
+get_txq_tail	gnss_link_device_shmem.h	/^static inline u32 get_txq_tail(struct shmem_link_device *shmd)$/;"	f
+gif_debug	include/gnss.h	194;"	d
+gif_disable_irq_nosync	gnss_utils.c	/^void gif_disable_irq_nosync(struct gnss_irq *irq)$/;"	f
+gif_disable_irq_sync	gnss_utils.c	/^void gif_disable_irq_sync(struct gnss_irq *irq)$/;"	f
+gif_dt_read_bool	include/gnss.h	157;"	d
+gif_dt_read_enum	include/gnss.h	149;"	d
+gif_dt_read_string	include/gnss.h	165;"	d
+gif_dt_read_u32	include/gnss.h	172;"	d
+gif_dt_read_u32_array	include/gnss.h	179;"	d
+gif_enable_irq	gnss_utils.c	/^void gif_enable_irq(struct gnss_irq *irq)$/;"	f
+gif_err	include/gnss.h	192;"	d
+gif_err_limited	include/gnss.h	190;"	d
+gif_info	include/gnss.h	196;"	d
+gif_init_irq	gnss_utils.c	/^void gif_init_irq(struct gnss_irq *irq, unsigned int num, const char *name,$/;"	f
+gif_request_irq	gnss_utils.c	/^int gif_request_irq(struct gnss_irq *irq, irq_handler_t isr, void *data)$/;"	f
+gif_trace	include/gnss.h	198;"	d
+gnss	gnss_main.c	/^ATTRIBUTE_GROUPS(gnss);$/;"	v
+gnss_attrs	gnss_main.c	/^static struct attribute *gnss_attrs[] = {$/;"	v	typeref:struct:attribute	file:
+gnss_bcmd_ctrl	include/gnss.h	/^enum gnss_bcmd_ctrl {$/;"	g
+gnss_capture_mem_dump	gnss_link_device_memory.c	/^u8 *gnss_capture_mem_dump(struct link_device *ld, u8 *base, u32 size)$/;"	f
+gnss_circ_read16_from_io	gnss_link_device_memory.c	/^void gnss_circ_read16_from_io(void *dst, void *src, u32 qsize, u32 out, u32 len)$/;"	f
+gnss_circ_write16_to_io	gnss_link_device_memory.c	/^void gnss_circ_write16_to_io(void *dst, void *src, u32 qsize, u32 in, u32 len)$/;"	f
+gnss_cmgp_read	pmu-gnss.c	/^int gnss_cmgp_read(unsigned int reg_offset, unsigned int *ret)$/;"	f
+gnss_cmgp_write	pmu-gnss.c	/^int gnss_cmgp_write(unsigned int reg_offset, unsigned int val)$/;"	f
+gnss_copy_circ_to_user	gnss_link_device_memory.c	/^int gnss_copy_circ_to_user(void __user *dst, void *src, u32 qsize, u32 out, u32 len)$/;"	f
+gnss_copy_user_to_circ	gnss_link_device_memory.c	/^int gnss_copy_user_to_circ(void *dst, void __user *src, u32 qsize, u32 in, u32 len)$/;"	f
+gnss_ctl	gnss_prj.h	/^struct gnss_ctl {$/;"	s
+gnss_dbus_read	pmu-gnss.c	/^int gnss_dbus_read(unsigned int reg_offset, unsigned int *ret)$/;"	f
+gnss_dbus_write	pmu-gnss.c	/^int gnss_dbus_write(unsigned int reg_offset, unsigned int val)$/;"	f
+gnss_dma_device_init	gnss_main.c	/^static int gnss_dma_device_init(struct reserved_mem *rmem, struct device *dev)$/;"	f	file:
+gnss_dma_device_release	gnss_main.c	/^static void gnss_dma_device_release(struct reserved_mem *rmem, struct device *dev)$/;"	f	file:
+gnss_dma_ops	gnss_main.c	/^static const struct reserved_mem_ops gnss_dma_ops = {$/;"	v	typeref:struct:reserved_mem_ops	file:
+gnss_driver	gnss_main.c	/^module_platform_driver(gnss_driver);$/;"	v
+gnss_driver	gnss_main.c	/^static struct platform_driver gnss_driver = {$/;"	v	typeref:struct:platform_driver	file:
+gnss_dt_match	gnss_main.c	/^static const struct of_device_id gnss_dt_match[] = {$/;"	v	typeref:struct:of_device_id	file:
+gnss_fault_data_area	include/gnss.h	/^struct gnss_fault_data_area {$/;"	s
+gnss_fault_data_area_value	include/gnss.h	/^struct gnss_fault_data_area_value {$/;"	s
+gnss_get_ops	gnss_keplerctl_device.c	/^static void gnss_get_ops(struct gnss_ctl *gc)$/;"	f	file:
+gnss_get_pmu_ops	pmu-gnss.c	/^void gnss_get_pmu_ops(struct gnss_ctl *gc)$/;"	f
+gnss_gpio	gnss_prj.h	/^	struct pinctrl *gnss_gpio;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::pinctrl
+gnss_hold_reset	gnss_prj.h	/^	int (*gnss_hold_reset)(struct gnss_ctl *);$/;"	m	struct:gnssctl_ops
+gnss_if_parse_dt_pdata	gnss_main.c	/^static struct gnss_pdata *gnss_if_parse_dt_pdata(struct device *dev)$/;"	f	file:
+gnss_if_reserved_mem_setup	gnss_main.c	/^static int __init gnss_if_reserved_mem_setup(struct reserved_mem *remem)$/;"	f	file:
+gnss_int_clear	pmu-gnss.h	/^enum gnss_int_clear {$/;"	g
+gnss_io_t	include/gnss.h	/^struct gnss_io_t {$/;"	s
+gnss_ipc_vector	include/gnss.h	/^enum gnss_ipc_vector {$/;"	g
+gnss_irq	include/gnss.h	/^struct gnss_irq {$/;"	s
+gnss_load_firmware	gnss_io_device.c	/^static int gnss_load_firmware(struct io_device *iod,$/;"	f	file:
+gnss_log	gnss_utils.h	/^struct __packed gnss_log {$/;"	s
+gnss_log_ipc_pkt	gnss_utils.c	/^void gnss_log_ipc_pkt(struct sk_buff *skb, enum direction dir)$/;"	f
+gnss_mbox	include/gnss.h	/^struct gnss_mbox {$/;"	s
+gnss_mbox_clear_all_interrupt	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_clear_all_interrupt);$/;"	v
+gnss_mbox_clear_all_interrupt	gnss_mbox.c	/^void gnss_mbox_clear_all_interrupt(enum gnss_mbox_region id)$/;"	f
+gnss_mbox_disable_irq	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_disable_irq);$/;"	v
+gnss_mbox_disable_irq	gnss_mbox.c	/^int gnss_mbox_disable_irq(enum gnss_mbox_region id, u32 int_num)$/;"	f
+gnss_mbox_driver	gnss_mbox.c	/^module_platform_driver(gnss_mbox_driver);$/;"	v
+gnss_mbox_driver	gnss_mbox.c	/^static struct platform_driver gnss_mbox_driver = {$/;"	v	typeref:struct:platform_driver	file:
+gnss_mbox_drv_data	gnss_mbox.h	/^struct gnss_mbox_drv_data {$/;"	s
+gnss_mbox_dt_match	gnss_mbox.c	/^static const struct of_device_id gnss_mbox_dt_match[] = {$/;"	v	typeref:struct:of_device_id	file:
+gnss_mbox_enable_irq	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_enable_irq);$/;"	v
+gnss_mbox_enable_irq	gnss_mbox.c	/^int gnss_mbox_enable_irq(enum gnss_mbox_region id, u32 int_num)$/;"	f
+gnss_mbox_extract_value	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_extract_value);$/;"	v
+gnss_mbox_extract_value	gnss_mbox.c	/^u32 gnss_mbox_extract_value(enum gnss_mbox_region id, u32 mbx_num, u32 mask, u32 pos)$/;"	f
+gnss_mbox_get_value	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_get_value);$/;"	v
+gnss_mbox_get_value	gnss_mbox.c	/^u32 gnss_mbox_get_value(enum gnss_mbox_region id, u32 mbx_num)$/;"	f
+gnss_mbox_handler	gnss_mbox.c	/^static irqreturn_t gnss_mbox_handler(int irq, void *data)$/;"	f	file:
+gnss_mbox_ipc_handler	gnss_mbox.h	/^struct gnss_mbox_ipc_handler {$/;"	s
+gnss_mbox_kepler_rsp_fault_info	gnss_keplerctl_device.c	/^static irqreturn_t gnss_mbox_kepler_rsp_fault_info(int irq, void *arg)$/;"	f	file:
+gnss_mbox_kepler_simple_lock	gnss_keplerctl_device.c	/^static irqreturn_t gnss_mbox_kepler_simple_lock(int irq, void *arg)$/;"	f	file:
+gnss_mbox_probe	gnss_mbox.c	/^static int gnss_mbox_probe(struct platform_device *pdev)$/;"	f	file:
+gnss_mbox_readl	gnss_mbox.c	/^static inline u32 gnss_mbox_readl(enum gnss_mbox_region id, long reg)$/;"	f	file:
+gnss_mbox_region	gnss_mbox.h	/^enum gnss_mbox_region {$/;"	g
+gnss_mbox_register_irq	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_register_irq);$/;"	v
+gnss_mbox_register_irq	gnss_mbox.c	/^int gnss_mbox_register_irq(enum gnss_mbox_region id, u32 int_num, irq_handler_t handler, void *data)$/;"	f
+gnss_mbox_remove	gnss_mbox.c	/^static int __exit gnss_mbox_remove(struct platform_device *pdev)$/;"	f	file:
+gnss_mbox_send_command	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_send_command);$/;"	v
+gnss_mbox_send_command	gnss_mbox.c	/^void gnss_mbox_send_command(enum gnss_mbox_region id, u32 int_num, u16 cmd)$/;"	f
+gnss_mbox_set_interrupt	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_set_interrupt);$/;"	v
+gnss_mbox_set_interrupt	gnss_mbox.c	/^void gnss_mbox_set_interrupt(enum gnss_mbox_region id, u32 int_num)$/;"	f
+gnss_mbox_set_value	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_set_value);$/;"	v
+gnss_mbox_set_value	gnss_mbox.c	/^void gnss_mbox_set_value(enum gnss_mbox_region id, u32 mbx_num, u32 msg)$/;"	f
+gnss_mbox_sw_reset	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_sw_reset);$/;"	v
+gnss_mbox_sw_reset	gnss_mbox.c	/^void gnss_mbox_sw_reset(enum gnss_mbox_region id)$/;"	f
+gnss_mbox_unregister_irq	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_unregister_irq);$/;"	v
+gnss_mbox_unregister_irq	gnss_mbox.c	/^int gnss_mbox_unregister_irq(enum gnss_mbox_region id, u32 int_num, irq_handler_t handler)$/;"	f
+gnss_mbox_update_value	gnss_mbox.c	/^EXPORT_SYMBOL(gnss_mbox_update_value);$/;"	v
+gnss_mbox_update_value	gnss_mbox.c	/^void gnss_mbox_update_value(enum gnss_mbox_region id, u32 mbx_num, u32 msg, u32 mask, u32 pos)$/;"	f
+gnss_mbox_writel	gnss_mbox.c	/^static inline void gnss_mbox_writel(enum gnss_mbox_region id, u32 val, long reg)$/;"	f	file:
+gnss_memcmp16_to_io	gnss_link_device_memory.c	/^int gnss_memcmp16_to_io(const void __iomem *to, const void *from, u32 count)$/;"	f
+gnss_memcpy16_from_io	gnss_link_device_memory.c	/^void gnss_memcpy16_from_io(const void *to, const void __iomem *from, u32 count)$/;"	f
+gnss_memcpy16_to_io	gnss_link_device_memory.c	/^void gnss_memcpy16_to_io(const void __iomem *to, const void *from, u32 count)$/;"	f
+gnss_mode	pmu-gnss.h	/^enum gnss_mode {$/;"	g
+gnss_msq_get_data_slot	gnss_link_device_memory.c	/^struct mem_status *gnss_msq_get_data_slot(struct mem_status_queue *msq)$/;"	f
+gnss_msq_get_free_slot	gnss_link_device_memory.c	/^struct mem_status *gnss_msq_get_free_slot(struct mem_status_queue *msq)$/;"	f
+gnss_msq_reset	gnss_link_device_memory.c	/^void gnss_msq_reset(struct mem_status_queue *msq)$/;"	f
+gnss_pdata	include/gnss.h	/^struct gnss_pdata {$/;"	s
+gnss_pm_ops	gnss_main.c	/^static const struct dev_pm_ops gnss_pm_ops = {$/;"	v	typeref:struct:dev_pm_ops	file:
+gnss_pmu_clear_interrupt	pmu-gnss.c	/^static int gnss_pmu_clear_interrupt(enum gnss_int_clear gnss_int)$/;"	f	file:
+gnss_pmu_hold_reset	pmu-gnss.c	/^static int gnss_pmu_hold_reset(void)$/;"	f	file:
+gnss_pmu_init_conf	pmu-gnss.c	/^static int gnss_pmu_init_conf(struct gnss_ctl *gc)$/;"	f	file:
+gnss_pmu_power_on	pmu-gnss.c	/^static int gnss_pmu_power_on(enum gnss_mode mode)$/;"	f	file:
+gnss_pmu_read	pmu-gnss.c	23;"	d	file:
+gnss_pmu_release_reset	pmu-gnss.c	/^static int gnss_pmu_release_reset(void)$/;"	f	file:
+gnss_pmu_update	pmu-gnss.c	25;"	d	file:
+gnss_pmu_write	pmu-gnss.c	24;"	d	file:
+gnss_power_on	gnss_prj.h	/^	int (*gnss_power_on)(struct gnss_ctl *);$/;"	m	struct:gnssctl_ops
+gnss_probe	gnss_main.c	/^static int gnss_probe(struct platform_device *pdev)$/;"	f	file:
+gnss_read_firmware	gnss_io_device.c	/^static int gnss_read_firmware(struct io_device *iod,$/;"	f	file:
+gnss_read_reg	gnss_link_device_shmem.c	/^u32 gnss_read_reg(struct shmem_link_device *shmd, enum gnss_reg_type reg)$/;"	f
+gnss_reg_type	include/gnss.h	/^enum gnss_reg_type {$/;"	g
+gnss_release_reset	gnss_prj.h	/^	int (*gnss_release_reset)(struct gnss_ctl *);$/;"	m	struct:gnssctl_ops
+gnss_req_fault_info	gnss_prj.h	/^	int (*gnss_req_fault_info)(struct gnss_ctl *);$/;"	m	struct:gnssctl_ops
+gnss_request_gnss2ap_baaw	pmu-gnss.c	/^static void gnss_request_gnss2ap_baaw(void)$/;"	f	file:
+gnss_request_tzpc	pmu-gnss.c	/^static int gnss_request_tzpc(void)$/;"	f	file:
+gnss_resume	gnss_main.c	/^static int gnss_resume(struct device *pdev)$/;"	f	file:
+gnss_resume	gnss_main.c	511;"	d	file:
+gnss_sensor_gpio	gnss_prj.h	/^	struct pinctrl_state *gnss_sensor_gpio;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::pinctrl_state
+gnss_shared_reg	include/gnss.h	/^struct gnss_shared_reg {$/;"	s
+gnss_shared_reg_value	include/gnss.h	/^struct gnss_shared_reg_value {$/;"	s
+gnss_shutdown	gnss_main.c	/^static void gnss_shutdown(struct platform_device *pdev)$/;"	f	file:
+gnss_state	gnss_prj.h	/^	enum gnss_state gnss_state;$/;"	m	struct:gnss_ctl	typeref:enum:gnss_ctl::gnss_state
+gnss_state	gnss_prj.h	/^enum gnss_state {$/;"	g
+gnss_state_changed	gnss_keplerctl_device.c	/^static void gnss_state_changed(struct gnss_ctl *gc, enum gnss_state state)$/;"	f	file:
+gnss_state_str	gnss_prj.h	/^static const char * const gnss_state_str[] = {$/;"	v
+gnss_status_show	gnss_main.c	/^static ssize_t gnss_status_show(struct device *dev,$/;"	f	file:
+gnss_suspend	gnss_main.c	/^static int gnss_suspend(struct device *pdev)$/;"	f	file:
+gnss_suspend	gnss_main.c	510;"	d	file:
+gnss_tcxo_mode	pmu-gnss.h	/^enum gnss_tcxo_mode {$/;"	g
+gnss_trq_get_data_slot	gnss_link_device_memory.c	/^struct trace_data *gnss_trq_get_data_slot(struct trace_data_queue *trq)$/;"	f
+gnss_trq_get_free_slot	gnss_link_device_memory.c	/^struct trace_data *gnss_trq_get_free_slot(struct trace_data_queue *trq)$/;"	f
+gnss_write_reg	gnss_link_device_shmem.c	/^void gnss_write_reg(struct shmem_link_device *shmd,$/;"	f
+gnssctl_ops	gnss_prj.h	/^struct gnssctl_ops {$/;"	s
+gnssctl_pmu_ops	pmu-gnss.h	/^struct gnssctl_pmu_ops {$/;"	s
+gnssif_driver_version	gnssif_version.h	/^const char gnssif_driver_version[] = "GNSSIF-20191224R1";$/;"	v
+h_data	gnss_prj.h	/^	struct header_data h_data;$/;"	m	struct:fragmented_data	typeref:struct:fragmented_data::header_data
+handler	gnss_mbox.h	/^	irq_handler_t handler;$/;"	m	struct:gnss_mbox_ipc_handler
+hd	gnss_mbox.h	/^	struct gnss_mbox_ipc_handler hd[16];$/;"	m	struct:gnss_mbox_drv_data	typeref:struct:gnss_mbox_drv_data::gnss_mbox_ipc_handler
+hdr	gnss_prj.h	/^	char hdr[HDLC_HEADER_MAX_SIZE];$/;"	m	struct:header_data
+hdr	include/exynos_ipc.h	/^	u8 hdr[EXYNOS_HEADER_SIZE];$/;"	m	struct:exynos_frame_data
+hdr_len	include/exynos_ipc.h	/^	unsigned int hdr_len;$/;"	m	struct:exynos_frame_data
+hdr_rcvd	include/exynos_ipc.h	/^	unsigned int hdr_rcvd;$/;"	m	struct:exynos_frame_data
+head	gnss_link_device_memory.h	/^	u32 head[MAX_DIR];$/;"	m	struct:mem_status
+head	gnss_link_device_shmem.h	/^	u32 __iomem *head;$/;"	m	struct:shmem_circ
+header_data	gnss_prj.h	/^struct header_data {$/;"	s
+hex	gnss_utils.c	/^static const char *hex = "0123456789abcdef";$/;"	v	file:
+hold_reset	pmu-gnss.h	/^	int (*hold_reset)(void);$/;"	m	struct:gnssctl_pmu_ops
+id	gnss_mbox.h	/^	u32 id;$/;"	m	struct:gnss_mbox_drv_data
+id	include/gnss.h	/^	int   id;$/;"	m	struct:gnss_io_t
+id	include/gnss.h	/^	int id;$/;"	m	struct:gnss_mbox
+in	gnss_link_device_memory.h	/^	u32 in;$/;"	m	struct:circ_status
+in	gnss_link_device_memory.h	/^	u32 in;$/;"	m	struct:mem_status_queue
+in	gnss_link_device_memory.h	/^	u32 in;$/;"	m	struct:trace_data_queue
+index	include/gnss.h	/^	int index;$/;"	m	struct:gnss_shared_reg_value
+index	include/gnss.h	/^	u32 index;$/;"	m	struct:gnss_fault_data_area_value
+init_conf	pmu-gnss.h	/^	int (*init_conf)(struct gnss_ctl *);$/;"	m	struct:gnssctl_pmu_ops
+init_gnssctl_device	gnss_keplerctl_device.c	/^int init_gnssctl_device(struct gnss_ctl *gc, struct gnss_pdata *pdata)$/;"	f
+int2ap	gnss_link_device_memory.h	/^	u16 int2ap;$/;"	m	struct:mem_status
+int2gnss	gnss_link_device_memory.h	/^	u16 int2gnss;$/;"	m	struct:mem_status
+int_ack_wake_set	include/gnss.h	/^	int int_ack_wake_set;$/;"	m	struct:gnss_mbox
+int_bcmd	include/gnss.h	/^	int int_bcmd;$/;"	m	struct:gnss_mbox
+int_ipc_msg	gnss_link_device_shmem.h	/^	int int_ipc_msg;$/;"	m	struct:shmem_link_device
+int_ipc_msg	include/gnss.h	/^	int int_ipc_msg;$/;"	m	struct:gnss_mbox
+int_req_fault_info	include/gnss.h	/^	int int_req_fault_info;$/;"	m	struct:gnss_mbox
+intr_bid_pend	pmu-gnss.c	/^static void __iomem *intr_bid_pend; \/* check APM pending before release reset *\/$/;"	v	file:
+io_dev_recv_skb_from_link_dev	gnss_io_device.c	/^static int io_dev_recv_skb_from_link_dev(struct io_device *iod,$/;"	f	file:
+io_dev_recv_skb_single_from_link_dev	gnss_io_device.c	/^static int io_dev_recv_skb_single_from_link_dev(struct io_device *iod,$/;"	f	file:
+io_device	gnss_prj.h	/^struct io_device {$/;"	s
+iod	gnss_link_device_shmem.h	/^	struct io_device *iod;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::io_device
+iod	gnss_prj.h	/^	struct io_device *iod;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::io_device
+iod	gnss_prj.h	/^	struct io_device *iod;$/;"	m	struct:link_device	typeref:struct:link_device::io_device
+iod	gnss_prj.h	/^	struct io_device *iod;$/;"	m	struct:skbuff_private	typeref:struct:skbuff_private::io_device
+iodev	include/gnss.h	/^	struct gnss_io_t *iodev;$/;"	m	struct:gnss_pdata	typeref:struct:gnss_pdata::gnss_io_t
+iodev_lock_wlock	gnss_io_device.c	/^static inline void iodev_lock_wlock(struct io_device *iod)$/;"	f	file:
+ipc_map	gnss_link_device_shmem.h	/^	struct shmem_ipc_map ipc_map;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::shmem_ipc_map
+ipc_mem	gnss_link_device_shmem.h	/^	struct shmem_region ipc_mem;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::shmem_region
+ipc_reg_cnt	gnss_link_device_shmem.h	/^	u32 ipc_reg_cnt;$/;"	m	struct:shmem_link_device
+ipc_reg_cnt	include/gnss.h	/^	u32 ipc_reg_cnt;$/;"	m	struct:gnss_pdata
+ipc_rx_task	gnss_link_device_shmem.c	/^static void ipc_rx_task(unsigned long data)$/;"	f	file:
+ipc_size	include/gnss.h	/^	u32 ipc_size;$/;"	m	struct:gnss_pdata
+ipcmem_offset	include/gnss.h	/^	u32 ipcmem_offset;$/;"	m	struct:gnss_pdata
+irq_bcmd	include/gnss.h	/^	int irq_bcmd;$/;"	m	struct:gnss_mbox
+irq_gnss_active	gnss_prj.h	/^	struct gnss_irq irq_gnss_active;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::gnss_irq
+irq_gnss_active	include/gnss.h	/^	int irq_gnss_active;$/;"	m	struct:gnss_pdata
+irq_gnss_mbox	gnss_mbox.h	/^	struct gnss_irq irq_gnss_mbox;$/;"	m	struct:gnss_mbox_drv_data	typeref:struct:gnss_mbox_drv_data::gnss_irq
+irq_gnss_sw_init	gnss_prj.h	/^	struct gnss_irq irq_gnss_sw_init;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::gnss_irq
+irq_gnss_wakeup	include/gnss.h	/^	int irq_gnss_wakeup;$/;"	m	struct:gnss_pdata
+irq_gnss_wdt	gnss_prj.h	/^	struct gnss_irq irq_gnss_wdt;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::gnss_irq
+irq_gnss_wdt	include/gnss.h	/^	int irq_gnss_wdt;$/;"	m	struct:gnss_pdata
+irq_ipc_msg	gnss_link_device_shmem.h	/^	int irq_ipc_msg;$/;"	m	struct:shmem_link_device
+irq_ipc_msg	include/gnss.h	/^	int irq_ipc_msg;$/;"	m	struct:gnss_mbox
+irq_req_wake_clr	include/gnss.h	/^	int irq_req_wake_clr;$/;"	m	struct:gnss_mbox
+irq_rsp_fault_info	include/gnss.h	/^	int irq_rsp_fault_info;$/;"	m	struct:gnss_mbox
+irq_simple_lock	include/gnss.h	/^	int irq_simple_lock;$/;"	m	struct:gnss_mbox
+kepler_active_isr	gnss_keplerctl_device.c	/^static irqreturn_t kepler_active_isr(int irq, void *arg)$/;"	f	file:
+kepler_bcmd_args	gnss_prj.h	/^struct kepler_bcmd_args {$/;"	s
+kepler_fault_args	gnss_prj.h	/^struct kepler_fault_args {$/;"	s
+kepler_fault_args32	gnss_prj.h	/^struct kepler_fault_args32 {$/;"	s
+kepler_firmware_args	gnss_prj.h	/^struct kepler_firmware_args {$/;"	s
+kepler_firmware_args32	gnss_prj.h	/^struct kepler_firmware_args32 {$/;"	s
+kepler_hold_reset	gnss_keplerctl_device.c	/^static int kepler_hold_reset(struct gnss_ctl *gc)$/;"	f	file:
+kepler_irq_bcmd_handler	gnss_keplerctl_device.c	/^static irqreturn_t kepler_irq_bcmd_handler(int irq, void *data)$/;"	f	file:
+kepler_power_on	gnss_keplerctl_device.c	/^static int kepler_power_on(struct gnss_ctl *gc)$/;"	f	file:
+kepler_release_reset	gnss_keplerctl_device.c	/^static int kepler_release_reset(struct gnss_ctl *gc)$/;"	f	file:
+kepler_req_bcmd	gnss_keplerctl_device.c	/^static int kepler_req_bcmd(struct gnss_ctl *gc, u16 cmd_id, u16 flags,$/;"	f	file:
+kepler_req_fault_info	gnss_keplerctl_device.c	/^static int kepler_req_fault_info(struct gnss_ctl *gc)$/;"	f	file:
+kepler_resume	gnss_keplerctl_device.c	/^static int kepler_resume(struct gnss_ctl *gc)$/;"	f	file:
+kepler_suspend	gnss_keplerctl_device.c	/^static int kepler_suspend(struct gnss_ctl *gc)$/;"	f	file:
+kepler_sw_init_isr	gnss_keplerctl_device.c	/^static irqreturn_t kepler_sw_init_isr(int irq, void *arg)$/;"	f	file:
+kepler_wdt_isr	gnss_keplerctl_device.c	/^static irqreturn_t kepler_wdt_isr(int irq, void *arg)$/;"	f	file:
+ld	gnss_link_device_shmem.h	/^	struct link_device ld;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::link_device
+ld	gnss_prj.h	/^	struct link_device *ld;$/;"	m	struct:io_device	typeref:struct:io_device::link_device
+ld	gnss_prj.h	/^	struct link_device *ld;$/;"	m	struct:skbuff_private	typeref:struct:skbuff_private::link_device
+len	gnss_prj.h	/^	u16 len;$/;"	m	struct:fmt_hdr
+len	gnss_prj.h	/^	u32 len;$/;"	m	struct:header_data
+len	include/exynos_ipc.h	/^	u16 len;$/;"	m	struct:exynos_link_header
+len	include/exynos_ipc.h	/^	unsigned int len;$/;"	m	struct:exynos_frame_data
+link_device	gnss_prj.h	/^struct link_device {$/;"	s
+link_header	gnss_prj.h	/^	bool link_header;$/;"	m	struct:io_device
+list	gnss_prj.h	/^	struct list_head  list;$/;"	m	struct:link_device	typeref:struct:link_device::list_head
+lnk_hdr	gnss_prj.h	/^	u32 lnk_hdr:1,$/;"	m	struct:skbuff_private
+lock	gnss_link_device_memory.h	/^	spinlock_t lock;$/;"	m	struct:mem_status_queue
+lock	gnss_link_device_memory.h	/^	spinlock_t lock;$/;"	m	struct:trace_data_queue
+lock	gnss_mbox.h	/^	spinlock_t lock;$/;"	m	struct:gnss_mbox_drv_data
+lock	include/gnss.h	/^	spinlock_t lock;$/;"	m	struct:gnss_irq
+log_msg	gnss_utils.h	/^	u8 log_msg;$/;"	m	struct:gnss_log
+map_info_show	gnss_link_device_shmem.c	/^static ssize_t map_info_show(struct device *dev,$/;"	f	file:
+mbox_attrs	gnss_keplerctl_device.c	/^static struct attribute *mbox_attrs[] = {$/;"	v	typeref:struct:attribute	file:
+mbox_group	gnss_keplerctl_device.c	/^static const struct attribute_group mbox_group = {		\\$/;"	v	typeref:struct:attribute_group	file:
+mbox_status_show	gnss_keplerctl_device.c	/^static ssize_t mbox_status_show(struct device *dev,$/;"	f	file:
+mbx	gnss_link_device_shmem.h	/^	struct gnss_mbox *mbx;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::gnss_mbox
+mbx	include/gnss.h	/^	struct gnss_mbox *mbx;$/;"	m	struct:gnss_pdata	typeref:struct:gnss_pdata::gnss_mbox
+mem_status	gnss_link_device_memory.h	/^struct mem_status {$/;"	s
+mem_status_queue	gnss_link_device_memory.h	/^struct mem_status_queue {$/;"	s
+misc_compat_ioctl	gnss_io_device.c	/^static long misc_compat_ioctl(struct file *filp,$/;"	f	file:
+misc_io_fops	gnss_io_device.c	/^static const struct file_operations misc_io_fops = {$/;"	v	typeref:struct:file_operations	file:
+misc_ioctl	gnss_io_device.c	/^static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)$/;"	f	file:
+misc_open	gnss_io_device.c	/^static int misc_open(struct inode *inode, struct file *filp)$/;"	f	file:
+misc_poll	gnss_io_device.c	/^static unsigned int misc_poll(struct file *filp, struct poll_table_struct *wait)$/;"	f	file:
+misc_read	gnss_io_device.c	/^static ssize_t misc_read(struct file *filp, char *buf, size_t count,$/;"	f	file:
+misc_release	gnss_io_device.c	/^static int misc_release(struct inode *inode, struct file *filp)$/;"	f	file:
+misc_write	gnss_io_device.c	/^static ssize_t misc_write(struct file *filp, const char __user *data,$/;"	f	file:
+miscdev	gnss_prj.h	/^	struct miscdevice  miscdev;$/;"	m	struct:io_device	typeref:struct:io_device::miscdevice
+msg_handler	gnss_link_device_shmem.c	/^static void msg_handler(struct shmem_link_device *shmd, struct mem_status *mst)$/;"	f	file:
+msg_rx_dwork	gnss_link_device_shmem.h	/^	struct delayed_work msg_rx_dwork;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::delayed_work
+msg_rx_work	gnss_link_device_shmem.c	/^static void msg_rx_work(struct work_struct *ws)$/;"	f	file:
+name	gnss_mbox.h	/^	char *name;$/;"	m	struct:gnss_mbox_drv_data
+name	gnss_prj.h	/^	char *name;$/;"	m	struct:gnss_ctl
+name	gnss_prj.h	/^	char *name;$/;"	m	struct:io_device
+name	gnss_prj.h	/^	char *name;$/;"	m	struct:link_device
+name	include/gnss.h	/^	char *name;$/;"	m	struct:gnss_io_t
+name	include/gnss.h	/^	char *name;$/;"	m	struct:gnss_pdata
+name	include/gnss.h	/^	char name[MAX_NAME_LEN];$/;"	m	struct:gnss_irq
+name	include/gnss.h	/^	const char *name;$/;"	m	struct:gnss_fault_data_area
+name	include/gnss.h	/^	const char *name;$/;"	m	struct:gnss_shared_reg
+notify_acpm	pmu-gnss.c	/^static bool notify_acpm(int power_state) {$/;"	f	file:
+num	include/gnss.h	/^	unsigned int num;$/;"	m	struct:gnss_irq
+offset	gnss_prj.h	/^	u32 offset;$/;"	m	struct:kepler_firmware_args
+offset	gnss_prj.h	/^	u32 offset;$/;"	m	struct:kepler_firmware_args32
+opened	gnss_prj.h	/^	atomic_t opened;$/;"	m	struct:io_device
+ops	gnss_prj.h	/^	struct gnssctl_ops ops;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::gnssctl_ops
+out	gnss_link_device_memory.h	/^	u32 out;$/;"	m	struct:circ_status
+out	gnss_link_device_memory.h	/^	u32 out;$/;"	m	struct:mem_status_queue
+out	gnss_link_device_memory.h	/^	u32 out;$/;"	m	struct:trace_data_queue
+packet_index	include/exynos_ipc.h	/^	packet_index:6;$/;"	m	struct:frag_config
+pad_len	include/exynos_ipc.h	/^	unsigned int pad_len;$/;"	m	struct:exynos_frame_data
+pad_rcvd	include/exynos_ipc.h	/^	unsigned int pad_rcvd;$/;"	m	struct:exynos_frame_data
+paddr	gnss_link_device_shmem.h	/^	u32         paddr; \/* physical base address *\/$/;"	m	struct:shmem_region
+param1	gnss_prj.h	/^	u32 param1;$/;"	m	struct:kepler_bcmd_args
+param2	gnss_prj.h	/^	u32 param2;$/;"	m	struct:kepler_bcmd_args
+parse_dt_common_pdata	gnss_main.c	/^static int parse_dt_common_pdata(struct device_node *np,$/;"	f	file:
+parse_dt_fault_pdata	gnss_main.c	/^static int parse_dt_fault_pdata(struct device *dev, struct gnss_pdata *pdata)$/;"	f	file:
+parse_dt_mbox_pdata	gnss_main.c	/^static int parse_dt_mbox_pdata(struct device *dev, struct device_node *np,$/;"	f	file:
+parse_dt_reg_mbox_pdata	gnss_main.c	/^static int parse_dt_reg_mbox_pdata(struct device *dev, struct gnss_pdata *pdata)$/;"	f	file:
+parsing_load_firmware	gnss_io_device.c	/^static int parsing_load_firmware(struct io_device *iod, unsigned long arg)$/;"	f	file:
+parsing_load_firmware32	gnss_io_device.c	/^static int parsing_load_firmware32(struct io_device *iod, unsigned long arg)$/;"	f	file:
+parsing_read_firmware	gnss_io_device.c	/^static int parsing_read_firmware(struct io_device *iod, unsigned long arg)$/;"	f	file:
+parsing_read_firmware32	gnss_io_device.c	/^static int parsing_read_firmware32(struct io_device *iod, unsigned long arg)$/;"	f	file:
+pay_len	include/exynos_ipc.h	/^	unsigned int pay_len;$/;"	m	struct:exynos_frame_data
+pay_rcvd	include/exynos_ipc.h	/^	unsigned int pay_rcvd;$/;"	m	struct:exynos_frame_data
+pdata	gnss_prj.h	/^	struct gnss_pdata *pdata;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::gnss_pdata
+pdata	gnss_prj.h	/^	struct gnss_pdata *pdata;$/;"	m	struct:link_device	typeref:struct:link_device::gnss_pdata
+pmu_ops	gnss_prj.h	/^	struct gnssctl_pmu_ops *pmu_ops;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::gnssctl_pmu_ops
+pmu_ops	pmu-gnss.c	/^static struct gnssctl_pmu_ops pmu_ops = {$/;"	v	typeref:struct:gnssctl_pmu_ops	file:
+power_on	pmu-gnss.h	/^	int (*power_on)(enum gnss_mode);$/;"	m	struct:gnssctl_pmu_ops
+pr_ipc_msg	gnss_utils.c	/^static inline void pr_ipc_msg(int level, u8 ch, const char *prefix,$/;"	f	file:
+ps_msg	gnss_utils.h	/^	u8 ps_msg;$/;"	m	struct:gnss_log
+purge_rxq	gnss_link_device_shmem.h	/^static inline void purge_rxq(struct link_device *ld)$/;"	f
+purge_txq	gnss_link_device_shmem.h	/^static inline void purge_txq(struct link_device *ld)$/;"	f
+qsize	gnss_link_device_memory.h	/^	u32 qsize;	\/* the size of a circular buffer *\/$/;"	m	struct:circ_status
+queue_skb_to_iod	gnss_io_device.c	/^static inline int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)$/;"	f	file:
+read_int2gnss	gnss_link_device_shmem.h	/^static inline u16 read_int2gnss(struct shmem_link_device *shmd)$/;"	f
+real_iod	gnss_prj.h	/^	struct io_device *real_iod; \/* for rx multipdp *\/$/;"	m	struct:skbuff_private	typeref:struct:skbuff_private::io_device
+realloc_offset	gnss_prj.h	/^	unsigned realloc_offset;$/;"	m	struct:fragmented_data
+recv_frame_from_skb	gnss_io_device.c	/^static int recv_frame_from_skb(struct io_device *iod, struct link_device *ld,$/;"	f	file:
+recv_int2ap	gnss_link_device_shmem.c	/^static inline u16 recv_int2ap(struct shmem_link_device *shmd)$/;"	f	file:
+recv_skb	gnss_prj.h	/^	int (*recv_skb)(struct io_device *iod, struct link_device *ld,$/;"	m	struct:io_device
+recv_skb_single	gnss_prj.h	/^	int (*recv_skb_single)(struct io_device *iod, struct link_device *ld,$/;"	m	struct:io_device
+ref_cnt	gnss_link_device_shmem.h	/^	atomic_t ref_cnt;$/;"	m	struct:shmem_link_device
+reg	gnss_link_device_shmem.h	/^	struct gnss_shared_reg **reg;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::gnss_shared_reg
+reg	include/gnss.h	/^	struct gnss_shared_reg *reg[GNSS_REG_COUNT];$/;"	m	struct:gnss_pdata	typeref:struct:gnss_pdata::gnss_shared_reg
+reg_bcmd_ctrl	include/gnss.h	/^	unsigned reg_bcmd_ctrl[BCMD_CTRL_COUNT];$/;"	m	struct:gnss_mbox
+registered	include/gnss.h	/^	bool registered;$/;"	m	struct:gnss_irq
+registered_irq	gnss_mbox.h	/^	u32 registered_irq;$/;"	m	struct:gnss_mbox_drv_data
+release_reset	pmu-gnss.h	/^	int (*release_reset)(void);$/;"	m	struct:gnssctl_pmu_ops
+req_baaw	pmu-gnss.h	/^	void (*req_baaw)(void);$/;"	m	struct:gnssctl_pmu_ops
+req_bcmd	gnss_prj.h	/^	int (*req_bcmd)(struct gnss_ctl *, u16, u16, u32, u32);$/;"	m	struct:gnssctl_ops
+req_security	pmu-gnss.h	/^	int (*req_security)(void);$/;"	m	struct:gnssctl_pmu_ops
+res_mem	gnss_link_device_shmem.h	/^	struct shmem_region res_mem;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::shmem_region
+res_required	gnss_link_device_shmem.h	/^	atomic_t res_required;$/;"	m	struct:shmem_link_device
+reserved	gnss_prj.h	/^		reserved:15,$/;"	m	struct:skbuff_private
+reserved_1	include/exynos_ipc.h	/^	u16 reserved_1;$/;"	m	struct:exynos_link_header
+reserved_2	include/exynos_ipc.h	/^	u16 reserved_2;$/;"	m	struct:exynos_link_header
+reset_buffers	gnss_prj.h	/^	void (*reset_buffers)(struct link_device *ld);$/;"	m	struct:link_device
+reset_rxq_circ	gnss_link_device_shmem.h	/^static inline void reset_rxq_circ(struct shmem_link_device *shmd)$/;"	f
+reset_shmem_ipc	gnss_link_device_shmem.h	/^static inline void reset_shmem_ipc(struct shmem_link_device *shmd)$/;"	f
+reset_txq_circ	gnss_link_device_shmem.h	/^static inline void reset_txq_circ(struct shmem_link_device *shmd)$/;"	f
+resume	gnss_prj.h	/^	int (*resume)(struct gnss_ctl *);$/;"	m	struct:gnssctl_ops
+ret_val	gnss_prj.h	/^	u32 ret_val;$/;"	m	struct:kepler_bcmd_args
+rfs_msg	gnss_utils.h	/^	u8 rfs_msg;$/;"	m	struct:gnss_log
+router_msg	gnss_utils.h	/^	u8 router_msg;$/;"	m	struct:gnss_log
+rx_alloc_skb	gnss_prj.h	/^static inline struct sk_buff *rx_alloc_skb(unsigned int length,$/;"	f
+rx_delayed_work	gnss_prj.h	/^	struct delayed_work rx_delayed_work;$/;"	m	struct:link_device	typeref:struct:link_device::delayed_work
+rx_demux	gnss_io_device.c	/^static int rx_demux(struct link_device *ld, struct sk_buff *skb)$/;"	f	file:
+rx_fmt_ipc	gnss_io_device.c	/^static int rx_fmt_ipc(struct sk_buff *skb)$/;"	f	file:
+rx_frame_done	gnss_io_device.c	/^static int rx_frame_done(struct io_device *iod, struct link_device *ld,$/;"	f	file:
+rx_frame_with_link_header	gnss_io_device.c	/^static inline int rx_frame_with_link_header(struct sk_buff *skb)$/;"	f	file:
+rx_int_count	gnss_link_device_shmem.h	/^	unsigned int rx_int_count;$/;"	m	struct:shmem_link_device
+rx_ipc_frames	gnss_link_device_shmem.c	/^static int rx_ipc_frames(struct shmem_link_device *shmd,$/;"	f	file:
+rx_msq	gnss_link_device_shmem.h	/^	struct mem_status_queue rx_msq;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::mem_status_queue
+rx_tsk	gnss_link_device_shmem.h	/^	struct tasklet_struct rx_tsk;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::tasklet_struct
+rx_work	gnss_prj.h	/^	struct delayed_work rx_work;$/;"	m	struct:io_device	typeref:struct:io_device::delayed_work
+rx_work	gnss_prj.h	/^	struct work_struct rx_work;$/;"	m	struct:link_device	typeref:struct:link_device::work_struct
+rx_wq	gnss_prj.h	/^	struct workqueue_struct *rx_wq;$/;"	m	struct:link_device	typeref:struct:link_device::workqueue_struct
+rxq	gnss_link_device_shmem.h	/^	struct shmem_circ rxq;$/;"	m	struct:shmem_ipc_device	typeref:struct:shmem_ipc_device::shmem_circ
+send	gnss_prj.h	/^	int (*send)(struct link_device *ld, struct io_device *iod,$/;"	m	struct:link_device
+send_bcmd	gnss_io_device.c	/^static int send_bcmd(struct io_device *iod, unsigned long arg)$/;"	f	file:
+send_int2gnss	gnss_link_device_shmem.c	/^static inline void send_int2gnss(struct shmem_link_device *shmd, u16 mask)$/;"	f	file:
+sensor_power	gnss_prj.h	/^enum sensor_power {$/;"	g
+seq	include/exynos_ipc.h	/^	u16 seq;$/;"	m	struct:exynos_link_header
+seq_num	gnss_prj.h	/^	struct exynos_seq_num seq_num;$/;"	m	struct:io_device	typeref:struct:io_device::exynos_seq_num
+set_current_link	gnss_prj.h	234;"	d
+set_rxq_head	gnss_link_device_shmem.h	/^static inline void set_rxq_head(struct shmem_link_device *shmd, u32 in)$/;"	f
+set_rxq_tail	gnss_link_device_shmem.h	/^static inline void set_rxq_tail(struct shmem_link_device *shmd, u32 out)$/;"	f
+set_sensor_power	gnss_io_device.c	/^static int set_sensor_power(struct gnss_ctl *gc, unsigned long arg)$/;"	f	file:
+set_sensor_power	gnss_prj.h	/^	int (*set_sensor_power)(struct gnss_ctl *, enum sensor_power);$/;"	m	struct:gnssctl_ops
+set_txq_head	gnss_link_device_shmem.h	/^static inline void set_txq_head(struct shmem_link_device *shmd, u32 in)$/;"	f
+set_txq_tail	gnss_link_device_shmem.h	/^static inline void set_txq_tail(struct shmem_link_device *shmd, u32 out)$/;"	f
+shm_status_show	gnss_link_device_shmem.c	/^static ssize_t shm_status_show(struct device *dev,$/;"	f	file:
+shmd	include/gnss.h	/^	struct shmem_link_device *shmd;$/;"	m	struct:gnss_pdata	typeref:struct:gnss_pdata::shmem_link_device
+shmem_attrs	gnss_link_device_shmem.c	/^static struct attribute *shmem_attrs[] = {$/;"	v	typeref:struct:attribute	file:
+shmem_base	include/gnss.h	/^	u32 shmem_base;$/;"	m	struct:gnss_pdata
+shmem_circ	gnss_link_device_shmem.h	/^struct shmem_circ {$/;"	s
+shmem_copy_reserved_from_user	gnss_link_device_shmem.c	/^static int shmem_copy_reserved_from_user(struct link_device *ld, u32 offset,$/;"	f	file:
+shmem_copy_reserved_to_user	gnss_link_device_shmem.c	/^static int shmem_copy_reserved_to_user(struct link_device *ld, u32 offset,$/;"	f	file:
+shmem_dump_fault_mbx_to_user	gnss_link_device_shmem.c	/^static int shmem_dump_fault_mbx_to_user(struct link_device *ld,$/;"	f	file:
+shmem_dump_fault_mem_to_user	gnss_link_device_shmem.c	/^static int shmem_dump_fault_mem_to_user(struct link_device *ld,$/;"	f	file:
+shmem_group	gnss_link_device_shmem.c	/^static const struct attribute_group shmem_group = {		\\$/;"	v	typeref:struct:attribute_group	file:
+shmem_init_ipc_map	gnss_link_device_shmem.c	/^static int shmem_init_ipc_map(struct shmem_link_device *shmd)$/;"	f	file:
+shmem_ipc_device	gnss_link_device_shmem.h	/^struct shmem_ipc_device {$/;"	s
+shmem_ipc_map	gnss_link_device_shmem.h	/^struct shmem_ipc_map {$/;"	s
+shmem_irq_msg_handler	gnss_link_device_shmem.c	/^static irqreturn_t shmem_irq_msg_handler(int irq, void *data)$/;"	f	file:
+shmem_link_device	gnss_link_device_shmem.h	/^struct shmem_link_device {$/;"	s
+shmem_region	gnss_link_device_shmem.h	/^struct shmem_region {$/;"	s
+shmem_remap_ipc_region	gnss_link_device_shmem.c	/^static void shmem_remap_ipc_region(struct shmem_link_device *shmd)$/;"	f	file:
+shmem_reset_buffers	gnss_link_device_shmem.c	/^static void shmem_reset_buffers(struct link_device *ld)$/;"	f	file:
+shmem_send	gnss_link_device_shmem.c	/^static int shmem_send(struct link_device *ld, struct io_device *iod,$/;"	f	file:
+shmem_send_ipc	gnss_link_device_shmem.c	/^static int shmem_send_ipc(struct shmem_link_device *shmd)$/;"	f	file:
+shmem_size	include/gnss.h	/^	u32 shmem_size;$/;"	m	struct:gnss_pdata
+shmem_try_send_ipc	gnss_link_device_shmem.c	/^static void shmem_try_send_ipc(struct shmem_link_device *shmd,$/;"	f	file:
+single_frame	gnss_prj.h	/^	bool single_frame;$/;"	m	struct:skbuff_private
+size	gnss_link_device_memory.h	/^	u32 size;	\/* the size of free space or received data *\/$/;"	m	struct:circ_status
+size	gnss_link_device_memory.h	/^	u32 size;$/;"	m	struct:trace_data
+size	gnss_link_device_shmem.h	/^	u32          size;$/;"	m	struct:shmem_circ
+size	gnss_link_device_shmem.h	/^	u32         size;  \/* region size *\/$/;"	m	struct:shmem_region
+size	include/gnss.h	/^	u32 size;$/;"	m	struct:gnss_fault_data_area
+sk_fmt_rx_q	gnss_prj.h	/^	struct sk_buff_head sk_fmt_rx_q;$/;"	m	struct:link_device	typeref:struct:link_device::sk_buff_head
+sk_fmt_tx_q	gnss_prj.h	/^	struct sk_buff_head sk_fmt_tx_q;$/;"	m	struct:link_device	typeref:struct:link_device::sk_buff_head
+sk_rx_q	gnss_prj.h	/^	struct sk_buff_head sk_rx_q;$/;"	m	struct:io_device	typeref:struct:io_device::sk_buff_head
+skb_recv	gnss_prj.h	/^	struct sk_buff *skb_recv;$/;"	m	struct:fragmented_data	typeref:struct:fragmented_data::sk_buff
+skb_rxq	gnss_prj.h	/^	struct sk_buff_head *skb_rxq;$/;"	m	struct:link_device	typeref:struct:link_device::sk_buff_head
+skb_txq	gnss_prj.h	/^	struct sk_buff_head *skb_txq;$/;"	m	struct:link_device	typeref:struct:link_device::sk_buff_head
+skbpriv	gnss_prj.h	/^static inline struct skbuff_private *skbpriv(struct sk_buff *skb)$/;"	f
+skbuff_private	gnss_prj.h	/^struct skbuff_private {$/;"	s
+start	gnss_prj.h	/^	char start; \/*hdlc start header 0x7F*\/$/;"	m	struct:header_data
+stat	gnss_link_device_memory.h	/^	struct mem_status stat[MAX_MEM_LOG_CNT];$/;"	m	struct:mem_status_queue	typeref:struct:mem_status_queue::mem_status
+suspend	gnss_prj.h	/^	int (*suspend)(struct gnss_ctl *);$/;"	m	struct:gnssctl_ops
+sw_init_cmpl	gnss_prj.h	/^	struct completion sw_init_cmpl;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::completion
+tail	gnss_link_device_memory.h	/^	u32 tail[MAX_DIR];$/;"	m	struct:mem_status
+tail	gnss_link_device_shmem.h	/^	u32 __iomem *tail;$/;"	m	struct:shmem_circ
+timeout_cnt	gnss_prj.h	/^	int timeout_cnt;$/;"	m	struct:link_device
+to_io_device	gnss_prj.h	226;"	d
+to_shmem_link_device	gnss_link_device_shmem.h	100;"	d
+trace_data	gnss_link_device_memory.h	/^struct trace_data {$/;"	s
+trace_data_queue	gnss_link_device_memory.h	/^struct trace_data_queue {$/;"	s
+trd	gnss_link_device_memory.h	/^	struct trace_data trd[MAX_TRACE_SIZE];$/;"	m	struct:trace_data_queue	typeref:struct:trace_data_queue::trace_data
+ts	gnss_link_device_memory.h	/^	struct timespec ts;$/;"	m	struct:mem_status	typeref:struct:mem_status::timespec
+ts	gnss_link_device_memory.h	/^	struct timespec ts;$/;"	m	struct:trace_data	typeref:struct:trace_data::timespec
+ts	gnss_prj.h	/^	struct timespec ts;$/;"	m	struct:skbuff_private	typeref:struct:skbuff_private::timespec
+tx_delayed_work	gnss_prj.h	/^	struct delayed_work tx_delayed_work;$/;"	m	struct:link_device	typeref:struct:link_device::delayed_work
+tx_dwork	gnss_prj.h	/^	struct delayed_work *tx_dwork;$/;"	m	struct:link_device	typeref:struct:link_device::delayed_work
+tx_lock	gnss_link_device_shmem.h	/^	spinlock_t tx_lock;$/;"	m	struct:shmem_link_device
+tx_msq	gnss_link_device_shmem.h	/^	struct mem_status_queue tx_msq;$/;"	m	struct:shmem_link_device	typeref:struct:shmem_link_device::mem_status_queue
+tx_work	gnss_prj.h	/^	struct work_struct tx_work;$/;"	m	struct:link_device	typeref:struct:link_device::work_struct
+tx_wq	gnss_prj.h	/^	struct workqueue_struct *tx_wq;$/;"	m	struct:link_device	typeref:struct:link_device::workqueue_struct
+txq	gnss_link_device_shmem.h	/^	struct shmem_circ txq;$/;"	m	struct:shmem_ipc_device	typeref:struct:shmem_ipc_device::shmem_circ
+unmasked_irq	gnss_mbox.h	/^	unsigned long unmasked_irq;$/;"	m	struct:gnss_mbox_drv_data
+update_rxq_tail_status	gnss_link_device_shmem.c	/^static inline void update_rxq_tail_status(struct shmem_link_device *shmd,$/;"	f	file:
+vaddr	gnss_link_device_shmem.h	/^	u8 __iomem *vaddr; \/* ioremap base address *\/$/;"	m	struct:shmem_region
+valid_cmd_arg	gnss_io_device.c	/^static int valid_cmd_arg(unsigned int cmd, unsigned long arg)$/;"	f	file:
+value	include/gnss.h	/^	struct gnss_fault_data_area_value value;$/;"	m	struct:gnss_fault_data_area	typeref:struct:gnss_fault_data_area::gnss_fault_data_area_value
+value	include/gnss.h	/^	struct gnss_shared_reg_value value;$/;"	m	struct:gnss_shared_reg	typeref:struct:gnss_shared_reg::gnss_shared_reg_value
+vdd_sensor_reg	gnss_prj.h	/^	struct regulator *vdd_sensor_reg;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::regulator
+wakelock	gnss_prj.h	/^	struct wake_lock wakelock;$/;"	m	struct:io_device	typeref:struct:io_device::wake_lock
+waketime	gnss_prj.h	/^	long waketime;$/;"	m	struct:io_device
+work	gnss_prj.h	/^	struct work_struct work;$/;"	m	struct:gnss_ctl	typeref:struct:gnss_ctl::work_struct
+wq	gnss_prj.h	/^	wait_queue_head_t wq;$/;"	m	struct:io_device
+write_ipc_to_txq	gnss_link_device_shmem.c	/^static void write_ipc_to_txq(struct shmem_link_device *shmd,$/;"	f	file:
+xmit_ipc_msg	gnss_link_device_shmem.c	/^static int xmit_ipc_msg(struct shmem_link_device *shmd)$/;"	f	file:

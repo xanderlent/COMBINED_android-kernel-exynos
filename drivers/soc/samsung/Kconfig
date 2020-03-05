@@ -114,4 +114,5 @@ config ACPM_DVFS
 	  Support ACPM DVFS for Exynos SoC.
 
 source "drivers/soc/samsung/cpif/Kconfig"
+source "drivers/soc/samsung/gnssif/Kconfig"
 endif

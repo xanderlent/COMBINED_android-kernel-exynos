@@ -34,3 +34,5 @@ endif
 #obj-$(CONFIG_SEC_MODEM_IF)  	+= pmu-cp.o
 # CPIF
 obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif/
+# GNSS interface driver
+obj-$(CONFIG_EXYNOS_GNSS_IF) += gnssif/
