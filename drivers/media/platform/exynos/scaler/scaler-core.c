@@ -903,7 +903,7 @@ static int sc_get_pm_qos_level_by_ppc(struct sc_ctx *ctx, int framerate)
 	target_clk = max(src_clk, dst_clk);
 
 	for (i = sc->qos_table_cnt - 1; i >= 0; i--) {
-		if (qos_table[i].freq_int >= target_clk)
+		if (qos_table[i].freq_mscl >= target_clk)
 			break;
 	}
 

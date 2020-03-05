@@ -429,7 +429,10 @@ struct sc_src_blend_cfg {
 struct sc_qos_table {
 	unsigned int freq_mif;
 	unsigned int freq_int;
-	unsigned int data_size;
+	union {
+		unsigned int data_size;
+		unsigned int freq_mscl;
+	};
 };
 
 struct sc_ppc_table {
