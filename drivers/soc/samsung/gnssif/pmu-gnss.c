@@ -24,7 +24,14 @@
 #define gnss_pmu_write	exynos_pmu_write
 #define gnss_pmu_update exynos_pmu_update
 
-#if defined(CONFIG_SOC_EXYNOS9630)
+#if defined(CONFIG_SOC_EXYNOS9110)
+#define BAAW_GNSS_CMGP_ADDR	(0x13FE0000)
+#define BAAW_GNSS_CMGP_SIZE	(SZ_64K)
+
+#define BAAW_GNSS_DBUS_ADDR	(0x13FD0000)
+#define BAAW_GNSS_DBUS_SIZE	(SZ_64K)
+
+#elif defined(CONFIG_SOC_EXYNOS9630)
 #define BAAW_GNSS_CMGP_ADDR	(0x13FE0000)
 #define BAAW_GNSS_CMGP_SIZE	(SZ_64K)
 
@@ -115,7 +122,7 @@ static int gnss_pmu_clear_interrupt(enum gnss_int_clear gnss_int)
 
 #if defined(CONFIG_SOC_EXYNOS9630)
 static void __iomem *intr_bid_pend; /* check APM pending before release reset */
-static bool check_apm_int_pending()
+static bool check_apm_int_pending(void)
 {
 	bool ret = false;
 	int reg_val = 0;
@@ -142,7 +149,7 @@ static bool check_apm_int_pending()
 	return ret;
 }
 #else
-static bool check_apm_int_pending()
+static bool check_apm_int_pending(void)
 {
 	return true;
 }
@@ -202,7 +209,51 @@ static void gnss_request_gnss2ap_baaw(void)
 	gnss_dbus_write(0x18, (g_shmem_base >> MEMBASE_ADDR_SHIFT));
 	gnss_dbus_write(0x1C, 0x80000003);
 
-#if defined(CONFIG_SOC_EXYNOS3830)
+#if defined(CONFIG_SOC_EXYNOS9110)
+	gif_info("ap&apm mailbox configuration\n");
+	gnss_cmgp_write(0x40, 0x000B1970);
+	gnss_cmgp_write(0x44, 0x000B1990);
+	gnss_cmgp_write(0x48, 0x00011970);
+	gnss_cmgp_write(0x4C, 0x80000003);
+
+	gif_info("cmgp_gpio_alv mailbox configuration\n");
+	gnss_cmgp_write(0x0, 0x000B1A50);
+	gnss_cmgp_write(0x4, 0x000B1A60);
+	gnss_cmgp_write(0x8, 0x00011A50);
+	gnss_cmgp_write(0xC, 0x80000003);
+
+	gif_info("cp2gnss mailbox configuration\n");
+	gnss_cmgp_write(0x10, 0x000B1960);
+	gnss_cmgp_write(0x14, 0x000B1970);
+	gnss_cmgp_write(0x18, 0x00011960);
+	gnss_cmgp_write(0x1C, 0x80000003);
+
+	gif_info("chub mailbox configuration\n");
+	gnss_cmgp_write(0x20, 0x000B1990);
+	gnss_cmgp_write(0x24, 0x000B19A0);
+	gnss_cmgp_write(0x28, 0x00011990);
+	gnss_cmgp_write(0x2C, 0x80000003);
+
+	gif_info("wifi mailbox configuration\n");
+	gnss_cmgp_write(0x30, 0x000B19A0);
+	gnss_cmgp_write(0x34, 0x000B19B0);
+	gnss_cmgp_write(0x38, 0x000119A0);
+	gnss_cmgp_write(0x3C, 0x80000003);
+
+	/* There was no information about club iram */
+	gif_info("chub iram configuration\n");
+	gnss_cmgp_write(0x50, 0x000b0000);
+	gnss_cmgp_write(0x54, 0x000b0010);
+	gnss_cmgp_write(0x58, 0x00010eb0);
+	gnss_cmgp_write(0x5C, 0x80000003);
+
+	gif_info("CMGP PERIS configuration\n");
+	gnss_cmgp_write(0x60, 0x000B1C00);
+	gnss_cmgp_write(0x64, 0x000B1E00);
+	gnss_cmgp_write(0x68, 0x00011C00);
+	gnss_cmgp_write(0x6C, 0x80000003);
+
+#elif defined(CONFIG_SOC_EXYNOS3830)
 	gif_info("MAILBOX CP APM AP CHUB WLBT\n");
 	gnss_cmgp_write(0x00, 0x000B1960);	/* GNSS Start address >> 12bit */
 	gnss_cmgp_write(0x04, 0x000B19B0);	/* GNSS End address >> 12bit */
