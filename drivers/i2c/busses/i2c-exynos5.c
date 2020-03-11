@@ -194,7 +194,7 @@ static LIST_HEAD(drvdata_list);
  * Controller operating frequency, timing values for operation
  * are calculated against this frequency
  */
-#define HSI2C_HS_TX_CLOCK			2500000
+#define HSI2C_HS_TX_CLOCK			3400000
 #define HSI2C_FAST_PLUS_TX_CLOCK	1000000
 #define HSI2C_FS_TX_CLOCK			400000
 #define HSI2C_STAND_TX_CLOCK		100000
