@@ -196,6 +196,7 @@ static LIST_HEAD(drvdata_list);
  */
 #define HSI2C_HS_TX_CLOCK			3400000
 #define HSI2C_FAST_PLUS_TX_CLOCK	1000000
+#define HSI2C_FS_PLUS_HIGH_TX_CLOCK	900000
 #define HSI2C_FS_TX_CLOCK			400000
 #define HSI2C_STAND_TX_CLOCK		100000
 
@@ -432,12 +433,19 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 				readl(i2c->regs + HSI2C_TIMING_FS1), readl(i2c->regs + HSI2C_TIMING_FS2),
 				readl(i2c->regs + HSI2C_TIMING_FS3));
 	} else if (mode == HSI2C_FAST_PLUS_SPD) {
+		unsigned int sample_factor;
+
 		op_clk = i2c->fs_plus_clock;
 
 		if (!op_clk)
 			op_clk = HSI2C_FAST_PLUS_TX_CLOCK;
 
-		fs_div = ipclk / (op_clk * 15);
+		if (op_clk > HSI2C_FS_PLUS_HIGH_TX_CLOCK)
+			sample_factor = 17;
+		else
+			sample_factor = 16;
+
+		fs_div = ipclk / (op_clk * sample_factor);
 		fs_div &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS3) & ~0x00FF0000;
 		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
@@ -473,7 +481,7 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		if (!op_clk)
 			op_clk = HSI2C_HS_TX_CLOCK;
 
-		hs_div = ipclk / (op_clk * 15);
+		hs_div = ipclk / (op_clk * 17);
 		hs_div &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_HS3) & ~0x00FF0000;
 		writel(utemp | (hs_div << 16), i2c->regs + HSI2C_TIMING_HS3);
@@ -515,7 +523,7 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 		if (!op_clk)
 			op_clk = HSI2C_FS_TX_CLOCK;
 
-		fs_div = ipclk / (op_clk * 15);
+		fs_div = ipclk / (op_clk * 16);
 		fs_div &= 0xFF;
 		utemp = readl(i2c->regs + HSI2C_TIMING_FS3) & ~0x00FF0000;
 		writel(utemp | (fs_div << 16), i2c->regs + HSI2C_TIMING_FS3);
