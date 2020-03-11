@@ -1152,26 +1152,28 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		dev_err(i2c->dev, "Failed to get default clk info\n");
 
 	/* Mode of operation High/Fast/Fast+ Speed mode */
-	if (of_get_property(np, "samsung,fast-plus-mode", NULL)) {
-		i2c->speed_mode = HSI2C_FAST_PLUS_SPD;
-		if (of_property_read_u32(np, "clock-frequency", &i2c->fs_plus_clock))
-			i2c->fs_plus_clock = HSI2C_FAST_PLUS_TX_CLOCK;
-		i2c->clock_frequency = i2c->fs_plus_clock;
-	} else if (of_get_property(np, "samsung,hs-mode", NULL)) {
-		i2c->speed_mode = HSI2C_HIGH_SPD;
-		if (of_property_read_u32(np, "clock-frequency", &i2c->hs_clock))
-			i2c->hs_clock = HSI2C_HS_TX_CLOCK;
-		i2c->clock_frequency = i2c->hs_clock;
-	} else if (of_get_property(np, "samsung,stand-mode", NULL)) {
+	if (of_property_read_u32(np, "clock-frequency", &i2c->clock_frequency)) {
+		i2c->clock_frequency = HSI2C_STAND_TX_CLOCK;
+		i2c->stand_clock = i2c->clock_frequency;
 		i2c->speed_mode = HSI2C_STAND_SPD;
-		if (of_property_read_u32(np, "clock-frequency", &i2c->stand_clock))
-			i2c->stand_clock = HSI2C_STAND_TX_CLOCK;
-		i2c->clock_frequency = i2c->stand_clock;
 	} else {
-		i2c->speed_mode = HSI2C_FAST_SPD;
-		if (of_property_read_u32(np, "clock-frequency", &i2c->fs_clock))
-			i2c->fs_clock = HSI2C_FS_TX_CLOCK;
-		i2c->clock_frequency = i2c->fs_clock;
+
+		if (i2c->clock_frequency <= HSI2C_STAND_TX_CLOCK) {
+			i2c->stand_clock = i2c->clock_frequency;
+			i2c->speed_mode = HSI2C_STAND_SPD;
+		}
+		else if (i2c->clock_frequency <= HSI2C_FS_TX_CLOCK) {
+			i2c->fs_clock = i2c->clock_frequency;
+			i2c->speed_mode = HSI2C_FAST_SPD;
+		}
+		else if (i2c->clock_frequency <= HSI2C_FAST_PLUS_TX_CLOCK) {
+			i2c->fs_plus_clock = i2c->clock_frequency;
+			i2c->speed_mode = HSI2C_FAST_PLUS_SPD;
+		}
+		else {
+			i2c->hs_clock = i2c->clock_frequency;
+			i2c->speed_mode = HSI2C_HIGH_SPD;
+		}
 	}
 
 	ret = of_property_read_u32(np, "samsung,tscl-h", &i2c->tscl_h);
