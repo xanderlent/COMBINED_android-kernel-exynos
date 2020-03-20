@@ -49,3 +49,6 @@ obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-cpu_hotplug.o
 
 # CPUIDLE_PROFILER
 obj-$(CONFIG_ARM64_EXYNOS_CPUIDLE)	+= cpuidle_profiler.o
+
+# SDM
+obj-$(CONFIG_EXYNOS_SDM)	+= exynos-sdm.o
