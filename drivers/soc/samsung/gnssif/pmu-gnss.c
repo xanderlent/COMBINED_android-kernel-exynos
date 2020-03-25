@@ -139,7 +139,7 @@ static bool check_apm_int_pending(void)
 		gif_info("APM PENDING CHECK REGISTER VAL: 0x%08x\n", reg_val);
 		if ((reg_val >> 17) & 0x3F) {/* check if one or more of bits [22:17] are 1 */
 			count--;
-			mdelay(50);
+			msleep(50);
 			continue;
 		} else {
 			ret = true;
@@ -173,7 +173,7 @@ static int gnss_pmu_hold_reset(void)
 
 	if (check_apm_int_pending()) {
 		cal_gnss_reset_assert();
-		mdelay(50);
+		msleep(50);
 	} else
 		ret = 1;
 

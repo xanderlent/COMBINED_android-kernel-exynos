@@ -192,7 +192,7 @@ static int kepler_release_reset(struct gnss_ctl *gc)
 		gif_err("%s: sw_init_cmpl TIMEOUT!\n", gc->name);
 		return -EIO;
 	}
-	mdelay(100);
+	msleep(100);
 	ret = gc->pmu_ops->req_security();
 	if (ret != 0) {
 		gif_err("req_security error! %d\n", ret);
@@ -239,7 +239,7 @@ static int kepler_power_on(struct gnss_ctl *gc)
 		gif_err("%s: sw_init_cmpl TIMEOUT!\n", gc->name);
 		return -EIO;
 	}
-	mdelay(100);
+	msleep(100);
 	ret = gc->pmu_ops->req_security();
 	if (ret != 0) {
 		gif_err("req_security error! %d\n", ret);
