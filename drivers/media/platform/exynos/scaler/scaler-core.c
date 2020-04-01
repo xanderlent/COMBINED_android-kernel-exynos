@@ -1746,8 +1746,8 @@ static void sc_calc_intbufsize(struct sc_dev *sc, struct sc_int_frame *int_frame
 			frame->addr.size[i] = min_size;
 	}
 
-	memcpy(&int_frame->src_addr, &frame->addr, sizeof(int_frame->src_addr));
-	memcpy(&int_frame->dst_addr, &frame->addr, sizeof(int_frame->dst_addr));
+	memcpy(&int_frame->src_addr.size, &frame->addr.size, sizeof(int_frame->src_addr.size));
+	memcpy(&int_frame->dst_addr.size, &frame->addr.size, sizeof(int_frame->dst_addr.size));
 }
 
 static void free_intermediate_frame(struct sc_ctx *ctx)
@@ -1778,6 +1778,7 @@ static void free_intermediate_frame(struct sc_ctx *ctx)
 	memset(&ctx->i_frame->dma_buf, 0, sizeof(struct dma_buf *) * 3);
 	memset(&ctx->i_frame->src_addr, 0, sizeof(ctx->i_frame->src_addr));
 	memset(&ctx->i_frame->dst_addr, 0, sizeof(ctx->i_frame->dst_addr));
+	memset(&ctx->i_frame->frame, 0, sizeof(ctx->i_frame->frame));
 }
 
 static void destroy_intermediate_frame(struct sc_ctx *ctx)
