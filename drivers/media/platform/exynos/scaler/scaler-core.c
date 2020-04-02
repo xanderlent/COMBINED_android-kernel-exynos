@@ -1778,7 +1778,6 @@ static void free_intermediate_frame(struct sc_ctx *ctx)
 	memset(&ctx->i_frame->dma_buf, 0, sizeof(struct dma_buf *) * 3);
 	memset(&ctx->i_frame->src_addr, 0, sizeof(ctx->i_frame->src_addr));
 	memset(&ctx->i_frame->dst_addr, 0, sizeof(ctx->i_frame->dst_addr));
-	memset(&ctx->i_frame->frame, 0, sizeof(ctx->i_frame->frame));
 }
 
 static void destroy_intermediate_frame(struct sc_ctx *ctx)
