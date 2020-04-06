@@ -305,6 +305,13 @@ static unsigned int misc_poll(struct file *filp, struct poll_table_struct *wait)
 	struct gnss_ctl *gc = iod->gc;
 	poll_wait(filp, &iod->wq, wait);
 
+#ifdef CONFIG_USB_CONFIGFS_F_MBIM
+	if (gc->is_irq_received == true) {
+		gif_err("POLL wakeup for power on/off interrupt\n");
+		return POLLPRI;
+	}
+#endif
+
 	if (!skb_queue_empty(&iod->sk_rx_q) && gc->gnss_state != STATE_OFFLINE)
 		return POLLIN | POLLRDNORM;
 
@@ -781,6 +788,19 @@ static ssize_t misc_read(struct file *filp, char *buf, size_t count,
 	struct sk_buff_head *rxq = &iod->sk_rx_q;
 	struct sk_buff *skb;
 	int copied = 0;
+
+#ifdef CONFIG_USB_CONFIGFS_F_MBIM
+	struct gnss_ctl *gc = iod->gc;
+
+	if (gc->is_irq_received == true) {
+		gc->is_irq_received = false;
+		if (copy_to_user(buf, &gc->gnss_pwr, sizeof(unsigned int))) {
+			gif_err("%s: ERR! copy_to_user fail\n", iod->name);
+			return -EFAULT;
+		}
+		return 0;
+	}
+#endif
 
 	if (skb_queue_empty(rxq)) {
 		gif_debug("%s: ERR! no data in rxq\n", iod->name);

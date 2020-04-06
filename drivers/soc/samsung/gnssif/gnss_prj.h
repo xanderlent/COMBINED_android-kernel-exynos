@@ -103,6 +103,13 @@ enum gnss_state {
 	STATE_FAULT, /* ACTIVE/WDT */
 };
 
+#ifdef CONFIG_USB_CONFIGFS_F_MBIM
+enum gnss_pwr {
+	POWER_ON,
+	POWER_OFF,
+};
+#endif
+
 static const char * const gnss_state_str[] = {
 	[STATE_OFFLINE]			= "OFFLINE",
 	[STATE_FIRMWARE_DL]		= "FIRMWARE_DL",
@@ -360,6 +367,15 @@ struct gnss_ctl {
 	struct gnss_irq irq_gnss_sw_init;
 
 	u32 reset_count;
+
+#ifdef CONFIG_USB_CONFIGFS_F_MBIM
+	struct irq_chip *apwake_irq_chip;
+
+	int m2_gpio_gnss_pwr;
+	struct gnss_irq m2_irq_gnss_pwr;
+	enum gnss_pwr gnss_pwr;
+	bool is_irq_received;
+#endif
 };
 
 extern int exynos_init_gnss_io_device(struct io_device *iod);
