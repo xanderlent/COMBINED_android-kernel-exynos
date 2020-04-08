@@ -1,0 +1,2 @@
+obj-$(CONFIG_BT_BRCM_RFKILL)	+= brcm_rfkill.o
+obj-$(CONFIG_BT_BRCM_LPM)	+= brcm_lpm.o
