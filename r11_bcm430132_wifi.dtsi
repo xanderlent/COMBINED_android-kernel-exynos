@@ -1,0 +1,202 @@
+/*
+* Device Tree config for the BCM430132 chip - WIFI
+*/
+
+/ {
+	/* SDIO (SD) Interface */
+	dwmmc2@13550000 {
+		compatible = "samsung,exynos-dw-mshc";
+		reg = <0x0 0x13550000 0x2000>;
+		reg-names = "dw_mmc";
+		interrupts = <0 177 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&clock FSYS_MMC_CARD>, <&clock GATE_MMC_CARD>;
+		clock-names = "ciu", "ciu_gate";
+		status = "okay";
+		num-slots = <1>;
+		broken-cd;
+		cd-type-external;
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		supports-4bit;
+		sd-uhs-sdr25;
+		bypass-for-allpass;
+		use-fine-tuning;
+		card-init-hwacg-ctrl;
+		only_once_tune;
+		ignore-phase = <(1 << 7)>;
+		fifo-depth = <0x40>;
+		desc-size = <4>;
+		card-detect-delay = <200>
+		data-timeout = <200>
+		hto-timeout = <80>;
+		samsung,dw-mshc-ciu-div = <3>
+		clock-frequency = <50000000>;
+		samsung,dw-mshc-sdr-timing = <3 0 2 0>;
+		samsung,dw-mshc-ddr-timing = <3 0 2 1>;
+
+		tp_mon_depth = <2>;
+		/* Byte/s,  MIF clk, CPU clk */
+		tp_mon_table = <3145728 1539000 1144000
+		                     0       0       0>;
+
+		num-ref-clks = <9>;
+		ciu_clkin = <25 50 50 25 50 100 200 50 50>;
+
+		clk-drive-number = <4>
+		pinctrl-names = "default",
+			"fast-slew-rate-1x",
+			"fast-slew-rate-2x",
+			"fast-slew-rate-3x",
+			"fast-slew-rate-4x",
+			"sdio_wifi_on",
+			"sdio_wifi_off";
+		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4>;
+		pinctrl-1 = <&sd2_clk_fast_slew_rate_1x>;
+		pinctrl-2 = <&sd2_clk_fast_slew_rate_2x>;
+		pinctrl-3 = <&sd2_clk_fast_slew_rate_3x>;
+		pinctrl-4 = <&sd2_clk_fast_slew_rate_4x>;
+		pinctrl-5 = <&sd2_clk_wifi_on &sd2_cmd_bus_wifi_on>;
+		pinctrl-6 = <&sd2_clk_wifi_off &sd2_cmd_bus_wifi_off>;
+
+		slot@0 {
+			reg = <0>;
+			bus-width = <4>;
+			disable-wp;
+		};
+	};
+
+	/* SDIO - PINCTRL */
+	pinctrl@13430000 {
+		sd2_clk: sd2-clk {
+			samsung,pins = "gpf2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+			samsung,pin-drv = <2>;		/* 2x */
+		};
+
+		sd2_cmd: sd2-cmd {
+			samsung,pins = "gpf2-1";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <3>;		/* Pull Up Enable */
+			samsung,pin-drv = <2>;		/* 2x */
+		};
+
+		sd2_clk_wifi_on: sd2-clk-wifi-on {
+			samsung,pins = "gpf2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+			samsung,pin-drv = <2>;		/* 2x */
+			samsung,pin-con-pdn = <0>;	/* Output Low */
+			samsung,pin-pud-pdn = <1>;	/* Pull Down Enabled */
+		};
+
+		sd2_clk_wifi_off: sd2-clk-wifi-off {
+			samsung,pins = "gpf2-0";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <1>;		/* Pull Down Enabled */
+			samsung,pin-drv = <2>;		/* 2x */
+			samsung,pin-con-pdn = <2>;	/* Input */
+			samsung,pin-pud-pdn = <1>;	/* Pull Down Enabled */
+		};
+
+		sd2_cmd_bus_wifi_on: sd2-cmd-bus-wifi-on {
+			samsung,pins = "gpf2-1", "gpf2-2", "gpf2-3", "gpf2-4", "gpf2-5";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <3>;		/* Pull Up Enable */
+			samsung,pin-drv = <2>;		/* 2x */
+			samsung,pin-con-pdn = <2>;	/* Input */
+			samsung,pin-pud-pdn = <3>;	/* Pull Up Enable */
+
+		};
+
+		sd2_cmd_bus_wifi_off: sd2-cmd-bus-wifi-off {
+			samsung,pins = "gpf2-1", "gpf2-2", "gpf2-3", "gpf2-4", "gpf2-5";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <1>;		/* Pull Down Enabled */
+			samsung,pin-drv = <2>;		/* 2x */
+			samsung,pin-con-pdn = <2>;	/* Input */
+			samsung,pin-pud-pdn = <1>;	/* Pull Down Enabled */
+		};
+
+		sd2_bus1: sd2-bus-width1 {
+			samsung,pins = "gpf2-2";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <3>;		/* Pull Up Enable */
+			samsung,pin-drv = <2>;		/* 2x */
+			samsung,pin-con-pdn = <2>;	/* Input */
+			samsung,pin-pud-pdn = <3>;	/* Pull Up Enable */
+		};
+
+		sd2_bus4: sd2-bus-width4 {
+			samsung,pins = "gpf2-3", "gpf2-4", "gpf2-5";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <3>;		/* Pull Up Enable */
+			samsung,pin-drv = <2>;		/* 2x */
+			samsung,pin-con-pdn = <2>;	/* Input */
+			samsung,pin-pud-pdn = <3>;	/* Pull Up Enable */
+		};
+
+		sd2_clk_fast_slew_rate_1x: sd2-clk_fast_slew_rate_1x {
+			samsung,pins = "gpf2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+			samsung,pin-drv = <0>;		/* 1x */
+		};
+
+		sd2_clk_fast_slew_rate_2x: sd2-clk_fast_slew_rate_2x {
+			samsung,pins = "gpf2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+			samsung,pin-drv = <1>;		/* 1.5x */
+		};
+
+		sd2_clk_fast_slew_rate_3x: sd2-clk_fast_slew_rate_3x {
+			samsung,pins = "gpf2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+			samsung,pin-drv = <2>;		/* 2x */
+		};
+
+		sd2_clk_fast_slew_rate_4x: sd2-clk_fast_slew_rate_4x {
+			samsung,pins = "gpf2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+			samsung,pin-drv = <3>;		/* 2.5x */
+		};
+	};
+
+	/* WIFI */
+	bcmdhd {
+		compatible = "samsung,brcm-wlan";
+		gpios = <&gpg5 0 0x1 /* SOC_WL_REG_ON_H (WLAN_EN) */
+			&gpm20 0 0x1 /* WL_SOC_INT_H (WLAN_HOST_WAKE GPIO_0) */>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cfg_wlanen &cfg_wlanhostwake>;
+		status = "okay";
+	};
+
+	/* WIFI - PINCTRL */
+	pinctrl@139B0000 {
+		/* WLAN_EN */
+		cfg_wlanen {
+			samsung,pins = "gpg5-0";
+			samsung,pin-function = <1>;	/* Output */
+			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+			samsung,pin-drv = <0>;		/* 1x */
+			samsung,pin-con-pdn = <3>;	/* Previous State */
+			samsung,pin-pud-pdn = <0>;	/* Pull Up/Down Disabled */
+			samsung,pin-val = <0>;		/* Output Low */
+		};
+	};
+
+	pinctrl@11A50000 {
+		/* WLAN_HOST_WAKE */
+		cfg_wlanhostwake: cfg-wlanhostwake {
+			samsung,pins = "gpm20-0";
+			samsung,pin-function = <0>;	/* Input */
+			samsung,pin-pud = <1>;		/* Pull Down Enabled */
+		};
+	};
+};
