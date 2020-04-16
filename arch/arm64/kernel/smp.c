@@ -61,6 +61,7 @@
 #include <asm/ptrace.h>
 #include <asm/virt.h>
 
+#include <soc/samsung/debug-snapshot.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
 
@@ -885,6 +886,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	case IPI_CPU_STOP:
+		dbg_snapshot_save_context(regs, true);
 		irq_enter();
 		ipi_cpu_stop(cpu);
 		irq_exit();
