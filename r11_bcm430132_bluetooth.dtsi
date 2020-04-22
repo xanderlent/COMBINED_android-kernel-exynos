@@ -7,25 +7,26 @@
 		/* Bluetooth BRCM - rfkill */
 		rfkill {
 			compatible = "brcm,rfkill";
-			gpios = <&gpg5 1 0	/* BT_REG_ON */ >;
+			power-gpios = <&gpg5 1 0x0	/* BT_REG_ON */ >;
 			pinctrl-names = "default";
-			pinctrl-0 = <&power_gpio>;
+			pinctrl-0 = <&bt_poweren>;
 		};
 
 	    /* Bluetooth BRCM - lpm */
 		bluesleep {
 			compatible = "brcm,bluesleep";
-			gpios = <&gpa1 1 0x0    /* BT_HOST_WAKE */
-				 &gpg4 1 0x0    /* BT_DEV_WAKE */ >;
+			host-wake-gpios = <&gpa1 1 0x0	/* BT_HOST_WAKE */>;
+			dev-wake-gpios = <&gpg4 1 0x0	/* BT_DEV_WAKE */ >;
 			pinctrl-names = "default";
-			pinctrl-0 = <&bt-wake-host-gpios &host-wake-bt-gpios>;
+			pinctrl-0 = <&bt_hostwake &bt_devwake>;
 		};
 
 		status = "okay";
 	};
 
 	pinctrl@11850000 {
-		bt-wake-host-gpios: bt_wake_host_gpios {
+		/* BT_HOST_WAKE */
+		bt_hostwake: bt-hostwake {
 			samsung,pins = "gpa1-1";
 			samsung,pin-function = <0>;	/* Input */
 			samsung,pin-pud = <1>;		/* Pull Down Enabled */
@@ -36,7 +37,8 @@
 	};
 
 	pinctrl@139B0000 {
-		power_gpio: power-gpio  {
+		/* BT_REG_ON */
+		bt_poweren: bt-poweren  {
 			samsung,pins = "gpg5-1";
 			samsung,pin-function = <1>;	/* Output */
 			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
@@ -45,7 +47,8 @@
 			samsung,pin-pud-pdn = <0>;	/* Pull Up/Down Disabled */
 		};
 
-		host-wake-bt-gpios: host_wake_bt_gpios {
+		/* BT_DEV_WAKE */
+		bt_devwake: bt-devwake {
 			samsung,pins = "gpg4-1";
 			samsung,pin-function = <1>;	/* Output */
 			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
