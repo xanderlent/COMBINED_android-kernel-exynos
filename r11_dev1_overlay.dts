@@ -1,0 +1,36 @@
+/*
+ * Google R11 DTSO file
+ *
+ * Copyright 2020 Google LLC
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/exynos9110.h>
+#include <dt-bindings/soc/samsung/exynos9110.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/exynos9110.h>
+
+#include "r11_dev1_common.dtsi"
+
+/ {
+	compatible = "google,r11";
+	board_id = <0x0>;
+	board_rev = <0x0>;
+
+	fragment@common {
+		target-patch = "/";
+		__overlay__
+		/include/ "r11_dev1_common_root.dtsi"
+	};
+};
