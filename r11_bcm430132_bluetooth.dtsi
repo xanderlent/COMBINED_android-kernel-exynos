@@ -10,6 +10,7 @@
 			power-gpios = <&gpg5 1 0x0	/* BT_REG_ON */ >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&bt_poweren>;
+			status = "okay";
 		};
 
 	    /* Bluetooth BRCM - lpm */
@@ -19,9 +20,8 @@
 			dev-wake-gpios = <&gpg4 1 0x0	/* BT_DEV_WAKE */ >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&bt_hostwake &bt_devwake>;
+			status = "okay";
 		};
-
-		status = "okay";
 	};
 
 	pinctrl@11850000 {

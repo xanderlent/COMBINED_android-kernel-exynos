@@ -28,10 +28,10 @@
 		ignore-phase = <(1 << 7)>;
 		fifo-depth = <0x40>;
 		desc-size = <4>;
-		card-detect-delay = <200>
-		data-timeout = <200>
+		card-detect-delay = <200>;
+		data-timeout = <200>;
 		hto-timeout = <80>;
-		samsung,dw-mshc-ciu-div = <3>
+		samsung,dw-mshc-ciu-div = <3>;
 		clock-frequency = <50000000>;
 		samsung,dw-mshc-sdr-timing = <3 0 2 0>;
 		samsung,dw-mshc-ddr-timing = <3 0 2 1>;
@@ -44,7 +44,7 @@
 		num-ref-clks = <9>;
 		ciu_clkin = <25 50 50 25 50 100 200 50 50>;
 
-		clk-drive-number = <4>
+		clk-drive-number = <4>;
 		pinctrl-names = "default",
 			"fast-slew-rate-1x",
 			"fast-slew-rate-2x",
@@ -180,7 +180,7 @@
 	/* WIFI - PINCTRL */
 	pinctrl@139B0000 {
 		/* WLAN_EN */
-		cfg_wlanen {
+		cfg_wlanen: cfg-wlanen {
 			samsung,pins = "gpg5-0";
 			samsung,pin-function = <1>;	/* Output */
 			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
