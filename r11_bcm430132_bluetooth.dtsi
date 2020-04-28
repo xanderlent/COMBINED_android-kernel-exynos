@@ -2,6 +2,10 @@
 * Device Tree config for the BCM430132 chip - BT
 */
 
+/******/
+/* BT */
+/******/
+
 / {
 	bluetooth {
 		/* Bluetooth BRCM - rfkill */
@@ -23,38 +27,46 @@
 			status = "okay";
 		};
 	};
+};
 
-	pinctrl@11850000 {
-		/* BT_HOST_WAKE */
-		bt_hostwake: bt-hostwake {
-			samsung,pins = "gpa1-1";
-			samsung,pin-function = <0>;	/* Input */
-			samsung,pin-pud = <1>;		/* Pull Down Enabled */
-			samsung,pin-drv = <2>;		/* 3x - Default value is 2 */
-			samsung,pin-con-pdn = <2>;	/* Input - Default value is 2 */
-			samsung,pin-pud-pdn = <0>;	/* Pull Up/Down Disabled - Default value is 1 */
-		};
+&pinctrl_0 {
+	/* BT_HOST_WAKE */
+	bt_hostwake: bt-hostwake {
+		samsung,pins = "gpa1-1";
+		samsung,pin-function = <0>;	/* Input */
+		samsung,pin-pud = <1>;		/* Pull Down Enabled */
+		samsung,pin-drv = <2>;		/* 3x - Default value is 2 */
+		samsung,pin-con-pdn = <2>;	/* Input - Default value is 2 */
+		samsung,pin-pud-pdn = <0>;	/* Pull Up/Down Disabled - Default value is 1 */
+	};
+};
+
+&pinctrl_5 {
+	/* BT_REG_ON */
+	bt_poweren: bt-poweren  {
+		samsung,pins = "gpg5-1";
+		samsung,pin-function = <1>;	/* Output */
+		samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+		samsung,pin-drv = <0>;		/* 1x */
+		samsung,pin-con-pdn = <3>;	/* Previous State */
+		samsung,pin-pud-pdn = <0>;	/* Pull Up/Down Disabled */
 	};
 
-	pinctrl@139B0000 {
-		/* BT_REG_ON */
-		bt_poweren: bt-poweren  {
-			samsung,pins = "gpg5-1";
-			samsung,pin-function = <1>;	/* Output */
-			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
-			samsung,pin-drv = <0>;		/* 1x */
-			samsung,pin-con-pdn = <3>;	/* Previous State */
-			samsung,pin-pud-pdn = <0>;	/* Pull Up/Down Disabled */
-		};
-
-		/* BT_DEV_WAKE */
-		bt_devwake: bt-devwake {
-			samsung,pins = "gpg4-1";
-			samsung,pin-function = <1>;	/* Output */
-			samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
-			samsung,pin-drv = <0>;		/* 1x */
-			samsung,pin-con-pdn = <3>;	/* Previous State */
-			samsung,pin-pud-pdn = <0>;	/* Pull Up/Down Disabled */
-		};
+	/* BT_DEV_WAKE */
+	bt_devwake: bt-devwake {
+		samsung,pins = "gpg4-1";
+		samsung,pin-function = <1>;	/* Output */
+		samsung,pin-pud = <0>;		/* Pull Up/Down Disabled */
+		samsung,pin-drv = <0>;		/* 1x */
+		samsung,pin-con-pdn = <3>;	/* Previous State */
+		samsung,pin-pud-pdn = <0>;	/* Pull Up/Down Disabled */
 	};
+};
+
+/********/
+/* UART */
+/********/
+
+&serial_5 {
+	status = "okay";
 };
