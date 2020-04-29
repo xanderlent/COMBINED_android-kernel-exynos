@@ -1,0 +1,35 @@
+/*
+ * Device Tree config for the CS35L41 chip - Smart amplifier
+ */
+
+&hsi2c_8 {
+	status = "ok";
+
+	cs35l41@40 {
+		compatible = "cirrus,cs35l41", "cirrus,cs35l40";
+		reg = <0x40>;
+		VA-supply = <&cs35l41_logic_voltage_regulator>;
+		VP-supply = <&cs35l41_speaker_power_regulator>;
+
+		cirrus,boost-peak-milliamp = <1600>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <30>;
+		cirrus,right-channel-amp;
+		// Mode 3: Hi-Z during unused slots and while all transmit channels disabled
+		cirrus,asp-sdout-hiz = <3>;
+	};
+
+	cs35l41_speaker_power_regulator: cs35l41_speaker_power_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "PPVAR_VSYS_SPKR";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	cs35l41_logic_voltage_regulator: cs35l41_logic_voltage_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "PP1800_PU";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
