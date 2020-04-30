@@ -1,0 +1,4 @@
+comment "Raydium touchscreen module"
+
+config TOUCHSCREEN_RAYIUM
+	tristate "Raydium touchscreen driver"

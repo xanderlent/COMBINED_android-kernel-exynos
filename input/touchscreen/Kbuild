@@ -1,0 +1,6 @@
+obj-$(CONFIG_TOUCHSCREEN_RAYDIUM)	+= raydium-touchscreen.o
+
+raydium-touchscreen-y += raydium_driver.o raydium_fw_update.o raydium_sysfs.o
+
+
+
