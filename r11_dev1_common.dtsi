@@ -40,6 +40,31 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
+	/*
+	* The document S2MPW02X02_Data Sheet_6030_ALL_REV 1.2.pdf justifies the
+	* below parameters. You can find it here:
+	* https://drive.google.com/corp/drive/u/0/folders/1oJWggugDl7EeUM3SbeKJ1Y6b1tvxxeSs
+	*/
+	audio_codec_cod9005x: cod9005x@03 {
+		compatible = "codec,cod9005x";
+		/* 0x03 was copied from the DT of the reference platform. It should be
+		   the same for r11, because the whole PMIC block is the same. */
+		reg = <0x03>;
+		i2c-speedy-address;
+		/* section "3.7 CODEC" of the S2MPW02X02 datasheet specifies that LDO 27
+		   is used to control the Mic. */
+		vdd-supply = <&ldo27_reg>;
+		pinctrl-names = "default";
+		/* r10 used voltage 1.8 for the Mic. Same Mic is used in r11, so
+		   the same voltage should be used.
+		   The S2MPW02X02 datasheet, page 147, contains:
+		   "Table 26  Voltage Table for (P) LDO 2, 4, 13, 17, 18, 21, 24, 26, 27".
+		   The table points out that 0x2C value corresponds to 1.8 voltage level.
+		*/
+		mic-bias-ldo-voltage = <0x2C>;
+		/* Consider to set avc-slope-param1/2 to non default values if
+		   the codec doesn't work. */
+	};
 	s2mpw02mfd@00 {
 		compatible = "samsung,s2mpw02mfd";
 		acpm-ipc-channel = <2>;
