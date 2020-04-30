@@ -28,7 +28,7 @@
 /* If any feature uses the Generic Netlink Interface, put it here to enable WL_GENL
  * automatically
  */
-#if defined(WL_SDO) || defined(BT_WIFI_HANDOVER)
+#if defined(BT_WIFI_HANDOVER)
 #define WL_GENL
 #endif
 

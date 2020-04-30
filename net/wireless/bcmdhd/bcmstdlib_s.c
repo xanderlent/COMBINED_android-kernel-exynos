@@ -41,18 +41,14 @@
  */
 #ifndef SIZE_MAX
 #ifndef __SIZE_MAX__
-#ifdef DONGLEBUILD
-#define __SIZE_MAX__ RAMSIZE
-#else
 #define __SIZE_MAX__ 0xFFFFFFFFu
-#endif /* DONGLEBUILD */
 #endif /* __SIZE_MAX__ */
 #define SIZE_MAX __SIZE_MAX__
 #endif /* SIZE_MAX */
 #define RSIZE_MAX (SIZE_MAX >> 1u)
 
-#if !defined(__STDC_WANT_SECURE_LIB__) && \
-	!(defined(__STDC_LIB_EXT1__) && defined(__STDC_WANT_LIB_EXT1__))
+#if !defined(__STDC_WANT_SECURE_LIB__) && !(defined(__STDC_LIB_EXT1__) && \
+	defined(__STDC_WANT_LIB_EXT1__))
 /*
  * memmove_s - secure memmove
  * dest : pointer to the object to copy to

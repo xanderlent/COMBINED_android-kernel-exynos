@@ -77,11 +77,7 @@
 #define D2HRING_EDL_MAX_ITEM			256u
 #define D2HRING_EDL_WATERMARK			(D2HRING_EDL_MAX_ITEM >> 5u)
 
-#ifdef BCM_ROUTER_DHD
-#define D2HRING_CTRL_CMPLT_MAX_ITEM		256
-#else
 #define D2HRING_CTRL_CMPLT_MAX_ITEM		64
-#endif
 
 enum {
 	DNGL_TO_HOST_MSGBUF,
@@ -354,11 +350,7 @@ typedef struct ioctl_resp_evt_buf_post_msg {
 /* buffer post messages for device to use to return dbg buffers */
 typedef ioctl_resp_evt_buf_post_msg_t info_buf_post_msg_t;
 
-#ifdef DHD_EFI
-#define DHD_INFOBUF_RX_BUFPOST_PKTSZ	1800
-#else
 #define DHD_INFOBUF_RX_BUFPOST_PKTSZ	(2 * 1024)
-#endif
 
 #define DHD_BTLOG_RX_BUFPOST_PKTSZ	(2 * 1024)
 

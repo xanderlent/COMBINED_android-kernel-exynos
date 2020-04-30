@@ -49,10 +49,6 @@
 #include <dhd_flowring.h>
 #endif /* PCIE_FULL_DONGLE */
 
-#ifdef DHD_QOS_ON_SOCK_FLOW
-struct dhd_sock_qos_info;
-#endif /* DHD_QOS_ON_SOCK_FLOW */
-
 /*
  * Do not include this header except for the dhd_linux.c dhd_linux_sysfs.c
  * Local private structure (extension of pub)
@@ -77,18 +73,11 @@ typedef struct dhd_info {
 #ifdef PROP_TXSTATUS
 	spinlock_t	wlfc_spinlock;
 
-#ifdef BCMDBUS
-	ulong		wlfc_lock_flags;
-	ulong		wlfc_pub_lock_flags;
-#endif
 #endif /* PROP_TXSTATUS */
 	wait_queue_head_t ioctl_resp_wait;
 	wait_queue_head_t d3ack_wait;
 	wait_queue_head_t dhd_bus_busy_state_wait;
 	wait_queue_head_t dmaxfer_wait;
-#ifdef BT_OVER_PCIE
-	wait_queue_head_t quiesce_wait;
-#endif /* BT_OVER_PCIE */
 	uint32	default_wd_interval;
 
 	timer_list_compat_t timer;
@@ -102,14 +91,10 @@ typedef struct dhd_info {
 	spinlock_t	sdlock;
 	spinlock_t	txqlock;
 	spinlock_t	dhd_lock;
-#ifdef BCMDBUS
-	ulong		txqlock_flags;
-#else
 
 	struct semaphore sdsem;
 	tsk_ctl_t	thr_dpc_ctl;
 	tsk_ctl_t	thr_wdt_ctl;
-#endif /* BCMDBUS */
 
 	tsk_ctl_t	thr_rxf_ctl;
 	spinlock_t	rxf_lock;
@@ -133,7 +118,6 @@ typedef struct dhd_info {
 	struct wake_lock wl_nanwake; /* NAN wakelock */
 #endif /* CONFIG_HAS_WAKELOCK */
 
-#if defined(OEM_ANDROID)
 	/* net_device interface lock, prevent race conditions among net_dev interface
 	 * calls and wifi_on or wifi_off
 	 */
@@ -142,7 +126,6 @@ typedef struct dhd_info {
 #if defined(PKT_FILTER_SUPPORT) && defined(APF)
 	struct mutex dhd_apf_mutex;
 #endif /* PKT_FILTER_SUPPORT && APF */
-#endif /* OEM_ANDROID */
 	spinlock_t wakelock_spinlock;
 	spinlock_t wakelock_evt_spinlock;
 	uint32 wakelock_counter;
@@ -179,10 +162,6 @@ typedef struct dhd_info {
 #endif /* FIX_BUS_MIN_CLOCK */
 #endif /* FIX_CPU_MIN_CLOCK */
 	void			*dhd_deferred_wq;
-#if (defined(BCM_ROUTER_DHD) && defined(HNDCTF))
-	ctf_t		*cih;		/* ctf instance handle */
-	ctf_brc_hot_t *brc_hot;			/* hot ctf bridge cache entry */
-#endif /* BCM_ROUTER_DHD && HNDCTF */
 #ifdef DEBUG_CPU_FREQ
 	struct notifier_block freq_trans;
 	int __percpu *new_freq;
@@ -349,9 +328,6 @@ typedef struct dhd_info {
 #endif /* DHD_USE_KTHREAD_FOR_LOGTRACE */
 #endif /* SHOW_LOGTRACE */
 
-#ifdef BTLOG
-	struct work_struct	  bt_log_dispatcher_work;
-#endif /* SHOW_LOGTRACE */
 #ifdef EWP_EDL
 	struct delayed_work edl_dispatcher_work;
 #endif
@@ -362,10 +338,6 @@ typedef struct dhd_info {
 	bool wl_accel_boot_on_done;
 #endif
 #if defined(BCM_DNGL_EMBEDIMAGE) || defined(BCM_REQUEST_FW)
-#if defined(BCMDBUS)
-	struct task_struct *fw_download_task;
-	struct semaphore fw_download_lock;
-#endif /* BCMDBUS */
 #endif /* defined(BCM_DNGL_EMBEDIMAGE) || defined(BCM_REQUEST_FW) */
 	struct kobject dhd_kobj;
 	timer_list_compat_t timesync_timer;
@@ -377,12 +349,8 @@ typedef struct dhd_info {
 	struct sk_buff *monitor_skb;
 	uint	monitor_len;
 	uint	monitor_type;   /* monitor pseudo device */
-#ifdef HOST_RADIOTAP_CONV
-	monitor_info_t *monitor_info;
-	uint host_radiotap_conv;
-#endif /* HOST_RADIOTAP_CONV */
 #endif /* WL_MONITOR */
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
     struct mutex bus_user_lock; /* lock for sdio bus apis shared between WLAN & BT */
     int     bus_user_count; /* User counts of sdio bus shared between WLAN & BT */
 #endif /* BT_OVER_SDIO */
@@ -393,27 +361,13 @@ typedef struct dhd_info {
 	struct workqueue_struct *tx_wq;
 	struct workqueue_struct *rx_wq;
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
-#ifdef BTLOG
-	struct sk_buff_head   bt_log_queue     ____cacheline_aligned;
-#endif	/* BTLOG */
 #ifdef PCIE_INB_DW
 	wait_queue_head_t ds_exit_wait;
 #endif /* PCIE_INB_DW */
 #ifdef DHD_DEBUG_UART
 	bool duart_execute;
 #endif	/* DHD_DEBUG_UART */
-#ifdef BT_OVER_PCIE
-	struct mutex quiesce_flr_lock;
-	struct mutex quiesce_lock;
-	enum dhd_bus_quiesce_state dhd_quiesce_state;
-#endif /* BT_OVER_PCIE */
 	struct mutex logdump_lock;
-#if defined(GDB_PROXY) && defined(PCIE_FULL_DONGLE) && defined(BCMINTERNAL)
-	/* Root directory for GDB Proxy's (proc)fs files, used by first (default) interface */
-	struct proc_dir_entry *gdb_proxy_fs_root;
-	/* Name of procfs root directory */
-	char gdb_proxy_fs_root_name[100];
-#endif /* defined(GDB_PROXY) && defined(PCIE_FULL_DONGLE) && defined(BCMINTERNAL) */
 #if defined(DHD_MQ) && defined(DHD_MQ_STATS)
 	uint64 pktcnt_qac_histo[MQ_MAX_QUEUES][AC_COUNT];
 	uint64 pktcnt_per_ac[AC_COUNT];
@@ -421,17 +375,7 @@ typedef struct dhd_info {
 #endif /* DHD_MQ && DHD_MQ_STATS */
 	/* indicates mem_dump was scheduled as work queue or called directly */
 	bool scheduled_memdump;
-#ifdef DHD_PKTTS
-	bool latency; /* pktts enab flag */
-	pktts_flow_t config[PKTTS_CONFIG_MAX]; /* pktts user config */
-#endif /* DHD_PKTTS */
 	struct work_struct dhd_hang_process_work;
-#ifdef DHD_HP2P
-	spinlock_t	hp2p_lock;
-#endif /* DHD_HP2P */
-#ifdef DHD_QOS_ON_SOCK_FLOW
-	struct dhd_sock_qos_info *psk_qos;
-#endif
 } dhd_info_t;
 
 #ifdef WL_MONITOR

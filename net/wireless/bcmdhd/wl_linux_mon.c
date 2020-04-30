@@ -31,13 +31,11 @@
 #include <linux/rtnetlink.h>
 #include <net/ieee80211_radiotap.h>
 
-#if defined(BCMDONGLEHOST)
 #include <wlioctl.h>
 #include <bcmutils.h>
 #include <dhd_dbg.h>
 #include <dngl_stats.h>
 #include <dhd.h>
-#endif /* defined(BCMDONGLEHOST) */
 #if defined(__linux__)
 #include <bcmstdlib_s.h>
 #endif /* defined(__linux__) */
@@ -113,7 +111,6 @@ static struct net_device* lookup_real_netdev(const char *name)
 {
 	struct net_device *ndev_found = NULL;
 
-#if defined(BCMDONGLEHOST)
 	int i;
 	int len = 0;
 	int last_name_len = 0;
@@ -144,7 +141,6 @@ static struct net_device* lookup_real_netdev(const char *name)
 			}
 		}
 	}
-#endif /* defined(BCMDONGLEHOST) */
 
 	return ndev_found;
 }
@@ -244,9 +240,7 @@ static int dhd_mon_if_subif_start_xmit(struct sk_buff *skb, struct net_device *n
 		MON_PRINT("if name: %s, matched if name %s\n", ndev->name, mon_if->real_ndev->name);
 
 		/* Use the real net device to transmit the packet */
-#if defined(BCMDONGLEHOST)
 		ret = dhd_start_xmit(skb, mon_if->real_ndev);
-#endif /* defined(BCMDONGLEHOST) */
 
 		return ret;
 	}

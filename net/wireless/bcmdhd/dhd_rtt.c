@@ -2317,7 +2317,6 @@ dhd_rtt_timeout(dhd_pub_t *dhd)
 
 #ifdef DHD_DUMP_ON_RTT_TIMEOUT
 	/* Dump, and Panic depending on memdump.info */
-#ifdef BCMDONGLEHOST
 	if (dhd_query_bus_erros(dhd)) {
 		goto exit;
 	}
@@ -2328,7 +2327,6 @@ dhd_rtt_timeout(dhd_pub_t *dhd)
 		dhd_bus_mem_dump(dhd);
 	}
 #endif /* DHD_FW_COREDUMP */
-#endif /* BCMDONGLEHOST */
 #else /* DHD_DUMP_ON_RTT_TIMEOUT */
 	/* Cancel RTT for target and proceed to next target */
 	rtt_target_info = rtt_status->rtt_config.target_info;

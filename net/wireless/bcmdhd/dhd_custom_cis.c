@@ -43,7 +43,6 @@
 #ifdef DHD_USE_CISINFO
 
 /* File Location to keep each information */
-#ifdef OEM_ANDROID
 #define MACINFO PLATFORM_PATH".mac.info"
 #define CIDINFO PLATFORM_PATH".cid.info"
 #ifdef PLATFORM_SLP
@@ -52,11 +51,6 @@
 #define MACINFO_EFS "/efs/wifi/.mac.info"
 #define CIDINFO_DATA "/data/.cid.info"
 #endif /* PLATFORM_SLP */
-#else
-#define MACINFO "/opt/.mac.info"
-#define MACINFO_EFS "/opt/.efs.mac.info"
-#define CIDINFO "/opt/.cid.info"
-#endif /* OEM_ANDROID */
 
 /* Definitions for MAC address */
 #define MAC_BUF_SIZE 20

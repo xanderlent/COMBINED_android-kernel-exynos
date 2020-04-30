@@ -25,7 +25,7 @@
 #ifndef	_sdio_api_h_
 #define	_sdio_api_h_
 
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 #include <linux/mmc/sdio_func.h>
 #endif /* defined (BT_OVER_SDIO) */
 
@@ -81,7 +81,7 @@ typedef struct sdioh_info sdioh_info_t;
 
 /* callback function, taking one arg */
 typedef void (*sdioh_cb_fn_t)(void *);
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 extern
 void sdioh_sdmmc_card_enable_func_f3(sdioh_info_t *sd, struct sdio_func *func);
 #endif /* defined (BT_OVER_SDIO) */
@@ -95,7 +95,7 @@ extern SDIOH_API_RC sdioh_interrupt_query(sdioh_info_t *si, bool *onoff);
 /* enable or disable SD interrupt */
 extern SDIOH_API_RC sdioh_interrupt_set(sdioh_info_t *si, bool enable_disable);
 
-#if defined(DHD_DEBUG) || defined(BCMDBG)
+#if defined(DHD_DEBUG)
 extern bool sdioh_interrupt_pending(sdioh_info_t *si);
 #endif
 
@@ -136,11 +136,6 @@ extern int sdioh_waitlockfree(sdioh_info_t *si);
 
 /* Reset and re-initialize the device */
 extern int sdioh_sdio_reset(sdioh_info_t *si);
-
-#ifdef BCMINTERNAL
-/* Diags */
-extern SDIOH_API_RC sdioh_test_diag(sdioh_info_t *si);
-#endif /* BCMINTERNAL */
 
 #ifdef BCMSPI
 /* Function to pass gSPI specific device-status bits to dhd. */

@@ -33,9 +33,6 @@ enum {
 	DEBUG_RING_ID_INVALID	= 0,
 	FW_VERBOSE_RING_ID,
 	DHD_EVENT_RING_ID,
-#ifdef BTLOG
-	BT_LOG_RING_ID,
-#endif	/* BTLOG */
 	/* add new id here */
 	DEBUG_RING_ID_MAX
 };
@@ -73,12 +70,6 @@ enum {
 /* NAN event ring, ring id 4 */
 #define NAN_EVENT_RING_NAME		"nan_event"
 #define NAN_EVENT_RING_SIZE		(64 * 1024)
-
-#ifdef BTLOG
-/* BT log ring, ring id 5 */
-#define BT_LOG_RING_NAME		"bt_log"
-#define BT_LOG_RING_SIZE		(64 * 1024)
-#endif	/* BTLOG */
 
 #define TLV_LOG_SIZE(tlv) ((tlv) ? (sizeof(tlv_log) + (tlv)->len) : 0)
 
@@ -292,11 +283,7 @@ typedef struct per_packet_status_entry {
     uint8 *data;
 } per_packet_status_entry_t;
 
-#if defined(LINUX)
 #define PACKED_STRUCT __attribute__ ((packed))
-#else
-#define PACKED_STRUCT
-#endif
 
 typedef struct log_conn_event {
     uint16 event;
@@ -350,7 +337,6 @@ struct log_level_table {
 	char *desc;
 };
 
-#ifdef OEM_ANDROID
 /*
  * Assuming that the Ring lock is mutex, bailing out if the
  * callers are from atomic context. On a long term, one has to
@@ -366,9 +352,6 @@ struct log_level_table {
 				&state, sizeof(state));				\
 	} while (0);								\
 }
-#else
-#define DBG_EVENT_LOG(dhd, connect_state)
-#endif /* !OEM_ANDROID */
 
 /*
  * Packet logging - HAL specific data
@@ -783,9 +766,6 @@ void dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
 	void *raw_event_ptr, uint datalen, bool msgtrace_hdr_present,
 	uint32 msgtrace_seqnum);
 
-#ifdef BTLOG
-extern void dhd_dbg_bt_log_handler(dhd_pub_t *dhdp, void *data, uint datalen);
-#endif	/* BTLOG */
 extern int dhd_dbg_attach(dhd_pub_t *dhdp, dbg_pullreq_t os_pullreq,
 	dbg_urgent_noti_t os_urgent_notifier, void *os_priv);
 extern void dhd_dbg_detach(dhd_pub_t *dhdp);

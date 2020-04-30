@@ -302,7 +302,6 @@ typedef volatile struct _aidmp {
 #define	AI_OOBDINWIDTH		0x364
 #define	AI_OOBDOUTWIDTH		0x368
 
-#if !defined(IL_BIGENDIAN)
 #define	AI_IOCTRLSET		0x400
 #define	AI_IOCTRLCLEAR		0x404
 #define	AI_IOCTRL		0x408
@@ -310,7 +309,6 @@ typedef volatile struct _aidmp {
 #define	AI_IOSTATUS		0x500
 #define	AI_RESETCTRL		0x800
 #define	AI_RESETSTATUS		0x804
-#endif	/* IL_BIGENDIAN */
 
 #define	AI_IOCTRLWIDTH		0x700
 #define	AI_IOSTATUSWIDTH	0x704

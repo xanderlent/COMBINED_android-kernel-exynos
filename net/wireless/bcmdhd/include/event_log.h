@@ -319,7 +319,7 @@ extern bool prsv_periodic_enab;
  *
  */
 
-#if !defined(EVENT_LOG_DUMPER) && !defined(DHD_EFI)
+#if !defined(EVENT_LOG_DUMPER)
 
 #ifndef EVENT_LOG_COMPILE
 
@@ -647,7 +647,7 @@ extern int event_log_force_flush_preserve_all(void);
 extern int event_log_get_iovar_handler(int set);
 #endif /* EVENT_LOG_COMPILE */
 
-#endif /* !EVENT_LOG_DUMPER && !DHD_EFI */
+#endif
 
 #endif /* BCMDRIVER */
 

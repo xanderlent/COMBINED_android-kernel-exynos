@@ -67,11 +67,6 @@ extern s32 wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 extern int wl_cfg80211_scan_stop(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev);
 #endif /* WL_CFG80211_P2P_DEV_IF */
 
-#if defined(OEM_ANDROID) && defined(DHCP_SCAN_SUPPRESS)
-extern void wl_cfg80211_work_handler(struct work_struct *work);
-extern void wl_cfg80211_scan_supp_timerfunc(ulong data);
-#endif /* DHCP_SCAN_SUPPRESS */
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0))
 extern void wl_cfg80211_abort_scan(struct wiphy *wiphy, struct wireless_dev *wdev);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)) */

@@ -175,14 +175,6 @@ typedef struct _pci_config_regs {
 #define PCI_CFG_ERRATTN_MASK_CMN	0x8b0
 #define PCI_CFG_ERRATTN_STATUS_CMN	0x8b4
 
-#ifdef EFI
-#undef PCI_CLASS_BRIDGE
-#undef PCI_CLASS_OLD
-#undef PCI_CLASS_DISPLAY
-#undef PCI_CLASS_SERIAL
-#undef PCI_CLASS_SATELLITE
-#endif /* EFI */
-
 /* Classes and subclasses */
 
 typedef enum {

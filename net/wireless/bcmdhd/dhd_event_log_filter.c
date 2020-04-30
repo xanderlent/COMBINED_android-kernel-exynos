@@ -45,22 +45,12 @@
 #include <dhd_statlog.h>
 #endif /* DHD_STATUS_LOGGING */
 
-#ifdef IL_BIGENDIAN
-#include <bcmendian.h>
-#define htod32(i) (bcmswap32(i))
-#define htod16(i) (bcmswap16(i))
-#define dtoh32(i) (bcmswap32(i))
-#define dtoh16(i) (bcmswap16(i))
-#define htodchanspec(i) htod16(i)
-#define dtohchanspec(i) dtoh16(i)
-#else
 #define htod32(i) (i)
 #define htod16(i) (i)
 #define dtoh32(i) (i)
 #define dtoh16(i) (i)
 #define htodchanspec(i) (i)
 #define dtohchanspec(i) (i)
-#endif /* IL_BIGENDINAN */
 
 #define DHD_FILTER_ERR_INTERNAL(fmt, ...) DHD_ERROR(("EWPF-" fmt, ##__VA_ARGS__))
 #define DHD_FILTER_TRACE_INTERNAL(fmt, ...) DHD_INFO(("EWPF-" fmt, ##__VA_ARGS__))

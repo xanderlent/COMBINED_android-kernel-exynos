@@ -23,7 +23,7 @@
 #define _TYPEDEFS_H_
 
 #if (!defined(EDK_RELEASE_VERSION) || (EDK_RELEASE_VERSION < 0x00020000)) || \
-		!defined(BWL_NO_INTERNAL_STDLIB_SUPPORT)
+	!defined(BWL_NO_INTERNAL_STDLIB_SUPPORT)
 
 #ifdef SITE_TYPEDEFS
 
@@ -63,34 +63,14 @@
 
 #else	/* ! __cplusplus */
 
-#if defined(_WIN32)
-
-#define TYPEDEF_BOOL
-typedef	unsigned char	bool;			/* consistent w/BOOL */
-
-#endif /* _WIN32 */
-
 #endif	/* ! __cplusplus */
 
-#if defined(EFI) && !defined(EFI_WINBLD) && !defined(__size_t__)
-typedef long unsigned int size_t;
-#endif /* EFI */
-
 #if !defined(TYPEDEF_UINTPTR)
-#if defined(_WIN64) && !defined(EFI)
-/* use the Windows ULONG_PTR type when compiling for 64 bit */
-#include <basetsd.h>
-#define TYPEDEF_UINTPTR
-typedef ULONG_PTR uintptr;
-#elif defined(__LP64__)
+#if defined(__LP64__)
 #define TYPEDEF_UINTPTR
 typedef unsigned long long int uintptr;
 #endif
 #endif /* TYPEDEF_UINTPTR */
-
-#if defined(_RTE_)
-#define _NEED_SIZE_T_
-#endif
 
 /* float_t types conflict with the same typedefs from the standard ANSI-C
 ** math.h header file. Don't re-typedef them here.
@@ -104,18 +84,11 @@ typedef unsigned long long int uintptr;
 typedef long unsigned int size_t;
 #endif
 
-#ifdef _MSC_VER	/* Microsoft C */
-#define TYPEDEF_INT64
-#define TYPEDEF_UINT64
-typedef signed __int64	int64;
-typedef unsigned __int64 uint64;
-#endif
-
 #if defined(__sparc__)
 #define TYPEDEF_ULONG
 #endif
 
-#if defined(__linux__) && !defined(EFI)
+#if defined(__linux__)
 /*
  * If this is either a Linux hybrid build or the per-port code of a hybrid build
  * then use the Linux header files to get some of the typedefs.  Otherwise, define
@@ -141,11 +114,9 @@ typedef unsigned __int64 uint64;
 #endif
 #endif	/* == 2.6.18 */
 #endif	/* __KERNEL__ */
-#endif	/* linux && !EFI */
+#endif
 
-#if !defined(__linux__) && !defined(_WIN32) && \
-	!defined(_RTE_) && !defined(__DJGPP__) && \
-	!defined(__BOB__) && !defined(EFI)
+#if !defined(__linux__) && !defined(__DJGPP__)
 #define TYPEDEF_UINT
 #define TYPEDEF_USHORT
 #endif
@@ -169,18 +140,13 @@ typedef unsigned __int64 uint64;
 
 #endif /* __ICL */
 
-#if !defined(_WIN32) && !defined(_RTE_) && \
-	!defined(__DJGPP__) && !defined(__BOB__) && !defined(EFI)
+#if !defined(__DJGPP__)
 
 /* pick up ushort & uint from standard types.h */
 #if defined(__linux__) && defined(__KERNEL__)
 
 /* See note above */
-#ifdef USER_MODE
-#include <sys/types.h>
-#else
 #include <linux/types.h>	/* sys/types.h and linux/types.h are oil and water */
-#endif /* USER_MODE */
 
 #else
 
@@ -188,7 +154,7 @@ typedef unsigned __int64 uint64;
 
 #endif /* linux && __KERNEL__ */
 
-#endif /* !_WIN32 && !_RTE_  && !__DJGPP__ */
+#endif
 
 /* use the default typedefs in the next section of this file */
 #define USE_TYPEDEF_DEFAULTS
@@ -319,15 +285,13 @@ typedef float64 float_t;
 #endif
 
 /* Detect compiler type. */
-#ifdef _MSC_VER
-	#define BWL_COMPILER_MICROSOFT
-#elif defined(__GNUC__) || defined(__lint)
+#if defined(__GNUC__) || defined(__lint)
 	#define BWL_COMPILER_GNU
 #elif defined(__CC_ARM) && __CC_ARM
 	#define BWL_COMPILER_ARMCC
 #else
 	#error "Unknown compiler!"
-#endif /* _MSC_VER */
+#endif
 
 #ifndef INLINE
 #if defined(BWL_COMPILER_MICROSOFT)
@@ -338,7 +302,7 @@ typedef float64 float_t;
 	#define INLINE	__inline
 #else
 	#define INLINE
-#endif /* _MSC_VER */
+#endif
 #endif /* INLINE */
 
 #undef TYPEDEF_BOOL

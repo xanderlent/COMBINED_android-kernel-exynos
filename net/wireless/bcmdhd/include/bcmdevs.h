@@ -41,10 +41,6 @@
 #define VENDOR_RICOH		0x1180		/* Ricoh */
 #define VENDOR_JMICRON		0x197b
 
-#ifdef BCMINTERNAL
-#define VENDOR_JINVANI		0x1947		/* Jinvani Systech, Inc. */
-#endif
-
 /* PCMCIA vendor IDs */
 #define	VENDOR_BROADCOM_PCMCIA	0x02d0
 

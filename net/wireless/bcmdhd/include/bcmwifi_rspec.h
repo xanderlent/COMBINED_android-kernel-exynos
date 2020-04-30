@@ -235,11 +235,7 @@ typedef uint32	ratespec_t;
 
 /* return rate in unit of 500Kbps */
 /* works only for legacy rate */
-#ifdef BCMDBG
-#define RSPEC2RATE(rspec)	wf_rspec_to_rate_legacy(rspec)
-#else
 #define RSPEC2RATE(rspec)	((rspec) & WL_RSPEC_LEGACY_RATE_MASK)
-#endif
 
 /**
  * =================================
@@ -267,9 +263,6 @@ ratespec_t wf_he_plcp_to_rspec(uint8 *plcp);
 #endif /* WL11AX */
 ratespec_t wf_ht_plcp_to_rspec(uint8 *plcp);
 
-#ifdef BCMDBG
-uint wf_rspec_to_rate_legacy(ratespec_t rspec);
-#endif
 uint wf_rspec_to_rate(ratespec_t rspec);
 
 #endif /* _bcmwifi_rspec_h_ */

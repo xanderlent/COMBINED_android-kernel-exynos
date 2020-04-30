@@ -46,11 +46,8 @@
 #include <wl_cfgscan.h>
 #include <wldev_common.h>
 
-#ifdef OEM_ANDROID
 #include <wl_android.h>
-#endif
 
-#if defined(BCMDONGLEHOST)
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_linux.h>
@@ -58,7 +55,6 @@
 #include <wlioctl.h>
 #include <dhd_cfg80211.h>
 #include <dhd_bus.h>
-#endif /* defined(BCMDONGLEHOST) */
 
 static s8 scanparambuf[WLC_IOCTL_MEDLEN];
 static bool wl_cfgp2p_has_ie(const bcm_tlv_t *ie, const u8 **tlvs, u32 *tlvs_len,
@@ -665,20 +661,16 @@ int wl_cfgp2p_get_conn_idx(struct bcm_cfg80211 *cfg)
 {
 	int i;
 	s32 connected_cnt;
-#if defined(BCMDONGLEHOST)
 	dhd_pub_t *dhd =  (dhd_pub_t *)(cfg->pub);
 	if (!dhd)
 		return (-ENODEV);
-#endif /* BCMDONGLEHOST */
 	for (i = P2PAPI_BSSCFG_CONNECTION1; i < P2PAPI_BSSCFG_MAX; i++) {
 		if (wl_to_p2p_bss_bssidx(cfg, i) == -1) {
 			if (i == P2PAPI_BSSCFG_CONNECTION2) {
-#if defined(BCMDONGLEHOST)
 				if (!(dhd->op_mode & DHD_FLAG_MP2P_MODE)) {
 					CFGP2P_ERR(("Multi p2p not supported"));
 					return BCME_ERROR;
 				}
-#endif /* BCMDONGLEHOST */
 				if ((connected_cnt = wl_get_drv_status_all(cfg, CONNECTED)) > 1) {
 					CFGP2P_ERR(("Failed to create second p2p interface"
 						"Already one connection exists"));
@@ -2332,7 +2324,7 @@ struct ethtool_ops cfgp2p_ethtool_ops = {
 };
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24) */
 
-#if defined(WL_ENABLE_P2P_IF) || defined (WL_NEWCFG_PRIVCMD_SUPPORT)
+#if defined(WL_ENABLE_P2P_IF) || defined(WL_NEWCFG_PRIVCMD_SUPPORT)
 s32
 wl_cfgp2p_register_ndev(struct bcm_cfg80211 *cfg)
 {
@@ -2467,13 +2459,7 @@ static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd
 	 */
 	if (cmd == SIOCDEVPRIVATE+1) {
 
-#if defined(OEM_ANDROID)
 		ret = wl_android_priv_cmd(ndev, ifr);
-#endif /* defined(OEM_ANDROID) */
-
-#if !defined(OEM_ANDROID)
-	(void)ndev;
-#endif
 
 	} else {
 		CFGP2P_ERR(("%s: IOCTL req 0x%x on p2p0 I/F. Ignoring. \n",
@@ -2570,7 +2556,6 @@ wl_cfgp2p_add_p2p_disc_if(struct bcm_cfg80211 *cfg)
 #else
 		dhd->hang_reason = HANG_REASON_IFACE_DEL_FAILURE;
 
-#ifdef OEM_ANDROID
 #if defined(BCMPCIE) && defined(DHD_FW_COREDUMP)
 		if (dhd->memdump_enabled) {
 			/* Load the dongle side dump to host
@@ -2581,7 +2566,6 @@ wl_cfgp2p_add_p2p_disc_if(struct bcm_cfg80211 *cfg)
 		}
 #endif /* BCMPCIE && DHD_FW_COREDUMP */
 		net_os_send_hang_message(bcmcfg_to_prmry_ndev(cfg));
-#endif /* OEM_ANDROID */
 
 		return ERR_PTR(-ENODEV);
 #endif /* EXPLICIT_DISCIF_CLEANUP */

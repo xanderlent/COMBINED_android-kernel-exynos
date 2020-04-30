@@ -51,15 +51,9 @@
 #define WL_BRIDGE2_S	(0x18133000)
 
 /** new(er) chips started locating their chipc core at a different BP address than 0x1800_0000 */
-#ifdef DONGLEBUILD
-// firmware is always compiled for a particular chip
-#define SI_ENUM_BASE(sih)	SI_ENUM_BASE_DEFAULT
-#define SI_WRAP_BASE(sih)	SI_WRAP_BASE_DEFAULT
-#else
 // NIC and DHD driver binaries should support both old(er) and new(er) chips at the same time
 #define SI_ENUM_BASE(sih)	((sih)->enum_base)
 #define SI_WRAP_BASE(sih)	(SI_ENUM_BASE(sih) + 0x00100000)
-#endif /* DONGLEBUILD */
 
 #define SI_CORE_SIZE		0x1000		/* each core gets 4Kbytes for registers */
 
@@ -81,14 +75,7 @@
 #define ASIB_FN_MOD2		0x24
 
 #ifndef SI_MAXCORES
-#ifdef _RTE_
-#define	SI_MAXCORES		16		/* Max cores (this is arbitrary, for software
-					 * convenience and could be changed if we
-					 * make any larger chips
-					 */
-#else
 #define	SI_MAXCORES		32		/* NorthStar has more cores */
-#endif /* _RTE_ */
 #endif /* SI_MAXCORES */
 
 #define	SI_MAXBR		4		/* Max bridges (this is arbitrary, for software

@@ -47,7 +47,6 @@
 #include <pcicfg.h>
 #include <dhd_pcie.h>
 #include <dhd_linux.h>
-#ifdef OEM_ANDROID
 #ifdef CONFIG_ARCH_MSM
 #if defined(CONFIG_PCI_MSM) || defined(CONFIG_ARCH_MSM8996)
 #include <linux/msm_pcie.h>
@@ -55,7 +54,6 @@
 #include <mach/msm_pcie.h>
 #endif /* CONFIG_PCI_MSM */
 #endif /* CONFIG_ARCH_MSM */
-#endif /* OEM_ANDROID */
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
 #include <linux/pm_runtime.h>
@@ -83,25 +81,9 @@
 #include <linux/platform_device.h>
 #endif /* USE_SMMU_ARCH_MSM */
 
-#ifdef PCIE_OOB
-#include "ftdi_sio_external.h"
-#endif /* PCIE_OOB */
-
 #define PCI_CFG_RETRY 		10	/* PR15065: retry count for pci cfg accesses */
 #define OS_HANDLE_MAGIC		0x1234abcd	/* Magic # to recognize osh */
 #define BCM_MEM_FILENAME_LEN 	24		/* Mem. filename length */
-
-#ifdef PCIE_OOB
-#define HOST_WAKE 4   /* GPIO_0 (HOST_WAKE) - Output from WLAN */
-#define DEVICE_WAKE 5  /* GPIO_1 (DEVICE_WAKE) - Input to WLAN */
-#define BIT_WL_REG_ON 6
-#define BIT_BT_REG_ON 7
-
-int gpio_handle_val = 0;
-unsigned char gpio_port = 0;
-unsigned char gpio_direction = 0;
-#define OOB_PORT "ttyUSB0"
-#endif /* PCIE_OOB */
 
 #ifdef FORCE_TPOWERON
 extern uint32 tpoweron_scale;
@@ -159,9 +141,6 @@ typedef struct dhdpcie_os_info {
 	void			*dev;		/* handle to the underlying device */
 } dhdpcie_os_info_t;
 static irqreturn_t wlan_oob_irq(int irq, void *data);
-#ifdef CUSTOMER_HW2
-extern struct brcm_pcie_wake brcm_pcie_wake;
-#endif /* CUSTOMER_HW2 */
 #endif /* BCMPCIE_OOB_HOST_WAKE */
 
 #ifdef USE_SMMU_ARCH_MSM
@@ -202,9 +181,6 @@ static int dhdpcie_pm_system_resume_noirq(struct device * dev);
 #else
 static int dhdpcie_pci_suspend(struct pci_dev *dev, pm_message_t state);
 static int dhdpcie_pci_resume(struct pci_dev *dev);
-#if defined(BT_OVER_PCIE)
-static int dhdpcie_pci_resume_early(struct pci_dev *dev);
-#endif /* BT_OVER_PCIE */
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 #endif /* DHD_PCIE_RUNTIMEPM */
 
@@ -262,14 +238,11 @@ static struct pci_driver dhdpcie_driver = {
 	id_table:	dhdpcie_pci_devid,
 	probe:		dhdpcie_pci_probe,
 	remove:		dhdpcie_pci_remove,
-#if defined (DHD_PCIE_RUNTIMEPM) || defined (DHD_PCIE_NATIVE_RUNTIMEPM)
+#if defined(DHD_PCIE_RUNTIMEPM) || defined(DHD_PCIE_NATIVE_RUNTIMEPM)
 	.driver.pm = &dhd_pcie_pm_ops,
 #else
 	suspend:	dhdpcie_pci_suspend,
 	resume:		dhdpcie_pci_resume,
-#if defined(BT_OVER_PCIE)
-	resume_early: dhdpcie_pci_resume_early,
-#endif /* BT_OVER_PCIE */
 #endif /* DHD_PCIE_RUNTIMEPM || DHD_PCIE_NATIVE_RUNTIMEPM */
 };
 
@@ -431,43 +404,6 @@ dhdpcie_chip_req_forced_tpoweron(dhd_bus_t *bus)
 	return FALSE;
 }
 #endif /* FORCE_TPOWERON */
-
-#ifdef BT_OVER_PCIE
-int dhd_bus_pwr_off(dhd_pub_t *dhdp, int reason)
-{
-	DHD_ERROR(("%s: WARNING ! function not implemented in %s\n",
-			__FUNCTION__, __FILE__));
-	return BCME_OK;
-}
-
-int dhd_bus_pwr_on(dhd_pub_t *dhdp, int reason)
-{
-	DHD_ERROR(("%s: WARNING ! function not implemented in %s\n",
-			__FUNCTION__, __FILE__));
-	return BCME_OK;
-}
-
-int dhd_bus_pwr_toggle(dhd_pub_t *dhdp, int reason)
-{
-	DHD_ERROR(("%s: WARNING ! function not implemented in %s\n",
-			__FUNCTION__, __FILE__));
-	return BCME_OK;
-}
-
-bool dhdpcie_is_btop_chip(struct dhd_bus *bus)
-{
-	DHD_ERROR(("%s: WARNING ! function not implemented in %s\n",
-			__FUNCTION__, __FILE__));
-	return FALSE;
-}
-
-int dhdpcie_redownload_fw(dhd_pub_t *dhdp)
-{
-	DHD_ERROR(("%s: WARNING ! function not implemented in %s\n",
-			__FUNCTION__, __FILE__));
-	return BCME_OK;
-}
-#endif /* BT_OVER_PCIE */
 
 static bool
 dhd_bus_aspm_enable_dev(dhd_bus_t *bus, struct pci_dev *dev, bool enable)
@@ -853,36 +789,6 @@ static int dhdpcie_pci_suspend(struct pci_dev * pdev, pm_message_t state)
 	return ret;
 }
 
-#if defined(BT_OVER_PCIE)
-static int dhdpcie_pci_resume_early(struct pci_dev *pdev)
-{
-	int ret = 0;
-	dhdpcie_info_t *pch = pci_get_drvdata(pdev);
-	dhd_bus_t *bus = NULL;
-	uint32 pmcsr;
-
-	if (pch) {
-		bus = pch->bus;
-	}
-	if (!bus) {
-		return ret;
-	}
-
-	pmcsr = OSL_PCI_READ_CONFIG(bus->osh, PCIE_CFG_PMCSR, sizeof(pmcsr));
-
-	DHD_ERROR(("%s(): pmcsr is 0x%x \r\n", __FUNCTION__, pmcsr));
-	if (pmcsr & PCIE_PMCSR_PMESTAT) {
-		DHD_ERROR(("%s(): Wakeup due to WLAN \r\n", __FUNCTION__));
-	}
-
-	/*
-	 * TODO: Add code to take adavantage of what is read from pmcsr
-	 */
-
-	return ret;
-}
-#endif /* BT_OVER_PCIE */
-
 static int dhdpcie_pci_resume(struct pci_dev *pdev)
 {
 	int ret = 0;
@@ -1059,7 +965,7 @@ static int dhdpcie_pm_system_resume_noirq(struct device * dev)
 }
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 
-#if defined(OEM_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 extern void dhd_dpc_tasklet_kill(dhd_pub_t *dhdp);
 #endif /* OEM_ANDROID && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0) */
 
@@ -1090,7 +996,7 @@ static int dhdpcie_suspend_dev(struct pci_dev *dev)
 	dhdpcie_info_t *pch = pci_get_drvdata(dev);
 	dhd_bus_t *bus = pch->bus;
 
-#if defined(OEM_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 	if (bus->is_linkdown) {
 		DHD_ERROR(("%s: PCIe link is down\n", __FUNCTION__));
 		return BCME_ERROR;
@@ -1102,11 +1008,11 @@ static int dhdpcie_suspend_dev(struct pci_dev *dev)
 	exynos_pcie_l1ss_ctrl(0, PCIE_L1SS_CTRL_WIFI);
 #endif /* CONFIG_SOC_EXYNOS9830 */
 	dhdpcie_suspend_dump_cfgregs(bus, "BEFORE_EP_SUSPEND");
-#if defined(OEM_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 	dhd_dpc_tasklet_kill(bus->dhd);
 #endif /* OEM_ANDROID && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0) */
 	pci_save_state(dev);
-#if defined(OEM_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 	pch->state = pci_store_saved_state(dev);
 #endif /* OEM_ANDROID && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0) */
 	pci_enable_wake(dev, PCI_D0, TRUE);
@@ -1118,9 +1024,7 @@ static int dhdpcie_suspend_dev(struct pci_dev *dev)
 		DHD_ERROR(("%s: pci_set_power_state error %d\n",
 			__FUNCTION__, ret));
 	}
-#ifdef OEM_ANDROID
 	dev->state_saved = FALSE;
-#endif /* OEM_ANDROID */
 	dhdpcie_suspend_dump_cfgregs(bus, "AFTER_EP_SUSPEND");
 	return ret;
 }
@@ -1154,13 +1058,11 @@ static int dhdpcie_resume_dev(struct pci_dev *dev)
 {
 	int err = 0;
 	dhdpcie_info_t *pch = pci_get_drvdata(dev);
-#if defined(OEM_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 	pci_load_and_free_saved_state(dev, &pch->state);
 #endif /* OEM_ANDROID && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0) */
 	DHD_ERROR(("%s: Enter\n", __FUNCTION__));
-#ifdef OEM_ANDROID
 	dev->state_saved = TRUE;
-#endif /* OEM_ANDROID */
 	pci_restore_state(dev);
 
 	/* Resture back current bar1 window */
@@ -1387,9 +1289,9 @@ int dhdpcie_pci_suspend_resume(dhd_bus_t *bus, bool state)
 
 	if (state) {
 		dhdpcie_config_save_restore_coherent(bus, state);
-#if !defined(BCMPCIE_OOB_HOST_WAKE) && !defined(PCIE_OOB)
+#if !defined(BCMPCIE_OOB_HOST_WAKE)
 		dhdpcie_pme_active(bus->osh, state);
-#endif /* !BCMPCIE_OOB_HOST_WAKE && !PCIE_OOB */
+#endif
 		rc = dhdpcie_suspend_dev(dev);
 		if (!rc) {
 			dhdpcie_suspend_host_dev(bus);
@@ -1407,12 +1309,11 @@ int dhdpcie_pci_suspend_resume(dhd_bus_t *bus, bool state)
 			if (PCIE_ENUM_RESET_WAR_ENAB(bus->sih->buscorerev)) {
 				dhdpcie_ssreset_dis_enum_rst(bus);
 			}
-#if !defined(BCMPCIE_OOB_HOST_WAKE) && !defined(PCIE_OOB)
+#if !defined(BCMPCIE_OOB_HOST_WAKE)
 			dhdpcie_pme_active(bus->osh, state);
-#endif /* !BCMPCIE_OOB_HOST_WAKE && !PCIE_OOB */
+#endif
 		}
 		dhdpcie_config_save_restore_coherent(bus, state);
-#if defined(OEM_ANDROID)
 #if defined(DHD_HANG_SEND_UP_TEST)
 		if (bus->is_linkdown ||
 			bus->dhd->req_hang_type == HANG_REASON_PCIE_RC_LINK_UP_FAIL) {
@@ -1422,7 +1323,6 @@ int dhdpcie_pci_suspend_resume(dhd_bus_t *bus, bool state)
 			bus->dhd->hang_reason = HANG_REASON_PCIE_RC_LINK_UP_FAIL;
 			dhd_os_send_hang_message(bus->dhd);
 		}
-#endif /* OEM_ANDROID */
 	}
 	return rc;
 }
@@ -1525,7 +1425,7 @@ int
 dhdpcie_detach(dhdpcie_info_t *pch)
 {
 	if (pch) {
-#if defined(OEM_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 		if (!dhd_download_fw_on_driverload) {
 			pci_load_and_free_saved_state(pch->dev, &pch->default_state);
 		}
@@ -1582,12 +1482,6 @@ dhdpcie_pci_remove(struct pci_dev *pdev)
 	dhdpcie_detach(pch);
 	/* osl detach */
 	osl_detach(osh);
-
-#if defined(BCMPCIE_OOB_HOST_WAKE) && defined(CUSTOMER_HW2) && \
-	defined(CONFIG_ARCH_APQ8084)
-	brcm_pcie_wake.wake_irq = NULL;
-	brcm_pcie_wake.data = NULL;
-#endif /* BCMPCIE_OOB_HOST_WAKE && CUSTOMR_HW2 && CONFIG_ARCH_APQ8084 */
 
 	dhdpcie_init_succeeded = FALSE;
 
@@ -2030,12 +1924,6 @@ int dhdpcie_init(struct pci_dev *pdev)
 		}
 #endif /* FORCE_TPOWERON */
 
-#if defined(BCMPCIE_OOB_HOST_WAKE) && defined(CUSTOMER_HW2) && \
-		defined(CONFIG_ARCH_APQ8084)
-		brcm_pcie_wake.wake_irq = wlan_oob_irq;
-		brcm_pcie_wake.data = bus;
-#endif /* BCMPCIE_OOB_HOST_WAKE && CUSTOMR_HW2 && CONFIG_ARCH_APQ8084 */
-
 #ifdef DONGLE_ENABLE_ISOLATION
 		bus->dhd->dongle_isolation = TRUE;
 #endif /* DONGLE_ENABLE_ISOLATION */
@@ -2406,8 +2294,8 @@ dhdpcie_enable_device(dhd_bus_t *bus)
 		return BCME_ERROR;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) && \
-	(LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)) && !defined(CONFIG_SOC_EXYNOS8890)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) && (LINUX_VERSION_CODE < \
+	KERNEL_VERSION(3, 19, 0)) && !defined(CONFIG_SOC_EXYNOS8890)
 	/* Updated with pci_load_and_free_saved_state to compatible
 	 * with Kernel version 3.14.0 to 3.18.41.
 	 */
@@ -2864,107 +2752,6 @@ void dhdpcie_oob_intr_unregister(dhd_bus_t *bus)
 	dhdpcie_osinfo->oob_irq_registered = FALSE;
 }
 #endif /* BCMPCIE_OOB_HOST_WAKE */
-
-#ifdef PCIE_OOB
-void dhdpcie_oob_init(dhd_bus_t *bus)
-{
-	/* XXX this should be passed in as a command line parameter */
-	gpio_handle_val = get_handle(OOB_PORT);
-	if (gpio_handle_val < 0)
-	{
-		DHD_ERROR(("%s: Could not get GPIO handle.\n", __FUNCTION__));
-		ASSERT(FALSE);
-	}
-
-	gpio_direction = 0;
-	ftdi_set_bitmode(gpio_handle_val, 0, BITMODE_BITBANG);
-
-	/* Note BT core is also enabled here */
-	gpio_port = 1 << BIT_WL_REG_ON | 1 << BIT_BT_REG_ON | 1 << DEVICE_WAKE;
-	gpio_write_port(gpio_handle_val, gpio_port);
-
-	gpio_direction = 1 << BIT_WL_REG_ON | 1 << BIT_BT_REG_ON | 1 << DEVICE_WAKE;
-	ftdi_set_bitmode(gpio_handle_val, gpio_direction, BITMODE_BITBANG);
-
-	bus->oob_enabled = TRUE;
-	bus->oob_presuspend = FALSE;
-
-	/* drive the Device_Wake GPIO low on startup */
-	bus->device_wake_state = TRUE;
-	dhd_bus_set_device_wake(bus, FALSE);
-	dhd_bus_doorbell_timeout_reset(bus);
-
-}
-
-void
-dhd_oob_set_bt_reg_on(struct dhd_bus *bus, bool val)
-{
-	DHD_INFO(("Set Device_Wake to %d\n", val));
-	if (val)
-	{
-		gpio_port = gpio_port | (1 << BIT_BT_REG_ON);
-		gpio_write_port(gpio_handle_val, gpio_port);
-	} else {
-		gpio_port = gpio_port & (0xff ^ (1 << BIT_BT_REG_ON));
-		gpio_write_port(gpio_handle_val, gpio_port);
-	}
-}
-
-int
-dhd_oob_get_bt_reg_on(struct dhd_bus *bus)
-{
-	int ret;
-	uint8 val;
-	ret = gpio_read_port(gpio_handle_val, &val);
-
-	if (ret < 0) {
-		/* XXX handle error properly */
-		DHD_ERROR(("gpio_read_port returns %d\n", ret));
-		return ret;
-	}
-
-	if (val & (1 << BIT_BT_REG_ON))
-	{
-		ret = 1;
-	} else {
-		ret = 0;
-	}
-
-	return ret;
-}
-
-int
-dhd_os_oob_set_device_wake(struct dhd_bus *bus, bool val)
-{
-	if (bus->device_wake_state != val)
-	{
-		DHD_INFO(("Set Device_Wake to %d\n", val));
-
-		if (bus->oob_enabled && !bus->oob_presuspend)
-		{
-			if (val)
-			{
-				gpio_port = gpio_port | (1 << DEVICE_WAKE);
-				gpio_write_port_non_block(gpio_handle_val, gpio_port);
-			} else {
-				gpio_port = gpio_port & (0xff ^ (1 << DEVICE_WAKE));
-				gpio_write_port_non_block(gpio_handle_val, gpio_port);
-			}
-		}
-
-		bus->device_wake_state = val;
-	}
-	return BCME_OK;
-}
-
-INLINE void
-dhd_os_ib_set_device_wake(struct dhd_bus *bus, bool val)
-{
-	/* TODO: Currently Inband implementation of Device_Wake is not supported,
-	 * so this function is left empty later this can be used to support the same.
-	 */
-}
-#endif /* PCIE_OOB */
 
 #ifdef DHD_PCIE_RUNTIMEPM
 bool dhd_runtimepm_state(dhd_pub_t *dhd)

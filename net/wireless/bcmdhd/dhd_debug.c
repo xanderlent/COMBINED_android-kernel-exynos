@@ -43,15 +43,6 @@
 #include <dhd_event_log_filter.h>
 #endif /* DHD_EVENT_LOG_FILTER */
 
-#if defined(DHD_EFI) || defined(NDIS)
-#if !defined(offsetof)
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif	/* !defined(offsetof) */
-
-#define container_of(ptr, type, member) \
-		(type *)((char *)(ptr) - offsetof(type, member))
-#endif /* defined(DHD_EFI ) || defined(NDIS) */
-
 uint8 control_logtrace = CUSTOM_CONTROL_LOGTRACE;
 
 struct map_table {
@@ -656,13 +647,6 @@ dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_hdr,
 		else {
 			bcm_binit(&b, fmtstr_loc_buf, FMTSTR_SIZE);
 			/* XXX: The 'hdr->count - 1' is dongle time */
-#ifndef OEM_ANDROID
-			bcm_bprintf(&b, "%06d.%03d EL: %d 0x%x",
-				(uint32)(log_ptr[plog_hdr->count - 1] / EL_MSEC_PER_SEC),
-				(uint32)(log_ptr[plog_hdr->count - 1] % EL_MSEC_PER_SEC),
-				plog_hdr->tag,
-				plog_hdr->fmt_num_raw);
-#else
 			bcm_bprintf(&b, "%06d.%03d EL:%s:%u:%u %d %d 0x%x",
 				(uint32)(log_ptr[plog_hdr->count - 1] / EL_MSEC_PER_SEC),
 				(uint32)(log_ptr[plog_hdr->count - 1] % EL_MSEC_PER_SEC),
@@ -670,7 +654,6 @@ dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_hdr,
 				plog_hdr->tag,
 				plog_hdr->count,
 				plog_hdr->fmt_num_raw);
-#endif /* !OEM_ANDROID */
 			for (count = 0; count < (plog_hdr->count - 1); count++) {
 				bcm_bprintf(&b, " %x", log_ptr[count]);
 			}
@@ -1096,7 +1079,7 @@ dhd_dbg_msgtrace_log_parser(dhd_pub_t *dhdp, void *event_data,
 		}
 #endif /* EWP_RTT_LOGGING && DHD_LOG_DUMP */
 
-#if defined (DHD_EVENT_LOG_FILTER)
+#if defined(DHD_EVENT_LOG_FILTER)
 		if (plog_hdr->tag == EVENT_LOG_TAG_STATS) {
 			dhd_event_log_filter_event_handler(dhdp, plog_hdr, plog_hdr->log_ptr);
 		}
@@ -1151,24 +1134,6 @@ dhd_dbg_trace_evnt_handler(dhd_pub_t *dhdp, void *event_data,
 	else if (hdr->trace_type == MSGTRACE_HDR_TYPE_LOG)
 		dhd_dbg_msgtrace_log_parser(dhdp, event_data, raw_event_ptr, datalen, TRUE, 0);
 }
-
-#ifdef BTLOG
-void
-dhd_dbg_bt_log_handler(dhd_pub_t *dhdp, void *data, uint datalen)
-{
-	dhd_dbg_ring_entry_t msg_hdr;
-	int ret;
-
-	/* push to ring */
-	memset(&msg_hdr, 0, sizeof(msg_hdr));
-	msg_hdr.type = DBG_RING_ENTRY_DATA_TYPE;
-	msg_hdr.len = datalen;
-	ret = dhd_dbg_push_to_ring(dhdp, BT_LOG_RING_ID, &msg_hdr, data);
-	if (ret != BCME_OK) {
-		DHD_ERROR(("%s ring push failed %d\n", __FUNCTION__, ret));
-	}
-}
-#endif	/* BTLOG */
 
 /*
  * dhd_dbg_set_event_log_tag : modify the state of an event log tag
@@ -2645,16 +2610,6 @@ dhd_dbg_attach(dhd_pub_t *dhdp, dbg_pullreq_t os_pullreq,
 			(uint8 *)DHD_EVENT_RING_NAME, DHD_EVENT_RING_SIZE, buf, FALSE);
 	if (ret)
 		goto error;
-
-#ifdef BTLOG
-	buf = MALLOCZ(dhdp->osh, BT_LOG_RING_SIZE);
-	if (!buf)
-		goto error;
-	ret = dhd_dbg_ring_init(dhdp, &dbg->dbg_rings[BT_LOG_RING_ID], BT_LOG_RING_ID,
-			BT_LOG_RING_NAME, BT_LOG_RING_SIZE, buf, FALSE);
-	if (ret)
-		goto error;
-#endif	/* BTLOG */
 
 	dbg->private = os_priv;
 	dbg->pullreq = os_pullreq;

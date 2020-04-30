@@ -32,11 +32,6 @@
 #define	PAD		_XSTR(__LINE__)
 #endif	/* PAD */
 
-#ifdef BCMINTERNAL
-/* FPGA BOM of last incompatible register set change */
-#define SDPCM_FPGA_BOM	0x334		/* 0x334 = 820 => 82.0 */
-#endif /* BCMINTERNAL */
-
 typedef volatile struct {
 	dma64regs_t	xmt;		/* dma tx */
 	uint32 PAD[2];
@@ -303,10 +298,6 @@ typedef volatile struct {
 /* HW frame tag */
 #define SDPCM_FRAMETAG_LEN	4	/* HW frametag: 2 bytes len, 2 bytes check val */
 
-#if !defined(NDISVER) || (NDISVER < 0x0630)
 #define SDPCM_HWEXT_LEN	8
-#else
-#define SDPCM_HWEXT_LEN	0
-#endif /* !defined(NDISVER) || (NDISVER < 0x0630) */
 
 #endif	/* _sbsdpcmdev_h_ */

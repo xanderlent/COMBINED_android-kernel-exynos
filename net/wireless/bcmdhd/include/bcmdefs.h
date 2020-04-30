@@ -45,9 +45,8 @@
  * Define these diagnostic macros to help suppress cast-qual warning
  * until all the work can be done to fix the casting issues.
  */
-#if (defined(__GNUC__) && defined(STRICT_GCC_WARNINGS) && \
-	(__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)) || \
-	defined(__clang__))
+#if (defined(__GNUC__) && defined(STRICT_GCC_WARNINGS) && (__GNUC__ > 4 || (__GNUC__ == \
+	4 && __GNUC_MINOR__ >= 6)) || defined(__clang__))
 #define GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST()              \
 	_Pragma("GCC diagnostic push")			 \
 	_Pragma("GCC diagnostic ignored \"-Wcast-qual\"")
@@ -56,14 +55,6 @@
 	_Pragma("GCC diagnostic ignored \"-Wnull-dereference\"")
 #define GCC_DIAGNOSTIC_POP()                             \
 	_Pragma("GCC diagnostic pop")
-#elif defined(_MSC_VER)
-#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST()              \
-	__pragma(warning(push))                          \
-	__pragma(warning(disable:4090))
-#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF()	 \
-	__pragma(warning(push))
-#define GCC_DIAGNOSTIC_POP()                             \
-	__pragma(warning(pop))
 #else
 #define GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST()
 #define GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF()
@@ -128,8 +119,8 @@ extern bool bcm_postattach_part_reclaimed;
 #define POSTATTACH_PART_RECLAIMED()	(bcm_postattach_part_reclaimed)
 
 /* Place _fn/_data symbols in various reclaimed output sections */
-#define BCMATTACHDATA(_data)	__attribute__ ((__section__ (".dataini2." #_data))) _data
-#define BCMATTACHFN(_fn)	__attribute__ ((__section__ (".textini2." #_fn), noinline)) _fn
+#define _data	__attribute__ ((__section__ (".dataini2." #_data))) _data
+#define _fn	__attribute__ ((__section__ (".textini2." #_fn), noinline)) _fn
 #define BCMPREATTACHDATA(_data)	__attribute__ ((__section__ (".dataini3." #_data))) _data
 #define BCMPREATTACHFN(_fn)	__attribute__ ((__section__ (".textini3." #_fn), noinline)) _fn
 #define BCMPOSTATTACHDATA(_data)	__attribute__ ((__section__ (".dataini5." #_data))) _data
@@ -153,32 +144,27 @@ extern bool bcm_postattach_part_reclaimed;
 #else
 #define BCMPREATTACHDATASR(_data)	BCMPREATTACHDATA(_data)
 #define BCMPREATTACHFNSR(_fn)		BCMPREATTACHFN(_fn)
-#define BCMATTACHDATASR(_data)		BCMATTACHDATA(_data)
-#define BCMATTACHFNSR(_fn)		BCMATTACHFN(_fn)
+#define BCMATTACHDATASR(_data)		_data
+#define BCMATTACHFNSR(_fn)		_fn
 #endif
 
-#define BCMINITDATA(_data)	_data
-#define BCMINITFN(_fn)		_fn
+#define _data	_data
+#define _fn		_fn
 #ifndef CONST
 #define CONST	const
 #endif
 
 /* Non-manufacture or internal attach function/dat */
-#if !(defined(WLTEST) || defined(BCMINTERNAL) || defined(ATE_BUILD))
-#define	BCMNMIATTACHFN(_fn)	BCMATTACHFN(_fn)
-#define	BCMNMIATTACHDATA(_data)	BCMATTACHDATA(_data)
-#else
 #define	BCMNMIATTACHFN(_fn)	_fn
 #define	BCMNMIATTACHDATA(_data)	_data
-#endif	/* WLTEST || BCMINTERNAL */
 
-#if !defined(ATE_BUILD) && defined(BCM_CISDUMP_NO_RECLAIM)
+#if defined(BCM_CISDUMP_NO_RECLAIM)
 #define	BCMCISDUMPATTACHFN(_fn)		_fn
 #define	BCMCISDUMPATTACHDATA(_data)	_data
 #else
 #define	BCMCISDUMPATTACHFN(_fn)		BCMNMIATTACHFN(_fn)
 #define	BCMCISDUMPATTACHDATA(_data)	BCMNMIATTACHDATA(_data)
-#endif /* !ATE_BUILD && BCM_CISDUMP_NO_RECLAIM */
+#endif
 
 /* SROM with OTP support */
 #if defined(BCMOTPSROM)
@@ -197,7 +183,7 @@ extern bool bcm_postattach_part_reclaimed;
 #define	BCMSROMCISDUMPATTACHDATA(_data)	BCMSROMATTACHDATA(_data)
 #endif /* BCM_CISDUMP_NO_RECLAIM */
 
-#define BCMUNINITFN(_fn)	_fn
+#define _fn	_fn
 
 #else /* BCM_RECLAIM */
 
@@ -205,8 +191,8 @@ extern bool bcm_postattach_part_reclaimed;
 #define bcm_attach_part_reclaimed	(1)
 #define bcm_preattach_part_reclaimed	(1)
 #define bcm_postattach_part_reclaimed	(1)
-#define BCMATTACHDATA(_data)		_data
-#define BCMATTACHFN(_fn)		_fn
+#define _data		_data
+#define _fn		_fn
 #define BCM_SRM_ATTACH_DATA(_data)	_data
 #define BCM_SRM_ATTACH_FN(_fn)		_fn
 /* BCMRODATA data is written into at attach time so it cannot be in .rodata */
@@ -215,9 +201,9 @@ extern bool bcm_postattach_part_reclaimed;
 #define BCMPREATTACHFN(_fn)		_fn
 #define BCMPOSTATTACHDATA(_data)	_data
 #define BCMPOSTATTACHFN(_fn)		_fn
-#define BCMINITDATA(_data)		_data
-#define BCMINITFN(_fn)			_fn
-#define BCMUNINITFN(_fn)		_fn
+#define _data		_data
+#define _fn			_fn
+#define _fn		_fn
 #define	BCMNMIATTACHFN(_fn)		_fn
 #define	BCMNMIATTACHDATA(_data)		_data
 #define	BCMSROMATTACHFN(_fn)		_fn
@@ -241,12 +227,12 @@ extern bool bcm_postattach_part_reclaimed;
 
 #endif /* BCM_RECLAIM */
 
-#define BCMUCODEDATA(_data)		BCMINITDATA(_data)
+#define BCMUCODEDATA(_data)		_data
 
-#if defined(BCM_AQM_DMA_DESC) && !defined(BCM_AQM_DMA_DESC_DISABLED) && !defined(DONGLEBUILD)
-#define BCMUCODEFN(_fn)			BCMINITFN(_fn)
+#if defined(BCM_AQM_DMA_DESC) && !defined(BCM_AQM_DMA_DESC_DISABLED)
+#define BCMUCODEFN(_fn)			_fn
 #else
-#define BCMUCODEFN(_fn)			BCMATTACHFN(_fn)
+#define BCMUCODEFN(_fn)			_fn
 #endif /* BCM_AQM_DMA_DESC */
 
 /* This feature is for dongle builds only.
@@ -256,28 +242,7 @@ extern bool bcm_postattach_part_reclaimed;
  * in "text_fastpath" section and will be used by trap handler.
  */
 #ifndef BCMFASTPATH
-#if defined(DONGLEBUILD)
-#if defined(BCMROMBUILD)
-#if defined(BCMFASTPATH_EXCLUDE_FROM_ROM)
-	#define BCMFASTPATH(_fn)	__attribute__ ((__section__ (".text_ram." #_fn))) _fn
-#else /* BCMFASTPATH_EXCLUDE_FROM_ROM */
 	#define BCMFASTPATH(_fn)	_fn
-#endif /* BCMFASTPATH_EXCLUDE_FROM_ROM */
-#else /* BCMROMBUILD */
-#ifdef BCMFASTPATH_O3OPT
-#ifdef ROM_ENAB_RUNTIME_CHECK
-	#define BCMFASTPATH(_fn)	__attribute__ ((__section__ (".text_fastpath." #_fn)))  _fn
-#else
-	#define BCMFASTPATH(_fn)	__attribute__ ((__section__ (".text_fastpath." #_fn))) \
-					__attribute__ ((optimize(3))) _fn
-#endif /* ROM_ENAB_RUNTIME_CHECK */
-#else
-	#define BCMFASTPATH(_fn)	__attribute__ ((__section__ (".text_fastpath." #_fn)))  _fn
-#endif /* BCMFASTPATH_O3OPT */
-#endif /* BCMROMBUILD */
-#else /* DONGLEBUILD */
-	#define BCMFASTPATH(_fn)	_fn
-#endif /* DONGLEBUILD */
 #endif /* BCMFASTPATH */
 
 /* Use the BCMRAMFN/BCMRAMDATA() macros to tag functions/data in source that must be included in RAM
@@ -285,13 +250,8 @@ extern bool bcm_postattach_part_reclaimed;
  * the ROM config file. It should only be used in special cases where the function must be in RAM
  * for *all* ROM-based chips.
  */
-#if defined(BCMROMBUILD)
-	#define BCMRAMFN(_fn)     __attribute__ ((__section__ (".text_ram." #_fn), noinline)) _fn
-	#define BCMRAMDATA(_data) __attribute__ ((__section__ (".rodata_ram." #_data))) _data
-#else
 	#define BCMRAMFN(_fn)		_fn
 	#define BCMRAMDATA(_data)	_data
-#endif
 
 /* Use BCMSPECSYM() macro to tag symbols going to a special output section in the binary. */
 #define BCMSPECSYM(_sym)	__attribute__ ((__section__ (".special." #_sym))) _sym
@@ -531,26 +491,14 @@ typedef struct {
 
 #define BCMDONGLEOVERHEAD	(BCMDONGLEHDRSZ + BCMDONGLEPADSZ)
 
-#ifdef BCMDBG
-
-#ifndef BCMDBG_ERR
-#define BCMDBG_ERR
-#endif /* BCMDBG_ERR */
-
-#ifndef BCMDBG_ASSERT
-#define BCMDBG_ASSERT
-#endif /* BCMDBG_ASSERT */
-
-#endif /* BCMDBG */
-
 #if defined(NO_BCMDBG_ASSERT)
 	#undef BCMDBG_ASSERT
 	#undef BCMASSERT_LOG
 #endif
 
-#if defined(BCMDBG_ASSERT) || defined(BCMASSERT_LOG)
+#if defined(BCMASSERT_LOG)
 #define BCMASSERT_SUPPORT
-#endif /* BCMDBG_ASSERT || BCMASSERT_LOG */
+#endif
 
 /* Macros for doing definition and get/set of bitfields
  * Usage example, e.g. a three-bit field (bits 4-6):
@@ -582,34 +530,17 @@ typedef struct {
 /* ROM_ENAB_RUNTIME_CHECK may be set based upon the #define below (for ROM builds). It may also
  * be defined via makefiles (e.g. ROM auto abandon unoptimized compiles).
  */
-#if defined(BCMROMBUILD)
-#ifndef ROM_ENAB_RUNTIME_CHECK
-	#define ROM_ENAB_RUNTIME_CHECK
-#endif
-#endif /* BCMROMBUILD */
 
 #ifdef BCM_SH_SFLASH
 	extern bool _bcm_sh_sflash;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCM_SH_SFLASH_ENAB() (_bcm_sh_sflash)
-#elif defined(BCM_SH_SFLASH_DISABLED)
-	#define BCM_SH_SFLASH_ENAB()	(0)
-#else
-	#define BCM_SH_SFLASH_ENAB()	(1)
-#endif
 #else
 	#define BCM_SH_SFLASH_ENAB()   (0)
 #endif	/* BCM_SH_SFLASH */
 
 #ifdef BCM_DELAY_ON_LTR
 	extern bool _bcm_delay_on_ltr;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCM_DELAY_ON_LTR_ENAB() (_bcm_delay_on_ltr)
-#elif defined(BCM_DELAY_ON_LTR_DISABLED)
-	#define BCM_DELAY_ON_LTR_ENAB()	(0)
-#else
-	#define BCM_DELAY_ON_LTR_ENAB()	(1)
-#endif
 #else
 	#define BCM_DELAY_ON_LTR_ENAB()		(0)
 #endif	/* BCM_DELAY_ON_LTR */
@@ -619,31 +550,14 @@ typedef struct {
 #ifdef LARGE_NVRAM_MAXSZ
 #define MAXSZ_NVRAM_VARS	(LARGE_NVRAM_MAXSZ * 2)
 #else
-#if defined(BCMROMBUILD) || defined(DONGLEBUILD)
-/* SROM12 changes */
-#define	MAXSZ_NVRAM_VARS	6144	/* should be reduced */
-#else
 #define LARGE_NVRAM_MAXSZ	8192
 #define MAXSZ_NVRAM_VARS	(LARGE_NVRAM_MAXSZ * 2)
-#endif /* BCMROMBUILD || DONGLEBUILD */
 #endif /* LARGE_NVRAM_MAXSZ */
 #endif /* !MAXSZ_NVRAM_VARS */
 
-#ifdef ATE_BUILD
-#ifndef ATE_NVRAM_MAXSIZE
-#define ATE_NVRAM_MAXSIZE 32000
-#endif /* ATE_NVRAM_MAXSIZE */
-#endif /* ATE_BUILD */
-
 #ifdef BCMLFRAG /* BCMLFRAG support enab macros  */
 	extern bool _bcmlfrag;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCMLFRAG_ENAB() (_bcmlfrag)
-#elif defined(BCMLFRAG_DISABLED)
-	#define BCMLFRAG_ENAB()	(0)
-#else
-	#define BCMLFRAG_ENAB()	(1)
-#endif
 #else
 	#define BCMLFRAG_ENAB()		(0)
 #endif /* BCMLFRAG_ENAB */
@@ -663,104 +577,53 @@ extern bool _pciedevenab;
 
 #ifdef BCMRESVFRAGPOOL /* BCMRESVFRAGPOOL support enab macros */
 extern bool _resvfragpool_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define  BCMRESVFRAGPOOL_ENAB() (_resvfragpool_enab)
-#elif defined(BCMRESVFRAGPOOL_DISABLED)
-	#define BCMRESVFRAGPOOL_ENAB()	(0)
-#else
-	#define BCMRESVFRAGPOOL_ENAB()	(1)
-#endif
 #else
 	#define BCMRESVFRAGPOOL_ENAB()	0
 #endif /* BCMPCIEDEV */
 
 #ifdef BCMD11HDRPOOL /* BCMD11HDRPOOL support enab macros */
 extern bool _d11hdrpool_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define  D11HDRPOOL_ENAB()	(_d11hdrpool_enab)
-#elif defined(BCMD11HDRPOOL_DISABLED)
-	#define D11HDRPOOL_ENAB()	(0)
-#else
-	#define D11HDRPOOL_ENAB()	(1)
-#endif
 #else
 	#define D11HDRPOOL_ENAB()	0
 #endif /* BCMD11HDRPOOL */
 
-#ifdef BCMSDIODEV /* BCMSDIODEV support enab macros */
-extern bool _sdiodevenab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
-	#define BCMSDIODEV_ENAB() (_sdiodevenab)
-#elif defined(BCMSDIODEV_ENABLED)
-	#define BCMSDIODEV_ENAB()	1
-#else
 	#define BCMSDIODEV_ENAB()	0
-#endif
-#else
-	#define BCMSDIODEV_ENAB()	0
-#endif /* BCMSDIODEV */
 
 #ifdef BCMSPMIS
 extern bool _bcmspmi_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define	BCMSPMIS_ENAB()		(_bcmspmi_enab)
-#elif defined(BCMSPMIS_DISABLED)
-	#define	BCMSPMIS_ENAB()		0
-#else
-	#define	BCMSPMIS_ENAB()		1
-#endif
 #else
 	#define	BCMSPMIS_ENAB()		0
 #endif /* BCMSPMIS */
 
 /* Max size for reclaimable NVRAM array */
-#ifndef ATE_BUILD
 #ifdef DL_NVRAM
 #define NVRAM_ARRAY_MAXSIZE	DL_NVRAM
 #else
 #define NVRAM_ARRAY_MAXSIZE	MAXSZ_NVRAM_VARS
 #endif /* DL_NVRAM */
-#else
-#define NVRAM_ARRAY_MAXSIZE	ATE_NVRAM_MAXSIZE
-#endif /* ATE_BUILD */
 
 extern uint32 gFWID;
 
 #ifdef BCMFRWDPKT /* BCMFRWDPKT support enab macros  */
 	extern bool _bcmfrwdpkt;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCMFRWDPKT_ENAB() (_bcmfrwdpkt)
-#elif defined(BCMFRWDPKT_DISABLED)
-	#define BCMFRWDPKT_ENAB()	(0)
-#else
-	#define BCMFRWDPKT_ENAB()	(1)
-#endif
 #else
 	#define BCMFRWDPKT_ENAB()		(0)
 #endif /* BCMFRWDPKT */
 
 #ifdef BCMFRWDPOOLREORG /* BCMFRWDPOOLREORG support enab macros  */
 	extern bool _bcmfrwdpoolreorg;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCMFRWDPOOLREORG_ENAB() (_bcmfrwdpoolreorg)
-#elif defined(BCMFRWDPOOLREORG_DISABLED)
-	#define BCMFRWDPOOLREORG_ENAB()	(0)
-#else
-	#define BCMFRWDPOOLREORG_ENAB()	(1)
-#endif
 #else
 	#define BCMFRWDPOOLREORG_ENAB()		(0)
 #endif /* BCMFRWDPOOLREORG */
 
 #ifdef BCMPOOLRECLAIM /* BCMPOOLRECLAIM support enab macros  */
 	extern bool _bcmpoolreclaim;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCMPOOLRECLAIM_ENAB() (_bcmpoolreclaim)
-#elif defined(BCMPOOLRECLAIM_DISABLED)
-	#define BCMPOOLRECLAIM_ENAB()	(0)
-#else
-	#define BCMPOOLRECLAIM_ENAB()	(1)
-#endif
 #else
 	#define BCMPOOLRECLAIM_ENAB()		(0)
 #endif /* BCMPOOLRECLAIM */
@@ -773,15 +636,6 @@ extern uint32 gFWID;
 #define PAD             _XSTR(__LINE__)
 #endif
 
-#if defined(DONGLEBUILD) && ! defined(__COVERITY__)
-#define MODULE_DETACH(var, detach_func)\
-	do { \
-		BCM_REFERENCE(detach_func); \
-		OSL_SYS_HALT(); \
-	} while (0);
-#define MODULE_DETACH_2(var1, var2, detach_func) MODULE_DETACH(var1, detach_func)
-#define MODULE_DETACH_TYPECASTED(var, detach_func)
-#else
 #define MODULE_DETACH(var, detach_func)\
 	if (var) { \
 		detach_func(var); \
@@ -789,7 +643,6 @@ extern uint32 gFWID;
 	}
 #define MODULE_DETACH_2(var1, var2, detach_func) detach_func(var1, var2)
 #define MODULE_DETACH_TYPECASTED(var, detach_func) detach_func(var)
-#endif /* DONGLEBUILD */
 
 /* When building ROML image use runtime conditional to cause the compiler
  * to compile everything but not to complain "defined but not used"
@@ -797,22 +650,13 @@ extern uint32 gFWID;
  * In the end functions called under if (0) {} will not be linked
  * into the final binary if they're not called from other places either.
  */
-#if !defined(BCMROMBUILD) || defined(BCMROMSYMGEN_BUILD)
 #define BCM_ATTACH_REF_DECL()
 #define BCM_ATTACH_REF()	(1)
-#else
-#define BCM_ATTACH_REF_DECL()	static bool bcm_non_roml_build = 0;
-#define BCM_ATTACH_REF()	(bcm_non_roml_build)
-#endif
 
 /* For ROM builds, keep it in const section so that it gets ROMmed. If abandoned, move it to
  * RO section but before ro region start so that FATAL log buf doesn't use this.
  */
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCMRODATA_ONTRAP(_data)	_data
-#else
-	#define BCMRODATA_ONTRAP(_data)	__attribute__ ((__section__ (".ro_ontrap." #_data))) _data
-#endif
 
 typedef struct bcm_rng * bcm_rng_handle_t;
 
@@ -855,8 +699,8 @@ void* BCM_ASLR_CODE_FNPTR_RELOCATOR(void *func_ptr);
 #define WLBANDINITDATA(_data)	_data
 #define WLBANDINITFN(_fn)	_fn
 #else
-#define WLBANDINITDATA(_data)	BCMINITDATA(_data)
-#define WLBANDINITFN(_fn)	BCMINITFN(_fn)
+#define WLBANDINITDATA(_data)	_data
+#define WLBANDINITFN(_fn)	_fn
 #endif
 
 /* Tag struct members to make it explicitly clear that they are physical addresses. These are

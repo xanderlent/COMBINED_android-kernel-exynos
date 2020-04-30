@@ -37,11 +37,6 @@ int hnd_oobr_get_intr_config(si_t *sih, uint srccidx, uint srcpidx, uint dstcidx
 int hnd_oobr_set_intr_src(si_t *sih, uint dstcidx, uint dstpidx, uint intrnum);
 void hnd_oobr_init(si_t *sih);
 
-#ifdef BCMDBG
-/* dump oobr registers values to console */
-void hnd_oobr_dump(si_t *sih);
-#endif
-
 #define OOBR_INVALID_PORT       0xFFu
 
 /* per core source/dest sel reg */

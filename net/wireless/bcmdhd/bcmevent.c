@@ -81,14 +81,6 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_JOIN_START),
 	BCMEVENT_NAME(WLC_E_ROAM_START),
 	BCMEVENT_NAME(WLC_E_ASSOC_START),
-#ifdef EXT_STA
-	BCMEVENT_NAME(WLC_E_RESET_COMPLETE),
-	BCMEVENT_NAME(WLC_E_JOIN_START),
-	BCMEVENT_NAME(WLC_E_ROAM_START),
-	BCMEVENT_NAME(WLC_E_ASSOC_START),
-	BCMEVENT_NAME(WLC_E_ASSOC_RECREATED),
-	BCMEVENT_NAME(WLC_E_SPEEDY_RECREATE_FAIL),
-#endif /* EXT_STA */
 #if defined(IBSS_PEER_DISCOVERY_EVENT)
 	BCMEVENT_NAME(WLC_E_IBSS_ASSOC),
 #endif /* defined(IBSS_PEER_DISCOVERY_EVENT) */
@@ -112,19 +104,6 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_RX),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_COMPLETE),
-#if defined(NDIS)
-	BCMEVENT_NAME(WLC_E_PRE_ASSOC_IND),
-	BCMEVENT_NAME(WLC_E_PRE_REASSOC_IND),
-	BCMEVENT_NAME(WLC_E_CHANNEL_ADOPTED),
-	BCMEVENT_NAME(WLC_E_AP_STARTED),
-	BCMEVENT_NAME(WLC_E_DFS_AP_STOP),
-	BCMEVENT_NAME(WLC_E_DFS_AP_RESUME),
-	BCMEVENT_NAME(WLC_E_ASSOC_IND_NDIS),
-	BCMEVENT_NAME(WLC_E_REASSOC_IND_NDIS),
-	BCMEVENT_NAME(WLC_E_ACTION_FRAME_RX_NDIS),
-	BCMEVENT_NAME(WLC_E_AUTH_REQ),
-	BCMEVENT_NAME(WLC_E_IBSS_COALESCE),
-#endif /* #if defined(NDIS) */
 
 #ifdef BCMWAPI_WAI
 	BCMEVENT_NAME(WLC_E_WAI_STA_EVENT),
@@ -197,12 +176,6 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 #endif /* WLFBT */
 	BCMEVENT_NAME(WLC_E_AUTHORIZED),
 	BCMEVENT_NAME(WLC_E_PROBREQ_MSG_RX),
-
-#ifdef WLAWDL
-	BCMEVENT_NAME(WLC_E_AWDL_AW),
-	BCMEVENT_NAME(WLC_E_AWDL_ROLE),
-	BCMEVENT_NAME(WLC_E_AWDL_EVENT),
-#endif /* WLAWDL */
 
 	BCMEVENT_NAME(WLC_E_CSA_START_IND),
 	BCMEVENT_NAME(WLC_E_CSA_DONE_IND),
@@ -333,15 +306,11 @@ is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
 
 	/* check length in bcmeth_hdr */
 
-#ifdef BCMDONGLEHOST
 	/* temporary - header length not always set properly. When the below
 	 * !BCMDONGLEHOST is in all branches that use trunk DHD, the code
 	 * under BCMDONGLEHOST can be removed.
 	 */
 	evlen = (uint16)(pktend - (uint8 *)&bcm_event->bcm_hdr.version);
-#else
-	evlen = ntoh16_ua((void *)&bcm_event->bcm_hdr.length);
-#endif /* BCMDONGLEHOST */
 	evend = (uint8 *)&bcm_event->bcm_hdr.version + evlen;
 	if (evend != pktend) {
 		err = BCME_BADLEN;
@@ -392,7 +361,7 @@ is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
 		break;
 
 	case BCMILCP_BCM_SUBTYPE_DNGLEVENT:
-#if defined(HEALTH_CHECK) || defined(DNGL_EVENT_SUPPORT)
+#if defined(DNGL_EVENT_SUPPORT)
 		if ((pktlen < sizeof(bcm_dngl_event_t)) ||
 			(evend < ((uint8 *)bcm_event + sizeof(bcm_dngl_event_t)))) {
 			err = BCME_BADLEN;
@@ -422,7 +391,7 @@ is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
 #else
 		err = BCME_UNSUPPORTED;
 		break;
-#endif /* HEALTH_CHECK  || DNGL_EVENT_SUPPORT */
+#endif
 
 	default:
 		err = BCME_NOTFOUND;

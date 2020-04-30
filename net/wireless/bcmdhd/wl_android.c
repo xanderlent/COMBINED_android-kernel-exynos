@@ -124,7 +124,7 @@
 #endif /* WL_NAN */
 #define CMD_COUNTRY_DELIMITER "/"
 
-#if defined (WL_SUPPORT_AUTO_CHANNEL)
+#if defined(WL_SUPPORT_AUTO_CHANNEL)
 #define CMD_GET_BEST_CHANNELS	"GET_BEST_CHANNELS"
 #endif /* WL_SUPPORT_AUTO_CHANNEL */
 
@@ -513,7 +513,7 @@ extern bool dhd_debug_uart_is_running(struct net_device *dev);
 #endif	/* DHD_DEBUG_UART */
 
 #ifdef RTT_GEOFENCE_INTERVAL
-#if defined (RTT_SUPPORT) && defined(WL_NAN)
+#if defined(RTT_SUPPORT) && defined(WL_NAN)
 #define CMD_GEOFENCE_INTERVAL	"GEOFENCE_INT"
 #endif /* RTT_SUPPORT && WL_NAN */
 #endif /* RTT_GEOFENCE_INTERVAL */
@@ -3538,9 +3538,7 @@ wl_cfg80211_get_sta_info(struct net_device *dev, char* command, int total_len)
 	char *iovar_buf = NULL;
 	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
 	struct net_device *apdev = NULL;
-#ifdef BCMDONGLEHOST
 	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(dev);
-#endif /* BCMDONGLEHOST */
 
 #ifdef BIGDATA_SOFTAP
 	void *data = NULL;
@@ -3700,11 +3698,9 @@ wl_cfg80211_get_sta_info(struct net_device *dev, char* command, int total_len)
 			goto error;
 		}
 		bzero(if_stats, sizeof(wl_if_stats_t));
-#ifdef BCMDONGLEHOST
 		if (FW_SUPPORTED(dhdp, ifst)) {
 			ret = wl_cfg80211_ifstats_counters(apdev, if_stats);
 		} else
-#endif /* BCMDONGLEHOST */
 		{
 			ret = wldev_iovar_getbuf(apdev, "if_counters",
 				NULL, 0, (char *)if_stats,
@@ -4592,9 +4588,7 @@ wl_android_get_connection_stats(struct net_device *dev, char *command, int total
 #ifndef DISABLE_IF_COUNTERS
 	wl_if_stats_t* if_stats = NULL;
 	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
-#ifdef BCMDONGLEHOST
 	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(dev);
-#endif /* BCMDONGLEHOST */
 #endif /* DISABLE_IF_COUNTERS */
 
 	int link_speed = 0;
@@ -4629,11 +4623,9 @@ wl_android_get_connection_stats(struct net_device *dev, char *command, int total
 	}
 	bzero(if_stats, sizeof(*if_stats));
 
-#ifdef BCMDONGLEHOST
 	if (FW_SUPPORTED(dhdp, ifst)) {
 		ret = wl_cfg80211_ifstats_counters(dev, if_stats);
 	} else
-#endif /* BCMDONGLEHOST */
 	{
 		ret = wldev_iovar_getbuf(dev, "if_counters", NULL, 0,
 			(char *)if_stats, sizeof(*if_stats), NULL);
@@ -5817,7 +5809,7 @@ extern void wl_cfg80211_unregister_dev_ril_bridge_event_notifier(void);
 extern int g_mhs_chan_for_cpcoex;
 #endif /* CONFIG_WLAN_BEYONDX || defined(CONFIG_SEC_5GMODEL) */
 
-#if defined (WL_SUPPORT_AUTO_CHANNEL)
+#if defined(WL_SUPPORT_AUTO_CHANNEL)
 static int
 wl_android_set_spect(struct net_device *dev, int spect)
 {
@@ -7154,39 +7146,6 @@ wl_android_set_miracast(struct net_device *dev, char *command)
 			goto resume;
 		}
 
-#ifdef CUSTOMER_HW10
-		/* [CSP#812738] Change scan engine parameters to reduce scan time
-		 * and guarantee more times to mirroring.
-		 */
-		val = 10;
-		config.iovar = NULL;
-		config.ioctl = WLC_GET_SCAN_CHANNEL_TIME;
-		config.arg = &val;
-		config.len = sizeof(int);
-		ret = wl_android_iolist_add(dev, &miracast_resume_list, &config);
-		if (ret)
-			goto resume;
-
-		val = 180;
-		config.iovar = NULL;
-		config.ioctl = WLC_GET_SCAN_HOME_TIME;
-		config.arg = &val;
-		config.len = sizeof(int);
-		ret = wl_android_iolist_add(dev, &miracast_resume_list, &config);
-		if (ret)
-			goto resume;
-
-#if defined(BCM4339_CHIP)
-		config.iovar = "phy_watchdog";
-		config.param = 0;
-		ret = wl_android_iolist_add(dev, &miracast_resume_list, &config);
-		DHD_INFO(("wl_android_set_miracast: do iovar cmd=%s (ret=%d)\n",
-			config.iovar, ret));
-#endif
-#endif /* CUSTOMER_HW10 */
-
-#ifndef CUSTOMER_HW10
-
 		/* tunr off pm */
 		ret = wldev_ioctl_get(dev, WLC_GET_PM, &val, sizeof(val));
 		if (ret) {
@@ -7204,7 +7163,6 @@ wl_android_set_miracast(struct net_device *dev, char *command)
 				goto resume;
 			}
 		}
-#endif /* CUSTOMER_HW10 */
 		break;
 	case MIRACAST_MODE_OFF:
 	default:
@@ -9954,7 +9912,7 @@ wl_android_get_channel_util(struct net_device *ndev, char *command, int total_le
 #endif /* WL_GET_CU */
 
 #ifdef RTT_GEOFENCE_INTERVAL
-#if defined (RTT_SUPPORT) && defined(WL_NAN)
+#if defined(RTT_SUPPORT) && defined(WL_NAN)
 static void
 wl_android_set_rtt_geofence_interval(struct net_device *ndev, char *command)
 {
@@ -10460,27 +10418,6 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 		bytes_written = wl_cfg80211_set_p2p_noa(net, command + skip,
 			priv_cmd.total_len - skip);
 	}
-#ifdef WL_SDO
-	else if (strnicmp(command, CMD_P2P_SD_OFFLOAD, strlen(CMD_P2P_SD_OFFLOAD)) == 0) {
-		u8 *buf = command;
-		u8 *cmd_id = NULL;
-		int len;
-
-		cmd_id = strsep((char **)&buf, " ");
-		if (!cmd_id) {
-			/* Propagate the error */
-			bytes_written = -EINVAL;
-		} else {
-			/* if buf == NULL, means no arg */
-			if (buf == NULL) {
-				len = 0;
-			} else {
-				len = strlen(buf);
-			}
-			bytes_written = wl_cfg80211_sd_offload(net, cmd_id, buf, len);
-		}
-	}
-#endif /* WL_SDO */
 #ifdef P2P_LISTEN_OFFLOADING
 	else if (strnicmp(command, CMD_P2P_LISTEN_OFFLOAD, strlen(CMD_P2P_LISTEN_OFFLOAD)) == 0) {
 		u8 *sub_command = strchr(command, ' ');
@@ -10524,14 +10461,14 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 	}
 #endif /* WLFBT */
 #endif /* WL_CFG80211 */
-#if defined (WL_SUPPORT_AUTO_CHANNEL)
+#if defined(WL_SUPPORT_AUTO_CHANNEL)
 	else if (strnicmp(command, CMD_GET_BEST_CHANNELS,
 		strlen(CMD_GET_BEST_CHANNELS)) == 0) {
 		bytes_written = wl_cfg80211_get_best_channels(net, command,
 			priv_cmd.total_len);
 	}
 #endif /* WL_SUPPORT_AUTO_CHANNEL */
-#if defined (WL_SUPPORT_AUTO_CHANNEL)
+#if defined(WL_SUPPORT_AUTO_CHANNEL)
 	else if (strnicmp(command, CMD_SET_HAPD_AUTO_CHANNEL,
 		strlen(CMD_SET_HAPD_AUTO_CHANNEL)) == 0) {
 		int skip = strlen(CMD_SET_HAPD_AUTO_CHANNEL) + 1;
@@ -10547,7 +10484,7 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 		bytes_written = wl_android_set_ampdu_mpdu(net, (const char*)command+skip);
 	}
 #endif /* SUPPORT_AMPDU_MPDU_CMD */
-#if defined (SUPPORT_HIDDEN_AP)
+#if defined(SUPPORT_HIDDEN_AP)
 	else if (strnicmp(command, CMD_SET_HAPD_MAX_NUM_STA,
 		strlen(CMD_SET_HAPD_MAX_NUM_STA)) == 0) {
 		int skip = strlen(CMD_SET_HAPD_MAX_NUM_STA) + 3;
@@ -11064,7 +11001,7 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 	}
 #endif /* WL_GET_CU */
 #ifdef RTT_GEOFENCE_INTERVAL
-#if defined (RTT_SUPPORT) && defined(WL_NAN)
+#if defined(RTT_SUPPORT) && defined(WL_NAN)
 	else if (strnicmp(command, CMD_GEOFENCE_INTERVAL,
 			strlen(CMD_GEOFENCE_INTERVAL)) == 0) {
 		(void)wl_android_set_rtt_geofence_interval(net, command);
@@ -11422,8 +11359,7 @@ wl_genl_handle_msg(
 		return -EINVAL;
 	} else {
 		/* Handle the data */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)) || \
-	defined(WL_COMPAT_WIRELESS)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)) || defined(WL_COMPAT_WIRELESS)
 		WL_DBG(("%s: Data received from pid (%d) \n", __func__,
 			info->snd_pid));
 #else

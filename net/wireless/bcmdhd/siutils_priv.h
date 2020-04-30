@@ -24,21 +24,15 @@
 #ifndef	_siutils_priv_h_
 #define	_siutils_priv_h_
 
-#if defined(BCMDBG_ERR) && defined(ERR_USE_LOG_EVENT)
-#define	SI_ERROR(args)	EVENT_LOG_COMPACT_CAST_PAREN_ARGS(EVENT_LOG_TAG_SI_ERROR, args)
-#elif defined(BCMDBG_ERR) || defined(SI_ERROR_ENFORCE)
+#if defined(SI_ERROR_ENFORCE)
 #define	SI_ERROR(args)	printf args
 #else
 #define	SI_ERROR(args)
-#endif	/* BCMDBG_ERR */
+#endif
 
 #if defined(ENABLE_CORECAPTURE)
 
-#if !defined(BCMDBG)
 #define	SI_PRINT(args)	osl_wificc_logDebug args
-#else
-#define	SI_PRINT(args)	printf args
-#endif /* !BCMDBG */
 
 #else
 
@@ -46,11 +40,7 @@
 
 #endif /* ENABLE_CORECAPTURE */
 
-#ifdef BCMDBG
-#define	SI_MSG(args)	printf args
-#else
 #define	SI_MSG(args)
-#endif	/* BCMDBG */
 
 #ifdef BCMDBG_SI
 #define	SI_VMSG(args)	printf args
@@ -58,16 +48,7 @@
 #define	SI_VMSG(args)
 #endif
 
-#ifdef BCMINTERNAL
-extern int noradio_override;
-#define	IS_SIM(chippkg)	((noradio_override != 0) || \
-			 (chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
-#endif /* BCMINTERNAL */
-
-#ifndef BCMINTERNAL
 #define	IS_SIM(chippkg)	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
-
-#endif
 
 typedef void (*si_intrsoff_t)(void *intr_arg, bcm_int_bitmask_t *mask);
 typedef void (*si_intrsrestore_t)(void *intr_arg, bcm_int_bitmask_t *mask);
@@ -215,13 +196,6 @@ typedef struct si_info {
 	uint32	oob_router1;		/**< oob router registers for axi */
 
 	si_cores_info_t *cores_info;
-#if !defined(BCMDONGLEHOST)
-	/* Store NVRAM data so that it is available after reclaim. */
-	uint32 nvram_min_mask;
-	bool min_mask_valid;
-	uint32 nvram_max_mask;
-	bool max_mask_valid;
-#endif /* !BCMDONGLEHOST */
 	gci_gpio_item_t	*gci_gpio_head;	/**< gci gpio interrupts head */
 	uint	chipnew;		/**< new chip number */
 	uint second_bar0win;		/**< Backplane region */
@@ -345,16 +319,9 @@ extern int sb_numaddrspaces(const si_t *sih);
 
 extern bool sb_taclear(si_t *sih, bool details);
 
-#ifdef BCMDBG
-extern void sb_view(si_t *sih, bool verbose);
-extern void sb_viewall(si_t *sih, bool verbose);
-#endif
-#if defined(BCMINTERNAL) && defined(BCMDBG) || defined(BCMDBG_DUMP)
-extern void sb_dump(si_t *sih, struct bcmstrbuf *b);
-#endif
-#if defined(BCMDBG) || defined(BCMDBG_DUMP)|| defined(BCMDBG_PHYDUMP)
+#if defined(BCMDBG_PHYDUMP)
 extern void sb_dumpregs(si_t *sih, struct bcmstrbuf *b);
-#endif /* BCMDBG || BCMDBG_DUMP|| BCMDBG_PHYDUMP */
+#endif
 
 /* AMBA Interconnect exported externs */
 extern si_t *ai_attach(uint pcidev, osl_t *osh, void *regs, uint bustype,
@@ -406,13 +373,9 @@ extern void ai_core_reset_ext(const si_t *sih, uint32 bits, uint32 resetbits);
 extern uint32 ai_clear_backplane_to_per_core(si_t *sih, uint coreid, uint coreunit, void * wrap);
 #endif /* AXI_TIMEOUTS || AXI_TIMEOUTS_NIC */
 
-#ifdef BCMDBG
-extern void ai_view(const si_t *sih, bool verbose);
-extern void ai_viewall(si_t *sih, bool verbose);
-#endif
-#if defined(BCMDBG) || defined(BCMDBG_DUMP)|| defined(BCMDBG_PHYDUMP)
+#if defined(BCMDBG_PHYDUMP)
 extern void ai_dumpregs(const si_t *sih, struct bcmstrbuf *b);
-#endif /* BCMDBG || BCMDBG_DUMP|| BCMDBG_PHYDUMP */
+#endif
 
 extern uint32 ai_wrapper_dump_buf_size(const si_t *sih);
 extern uint32 ai_wrapper_dump_binary(const si_t *sih, uchar *p);
@@ -493,13 +456,9 @@ void ai_force_clocks(const si_t *sih, uint clock_state);
 #define nci_backplane_access(a, b, c, d, e) (0)
 #define nci_backplane_access_64(a, b, c, d, e) (0)
 #define nci_num_slaveports(a, b) (0)
-#if defined(BCMDBG) || defined(BCMDBG_DUMP) || defined(BCMDBG_PHYDUMP)
+#if defined(BCMDBG_PHYDUMP)
 #define nci_dumpregs(a, b) do {} while (0)
-#endif  /* BCMDBG || BCMDBG_DUMP || BCMDBG_PHYDUMP */
-#ifdef BCMDBG
-#define nci_view(a, b) do {} while (0)
-#define nci_viewall(a, b) do {} while (0)
-#endif /* BCMDBG */
+#endif
 #define nci_get_nth_wrapper(a, b) (0)
 #define nci_get_axi_addr(a, b) (0)
 #define nci_wrapper_dump_binary_one(a, b, c) (NULL)

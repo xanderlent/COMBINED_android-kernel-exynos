@@ -25,7 +25,7 @@
 #ifndef __DHD_PNO_H__
 #define __DHD_PNO_H__
 
-#if defined(OEM_ANDROID) && defined(PNO_SUPPORT)
+#if defined(PNO_SUPPORT)
 #define PNO_TLV_PREFIX			'S'
 #define PNO_TLV_VERSION			'1'
 #define PNO_TLV_SUBTYPE_LEGACY_PNO '2'
@@ -498,7 +498,7 @@ extern int
 dhd_dev_pno_set_for_hotlist(struct net_device *dev, wl_pfn_bssid_t *p_pfn_bssid,
 	struct dhd_pno_hotlist_params *hotlist_params);
 extern bool dhd_dev_is_legacy_pno_enabled(struct net_device *dev);
-#if defined (GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
+#if defined(GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
 extern void *
 dhd_dev_pno_get_gscan(struct net_device *dev, dhd_pno_gscan_cmd_cfg_t type, void *info,
         uint32 *len);
@@ -546,7 +546,7 @@ extern int dhd_pno_init(dhd_pub_t *dhd);
 extern int dhd_pno_deinit(dhd_pub_t *dhd);
 extern bool dhd_is_pno_supported(dhd_pub_t *dhd);
 extern bool dhd_is_legacy_pno_enabled(dhd_pub_t *dhd);
-#if defined (GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
+#if defined(GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
 extern void * dhd_pno_get_gscan(dhd_pub_t *dhd, dhd_pno_gscan_cmd_cfg_t type, void *info,
                        uint32 *len);
 #endif /* GSCAN_SUPPORT || DHD_GET_VALID_CHANNELS */
@@ -573,16 +573,6 @@ extern int dhd_pno_set_epno(dhd_pub_t *dhd);
 extern int dhd_pno_flush_fw_epno(dhd_pub_t *dhd);
 extern void dhd_pno_set_epno_auth_flag(uint32 *wpa_auth);
 #endif /* GSCAN_SUPPORT */
-#endif /* #if defined(OEM_ANDROID) && defined(PNO_SUPPORT) */
+#endif
 
-#if defined(NDIS)
-#if defined(PNO_SUPPORT)
-extern int dhd_pno_cfg(dhd_pub_t *dhd, wl_pfn_cfg_t *pcfg);
-extern int dhd_pno_suspend(dhd_pub_t *dhd, int pfn_suspend);
-extern int dhd_pno_set_add(dhd_pub_t *dhd, wl_pfn_t *netinfo, int nssid, ushort scan_fr,
-	ushort slowscan_fr, uint8 pno_repeat, uint8 pno_freq_expo_max, int16 flags);
-extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
-extern int dhd_pno_clean(dhd_pub_t *dhd);
-#endif /* #if defined(PNO_SUPPORT) */
-#endif /* #if defined(NDIS) */
 #endif /* __DHD_PNO_H__ */

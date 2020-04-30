@@ -36,10 +36,8 @@
 #include <net/cfg80211.h>
 #include <linux/rfkill.h>
 #include <osl.h>
-#if defined(BCMDONGLEHOST)
 #include <dngl_stats.h>
 #include <dhd.h>
-#endif /* BCMDONGLEHOST */
 
 #define WL_CFG_DRV_LOCK(lock, flags)	(flags) = osl_spin_lock(lock)
 #define WL_CFG_DRV_UNLOCK(lock, flags)	osl_spin_unlock((lock), (flags))
@@ -109,16 +107,6 @@ struct wl_ibss;
 #define IS_AKM_OWE(akm) FALSE
 #endif
 
-#if defined(IL_BIGENDIAN)
-#include <bcmendian.h>
-#define htod32(i) (bcmswap32(i))
-#define htod16(i) (bcmswap16(i))
-#define dtoh64(i) (bcmswap64(i))
-#define dtoh32(i) (bcmswap32(i))
-#define dtoh16(i) (bcmswap16(i))
-#define htodchanspec(i) htod16(i)
-#define dtohchanspec(i) dtoh16(i)
-#else
 #define htod32(i) (i)
 #define htod16(i) (i)
 #define dtoh64(i) (i)
@@ -126,7 +114,6 @@ struct wl_ibss;
 #define dtoh16(i) (i)
 #define htodchanspec(i) (i)
 #define dtohchanspec(i) (i)
-#endif /* IL_BIGENDIAN */
 
 #define WL_DBG_NONE	0
 #define WL_DBG_P2P_ACTION	(1 << 5)
@@ -169,8 +156,8 @@ extern char *dhd_log_dump_get_timestamp(void);
  * MSM defined CFG80211_DISCONNECTED_V2 as the flag
  * when they uses different kernel/cfg version.
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || \
-	   (defined(CONFIG_ARCH_MSM) && defined(CFG80211_DISCONNECTED_V2))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || (defined(CONFIG_ARCH_MSM) && \
+	defined(CFG80211_DISCONNECTED_V2))
 #define CFG80211_DISCONNECTED(dev, reason, ie, len, loc_gen, gfp) \
 	cfg80211_disconnected(dev, reason, ie, len, loc_gen, gfp);
 #elif (LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0))
@@ -284,10 +271,10 @@ do {										\
 #define WL_MEM(args) WL_DBG(args)
 #endif /* defined(DHD_DEBUG) */
 
-#if defined(__linux__) && !defined(DHD_EFI)
+#if defined(__linux__)
 #define WL_PRINT_RATE_LIMIT_PERIOD 4000000000u /* 4s in units of ns */
 #endif
-#if defined(__linux__) && !defined(DHD_EFI)
+#if defined(__linux__)
 #define WL_ERR_RLMT(args) \
 do {	\
 	if (wl_dbg_level & WL_DBG_ERR) {	\
@@ -308,7 +295,7 @@ do {	\
 } while (0)
 #else /* defined(__linux__) && !defined(DHD_EFI) */
 #define WL_ERR_RLMT(args) WL_ERR(args)
-#endif /* defined(__linux__) && !defined(DHD_EFI) */
+#endif
 
 #ifdef WL_INFORM
 #undef WL_INFORM
@@ -528,8 +515,8 @@ do {									\
 #define FILS_INDICATION_IE_TAG_FIXED_LEN		2
 #endif
 
-#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__) &&\
-(__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == \
+	4 && __GNUC_MINOR__ >= 6))
 #define BCM_SET_LIST_FIRST_ENTRY(entry, ptr, type, member) \
 GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST(); \
 (entry) = list_first_entry((ptr), type, member); \
@@ -645,10 +632,6 @@ typedef enum wl_iftype {
 	WL_IF_TYPE_STA = 0,
 	WL_IF_TYPE_AP = 1,
 
-#ifdef WLAWDL
-	WL_IF_TYPE_AWDL = 2,
-#endif /* WLAWDL */
-
 	WL_IF_TYPE_NAN_NMI = 3,
 	WL_IF_TYPE_NAN = 4,
 	WL_IF_TYPE_P2P_GO = 5,
@@ -675,10 +658,6 @@ enum wl_mode {
 	WL_MODE_BSS = 0,
 	WL_MODE_IBSS = 1,
 	WL_MODE_AP = 2,
-
-#ifdef WLAWDL
-	WL_MODE_AWDL = 3,
-#endif /* WLAWDL */
 
 	WL_MODE_NAN = 4,
 	WL_MODE_MAX
@@ -1063,51 +1042,6 @@ struct parsed_ies {
 	u32 fils_ind_ie_len;
 };
 
-#ifdef WL_SDO
-/* Service discovery */
-typedef struct {
-	uint8	transaction_id; /* Transaction ID */
-	uint8   protocol;       /* Service protocol type */
-	uint16  query_len;      /* Length of query */
-	uint16  response_len;   /* Length of response */
-	uint8   qrbuf[1];
-} wl_sd_qr_t;
-
-typedef struct {
-	uint16	period;                 /* extended listen period */
-	uint16	interval;               /* extended listen interval */
-} wl_sd_listen_t;
-
-#define WL_SD_STATE_IDLE 0x0000
-#define WL_SD_SEARCH_SVC 0x0001
-#define WL_SD_ADV_SVC    0x0002
-
-enum wl_dd_state {
-	WL_DD_STATE_IDLE,
-	WL_DD_STATE_SEARCH,
-	WL_DD_STATE_LISTEN
-};
-
-#define MAX_SDO_PROTO_STR_LEN 20
-typedef struct wl_sdo_proto {
-	char str[MAX_SDO_PROTO_STR_LEN];
-	u32 val;
-} wl_sdo_proto_t;
-
-typedef struct sd_offload {
-	u32 sd_state;
-	enum wl_dd_state dd_state;
-	wl_sd_listen_t sd_listen;
-} sd_offload_t;
-
-typedef struct sdo_event {
-	u8 addr[ETH_ALEN];
-	uint16	freq;        /* channel Freq */
-	uint8	count;       /* Tlv count  */
-	uint16	update_ind;
-} sdo_event_t;
-#endif /* WL_SDO */
-
 #ifdef P2P_LISTEN_OFFLOADING
 typedef struct {
 	uint16	period;                 /* listen offload period */
@@ -1207,11 +1141,6 @@ typedef struct wl_bssid_prune_evt_info wl_bssid_pruned_evt_info_t;
 #endif /* WL_MBO || WL_OCE */
 
 #ifdef WL_NAN
-#ifdef WL_NANP2P
-#define WL_CFG_P2P_DISC_BIT 0x1u
-#define WL_CFG_NAN_DISC_BIT 0x2u
-#define WL_NANP2P_CONC_SUPPORT	(WL_CFG_P2P_DISC_BIT | WL_CFG_NAN_DISC_BIT)
-#endif /* WL_NAN2P */
 #endif /* WL_NAN */
 
 #ifdef WL_IFACE_MGMT
@@ -1468,9 +1397,6 @@ struct bcm_cfg80211 {
 		struct net_info *_net_info, enum wl_status state, bool set);
 	unsigned long interrested_state;
 	wlc_ssid_t hostapd_ssid;
-#ifdef WL_SDO
-	sd_offload_t *sdo;
-#endif
 #ifdef WL11U
 	bool wl11u;
 #endif /* WL11U */
@@ -1481,22 +1407,15 @@ struct bcm_cfg80211 {
 #endif /* WL_HOST_BAND_MGMT */
 	bool scan_suppressed;
 
-#ifdef OEM_ANDROID
 	timer_list_compat_t scan_supp_timer;
 	struct work_struct wlan_work;
-#endif /* OEM_ANDROID */
 
 	struct mutex event_sync;	/* maily for up/down synchronization */
 	bool disable_roam_event;
 	struct delayed_work pm_enable_work;
 
-#ifdef OEM_ANDROID
 	struct workqueue_struct *event_workq;   /* workqueue for event */
-#endif /* OEM_ANDROID */
 
-#ifndef OEM_ANDROID
-	bool event_workq_init;
-#endif /* OEM_ANDROID */
 	struct work_struct event_work;		/* work item for event */
 	struct mutex pm_sync;	/* mainly for pm work synchronization */
 
@@ -1521,10 +1440,6 @@ struct bcm_cfg80211 {
 	int roam_offload;
 #ifdef WL_NAN
 	wl_nancfg_t *nancfg;
-#ifdef WL_NANP2P
-	uint8 conc_disc;
-	bool nan_p2p_supported;
-#endif /* WL_NANP2P */
 #endif /* WL_NAN */
 #ifdef WL_IFACE_MGMT
 	iface_mgmt_data_t iface_data;
@@ -2158,11 +2073,6 @@ wl_iftype_to_str(int wl_iftype)
 		case (WL_IF_TYPE_AP):
 			return "WL_IF_TYPE_AP";
 
-#ifdef WLAWDL
-		case (WL_IF_TYPE_AWDL):
-			return "WL_IF_TYPE_AWDL";
-#endif /* WLAWDL */
-
 		case (WL_IF_TYPE_NAN_NMI):
 			return "WL_IF_TYPE_NAN_NMI";
 		case (WL_IF_TYPE_NAN):
@@ -2405,14 +2315,6 @@ void wl_cfg80211_btcoex_deinit(void);
 extern chanspec_t wl_chspec_from_legacy(chanspec_t legacy_chspec);
 extern chanspec_t wl_chspec_driver_to_host(chanspec_t chanspec);
 
-#ifdef WL_SDO
-extern s32 wl_cfg80211_sdo_init(struct bcm_cfg80211 *cfg);
-extern s32 wl_cfg80211_sdo_deinit(struct bcm_cfg80211 *cfg);
-extern s32 wl_cfg80211_sd_offload(struct net_device *net, char *cmd, char* buf, int len);
-extern s32 wl_cfg80211_pause_sdo(struct net_device *dev, struct bcm_cfg80211 *cfg);
-extern s32 wl_cfg80211_resume_sdo(struct net_device *dev, struct bcm_cfg80211 *cfg);
-
-#endif
 #ifdef WL_SUPPORT_AUTO_CHANNEL
 #define CHANSPEC_BUF_SIZE	1024
 #define CHAN_SEL_IOCTL_DELAY	300
@@ -2446,10 +2348,6 @@ extern void wl_stop_wait_next_action_frame(struct bcm_cfg80211 *cfg, struct net_
 #ifdef WL_HOST_BAND_MGMT
 extern s32 wl_cfg80211_set_band(struct net_device *ndev, int band);
 #endif /* WL_HOST_BAND_MGMT */
-
-#if defined(OEM_ANDROID) && defined(DHCP_SCAN_SUPPRESS)
-extern int wl_cfg80211_scan_suppress(struct net_device *dev, int suppress);
-#endif /* OEM_ANDROID */
 
 extern void wl_cfg80211_add_to_eventbuffer(wl_eventmsg_buf_t *ev, u16 event, bool set);
 extern s32 wl_cfg80211_apply_eventbuffer(struct net_device *ndev,
@@ -2563,11 +2461,6 @@ extern s32 wl_cfgvendor_send_as_rtt_legacy_event(struct wiphy *wiphy,
 	struct net_device *dev, wl_nan_ev_rng_rpt_ind_t *range_res,
 	uint32 status);
 #endif /* RTT_SUPPORT */
-#ifdef WL_NANP2P
-extern int wl_cfg80211_set_iface_conc_disc(struct net_device *ndev,
-	uint8 arg_val);
-extern uint8 wl_cfg80211_get_iface_conc_disc(struct net_device *ndev);
-#endif /* WL_NANP2P */
 #endif /* WL_NAN */
 
 #ifdef WL_CFG80211_P2P_DEV_IF
@@ -2712,10 +2605,6 @@ extern int wl_cfg80211_stop_mkeep_alive(struct bcm_cfg80211 *cfg, uint8 mkeep_al
 extern s32 wl_cfg80211_handle_macaddr_change(struct net_device *dev, u8 *macaddr);
 extern int wl_cfg80211_handle_hang_event(struct net_device *ndev,
 	uint16 hang_reason, uint32 memdump_type);
-#ifndef OEM_ANDROID
-extern s32 wl_cfg80211_resume(struct bcm_cfg80211 *cfg);
-extern s32 wl_cfg80211_suspend(struct bcm_cfg80211 *cfg);
-#endif /* !OEM_ANDROID */
 bool wl_cfg80211_is_dpp_frame(void *frame, u32 frame_len);
 const char *get_dpp_pa_ftype(enum wl_dpp_ftype ftype);
 bool wl_cfg80211_is_dpp_gas_action(void *frame, u32 frame_len);

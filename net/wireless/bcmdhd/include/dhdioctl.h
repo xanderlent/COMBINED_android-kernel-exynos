@@ -84,54 +84,6 @@ typedef struct dmaxfer_info {
 #define DHD_FILENAME_MAX 64
 #define DHD_PATHNAME_MAX 128
 
-#ifdef EFI
-struct control_signal_ops {
-	uint32 signal;
-	uint32 val;
-};
-enum {
-	WL_REG_ON = 0,
-	DEVICE_WAKE = 1,
-	TIME_SYNC = 2
-};
-
-typedef struct wifi_properties {
-	uint8 version;
-	uint32 vendor;
-	uint32 model;
-	uint8 mac_addr[6];
-	uint32 chip_revision;
-	uint8 silicon_revision;
-	uint8 is_powered;
-	uint8 is_sleeping;
-	char module_revision[16];	/* null terminated string */
-	uint8 is_fw_loaded;
-	char  fw_filename[DHD_FILENAME_MAX];		/* null terminated string */
-	char nvram_filename[DHD_FILENAME_MAX];	/* null terminated string */
-	uint8 channel;
-	uint8 module_sn[6];
-} wifi_properties_t;
-
-#define DHD_WIFI_PROPERTIES_VERSION 0x1
-
-#define DHD_OTP_SIZE_WORDS 912
-
-typedef struct intr_poll_data {
-	uint16 version;
-	uint16 length;
-	uint32 type;
-	uint32 value;
-} intr_poll_t;
-
-typedef enum intr_poll_data_type {
-	INTR_POLL_DATA_PERIOD = 0,
-	INTR_POLL_DATA_NUM_PKTS_THRESH,
-	INTR_POLL_DATA_PKT_INTVL_THRESH
-} intr_poll_type_t;
-
-#define DHD_INTR_POLL_VERSION 0x1u
-#endif /* EFI */
-
 typedef struct tput_test {
 	uint16 version;
 	uint16 length;
@@ -165,10 +117,6 @@ typedef enum {
 typedef enum dhd_iftype {
 	DHD_IF_TYPE_STA		= 0,
 	DHD_IF_TYPE_AP		= 1,
-
-#ifdef DHD_AWDL
-	DHD_IF_TYPE_AWDL	= 2,
-#endif /* DHD_AWDL */
 
 	DHD_IF_TYPE_NAN_NMI	= 3,
 	DHD_IF_TYPE_NAN		= 4,
@@ -239,11 +187,7 @@ typedef enum dhd_iface_mgmt_policy {
 #define DHD_GLOM_VAL	0x0400
 #define DHD_EVENT_VAL	0x0800
 #define DHD_BTA_VAL	0x1000
-#if defined(NDIS) && (NDISVER >= 0x0630) && defined(BCMDONGLEHOST)
-#define DHD_SCAN_VAL	0x2000
-#else
 #define DHD_ISCAN_VAL	0x2000
-#endif
 #define DHD_ARPOE_VAL	0x4000
 #define DHD_REORDER_VAL	0x8000
 #define DHD_WL_VAL		0x10000
@@ -361,58 +305,6 @@ typedef struct fw_download_info {
 typedef struct debug_buf_dest_stat {
 	uint32 stat[DEBUG_BUF_DEST_MAX];
 } debug_buf_dest_stat_t;
-
-#ifdef DHD_PKTTS
-/* max pktts flow config supported */
-#define PKTTS_CONFIG_MAX 8
-
-#define PKTTS_OFFSET_INVALID ((uint32)(~0))
-
-/* pktts flow configuration */
-typedef struct pktts_flow {
-	uint16 ver;     /**< version of this struct */
-	uint16 len;     /**< length in bytes of this structure */
-	uint32 src_ip;  /**< source ip address */
-	uint32 dst_ip;  /**< destination ip address */
-	uint32 src_port; /**< source port */
-	uint32 dst_port; /**< destination port */
-	uint32 proto;    /**< protocol */
-	uint32 ip_prec;  /**< ip precedence */
-	uint32 pkt_offset; /**< offset from data[0] (TCP/UDP payload) */
-	uint32 chksum;   /**< 5 tuple checksum */
-} pktts_flow_t;
-
-#define BCM_TS_MAGIC 0xB055B055
-#define BCM_TS_TX 1
-#define BCM_TS_RX 2
-
-#define PKTTS_MAX_FWTX 4
-#define PKTTS_MAX_FWRX 2
-
-/* Firmware timestamp header */
-typedef struct bcm_to_info_hdr {
-	uint magic;  /**< magic word */
-	uint type;   /**< tx/rx type */
-	uint flowid; /**< 5 tuple checksum */
-	uint prec; /**< ip precedence (IP_PREC) */
-	uint8 xbytes[16]; /**< 16bytes info from pkt offset */
-} bcm_to_info_hdr_t;
-
-/* Firmware tx timestamp payload structure */
-typedef struct bcm_to_info_tx_ts {
-	bcm_to_info_hdr_t hdr;
-	uint64 dhdt0; /**< system time - DHDT0 */
-	uint64 dhdt5; /**< system time - DHDT5 */
-	uint fwts[PKTTS_MAX_FWTX]; /**< fw timestamp - FWT0..FWT4 */
-} bcm_to_info_tx_ts_t;
-
-/* Firmware rx timestamp payload structure */
-typedef struct bcm_to_info_rx_ts {
-	bcm_to_info_hdr_t hdr;
-	uint64 dhdr3; /**< system time - DHDR3 */
-	uint fwts[PKTTS_MAX_FWRX]; /**< fw timestamp - FWT0, FWT1 */
-} bcm_to_info_rx_ts_t;
-#endif /* DHD_PKTTS */
 
 /* devreset */
 #define DHD_DEVRESET_VERSION 1

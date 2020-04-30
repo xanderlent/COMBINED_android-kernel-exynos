@@ -70,23 +70,7 @@ const uint8 prio2tid[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 static INLINE int
 dhd_flow_queue_throttle(flow_queue_t *queue)
 {
-#if defined(BCM_ROUTER_DHD)
-	/* Two tests
-	 * 1) Test whether overall level 2 (grandparent) cummulative threshold crossed.
-	 * 2) Or test whether queue's budget and overall cummulative threshold crossed.
-	 */
-	void *gp_clen_ptr = DHD_FLOW_QUEUE_L2CLEN_PTR(queue);
-	void *parent_clen_ptr = DHD_FLOW_QUEUE_CLEN_PTR(queue);
-	int gp_cumm_threshold = DHD_FLOW_QUEUE_L2THRESHOLD(queue);
-	int cumm_threshold = DHD_FLOW_QUEUE_THRESHOLD(queue);
-
-	int ret = ((DHD_CUMM_CTR_READ(gp_clen_ptr) > gp_cumm_threshold) ||
-		((DHD_FLOW_QUEUE_OVFL(queue, DHD_FLOW_QUEUE_MAX(queue))) &&
-		(DHD_CUMM_CTR_READ(parent_clen_ptr) > cumm_threshold)));
-	return ret;
-#else
 	return DHD_FLOW_QUEUE_FULL(queue);
-#endif /* ! BCM_ROUTER_DHD */
 }
 
 int
@@ -685,11 +669,7 @@ dhd_flowid_find(dhd_pub_t *dhdp, uint8 ifindex, uint8 prio, char *sa, char *da)
 	}
 	DHD_FLOWID_UNLOCK(dhdp->flowid_lock, flags);
 
-#ifdef DHD_EFI
-	DHD_TRACE(("%s: cannot find flowid\n", __FUNCTION__));
-#else
 	DHD_INFO(("%s: cannot find flowid\n", __FUNCTION__));
-#endif
 	return FLOWID_INVALID;
 } /* dhd_flowid_find */
 
@@ -867,7 +847,7 @@ dhd_flowid_lookup(dhd_pub_t *dhdp, uint8 ifindex,
 #endif /* DHD_LIMIT_MULTI_CLIENT_FLOWRINGS */
 
 		/* Do not create Flowring if peer is not associated */
-#if (defined(linux) || defined(LINUX)) && defined(PCIE_FULL_DONGLE)
+#if defined(PCIE_FULL_DONGLE)
 		if (if_role_multi_client && !ETHER_ISMULTI(da) &&
 			!dhd_sta_associated(dhdp, ifindex, (uint8 *)da)) {
 			DHD_ERROR_RLMT(("%s: Skip send pkt without peer addition\n", __FUNCTION__));
@@ -904,19 +884,11 @@ dhd_flowid_lookup(dhd_pub_t *dhdp, uint8 ifindex,
 		flow_ring_node->active = TRUE;
 		flow_ring_node->status = FLOW_RING_STATUS_CREATE_PENDING;
 
-#ifdef DEVICE_TX_STUCK_DETECT
-		flow_ring_node->tx_cmpl = flow_ring_node->tx_cmpl_prev = OSL_SYSUPTIME();
-		flow_ring_node->stuck_count = 0;
-#endif /* DEVICE_TX_STUCK_DETECT */
 #ifdef TX_STATUS_LATENCY_STATS
 		flow_ring_node->flow_info.num_tx_status = 0;
 		flow_ring_node->flow_info.cum_tx_status_latency = 0;
 		flow_ring_node->flow_info.num_tx_pkts = 0;
 #endif /* TX_STATUS_LATENCY_STATS */
-#ifdef BCMDBG
-		bzero(&flow_ring_node->flow_info.tx_status[0],
-			sizeof(uint32) * DHD_MAX_TX_STATUS_MSGS);
-#endif
 		DHD_FLOWRING_UNLOCK(flow_ring_node->lock, flags);
 
 		/* Create and inform device about the new flow */
@@ -1413,48 +1385,3 @@ dhd_active_tx_flowring_bkpq_len(dhd_pub_t *dhd)
 	DHD_FLOWRING_LIST_UNLOCK(bus->dhd->flowring_list_lock, list_lock_flags);
 	return active_tx_flowring_qlen;
 }
-
-#ifdef DHD_AWDL
-/**
- * Handle/Intercept awdl peer op IOVAR fired by user
- * buf = NULL means delete all peers in awdl interface
- */
-void
-dhd_awdl_peer_op(dhd_pub_t *dhdp, uint8 ifindex, void *buf, uint32 buflen)
-{
-	awdl_peer_op_t	*peer = (awdl_peer_op_t *)buf;
-	DHD_TRACE(("%s\n", __FUNCTION__));
-
-	ASSERT(ifindex < DHD_MAX_IFS);
-	if (ifindex >= DHD_MAX_IFS)
-		return;
-	if (!buf) {
-		/* Delete all peers in awdl interface */
-		if_flow_lkup_t *if_flow_lkup;
-		if_flow_lkup = (if_flow_lkup_t *)dhdp->if_flow_lkup;
-		if (if_flow_lkup[ifindex].role != WLC_E_IF_ROLE_AWDL) {
-			DHD_ERROR(("%s: Iinterface %d is not a awdl peer \n",
-				__FUNCTION__, ifindex));
-			return;
-		}
-		dhd_flow_rings_delete(dhdp, ifindex);
-		return;
-	}
-	/* Parse awdl_peer_op info now */
-	if (buflen < sizeof(awdl_peer_op_t)) {
-		DHD_ERROR(("%s: cannot handle awdl_peer_op add/del\n", __FUNCTION__));
-		return;
-	}
-	/**
-	 * Only flowring deletion is handled here
-	 * Flowring addition is taken care in dhd_flowid_lookup
-	 */
-	if (peer->opcode == AWDL_PEER_OP_DEL) {
-		dhd_del_sta(dhdp, ifindex, &peer->addr.octet[0]);
-		dhd_flow_rings_delete_for_peer(dhdp, ifindex, (char *)&peer->addr.octet[0]);
-	} else if (peer->opcode == AWDL_PEER_OP_ADD) {
-		dhd_findadd_sta(dhdp, ifindex, &peer->addr.octet[0]);
-	}
-		return;
-}
-#endif /* DHD_AWDL */

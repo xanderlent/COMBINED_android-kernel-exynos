@@ -34,26 +34,17 @@
 #define BCMSDH_INFO_VAL		0x0002 /* Info */
 extern const uint bcmsdh_msglevel;
 
-#ifdef BCMDBG
-#define BCMSDH_ERROR(x)	do { if (bcmsdh_msglevel & BCMSDH_ERROR_VAL) printf x; } while (0)
-#define BCMSDH_INFO(x)	do { if (bcmsdh_msglevel & BCMSDH_INFO_VAL) printf x; } while (0)
-#else /* BCMDBG */
 #define BCMSDH_ERROR(x)
 #define BCMSDH_INFO(x)
-#endif /* BCMDBG */
 
-#if defined(BCMSDIO) && (defined(BCMSDIOH_STD) || defined(BCMSDIOH_BCM) || defined(BCMSDIOH_SPI))
+#if defined(BCMSDIO) && (defined(BCMSDIOH_STD) || defined(BCMSDIOH_BCM) || \
+	defined(BCMSDIOH_SPI))
 #define BCMSDH_ADAPTER
 #endif /* BCMSDIO && (BCMSDIOH_STD || BCMSDIOH_BCM || BCMSDIOH_SPI) */
 
 /* forward declarations */
 typedef struct bcmsdh_info bcmsdh_info_t;
 typedef void (*bcmsdh_cb_fn_t)(void *);
-
-#if defined(NDIS) && (NDISVER >= 0x0630) && defined(BCMDONGLEHOST)
-extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl,
-	void **regsva, uint irq, shared_info_t *sh);
-#else
 
 #if defined(BT_OVER_SDIO)
 typedef enum {
@@ -78,7 +69,6 @@ struct bcmsdh_info
 	void	*os_cxt;        /* Pointer to per-OS private data */
 	bool	force_sbwad_calc; /* forces calculation of sbwad instead of using cached value */
 };
-#endif /* defined(NDIS) && (NDISVER >= 0x0630) && defined(BCMDONGLEHOST) */
 
 /* Detach - freeup resources allocated in attach */
 extern int bcmsdh_detach(osl_t *osh, void *sdh);
@@ -96,7 +86,7 @@ extern int bcmsdh_intr_dereg(void *sdh);
 /* Enable/disable SD card interrupt forward */
 extern void bcmsdh_intr_forward(void *sdh, bool pass);
 
-#if defined(DHD_DEBUG) || defined(BCMDBG)
+#if defined(DHD_DEBUG)
 /* Query pending interrupt status from the host controller */
 extern bool bcmsdh_intr_pending(void *sdh);
 #endif
@@ -155,30 +145,6 @@ extern bool bcmsdh_regfail(void *sdh);
  * Returns 0 or error code.
  * NOTE: Async operation is not currently supported.
  */
-
-#ifdef BCMINTERNAL
-#ifdef NOT_YET
-/* If not ASYNC, <complete> must be NULL, return is final transfer status.
- *
- * If ASYNC, return code BCME_PENDING indicates command has begun execution;
- * completion function <complete> will be called with a result code when the
- * command finishes.  The <complete> function may issue sync requests and/or
- * another ASYNC request.  The sync_waiting argument to <complete> indicates
- * a sync request is waiting, and will be executed if <complete> returns
- * without having issued another ASYNC request.
- *
- * Even if ASYNC, any return other than BCME_PENDING means the command
- * completed synchronously; the completion function will NOT be called.
- *
- * Notes:
- * - The completion function may be called at interrupt time; the client
- *   should disable interrupts around any ASYNC call to prevent nesting.
- * - Arbitration between the completion function and any sync callers
- *   (including continuation of requests deferred due to sync_waiting)
- *   is the responsibility of the client.
- */
-#endif /* NOT_YET */
-#endif /* BCMINTERNAL */
 
 typedef void (*bcmsdh_cmplt_fn_t)(void *handle, int status, bool sync_waiting);
 extern int bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,

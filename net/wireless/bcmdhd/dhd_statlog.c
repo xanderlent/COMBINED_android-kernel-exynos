@@ -31,9 +31,7 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_dbg.h>
-#if defined(LINUX) || defined(linux)
 #include <linux/rtc.h>
-#endif /* LINUX || linux */
 
 #ifdef DHD_STATUS_LOGGING
 
@@ -682,7 +680,6 @@ dhd_statlog_get_timestamp(stat_elem_t *elem, uint64 *sec, uint64 *usec)
 static void
 dhd_statlog_convert_time(stat_elem_t *elem, uint8 *buf, uint32 buflen)
 {
-#if defined(LINUX) || defined(linux)
 	struct rtc_time tm;
 	uint64 ts_sec, rem_usec;
 
@@ -700,7 +697,6 @@ dhd_statlog_convert_time(stat_elem_t *elem, uint8 *buf, uint32 buflen)
 		tm.tm_year - 100, tm.tm_mon + 1, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec,
 		(uint32)(rem_usec / USEC_PER_MSEC));
-#endif /* LINUX || linux */
 }
 
 #ifdef DHD_LOG_DUMP

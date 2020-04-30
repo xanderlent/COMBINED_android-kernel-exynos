@@ -51,11 +51,7 @@ typedef enum wl_he_rates {
 	HE_RATE_MCS11
 } wl_he_rates_t;
 
-#if defined(WLPROPRIETARY_11N_RATES)
-#define WL_RATESET_SZ_HT_MCS	WL_RATESET_SZ_VHT_MCS
-#else
 #define WL_RATESET_SZ_HT_MCS	8
-#endif
 
 #define WL_RATESET_SZ_HT_IOCTL	8	/* MAC histogram, compatibility with wl utility */
 
@@ -1232,15 +1228,8 @@ typedef enum clm_ru_rates {
 #define GET_11N_MCS_NSS(mcs) ((mcs) < 32 ? (1 + ((mcs) / 8)) : \
 			      ((mcs) == 32 ? 1 : GET_PROPRIETARY_11N_MCS_NSS(mcs)))
 
-#if defined(WLPROPRIETARY_11N_RATES) /* Broadcom proprietary rate support for 11n */
-#define IS_PROPRIETARY_11N_MCS(mcs) \
-	((mcs) == 87 || (mcs) == 88 || (mcs) == 99 || (mcs) == 100 || (mcs) == 101 || (mcs) == 102)
-#define IS_PROPRIETARY_11N_SS_MCS(mcs) \
-	((mcs) == 87 || (mcs) == 88)
-#else
 #define IS_PROPRIETARY_11N_MCS(mcs)	FALSE
 #define IS_PROPRIETARY_11N_SS_MCS(mcs)	FALSE /**< is proprietary HT single stream MCS */
-#endif	/* WLPROPRIETARY_11N_RATES */
 
 /* Macros to be used for calculating rate from PLCP (wf_he_plcp_to_rate) */
 #define HE_SU_PLCP2RATE_MCS_MASK	0x0F

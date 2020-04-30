@@ -27,15 +27,6 @@
 #ifndef wlioctl_defs_h
 #define wlioctl_defs_h
 
-#ifdef EFI
-/*
- * This is the Broadcom-specific guid selector for IOCTL handler in the 80211 Protocol
- * define for EFI. However, we use last 4 nibbles to communicate 'cmd' from tool to
- * driver.
- */
-#define BCMWL_IOCTL_GUID \
-	{0xB4910A35, 0x88C5, 0x4328, { 0x90, 0x08, 0x9F, 0xB2, 0x00, 0x00, 0x0, 0x0 } }
-#endif /* EFI */
 /* All builds use the new 11ac ratespec/chanspec */
 #undef  D11AC_IOTYPES
 #define D11AC_IOTYPES
@@ -81,14 +72,6 @@
 
 #define HIGHEST_SINGLE_STREAM_MCS	7 /* MCS values greater than this enable multiple streams */
 
-#ifndef OEM_ANDROID
-/* 'proprietary' string should not exist in open source(OEM_ANDROID) */
-/* given a proprietary MCS, get number of spatial streams */
-#define GET_PROPRIETARY_11N_MCS_NSS(mcs) (1 + ((mcs) - 85) / 8)
-
-#define GET_11N_MCS_NSS(mcs) ((mcs) < 32 ? (1 + ((mcs) / 8)) \
-				: ((mcs) == 32 ? 1 : GET_PROPRIETARY_11N_MCS_NSS(mcs)))
-#endif /* !OEM_ANDROID */
 #endif /* !USE_NEW_RSPEC_DEFS */
 
 /* Legacy defines for the nrate iovar */
@@ -111,11 +94,7 @@
 #define WLC_11N_LAST_PROP_MCS	102
 
 #define MAX_CCA_CHANNELS 38	/* Max number of 20 Mhz wide channels */
-#ifdef DONGLEBUILD
-#define MAX_CCA_SECS	1	/* CCA keeps this many seconds history - trimmed for dongle */
-#else
 #define MAX_CCA_SECS	60	/* CCA keeps this many seconds history */
-#endif
 
 #define IBSS_MED        15	/* Mediom in-bss congestion percentage */
 #define IBSS_HI         25	/* Hi in-bss congestion percentage */
@@ -527,30 +506,14 @@
 #define CKIP_MIC_ENABLED	0x0020
 #endif /* BCMCCX */
 #define SES_OW_ENABLED		0x0040	/* to go into transition mode without setting wep */
-#ifdef WLFIPS
-#define FIPS_ENABLED	0x0080
-#endif /* WLFIPS */
 
 #ifdef BCMWAPI_WPI
 #define SMS4_ENABLED		0x0100
 #endif /* BCMWAPI_WPI */
 
-#ifdef DONGLEBUILD
-/* wsec macros for operating on the above definitions */
-#ifdef WLWSEC
 #define WSEC_WEP_ENABLED(wsec)	((wsec) & WEP_ENABLED)
 #define WSEC_TKIP_ENABLED(wsec)	((wsec) & TKIP_ENABLED)
 #define WSEC_AES_ENABLED(wsec)	((wsec) & AES_ENABLED)
-#else
-#define WSEC_WEP_ENABLED(wsec) NULL
-#define WSEC_TKIP_ENABLED(wsec) NULL
-#define WSEC_AES_ENABLED(wsec) NULL
-#endif /* WLWSEC */
-#else
-#define WSEC_WEP_ENABLED(wsec)	((wsec) & WEP_ENABLED)
-#define WSEC_TKIP_ENABLED(wsec)	((wsec) & TKIP_ENABLED)
-#define WSEC_AES_ENABLED(wsec)	((wsec) & AES_ENABLED)
-#endif /* DONGLEBUILD */
 
 /* Macros to check if algorithm is enabled */
 #define	WSEC_INFO_ALGO_ENABLED(_wi, _algo) \
@@ -558,8 +521,6 @@
 
 #define WSEC_INFO_ALGO_NONE(_wi) (((_wi).cur_algos) == 0)
 
-#ifdef DONGLEBUILD
-#ifdef WLWSEC
 #ifdef BCMCCX // MOG-NO
 #define WSEC_CKIP_KP_ENABLED(wsec)	((wsec) & CKIP_KP_ENABLED)
 #define WSEC_CKIP_MIC_ENABLED(wsec)	((wsec) & CKIP_MIC_ENABLED)
@@ -586,37 +547,6 @@
 #define WSEC_ENABLED(wsec)	((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED))
 #endif /* BCMWAPI_WPI */
 #endif /* BCMCCX */
-#else
-#define WSEC_ENABLED(wsec) 0
-#endif /* WLWSEC */
-#else
-#ifdef BCMCCX // MOG-NO
-#define WSEC_CKIP_KP_ENABLED(wsec)	((wsec) & CKIP_KP_ENABLED)
-#define WSEC_CKIP_MIC_ENABLED(wsec)	((wsec) & CKIP_MIC_ENABLED)
-#define WSEC_CKIP_ENABLED(wsec)	((wsec) & (CKIP_KP_ENABLED|CKIP_MIC_ENABLED))
-
-#ifdef BCMWAPI_WPI
-#define WSEC_ENABLED(wsec) \
-	((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED | CKIP_KP_ENABLED |	\
-	  CKIP_MIC_ENABLED | SMS4_ENABLED))
-#endif /* BCMWAPI_WPI */
-
-#ifndef BCMWAPI_WPI /* BCMWAPI_WPI */
-#define WSEC_ENABLED(wsec) \
-		((wsec) & \
-		 (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED | CKIP_KP_ENABLED | CKIP_MIC_ENABLED))
-#endif /* BCMWAPI_WPI */
-#else /* defined BCMCCX */
-
-#ifdef BCMWAPI_WPI
-#define WSEC_ENABLED(wsec)	((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED | SMS4_ENABLED))
-#endif /* BCMWAPI_WPI */
-
-#ifndef BCMWAPI_WPI /* BCMWAPI_WPI */
-#define WSEC_ENABLED(wsec)	((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED))
-#endif /* BCMWAPI_WPI */
-#endif /* BCMCCX */
-#endif /* DONGLEBUILD */
 
 #define WSEC_SES_OW_ENABLED(wsec)	((wsec) & SES_OW_ENABLED)
 
@@ -1481,10 +1411,6 @@
 /* re-using WL_SRSCAN_VAL */
 #define WL_RANDMAC_VAL		0x02000000
 
-#ifdef WLAWDL
-#define WL_AWDL_VAL		0x08000000
-#endif /* WLAWDL */
-
 #define WL_UNUSED_VAL		0x10000000	/* Was a duplicate for WL_LPC_VAL. Removed */
 #define WL_NET_DETECT_VAL	0x20000000
 #define WL_OCE_VAL  0x20000000 /* reuse */
@@ -2243,30 +2169,6 @@
 #endif /* WL_PKT_FLTR_EXT && !WL_PKT_FLTR_EXT_DISABLED */
 #define ND_REQUEST_MAX		5	/* Max set of offload params */
 
-#ifdef WLAWDL
-/* AWDL AF flags for awdl_oob_af iovar */
-#define AWDL_OOB_AF_FILL_TSF_PARAMS			0x00000001
-#define AWDL_OOB_AF_FILL_SYNC_PARAMS		0x00000002
-#define AWDL_OOB_AF_FILL_ELECT_PARAMS		0x00000004
-#define AWDL_OOB_AF_PARAMS_SIZE 38
-
-#define AWDL_OPMODE_AUTO	0
-#define AWDL_OPMODE_FIXED	1
-
-#define AWDL_PEER_STATE_OPEN	0
-#define AWDL_PEER_STATE_CLOSE	1
-
-#define SYNC_ROLE_SLAVE			0
-#define SYNC_ROLE_NE_MASTER		1	/* Non-election master */
-#define SYNC_ROLE_MASTER		2
-
-/* peer opcode */
-#define AWDL_PEER_OP_ADD	0
-#define AWDL_PEER_OP_DEL	1
-#define AWDL_PEER_OP_INFO	2
-#define AWDL_PEER_OP_UPD	3
-#endif /* WLAWDL */
-
 /* AOAC wake event flag */
 #define WAKE_EVENT_NLO_DISCOVERY_BIT		1
 #define WAKE_EVENT_AP_ASSOCIATION_LOST_BIT	2
@@ -2312,23 +2214,6 @@
 #define BCM_DCS_IOVAR		0x1
 #define BCM_DCS_UNKNOWN		0xFF
 
-#ifdef EXT_STA
-#define IHV_OID_BCM 0x00181000	/* based on BRCM_OUI value */
-/* ---------------------------------------------------------------------------
-*  Event codes
-* ---------------------------------------------------------------------------
-*/
-#ifdef BCMCCX // MOG-NO
-#define IHV_CCX_EVENT_STATUS_INDICATION                 0x00000001L     /* from driver */
-#define IHV_CCX_EVENT_PACKET_RECEIVED                   0x00000002L     /* from driver */
-#define IHV_CCX_EVENT_PACKET_TRANSMITTED                0x00000003L     /* from driver */
-#define IHV_CCX_EVENT_OID                               0x00000004L     /* to driver */
-#define IHV_CCX_EVENT_OK_TO_ASSOCIATE                   0x00000005L     /* to driver */
-#define IHV_CCX_EVENT_SEND_PACKET                       0x00000006L     /* to driver */
-#endif /* BCMCCX */
-
-#define IHV_DRIVER_EVENT_GEN_INDICATION                 0x00000011L     /* from driver */
-#endif /* EXT_STA */
 #ifdef PROP_TXSTATUS
 /* Bit definitions for tlv iovar */
 /*
@@ -2483,10 +2368,6 @@
 #define WL_PWRSTATS_TYPE_USB_HSIC	2 /**< struct wl_pwr_usb_hsic_stats */
 #define WL_PWRSTATS_TYPE_PM_AWAKE1	3 /**< struct wl_pwr_pm_awake_stats_v1 */
 #define WL_PWRSTATS_TYPE_CONNECTION	4 /* struct wl_pwr_connect_stats; assoc and key-exch time */
-
-#ifdef WLAWDL
-#define WL_PWRSTATS_TYPE_AWDL		5 /**< struct wl_pwr_awdl_stats; */
-#endif /* WLAWDL */
 
 #define WL_PWRSTATS_TYPE_PCIE		6 /**< struct wl_pwr_pcie_stats */
 #define WL_PWRSTATS_TYPE_PM_AWAKE2	7 /**< struct wl_pwr_pm_awake_stats_v2 */

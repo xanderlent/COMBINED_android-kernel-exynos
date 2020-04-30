@@ -24,10 +24,6 @@
 #ifndef __wlfc_host_driver_definitions_h__
 #define __wlfc_host_driver_definitions_h__
 
-#ifdef QMONITOR
-#include <dhd_qmon.h>
-#endif
-
 /* #define OOO_DEBUG */
 
 #define KERNEL_THREAD_RETURN_TYPE int
@@ -111,13 +107,8 @@ typedef struct wlfc_hanger {
 
 #define WLFC_PSQ_LEN			(4096 * 8)
 
-#ifdef BCMDBUS
-#define WLFC_FLOWCONTROL_HIWATER	512
-#define WLFC_FLOWCONTROL_LOWATER	(WLFC_FLOWCONTROL_HIWATER / 4)
-#else
 #define WLFC_FLOWCONTROL_HIWATER	((4096 * 8) - 256)
 #define WLFC_FLOWCONTROL_LOWATER	256
-#endif
 
 #if (WLFC_FLOWCONTROL_HIWATER >= (WLFC_PSQ_LEN - 256))
 #undef WLFC_FLOWCONTROL_HIWATER
@@ -145,11 +136,6 @@ typedef struct wlfc_mac_descriptor {
 	struct pktq	psq;    /**< contains both 'delayed' and 'suppressed' packets */
 	/** packets at firmware queue */
 	struct pktq	afq;
-#if defined(BCMINTERNAL) && defined(OOO_DEBUG)
-	uint8 last_send_gen[AC_COUNT+1];
-	uint8 last_send_seq[AC_COUNT+1];
-	uint8 last_complete_seq[AC_COUNT+1];
-#endif /* defined(BCMINTERNAL) && defined(OOO_DEBUG) */
 	/** The AC pending bitmap that was reported to the fw at last change */
 	uint8 traffic_lastreported_bmp;
 	/** The new AC pending bitmap */
@@ -165,10 +151,6 @@ typedef struct wlfc_mac_descriptor {
 	int onbus_pkts_count;
 	/** flag. TRUE when remote MAC is in suppressed state */
 	uint8 suppressed;
-
-#ifdef QMONITOR
-	dhd_qmon_t qmon;
-#endif /* QMONITOR */
 
 #ifdef PROP_TXSTATUS_DEBUG
 	uint32 dstncredit_sent_packets;
@@ -351,11 +333,6 @@ typedef struct athost_wl_status_info {
 
 	bool	bcmc_credit_supported;
 
-#if defined(BCMINTERNAL) && defined(OOO_DEBUG)
-	uint8*	log_buf;
-	uint32	log_buf_offset;
-	bool	log_buf_full;
-#endif /* defined(BCMINTERNAL) && defined(OOO_DEBUG) */
 } athost_wl_status_info_t;
 
 /** Please be mindful that total pkttag space is 32 octets only */

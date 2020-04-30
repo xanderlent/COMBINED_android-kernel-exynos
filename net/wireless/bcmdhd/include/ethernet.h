@@ -183,24 +183,6 @@ do { \
 	((uint16 *)(d))[6] = ((const uint16 *)(s))[6]; \
 } while (0)
 
-#ifdef DONGLEBUILD
-
-/* Dongles use bcmutils functions instead of macros.
- * Possibly slower but saves over 800 bytes off THUMB dongle image.
- */
-
-extern const struct ether_addr ether_bcast;
-extern const struct ether_addr ether_null;
-extern const struct ether_addr ether_ipv6_mcast;
-
-extern int ether_isbcast(const void *ea);
-extern int ether_isnulladdr(const void *ea);
-
-#define ETHER_ISBCAST(ea)	ether_isbcast(ea)
-#define ETHER_ISNULLADDR(ea)	ether_isnulladdr(ea)
-
-#else /* !DONGLEBUILD */
-
 static const struct ether_addr ether_bcast = {{255, 255, 255, 255, 255, 255}};
 static const struct ether_addr ether_null = {{0, 0, 0, 0, 0, 0}};
 static const struct ether_addr ether_ipv6_mcast = {{0x33, 0x33, 0x00, 0x00, 0x00, 0x01}};
@@ -217,8 +199,6 @@ static const struct ether_addr ether_ipv6_mcast = {{0x33, 0x33, 0x00, 0x00, 0x00
 				  ((const uint8 *)(ea))[3] |		\
 				  ((const uint8 *)(ea))[4] |		\
 				  ((const uint8 *)(ea))[5]) == 0)
-
-#endif /* !DONGLEBUILD */
 
 #define ETHER_ISNULLDEST(da)	((((const uint16 *)(da))[0] |           \
 				  ((const uint16 *)(da))[1] |           \

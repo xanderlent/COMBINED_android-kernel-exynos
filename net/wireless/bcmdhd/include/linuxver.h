@@ -144,7 +144,8 @@
 #define	MY_INIT_WORK(_work, _func)	INIT_WORK(_work, _func)
 #else
 #define	MY_INIT_WORK(_work, _func)	INIT_WORK(_work, _func, _work)
-#if (!(LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 18) && defined(RHEL_MAJOR) && (RHEL_MAJOR == 5)))
+#if !(LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 18) && defined(RHEL_MAJOR) && \
+	(RHEL_MAJOR == 5))
 /* Exclude RHEL 5 */
 typedef void (*work_func_t)(void *work);
 #endif
@@ -348,13 +349,8 @@ static inline void pci_free_consistent(struct pci_dev *hwdev, size_t size,
 {
 	free_pages((unsigned long)vaddr, get_order(size));
 }
-#ifdef ILSIM
-extern uint pci_map_single(void *dev, void *va, uint size, int direction);
-extern void pci_unmap_single(void *dev, uint pa, uint size, int direction);
-#else
 #define pci_map_single(cookie, address, size, dir)	virt_to_bus(address)
 #define pci_unmap_single(cookie, address, size, dir)
-#endif
 
 #endif /* DMA mapping */
 

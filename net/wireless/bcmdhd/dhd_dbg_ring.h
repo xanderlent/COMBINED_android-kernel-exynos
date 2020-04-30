@@ -28,11 +28,7 @@
 
 #include <bcmutils.h>
 
-#if defined(LINUX)
 #define PACKED_STRUCT __attribute__ ((packed))
-#else
-#define PACKED_STRUCT
-#endif
 
 #define DBGRING_NAME_MAX 32
 

@@ -181,13 +181,7 @@ extern int ether_isnulladdr(const void *ea);
 #define CORE_BASE_ADDR_0	0
 #define CORE_BASE_ADDR_1	1
 
-#ifdef DONGLEBUILD
-/* TRIM Tail bytes from lfrag */
-extern void pktfrag_trim_tailbytes(osl_t * osh, void* p, uint16 len, uint8 type);
-#define PKTFRAG_TRIM_TAILBYTES(osh, p, len, type)	pktfrag_trim_tailbytes(osh, p, len, type)
-#else
 #define PKTFRAG_TRIM_TAILBYTES(osh, p, len, type)	PKTSETLEN(osh, p, PKTLEN(osh, p) - len)
-#endif /* DONGLEBUILD */
 
 /* externs */
 /* packet */
@@ -238,9 +232,6 @@ extern bool pktgetdscp(uint8 *pktdata, uint pktlen, uint8 *dscp);
 
 /* ethernet address */
 extern char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf);
-#ifdef DONGLEBUILD
-extern uint64 BCMCONSTFN(bcm_ether_ntou64)(const struct ether_addr *ea);
-#endif /* DONGLEBUILD */
 extern int bcm_ether_atoe(const char *p, struct ether_addr *ea);
 extern int BCMRAMFN(bcm_addrmask_set)(int enable);
 extern int bcm_addrmask_get(int *val);
@@ -257,16 +248,6 @@ extern void bcm_mdelay(uint ms);
 #if defined(BCM_RECLAIM)
 extern bool _nvram_reclaim_enb;
 #define NVRAM_RECLAIM_ENAB() (_nvram_reclaim_enb)
-#ifdef BCMDBG
-#define NVRAM_RECLAIM_CHECK(name)							\
-	if (NVRAM_RECLAIM_ENAB() && (bcm_attach_part_reclaimed == TRUE)) {		\
-		printf("NVRAM already reclaimed, %s\n", (name));			\
-		GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF();				\
-		*(char*) 0 = 0; /* TRAP */						\
-		GCC_DIAGNOSTIC_POP();							\
-		return NULL;								\
-	}
-#else /* BCMDBG */
 #define NVRAM_RECLAIM_CHECK(name)							\
 	if (NVRAM_RECLAIM_ENAB() && (bcm_attach_part_reclaimed == TRUE)) {		\
 		GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF();				\
@@ -274,7 +255,6 @@ extern bool _nvram_reclaim_enb;
 		GCC_DIAGNOSTIC_POP();							\
 		return NULL;								\
 	}
-#endif /* BCMDBG */
 #else /* BCM_RECLAIM */
 #define NVRAM_RECLAIM_CHECK(name)
 #endif /* BCM_RECLAIM */
@@ -301,42 +281,20 @@ extern uint get_slicespecific_var_name(osl_t *osh, char *vars_table_accessor,
 	const char *name, char **name_out);
 
 extern uint getgpiopin(char *vars, char *pin_name, uint def_pin);
-#ifdef BCMDBG
-extern void prpkt(const char *msg, osl_t *osh, void *p0);
-#endif /* BCMDBG */
-#ifdef BCMPERFSTATS
-extern void bcm_perf_enable(void);
-extern void bcmstats(char *fmt);
-extern void bcmlog(char *fmt, uint a1, uint a2);
-extern void bcmdumplog(char *buf, int size);
-extern int bcmdumplogent(char *buf, uint idx);
-#else
 #define bcm_perf_enable()
 #define bcmstats(fmt)
 #define	bcmlog(fmt, a1, a2)
 #define	bcmdumplog(buf, size)	*buf = '\0'
 #define	bcmdumplogent(buf, idx)	-1
-#endif /* BCMPERFSTATS */
 
 #define TSF_TICKS_PER_MS	1000
 #define TS_ENTER		0xdeadbeef	/* Timestamp profiling enter */
 #define TS_EXIT			0xbeefcafe	/* Timestamp profiling exit */
 
-#if defined(BCMTSTAMPEDLOGS)
-/* Store a TSF timestamp and a log line in the log buffer */
-extern void bcmtslog(uint32 tstamp, const char *fmt, uint a1, uint a2);
-/* Print out the log buffer with timestamps */
-extern void bcmprinttslogs(void);
-/* Print out a microsecond timestamp as "sec.ms.us " */
-extern void bcmprinttstamp(uint32 us);
-/* Dump to buffer a microsecond timestamp as "sec.ms.us " */
-extern void bcmdumptslog(struct bcmstrbuf *b);
-#else
 #define bcmtslog(tstamp, fmt, a1, a2)
 #define bcmprinttslogs()
 #define bcmprinttstamp(us)
 #define bcmdumptslog(b)
-#endif /* BCMTSTAMPEDLOGS */
 
 bool bcm_match_buffers(const uint8 *b1, uint b1_len, const uint8 *b2, uint b2_len);
 
@@ -381,10 +339,10 @@ typedef struct wlc_ioctl_cmd {
 	uint16 min_len;			/**< IOCTL command minimum argument len (in bytes) */
 } wlc_ioctl_cmd_t;
 
-#if defined(WLTINYDUMP) || defined(BCMDBG) || defined(WLMSG_INFORM) || \
-	defined(WLMSG_ASSOC) || defined(WLMSG_PRPKT) || defined(WLMSG_WSEC)
+#if defined(WLTINYDUMP) || defined(WLMSG_INFORM) || defined(WLMSG_ASSOC) || \
+	defined(WLMSG_PRPKT) || defined(WLMSG_WSEC)
 extern int bcm_format_ssid(char* buf, const uchar ssid[], uint ssid_len);
-#endif /* WLTINYDUMP || BCMDBG || WLMSG_INFORM || WLMSG_ASSOC || WLMSG_PRPKT */
+#endif
 #endif	/* BCMDRIVER */
 
 /* string */
@@ -759,11 +717,7 @@ extern int bcm_find_fsb(uint32 num);
 
 #define	isbitset(a, i)	(((a) & (1 << (i))) != 0)
 
-#if defined DONGLEBUILD
-#define	NBITS(type)	(sizeof(type) * 8)
-#else
 #define	NBITS(type)	((uint32)(sizeof(type) * 8))
-#endif  /* DONGLEBUILD */
 #define NBITVAL(nbits)	(1 << (nbits))
 #define MAXBITVAL(nbits)	((1 << (nbits)) - 1)
 #define	NBITMASK(nbits)	MAXBITVAL(nbits)
@@ -830,16 +784,6 @@ DECLARE_MAP_API(8, 2, 3, 3u, 0x00FFu) /* setbit8() and getbit8() */
 #define CRC32_INIT_VALUE 0xffffffff	/* Initial CRC32 checksum value */
 #define CRC32_GOOD_VALUE 0xdebb20e3	/* Good final CRC32 checksum value */
 
-#ifdef DONGLEBUILD
-#define MACF				"MACADDR:%08x%04x"
-#define ETHERP_TO_MACF(ea)		(uint32)bcm_ether_ntou64(ea), \
-					(uint32)(bcm_ether_ntou64(ea) >> 32)
-
-#define CONST_ETHERP_TO_MACF(ea)	ETHERP_TO_MACF(ea)
-
-#define ETHER_TO_MACF(ea)		ETHERP_TO_MACF(&ea)
-
-#else
 /* use for direct output of MAC address in printf etc */
 #define MACF				"%02x:%02x:%02x:%02x:%02x:%02x"
 #define ETHERP_TO_MACF(ea)	((const struct ether_addr *) (ea))->octet[0], \
@@ -857,7 +801,6 @@ DECLARE_MAP_API(8, 2, 3, 3u, 0x00FFu) /* setbit8() and getbit8() */
 				(ea).octet[3], \
 				(ea).octet[4], \
 				(ea).octet[5]
-#endif /* DONGLEBUILD */
 /* use only for debug, the string length can be changed
  * If you want to use this macro to the logic,
  * USE MACF instead
@@ -951,9 +894,6 @@ int bcm_format_octets(const bcm_bit_desc_t *bd, uint bdsz,
 
 extern int bcm_format_hex(char *str, const void *bytes, uint len);
 
-#ifdef BCMDBG
-extern void deadbeef(void *p, uint len);
-#endif
 extern const char *bcm_crypto_algo_name(uint algo);
 extern char *bcm_chipname(uint chipid, char *buf, uint len);
 extern char *bcm_brev_str(uint32 brev, char *buf);
@@ -963,7 +903,7 @@ extern void prhex(const char *msg, const uchar *buf, uint len);
 /* bcmerror */
 extern const char *bcmerrorstr(int bcmerror);
 
-#if defined(BCMDBG) || defined(WLMSG_ASSOC)
+#if defined(WLMSG_ASSOC)
 /* get 802.11 frame name based on frame kind - see frame types FC_.. in 802.11.h */
 const char *bcm_80211_fk_name(uint fk);
 #else
@@ -1008,55 +948,11 @@ extern uint16 bcm_qdbm_to_mw(uint8 qdbm);
 extern uint8 bcm_mw_to_qdbm(uint16 mw);
 extern uint bcm_mkiovar(const char *name, const char *data, uint datalen, char *buf, uint len);
 
-#ifdef BCMDBG_PKT  /* pkt logging for debugging */
-#define PKTLIST_SIZE 3000
-
-#ifdef BCMDBG_PTRACE
-#define PKTTRACE_MAX_BYTES	12
-#define PKTTRACE_MAX_BITS	(PKTTRACE_MAX_BYTES * NBBY)
-
-enum pkttrace_info {
-	PKTLIST_PRECQ,		/* Pkt in Prec Q */
-	PKTLIST_FAIL_PRECQ, 	/* Pkt failed to Q in PRECQ */
-	PKTLIST_DMAQ,		/* Pkt in DMA Q */
-	PKTLIST_MI_TFS_RCVD,	/* Received TX status */
-	PKTLIST_TXDONE,		/* Pkt TX done */
-	PKTLIST_TXFAIL,		/* Pkt TX failed */
-	PKTLIST_PKTFREE,	/* pkt is freed */
-	PKTLIST_PRECREQ,	/* Pkt requeued in precq */
-	PKTLIST_TXFIFO		/* To trace in wlc_fifo */
-};
-#endif /* BCMDBG_PTRACE */
-
-typedef struct pkt_dbginfo {
-	int     line;
-	char    *file;
-	void	*pkt;
-#ifdef BCMDBG_PTRACE
-	char	pkt_trace[PKTTRACE_MAX_BYTES];
-#endif /* BCMDBG_PTRACE */
-} pkt_dbginfo_t;
-
-typedef struct {
-	pkt_dbginfo_t list[PKTLIST_SIZE]; /* List of pointers to packets */
-	uint16 count; /* Total count of the packets */
-} pktlist_info_t;
-
-extern void pktlist_add(pktlist_info_t *pktlist, void *p, int len, char *file);
-extern void pktlist_remove(pktlist_info_t *pktlist, void *p);
-extern char* pktlist_dump(pktlist_info_t *pktlist, char *buf);
-#ifdef BCMDBG_PTRACE
-extern void pktlist_trace(pktlist_info_t *pktlist, void *pkt, uint16 bit);
-#endif /* BCMDBG_PTRACE */
-#endif  /* BCMDBG_PKT */
 unsigned int process_nvram_vars(char *varbuf, unsigned int len);
 bool replace_nvram_variable(char *varbuf, unsigned int buflen, const char *variable,
 	unsigned int *datalen);
 
 /* trace any object allocation / free, with / without features (flags) set to the object */
-#if (defined(DONGLEBUILD) && defined(BCMDBG_MEM) && (!defined(BCM_OBJECT_TRACE)))
-#define BCM_OBJECT_TRACE
-#endif /* (defined(DONGLEBUILD) && defined(BCMDBG_MEM) && (!defined(BCM_OBJECT_TRACE))) */
 
 #define BCM_OBJDBG_ADD           1
 #define BCM_OBJDBG_REMOVE        2
@@ -1403,9 +1299,6 @@ void * dll_pool_alloc(dll_pool_t * dll_pool_p);
 void dll_pool_free(dll_pool_t * dll_pool_p, void * elem_p);
 void dll_pool_free_tail(dll_pool_t * dll_pool_p, void * elem_p);
 typedef void (* dll_elem_dump)(void * elem_p);
-#ifdef BCMDBG
-void dll_pool_dump(dll_pool_t * dll_pool_p, dll_elem_dump dump);
-#endif
 void dll_pool_detach(void * osh, dll_pool_t * pool, uint16 elems_max, uint16 elem_size);
 
 int valid_bcmerror(int e);
@@ -1478,8 +1371,6 @@ void counter_printlog(counter_tbl_t *ctr_tbl);
 
 #if defined(__GNUC__)
 #define CALL_SITE __builtin_return_address(0)
-#elif defined(_WIN32)
-#define CALL_SITE _ReturnAddress()
 #else
 #define CALL_SITE ((void*) 0)
 #endif
@@ -1573,10 +1464,10 @@ typedef struct varbuf {
 } varbuf_t;
 
 /** Initialization of varbuf structure */
-void BCMATTACHFN(varbuf_init)(varbuf_t *b, char *buf, uint size);
+void varbuf_init(varbuf_t *b, char *buf, uint size);
 /** append a null terminated var=value string */
-int BCMATTACHFN(varbuf_append)(varbuf_t *b, const char *fmt, ...);
-#if defined(DONGLEBUILD) || defined(BCMDRIVER)
+int varbuf_append(varbuf_t *b, const char *fmt, ...);
+#if defined(BCMDRIVER)
 int initvars_table(osl_t *osh, char *start, char *end, char **vars, uint *count);
 #endif
 

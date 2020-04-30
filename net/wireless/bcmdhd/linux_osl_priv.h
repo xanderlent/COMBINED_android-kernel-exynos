@@ -135,10 +135,6 @@ struct osl_cmn_info {
 	spinlock_t dbgmem_lock;
 	bcm_mem_link_t *dbgmem_list;
 	bcm_mem_link_t *dbgvmem_list;
-#ifdef BCMDBG_PKT    /* pkt logging for debugging */
-	spinlock_t pktlist_lock;
-	pktlist_info_t pktlist;
-#endif  /* BCMDBG_PKT */
 	spinlock_t pktalloc_lock;
 	atomic_t refcount; /* Number of references to this shared structure. */
 };
@@ -162,11 +158,6 @@ struct osl_info {
 	 * a work around, save the bus handle here
 	 */
 	void *bus_handle;
-#ifdef BCMDBG_CTRACE
-	spinlock_t ctrace_lock;
-	struct list_head ctrace_list;
-	int ctrace_num;
-#endif /* BCMDBG_CTRACE */
 #if defined(AXI_TIMEOUTS_NIC)
 	bpt_cb_fn bpt_cb;
 	void *sih;

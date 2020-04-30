@@ -128,10 +128,6 @@ enum wl_cfgp2p_status {
 /* dword align allocation */
 #define WLC_IOCTL_MAXLEN 8192
 
-/* Samsung want to print INFO2 instead of ERROR
- * because most of case, ERROR message is not a real ERROR.
- * but it can be regarded as real error case for Tester
- */
 #ifdef CUSTOMER_HW4_DEBUG
 #define CFGP2P_ERROR_TEXT		"CFGP2P-INFO2) "
 #else
@@ -208,8 +204,7 @@ enum wl_cfgp2p_status {
 		add_timer(timer); \
 	} while (0);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) && \
-	 !defined(WL_CFG80211_P2P_DEV_IF)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) && !defined(WL_CFG80211_P2P_DEV_IF)
 #define WL_CFG80211_P2P_DEV_IF
 
 #ifdef WL_ENABLE_P2P_IF
@@ -240,8 +235,7 @@ enum wl_cfgp2p_status {
 	or kernel version is 3.8.0 or above
 #endif /* WL_ENABLE_P2P_IF && (WL_CFG80211_P2P_DEV_IF || (LINUX_VERSION >= VERSION(3, 8, 0))) */
 
-#if !defined(WLP2P) && \
-	(defined(WL_ENABLE_P2P_IF) || defined(WL_CFG80211_P2P_DEV_IF))
+#if !defined(WLP2P) && (defined(WL_ENABLE_P2P_IF) || defined(WL_CFG80211_P2P_DEV_IF))
 #error WLP2P not defined
 #endif /* !WLP2P && (WL_ENABLE_P2P_IF || WL_CFG80211_P2P_DEV_IF) */
 

@@ -59,11 +59,8 @@
 #include <wl_cfgp2p.h>
 #include <bcmdevs.h>
 
-#ifdef OEM_ANDROID
 #include <wl_android.h>
-#endif
 
-#if defined(BCMDONGLEHOST)
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_linux.h>
@@ -73,7 +70,6 @@
 #include <dhd_cfg80211.h>
 #include <dhd_bus.h>
 #include <wl_cfgvendor.h>
-#endif /* defined(BCMDONGLEHOST) */
 #ifdef BCMPCIE
 #include <dhd_flowring.h>
 #endif
@@ -1188,7 +1184,8 @@ exit:
 	return err;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(SUPPORT_RANDOM_MAC_SCAN)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && \
+	defined(SUPPORT_RANDOM_MAC_SCAN)
 static const u8 *
 wl_retrieve_wps_attribute(const u8 *buf, u16 element_id)
 {
@@ -1659,7 +1656,8 @@ wl_scan_prep(struct bcm_cfg80211 *cfg, void *scan_params, u32 len,
 	return BCME_OK;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(SUPPORT_RANDOM_MAC_SCAN)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && \
+	defined(SUPPORT_RANDOM_MAC_SCAN)
 static s32
 wl_config_scan_macaddr(struct bcm_cfg80211 *cfg,
 		struct net_device *ndev, bool randmac_enable, u8 *mac_addr, u8 *mac_addr_mask)
@@ -1758,7 +1756,8 @@ wl_run_escan(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		/* LEGACY SCAN TRIGGER */
 		WL_SCAN((" LEGACY E-SCAN START\n"));
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(SUPPORT_RANDOM_MAC_SCAN)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && \
+	defined(SUPPORT_RANDOM_MAC_SCAN)
 	if (request) {
 		bool randmac_enable = (request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR);
 		if (wl_is_wps_enrollee_active(ndev, request->ie, request->ie_len)) {
@@ -2098,13 +2097,11 @@ wl_cfgscan_handle_scanbusy(struct bcm_cfg80211 *cfg, struct net_device *ndev, s3
 		if (busy_count > SCAN_EBUSY_RETRY_LIMIT) {
 			struct ether_addr bssid;
 			s32 ret = 0;
-#ifdef BCMDONGLEHOST
 			dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
 			if (dhd_query_bus_erros(dhdp)) {
 				return BCME_NOTREADY;
 			}
 			dhdp->scan_busy_occurred = TRUE;
-#endif /* BCMDONGLEHOST */
 			busy_count = 0;
 			WL_ERR(("Unusual continuous EBUSY error, %d %d %d %d %d %d %d %d %d\n",
 				wl_get_drv_status(cfg, SCANNING, ndev),
@@ -2117,7 +2114,6 @@ wl_cfgscan_handle_scanbusy(struct bcm_cfg80211 *cfg, struct net_device *ndev, s3
 				wl_get_drv_status(cfg, SENDING_ACT_FRM, ndev),
 				wl_get_drv_status(cfg, SENDING_ACT_FRM, ndev)));
 
-#ifdef BCMDONGLEHOST
 #if defined(DHD_DEBUG) && defined(DHD_FW_COREDUMP)
 			if (dhdp->memdump_enabled) {
 				dhdp->memdump_type = DUMP_TYPE_SCAN_BUSY;
@@ -2126,15 +2122,13 @@ wl_cfgscan_handle_scanbusy(struct bcm_cfg80211 *cfg, struct net_device *ndev, s3
 #endif /* DHD_DEBUG && DHD_FW_COREDUMP */
 			dhdp->hang_reason = HANG_REASON_SCAN_BUSY;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(OEM_ANDROID)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 			dhd_os_send_hang_message(dhdp);
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(OEM_ANDROID) */
+#endif
 
-#if !((LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && \
-	defined(OEM_ANDROID))
+#if !(LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 			WL_ERR(("%s: HANG event is unsupported\n", __FUNCTION__));
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27) && OEM_ANDROID */
-#endif /* BCMDONGLEHOST */
 
 			bzero(&bssid, sizeof(bssid));
 			if ((ret = wldev_ioctl_get(ndev, WLC_GET_BSSID,
@@ -2241,12 +2235,6 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	wl_cfg80211_cancel_p2plo(cfg);
 #endif /* P2P_LISTEN_OFFLOADING */
 
-#ifdef WL_SDO
-	if (wl_get_p2p_status(cfg, DISC_IN_PROGRESS)) {
-		wl_cfg80211_pause_sdo(ndev, cfg);
-	}
-#endif
-
 	if (request) {		/* scan bss */
 		ssids = request->ssids;
 		p2p_ssid = false;
@@ -2352,28 +2340,15 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	if (request && cfg->p2p_supported) {
 		WL_TRACE_HW4(("START SCAN\n"));
 
-#if defined(BCMDONGLEHOST) && defined(OEM_ANDROID)
 		DHD_OS_SCAN_WAKE_LOCK_TIMEOUT((dhd_pub_t *)(cfg->pub),
 			SCAN_WAKE_LOCK_TIMEOUT);
 		DHD_DISABLE_RUNTIME_PM((dhd_pub_t *)(cfg->pub));
-#endif
 
 	}
 
 	if (cfg->p2p_supported) {
 		if (request && p2p_on(cfg) && p2p_scan(cfg)) {
 
-#ifdef WL_SDO
-			if (wl_get_p2p_status(cfg, DISC_IN_PROGRESS)) {
-				/* We shouldn't be getting p2p_find while discovery
-				 * offload is in progress
-				 */
-				WL_SD(("P2P_FIND: Discovery offload is in progress."
-					" Do nothing\n"));
-				err = -EINVAL;
-				goto scan_out;
-			}
-#endif
 			/* find my listen channel */
 			cfg->afx_hdl->my_listen_chan =
 				wl_find_listen_channel(cfg, request->ie,
@@ -2418,24 +2393,15 @@ scan_out:
 		if (scanbusy_err == BCME_NOTREADY) {
 			/* In case of bus failures avoid ioctl calls */
 
-#if defined(BCMDONGLEHOST) && defined(OEM_ANDROID)
 			DHD_OS_SCAN_WAKE_UNLOCK((dhd_pub_t *)(cfg->pub));
-#endif
 
 			return -ENODEV;
 		}
 		err = scanbusy_err;
 	}
 
-#if defined(BCMDONGLEHOST) && defined(OEM_ANDROID)
 	DHD_OS_SCAN_WAKE_UNLOCK((dhd_pub_t *)(cfg->pub));
-#endif
 
-#ifdef WL_SDO
-	if (wl_get_p2p_status(cfg, DISC_IN_PROGRESS)) {
-		wl_cfg80211_resume_sdo(ndev, cfg);
-	}
-#endif
 	return err;
 }
 
@@ -2625,8 +2591,8 @@ s32 wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 		err = BCME_ERROR;
 		goto out;
 	}
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(SUPPORT_RANDOM_MAC_SCAN) && \
-	(!defined(WL_USE_RANDOMIZED_SCAN))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && \
+	defined(SUPPORT_RANDOM_MAC_SCAN) && !defined(WL_USE_RANDOMIZED_SCAN)
 	/* Disable scanmac if enabled */
 	if (cfg->scanmac_enabled) {
 		wl_cfg80211_scan_mac_disable(ndev);
@@ -2655,7 +2621,7 @@ s32 wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 	/* clear scan enq time on complete */
 	CLR_TS(cfg, scan_enq);
 	CLR_TS(cfg, scan_start);
-#if defined (ESCAN_RESULT_PATCH)
+#if defined(ESCAN_RESULT_PATCH)
 	if (likely(cfg->scan_request)) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 		if (aborted && p2p_scan(cfg) &&
@@ -2711,19 +2677,8 @@ s32 wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 	}
 #endif /* WL_SCHED_SCAN */
 
-#if defined(BCMDONGLEHOST) && defined(OEM_ANDROID)
 	DHD_OS_SCAN_WAKE_UNLOCK((dhd_pub_t *)(cfg->pub));
 	DHD_ENABLE_RUNTIME_PM((dhd_pub_t *)(cfg->pub));
-#endif
-
-#ifdef WL_SDO
-	if (wl_get_p2p_status(cfg, DISC_IN_PROGRESS) && !in_atomic()) {
-		/* If it is in atomic, we probably have to wait till the
-		 * next event or find someother way of invoking this.
-		 */
-		wl_cfg80211_resume_sdo(ndev, cfg);
-	}
-#endif
 
 out:
 	return err;
@@ -2750,68 +2705,6 @@ wl_cfg80211_abort_scan(struct wiphy *wiphy, struct wireless_dev *wdev)
 	}
 }
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)) */
-
-#if defined(OEM_ANDROID) && defined(DHCP_SCAN_SUPPRESS)
-static void wl_cfg80211_scan_supp_timerfunc(ulong data)
-{
-	struct bcm_cfg80211 *cfg = (struct bcm_cfg80211 *)data;
-
-	WL_DBG(("Enter \n"));
-	schedule_work(&cfg->wlan_work);
-}
-
-int wl_cfg80211_scan_suppress(struct net_device *dev, int suppress)
-{
-	int ret = 0;
-	struct wireless_dev *wdev;
-	struct bcm_cfg80211 *cfg;
-	if (!dev || ((suppress != 0) && (suppress != 1))) {
-		ret = -EINVAL;
-		goto exit;
-	}
-	wdev = ndev_to_wdev(dev);
-	if (!wdev) {
-		ret = -EINVAL;
-		goto exit;
-	}
-	cfg = (struct bcm_cfg80211 *)wiphy_priv(wdev->wiphy);
-	if (!cfg) {
-		ret = -EINVAL;
-		goto exit;
-	}
-
-	if (suppress == cfg->scan_suppressed) {
-		WL_DBG(("No change in scan_suppress state. Ignoring cmd..\n"));
-		return 0;
-	}
-
-	if (timer_pending(&cfg->scan_supp_timer))
-		del_timer_sync(&cfg->scan_supp_timer);
-
-	if ((ret = wldev_ioctl_set(dev, WLC_SET_SCANSUPPRESS,
-		&suppress, sizeof(int))) < 0) {
-		WL_ERR(("Scan suppress setting failed ret:%d \n", ret));
-	} else {
-		WL_DBG(("Scan suppress %s \n", suppress ? "Enabled" : "Disabled"));
-		cfg->scan_suppressed = suppress;
-	}
-
-	/* If scan_suppress is set, Start a timer to monitor it (just incase) */
-	if (cfg->scan_suppressed) {
-		if (ret) {
-			WL_ERR(("Retry scan_suppress reset at a later time \n"));
-			mod_timer(&cfg->scan_supp_timer,
-				jiffies + msecs_to_jiffies(WL_SCAN_SUPPRESS_RETRY));
-		} else {
-			WL_DBG(("Start wlan_timer to clear of scan_suppress \n"));
-			mod_timer(&cfg->scan_supp_timer,
-				jiffies + msecs_to_jiffies(WL_SCAN_SUPPRESS_TIMEOUT));
-		}
-	}
-exit:
-	return ret;
-}
-#endif /* DHCP_SCAN_SUPPRESS */
 
 int wl_cfg80211_scan_stop(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev)
 {
@@ -3583,7 +3476,6 @@ wl_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	}
 
 	if (ssid_cnt) {
-#if defined(BCMDONGLEHOST)
 		if ((ret = dhd_dev_pno_set_for_ssid(dev, ssids_local, ssid_cnt,
 			pno_time, pno_repeat, pno_freq_expo_max,
 			(num_channels ? chan_list : NULL), num_channels)) < 0) {
@@ -3591,7 +3483,6 @@ wl_cfg80211_sched_scan_start(struct wiphy *wiphy,
 			ret = -EINVAL;
 			goto exit;
 		}
-#endif /* BCMDONGLEHOST */
 
 		if (DBG_RING_ACTIVE(dhdp, DHD_EVENT_RING_ID)) {
 			/*
@@ -3621,7 +3512,8 @@ wl_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		ret = -EINVAL;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(SUPPORT_RANDOM_MAC_SCAN)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && \
+	defined(SUPPORT_RANDOM_MAC_SCAN)
 	if ((ret = wl_config_scan_macaddr(cfg, dev,
 		(request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR),
 		request->mac_addr, request->mac_addr_mask)) != BCME_OK) {
@@ -3660,7 +3552,6 @@ wl_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)
 	WL_DBG(("Enter \n"));
 	WL_PNO((">>> SCHED SCAN STOP\n"));
 
-#if defined(BCMDONGLEHOST)
 	if (dhd_dev_pno_stop_for_ssid(dev) < 0) {
 		WL_ERR(("PNO Stop for SSID failed"));
 	} else {
@@ -3670,7 +3561,6 @@ wl_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)
 		 */
 		DBG_EVENT_LOG(dhdp, WIFI_EVENT_DRIVER_PNO_REMOVE);
 	}
-#endif /* BCMDONGLEHOST */
 
 	if (cfg->sched_scan_req) {
 		WL_PNO((">>> Sched scan running. Aborting it..\n"));
@@ -3762,9 +3652,7 @@ static void wl_scan_timeout(unsigned long data)
 	s32 i;
 	u32 channel;
 	u64 cur_time = OSL_LOCALTIME_NS();
-#ifdef BCMDONGLEHOST
 	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
-#endif /* BCMDONGLEHOST */
 	unsigned long flags;
 #ifdef RTT_SUPPORT
 	rtt_status_info_t *rtt_status = NULL;
@@ -3787,7 +3675,6 @@ static void wl_scan_timeout(unsigned long data)
 		return;
 	}
 
-#ifdef BCMDONGLEHOST
 	if (dhd_query_bus_erros(dhdp)) {
 		return;
 	}
@@ -3847,7 +3734,6 @@ static void wl_scan_timeout(unsigned long data)
 	}
 #endif /* DHD_KERNEL_SCHED_DEBUG && DHD_FW_COREDUMP */
 	dhd_bus_intr_count_dump(dhdp);
-#endif /* BCMDONGLEHOST */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) && !defined(CONFIG_MODULES)
 	/* Print WQ states. Enable only for in-built drivers as the symbol is not exported  */
@@ -3871,7 +3757,6 @@ static void wl_scan_timeout(unsigned long data)
 	ndev = wdev_to_wlc_ndev(wdev, cfg);
 	bzero(&msg, sizeof(wl_event_msg_t));
 	WL_ERR(("timer expired\n"));
-#ifdef BCMDONGLEHOST
 	dhdp->scan_timeout_occurred = TRUE;
 #ifdef BCMPCIE
 	(void)dhd_pcie_dump_int_regs(dhdp);
@@ -3888,7 +3773,6 @@ static void wl_scan_timeout(unsigned long data)
 	 */
 	dhdp->scan_timeout_occurred = FALSE;
 #endif /* DHD_FW_COREDUMP */
-#endif /* BCMDONGLEHOST */
 	msg.event_type = hton32(WLC_E_ESCAN_RESULT);
 	msg.status = hton32(WLC_E_STATUS_TIMEOUT);
 	msg.reason = 0xFFFFFFFF;
@@ -4664,9 +4548,7 @@ wl_cfgscan_listen_on_channel(struct bcm_cfg80211 *cfg, struct wireless_dev *wdev
 		if (schedule_delayed_work(&cfg->loc.work,
 				msecs_to_jiffies(listen_timeout))) {
 
-#if defined(BCMDONGLEHOST) && defined(OEM_ANDROID)
 			DHD_PM_WAKE_LOCK_TIMEOUT(cfg->pub, listen_timeout);
-#endif /* BCMDONGLEHOST && OEM_ANDROID */
 
 		} else {
 			WL_ERR(("Can't schedule listen work handler\n"));

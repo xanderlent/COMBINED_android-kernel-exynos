@@ -184,9 +184,6 @@ enum {
 	TOTAL_LFRAG_PACKET_CNT,
 	MAX_HOST_RXBUFS,
 	HOST_API_VERSION,
-#ifdef D2H_MINIDUMP
-	DNGL_TO_HOST_TRAP_ADDR_LEN,
-#endif /* D2H_MINIDUMP */
 	DNGL_TO_HOST_TRAP_ADDR,
 	HOST_SCB_ADDR,		/* update host scb base address to dongle */
 };
@@ -222,12 +219,6 @@ extern int dhd_bus_schedule_queue(struct dhd_bus *bus, uint16 flow_id, bool txs)
 extern void dhd_bus_flow_ring_resume_response(struct dhd_bus *bus, uint16 flowid, int32 status);
 #endif /* IDLE_TX_FLOW_MGMT */
 
-#ifdef BCMDBG
-extern void
-dhd_bus_flow_ring_cnt_update(struct dhd_bus *bus, uint16 flowid, uint32 txstatus);
-#endif
-
-#if defined(LINUX) || defined(linux)
 extern int dhdpcie_bus_start_host_dev(struct dhd_bus *bus);
 extern int dhdpcie_bus_stop_host_dev(struct dhd_bus *bus);
 extern int dhdpcie_bus_enable_device(struct dhd_bus *bus);
@@ -239,9 +230,6 @@ extern int dhd_bus_release_dongle(struct dhd_bus *bus);
 extern int dhd_bus_request_irq(struct dhd_bus *bus);
 extern int dhdpcie_get_pcieirq(struct dhd_bus *bus, unsigned int *irq);
 extern void dhd_bus_aer_config(struct dhd_bus *bus);
-#else
-static INLINE void dhd_bus_aer_config(struct dhd_bus *bus) { }
-#endif /* LINUX || linux */
 
 extern struct device * dhd_bus_to_dev(struct dhd_bus *bus);
 
@@ -309,10 +297,6 @@ void dhdpcie_get_etd_preserve_logs(dhd_pub_t *dhd, uint8 *ext_trap_data,
 
 extern uint16 dhd_get_chipid(struct dhd_bus *bus);
 
-#ifdef BTLOG
-extern void dhd_bus_rx_bt_log(struct dhd_bus *bus, void* pkt);
-#endif	/* BTLOG */
-
 #ifdef DHD_WAKE_STATUS
 extern wake_counts_t* dhd_bus_get_wakecount(dhd_pub_t *dhd);
 extern int dhd_bus_get_bus_wake(dhd_pub_t * dhd);
@@ -338,18 +322,6 @@ extern void dhd_bus_l1ss_enable_rc_ep(struct dhd_bus *bus, bool enable);
 
 bool dhd_bus_is_multibp_capable(struct dhd_bus *bus);
 
-#ifdef BT_OVER_PCIE
-int dhd_bus_pwr_off(dhd_pub_t *dhdp, int reason);
-int dhd_bus_pwr_on(dhd_pub_t *dhdp, int reason);
-int dhd_bus_pwr_toggle(dhd_pub_t *dhdp, int reason);
-bool dhdpcie_is_btop_chip(struct dhd_bus *bus);
-bool dhdpcie_is_bt_loaded(struct dhd_bus *bus);
-int dhdpcie_redownload_fw(dhd_pub_t *dhdp);
-extern void dhd_bus_pcie_pwr_req_reload_war(struct dhd_bus *bus);
-int dhd_bus_perform_flr_with_quiesce(dhd_pub_t *dhdp, struct dhd_bus *bus,
-		bool init_deinit_path);
-#endif /* BT_OVER_PCIE */
-
 #ifdef BCMPCIE
 extern void dhdpcie_advertise_bus_cleanup(dhd_pub_t  *dhdp);
 extern void dhd_msgbuf_iovar_timeout_dump(dhd_pub_t *dhd);
@@ -367,26 +339,6 @@ extern int dhd_bus_fis_dump(dhd_pub_t *dhd);
 #ifdef PCIE_FULL_DONGLE
 extern int dhdpcie_set_dma_ring_indices(dhd_pub_t *dhd, int32 int_val);
 #endif /* PCIE_FULL_DONGLE */
-
-#ifdef D2H_MINIDUMP
-#ifndef DHD_FW_COREDUMP
-/* Minidump depends on DHD_FW_COREDUMP to dump minidup
- * This dependency is intentional to avoid multiple work queue
- * to dump the SOCRAM, minidum ..etc.
- */
-#error "Minidump doesnot work as DHD_FW_COREDUMP is not defined"
-#endif /* DHD_FW_COREDUMP */
-#ifdef BCM_BUZZZ
-/*
- * In pciedev_shared_t buzz_dbg_ptr and device_trap_debug_buffer_len
- * are overloaded. So when BCM_BUZZZ is defined MINIDUMP should not be defined or
- * vice versa.
- */
-#error "Minidump doesnot work as BCM_BUZZZ is defined"
-#endif /* BCM_BUZZZ */
-extern bool dhd_bus_is_minidump_enabled(dhd_pub_t  *dhdp);
-dhd_dma_buf_t* dhd_prot_get_minidump_buf(dhd_pub_t *dhd);
-#endif /* D2H_MINIDUMP */
 
 #ifdef DHD_CFG80211_SUSPEND_RESUME
 extern void dhd_cfg80211_suspend(dhd_pub_t *dhdp);

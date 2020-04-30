@@ -40,7 +40,6 @@
 #include <linux/if_arp.h>
 #include <asm/uaccess.h>
 
-#if defined(BCMDONGLEHOST)
 #include <dngl_stats.h>
 #include "wifi_stats.h"
 #include <dhd.h>
@@ -58,7 +57,6 @@
 #ifdef RTT_SUPPORT
 #include <dhd_rtt.h>
 #endif /* RTT_SUPPORT */
-#endif /* defined(BCMDONGLEHOST) */
 
 #include <ethernet.h>
 #include <linux/kernel.h>
@@ -80,9 +78,7 @@
 #include <wl_cfgnan.h>
 #endif /* WL_NAN */
 
-#ifdef OEM_ANDROID
 #include <wl_android.h>
-#endif /* OEM_ANDROID */
 
 #include <wl_cfgvendor.h>
 #ifdef PROP_TXSTATUS
@@ -214,7 +210,7 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 
 	/* Alloc the SKB for vendor_event */
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
-		LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 	skb = cfg80211_vendor_event_alloc(wiphy, ndev_to_wdev(dev), len, event_id, kflags);
 #else
 	skb = cfg80211_vendor_event_alloc(wiphy, len, event_id, kflags);
@@ -444,7 +440,7 @@ wl_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
 
 		/* Alloc the SKB for vendor_event */
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
-		LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 		skb = cfg80211_vendor_event_alloc(wiphy, ndev_to_wdev(dev),
 		malloc_len, event, kflags);
 #else
@@ -1202,7 +1198,7 @@ wl_cfgvendor_set_batch_scan_cfg(struct wiphy *wiphy,
 }
 
 #endif /* GSCAN_SUPPORT */
-#if defined (GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
+#if defined(GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
 static int
 wl_cfgvendor_gscan_get_channel_list(struct wiphy *wiphy,
 	struct wireless_dev *wdev, const void  *data, int len)
@@ -1586,54 +1582,6 @@ wl_cfgvendor_stop_hal(struct wiphy *wiphy,
 }
 #endif /* WL_CFG80211 */
 
-#ifdef WL_LATENCY_MODE
-static int
-wl_cfgvendor_set_latency_mode(struct wiphy *wiphy,
-	struct wireless_dev *wdev, const void *data, int len)
-{
-	int err = BCME_OK, rem, type;
-	u32 latency_mode;
-	const struct nlattr *iter;
-#ifdef SUPPORT_LATENCY_CRITICAL_DATA
-	bool enable;
-#endif /* SUPPORT_LATENCY_CRITICAL_DATA */
-#ifdef WL_AUTO_QOS
-	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(wdev->netdev);
-#endif /* WL_AUTO_QOS */
-
-	nla_for_each_attr(iter, data, len, rem) {
-		type = nla_type(iter);
-		switch (type) {
-			case ANDR_WIFI_ATTRIBUTE_LATENCY_MODE:
-				latency_mode = nla_get_u32(iter);
-				WL_DBG(("%s,Setting latency mode %u\n", __FUNCTION__,
-					latency_mode));
-#ifdef WL_AUTO_QOS
-				/* Enable/Disable qos monitoring */
-				dhd_wl_sock_qos_set_status(dhdp, latency_mode);
-#endif /* WL_AUTO_QOS */
-#ifdef SUPPORT_LATENCY_CRITICAL_DATA
-				enable = latency_mode ? true : false;
-				err = wldev_iovar_setint(wdev->netdev,
-						"latency_critical_data", enable);
-				if (err != BCME_OK) {
-					WL_ERR(("failed to set latency_critical_data "
-						"enable %d, error = %d\n", enable, err));
-					/* Proceed with other optimizations possible */
-					err = BCME_OK;
-				}
-#endif /* SUPPORT_LATENCY_CRITICAL_DATA */
-				break;
-			default:
-				WL_ERR(("Unknown type: %d\n", type));
-				return err;
-		}
-	}
-
-	return err;
-}
-#endif /* WL_LATENCY_MODE */
-
 #ifdef RTT_SUPPORT
 void
 wl_cfgvendor_rtt_evt(void *ctx, void *rtt_data)
@@ -1660,7 +1608,7 @@ wl_cfgvendor_rtt_evt(void *ctx, void *rtt_data)
 	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
 	if (list_empty(rtt_cache_list)) {
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
-		LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 		skb = cfg80211_vendor_event_alloc(wiphy, NULL, 100,
 			GOOGLE_RTT_COMPLETE_EVENT, kflags);
 #else
@@ -1684,7 +1632,7 @@ wl_cfgvendor_rtt_evt(void *ctx, void *rtt_data)
 	list_for_each_entry(rtt_header, rtt_cache_list, list) {
 		/* Alloc the SKB for vendor_event */
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
-		LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 		skb = cfg80211_vendor_event_alloc(wiphy, NULL, rtt_header->result_tot_len + 100,
 			GOOGLE_RTT_COMPLETE_EVENT, kflags);
 #else
@@ -2712,7 +2660,6 @@ wl_cfgvendor_priv_string_handler(struct wiphy *wiphy,
 	int maxmsglen = PAGE_SIZE - 0x100;
 	struct sk_buff *reply;
 
-#if defined(OEM_ANDROID)
 	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(wdev->netdev);
 
 	/* send to dongle only if we are not waiting for reload already */
@@ -2722,7 +2669,6 @@ wl_cfgvendor_priv_string_handler(struct wiphy *wiphy,
 		DHD_OS_WAKE_UNLOCK(dhdp);
 		return OSL_ERROR(BCME_DONGLE_DOWN);
 	}
-#endif /* (OEM_ANDROID) */
 
 	if (!data) {
 		WL_ERR(("data is not available\n"));
@@ -3035,7 +2981,7 @@ wl_cfgvendor_priv_bcm_handler(struct wiphy *wiphy,
 	struct net_device *net = NULL;
 	unsigned long int cmd_out = 0;
 
-#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) && defined(OEM_ANDROID)
+#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211)
 	u32 cmd_buf_len = WL_DRIVER_PRIV_CMD_LEN;
 	char cmd_prefix[ANDROID_PRIV_CMD_IF_PREFIX_LEN + 1] = {0};
 	char *cmd_buf = NULL;
@@ -3060,7 +3006,7 @@ wl_cfgvendor_priv_bcm_handler(struct wiphy *wiphy,
 			goto exit;
 		}
 
-#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) && defined(OEM_ANDROID)
+#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211)
 		if (type == BRCM_ATTR_DRIVER_CMD) {
 			if ((cmd_len >= WL_DRIVER_PRIV_CMD_LEN) ||
 				(cmd_len < ANDROID_PRIV_CMD_IF_PREFIX_LEN)) {
@@ -3154,7 +3100,7 @@ wl_cfgvendor_priv_bcm_handler(struct wiphy *wiphy,
 
 exit:
 
-#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) && defined(OEM_ANDROID)
+#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211)
 	if (cmd_buf) {
 		MFREE(cfg->osh, cmd_buf, cmd_buf_len);
 	}
@@ -7416,7 +7362,7 @@ static void wl_cfgvendor_dbg_ring_send_evt(void *ctx,
 	wiphy = ndev->ieee80211_ptr->wiphy;
 	/* Alloc the SKB for vendor_event */
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
-		LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 	skb = cfg80211_vendor_event_alloc(wiphy, NULL, len + 100,
 			GOOGLE_DEBUG_RING_EVENT, kflags);
 #else
@@ -7798,7 +7744,7 @@ static void wl_cfgvendor_dbg_send_file_dump_evt(void *ctx, const void *data,
 	wiphy = ndev->ieee80211_ptr->wiphy;
 	/* Alloc the SKB for vendor_event */
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
-		LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 	skb = cfg80211_vendor_event_alloc(wiphy, NULL, len + CFG80211_VENDOR_EVT_SKB_SZ,
 			GOOGLE_FILE_DUMP_EVENT, kflags);
 #else
@@ -9183,16 +9129,6 @@ static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_stop_hal
 	},
 #endif /* WL_CFG80211 */
-#ifdef WL_LATENCY_MODE
-	{
-		{
-			.vendor_id = OUI_GOOGLE,
-			.subcmd = WIFI_SUBCMD_SET_LATENCY_MODE
-		},
-		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
-		.doit = wl_cfgvendor_set_latency_mode
-	},
-#endif /* WL_LATENCY_MODE */
 #ifdef WL_P2P_RAND
 	{
 		{

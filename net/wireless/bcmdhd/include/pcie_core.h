@@ -209,8 +209,6 @@ typedef struct pcie_hmapviolation {
 	uint32	PAD[1];
 } pcie_hmapviolation_t;
 
-#if !defined(DONGLEBUILD) || defined(BCMSTANDALONE_TEST) || defined(BCMINTERNAL) || \
-	defined(ATE_BUILD) || defined(BCMDVFS)
 /* SB side: PCIE core and host control registers */
 typedef volatile struct sbpcieregs {
 	uint32 control;		/* host mode only */
@@ -419,7 +417,6 @@ typedef volatile struct sbpcieregs {
 		uint32		PAD[45];		/* 0xC4C-0xCFF */
 	} ftn_ctrl;
 } sbpcieregs_t;
-#endif /* !defined(DONGLEBUILD) || defined(BCMSTANDALONE_TEST) || */
 	/* defined(BCMINTERNAL) || defined(ATE_BUILD) defined(BCMDVFS) */
 
 #define PCIE_CFG_DA_OFFSET 0x400	/* direct access register offset for configuration space */
@@ -1130,7 +1127,6 @@ typedef volatile struct sbpcieregs {
 #define DAR_PCIH2D_DB7_0(rev)	OFFSETOF(sbpcieregs_t, u1.dar_64.h2d_db_7_0)
 #define DAR_PCIH2D_DB7_1(rev)	OFFSETOF(sbpcieregs_t, u1.dar_64.h2d_db_7_1)
 
-#if !defined(DONGLEBUILD) || defined(BCMSTANDALONE_TEST) || defined(BCMINTERNAL)
 #define DAR_PCIMailBoxInt(rev)	(REV_GE_64(rev) ? \
 						OFFSETOF(sbpcieregs_t, u1.dar_64.mbox_int) : \
 						OFFSETOF(sbpcieregs_t, u1.dar.mbox_int))
@@ -1140,11 +1136,6 @@ typedef volatile struct sbpcieregs {
 #define DAR_PCIE_DAR_CTRL(rev)	(REV_GE_64(rev) ? \
 						OFFSETOF(sbpcieregs_t, u1.dar_64.dar_ctrl) : \
 						OFFSETOF(sbpcieregs_t, u1.dar.dar_ctrl))
-#else
-#define DAR_PCIMailBoxInt(rev)	PCIE_dar_mailboxint_OFFSET(rev)
-#define DAR_PCIE_PWR_CTRL(rev)	PCIE_dar_power_control_OFFSET(rev)
-#define DAR_PCIE_DAR_CTRL(rev)	PCIE_dar_control_OFFSET(rev)
-#endif
 
 #define DAR_FIS_CTRL(rev)      OFFSETOF(sbpcieregs_t, u1.dar_64.fis_ctrl)
 
@@ -1288,16 +1279,11 @@ typedef volatile struct sbpcieregs {
 #define PCIE_FTN_SWPME_MASK			(1 << PCIE_FTN_SWPME_SHIFT)
 
 #ifdef BCMDRIVER
-#if !defined(DONGLEBUILD) || defined(BCMSTANDALONE_TEST)
 void pcie_watchdog_reset(osl_t *osh, si_t *sih, uint32 wd_mask, uint32 wd_val);
 void pcie_serdes_iddqdisable(osl_t *osh, si_t *sih, sbpcieregs_t *sbpcieregs);
 void pcie_set_trefup_time_100us(si_t *sih);
 uint32 pcie_cto_to_thresh_default(uint corerev);
 uint32 pcie_corereg(osl_t *osh, volatile void *regs, uint32 offset, uint32 mask, uint32 val);
-#endif /* !defined(DONGLEBUILD) || defined(BCMSTANDALONE_TEST) */
-#if defined(DONGLEBUILD)
-void pcie_coherent_accenable(osl_t *osh, si_t *sih);
-#endif /* DONGLEBUILD */
 #endif /* BCMDRIVER */
 
 /* DMA intstatus and intmask */
@@ -1313,20 +1299,6 @@ void pcie_coherent_accenable(osl_t *osh, si_t *sih);
 #define PD_DMA_INT_MASK_H2D		0x1DC00
 #define PD_DMA_INT_MASK_D2H		0x1DC00
 #define PD_DB_INT_MASK			0xFF0000
-
-#if defined(DONGLEBUILD)
-#if REV_GE_64(BCMPCIEREV)
-#define PD_DEV0_DB_INTSHIFT		8u
-#define PD_DEV1_DB_INTSHIFT		10u
-#define PD_DEV2_DB_INTSHIFT		12u
-#define PD_DEV3_DB_INTSHIFT		14u
-#else
-#define PD_DEV0_DB_INTSHIFT		16u
-#define PD_DEV1_DB_INTSHIFT		18u
-#define PD_DEV2_DB_INTSHIFT		20u
-#define PD_DEV3_DB_INTSHIFT		22u
-#endif /* BCMPCIEREV */
-#endif /* DONGLEBUILD */
 
 #define PCIE_INVALID_OFFSET		0x18003ffc /* Invalid Register Offset for Induce Error */
 #define PCIE_INVALID_DATA		0x55555555 /* Invalid Data for Induce Error */

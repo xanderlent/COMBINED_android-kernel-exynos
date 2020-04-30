@@ -3897,17 +3897,6 @@ enum {
 /* Action frame type for vendor specific action frames */
 #define	VS_AF_TYPE	221
 
-#ifdef WL_VS_AFTX
-/* Vendor specific action frame subtype for transmit using SU EDCA */
-#define VS_AF_SUBTYPE_SUEDCA	1
-
-#ifdef WL_VSAF_USE_APPLE_OUI
-#define VENDOR_PROP_OUI		"\x00\x17\xF2"
-#else
-#define VENDOR_PROP_OUI		"\x00\x00\x00"
-#endif
-#endif /* WL_VS_AFTX */
-
 /*
  * This BRCM_PROP_OUI types is intended for use in events to embed additional
  * data, and would not be expected to appear on the air -- but having an IE
@@ -4585,21 +4574,10 @@ typedef struct vht_features_ie_hdr vht_features_ie_hdr_t;
 #define WFA_OUI_TYPE_P2P	9
 
 /* WFA definitions for LEGACY P2P */
-#ifdef WL_LEGACY_P2P
-#define APPLE_OUI		"\x00\x17\xF2"	/* MACOSX OUI */
-#define APPLE_OUI_LEN		3
-#define APPLE_OUI_TYPE_P2P	5
-#endif /* WL_LEGACY_P2P */
 
-#ifndef WL_LEGACY_P2P
 #define P2P_OUI         WFA_OUI
 #define P2P_OUI_LEN     WFA_OUI_LEN
 #define P2P_OUI_TYPE    WFA_OUI_TYPE_P2P
-#else
-#define P2P_OUI         APPLE_OUI
-#define P2P_OUI_LEN     APPLE_OUI_LEN
-#define P2P_OUI_TYPE    APPLE_OUI_TYPE_P2P
-#endif /* !WL_LEGACY_P2P */
 
 #ifdef WLTDLS
 #define WFA_OUI_TYPE_TPQ	4	/* WFD Tunneled Probe ReQuest */

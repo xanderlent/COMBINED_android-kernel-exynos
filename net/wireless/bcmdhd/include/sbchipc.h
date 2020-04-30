@@ -331,18 +331,7 @@ typedef volatile struct {
 	uint32	SECI_statusmask;
 	uint32	SECI_rxnibchanged;
 
-#if !defined(BCMDONGLEHOST)
-	union {				/* 0x140 */
-		/* Enhanced Coexistence Interface (ECI) registers (corerev >= 21) */
-		struct eci_prerev35	lt35;
-		struct eci_rev35	ge35;
-		/* Other interfaces */
-		struct flash_config	flashconf;
-		uint32	PAD[20];
-	} eci;
-#else
 	uint32	PAD[20];
-#endif /* !defined(BCMDONGLEHOST) */
 
 	/* SROM interface (corerev >= 32) */
 	uint32	sromcontrol;		/* 0x190 */
@@ -640,12 +629,10 @@ typedef volatile struct {
 
 #endif /* !_LANGUAGE_ASSEMBLY && !__ASSEMBLY__ */
 
-#if !defined(IL_BIGENDIAN)
 #define	CC_CHIPID		0
 #define	CC_CAPABILITIES		4
 #define	CC_CHIPST		0x2c
 #define	CC_EROMPTR		0xfc
-#endif	/* IL_BIGENDIAN */
 
 #define	CC_OTPST		0x10
 #define	CC_INTSTATUS		0x20
@@ -4704,111 +4691,10 @@ typedef volatile struct {
 * Maximum delay for the PMU state transition in us.
 * This is an upper bound intended for spinwaits etc.
 */
-#if defined(BCMQT) && defined(BCMDONGLEHOST)
-#define PMU_MAX_TRANSITION_DLY	1500000
-#else
 #define PMU_MAX_TRANSITION_DLY	15000
-#endif /* BCMDONGLEHOST */
 
 /* PMU resource up transition time in ILP cycles */
 #define PMURES_UP_TRANSITION	2
-
-#if !defined(BCMDONGLEHOST)
-/*
-* Information from BT to WLAN over eci_inputlo, eci_inputmi &
-* eci_inputhi register.  Rev >=21
-*/
-/* Fields in eci_inputlo register - [0:31] */
-#define	ECI_INLO_TASKTYPE_MASK	0x0000000f /* [3:0] - 4 bits */
-#define ECI_INLO_TASKTYPE_SHIFT 0
-#define	ECI_INLO_PKTDUR_MASK	0x000000f0 /* [7:4] - 4 bits */
-#define ECI_INLO_PKTDUR_SHIFT	4
-#define	ECI_INLO_ROLE_MASK	0x00000100 /* [8] - 1 bits */
-#define ECI_INLO_ROLE_SHIFT	8
-#define	ECI_INLO_MLP_MASK	0x00000e00 /* [11:9] - 3 bits */
-#define ECI_INLO_MLP_SHIFT	9
-#define	ECI_INLO_TXPWR_MASK	0x000ff000 /* [19:12] - 8 bits */
-#define ECI_INLO_TXPWR_SHIFT	12
-#define	ECI_INLO_RSSI_MASK	0x0ff00000 /* [27:20] - 8 bits */
-#define ECI_INLO_RSSI_SHIFT	20
-#define	ECI_INLO_VAD_MASK	0x10000000 /* [28] - 1 bits */
-#define ECI_INLO_VAD_SHIFT	28
-
-/*
-* Register eci_inputlo bitfield values.
-* - BT packet type information bits [7:0]
-*/
-/*  [3:0] - Task (link) type */
-#define BT_ACL				0x00
-#define BT_SCO				0x01
-#define BT_eSCO				0x02
-#define BT_A2DP				0x03
-#define BT_SNIFF			0x04
-#define BT_PAGE_SCAN			0x05
-#define BT_INQUIRY_SCAN			0x06
-#define BT_PAGE				0x07
-#define BT_INQUIRY			0x08
-#define BT_MSS				0x09
-#define BT_PARK				0x0a
-#define BT_RSSISCAN			0x0b
-#define BT_MD_ACL			0x0c
-#define BT_MD_eSCO			0x0d
-#define BT_SCAN_WITH_SCO_LINK		0x0e
-#define BT_SCAN_WITHOUT_SCO_LINK	0x0f
-/* [7:4] = packet duration code */
-/* [8] - Master / Slave */
-#define BT_MASTER			0
-#define BT_SLAVE			1
-/* [11:9] - multi-level priority */
-#define BT_LOWEST_PRIO			0x0
-#define BT_HIGHEST_PRIO			0x3
-/* [19:12] - BT transmit power */
-/* [27:20] - BT RSSI */
-/* [28] - VAD silence */
-/* [31:29] - Undefined */
-/* Register eci_inputmi values - [32:63] - none defined */
-/* [63:32] - Undefined */
-
-/* Information from WLAN to BT over eci_output register. */
-/* Fields in eci_output register - [0:31] */
-#define ECI48_OUT_MASKMAGIC_HIWORD 0x55550000
-#define ECI_OUT_CHANNEL_MASK(ccrev) ((ccrev) < 35 ? 0xf : (ECI48_OUT_MASKMAGIC_HIWORD | 0xf000))
-#define ECI_OUT_CHANNEL_SHIFT(ccrev) ((ccrev) < 35 ? 0 : 12)
-#define ECI_OUT_BW_MASK(ccrev) ((ccrev) < 35 ? 0x70 : (ECI48_OUT_MASKMAGIC_HIWORD | 0xe00))
-#define ECI_OUT_BW_SHIFT(ccrev) ((ccrev) < 35 ? 4 : 9)
-#define ECI_OUT_ANTENNA_MASK(ccrev) ((ccrev) < 35 ? 0x80 : (ECI48_OUT_MASKMAGIC_HIWORD | 0x100))
-#define ECI_OUT_ANTENNA_SHIFT(ccrev) ((ccrev) < 35 ? 7 : 8)
-#define ECI_OUT_SIMUL_TXRX_MASK(ccrev) \
-	((ccrev) < 35 ? 0x10000 : (ECI48_OUT_MASKMAGIC_HIWORD | 0x80))
-#define ECI_OUT_SIMUL_TXRX_SHIFT(ccrev) ((ccrev) < 35 ? 16 : 7)
-#define ECI_OUT_FM_DISABLE_MASK(ccrev) \
-	((ccrev) < 35 ? 0x40000 : (ECI48_OUT_MASKMAGIC_HIWORD | 0x40))
-#define ECI_OUT_FM_DISABLE_SHIFT(ccrev) ((ccrev) < 35 ? 18 : 6)
-
-/* Indicate control of ECI bits between s/w and dot11mac.
- * 0 => FW control, 1=> MAC/ucode control
-
- * Current assignment (ccrev >= 35):
- *  0 - TxConf (ucode)
- * 38 - FM disable (wl)
- * 39 - Allow sim rx (ucode)
- * 40 - Num antennas (wl)
- * 43:41 - WLAN channel exclusion BW (wl)
- * 47:44 - WLAN channel (wl)
- *
- * (ccrev < 35)
- * 15:0 - wl
- * 16 -
- * 18 - FM disable
- * 30 - wl interrupt
- * 31 - ucode interrupt
- * others - unassigned (presumed to be with dot11mac/ucode)
- */
-#define ECI_MACCTRL_BITS	0xbffb0000
-#define ECI_MACCTRLLO_BITS	0x1
-#define ECI_MACCTRLHI_BITS	0xFF
-
-#endif /* !defined(BCMDONGLEHOST) */
 
 /* SECI Status (0x134) & Mask (0x138) bits - Rev 35 */
 #define SECI_STAT_BI	(1 << 0)	/* Break Interrupt */

@@ -34,14 +34,9 @@
 #include <dhd.h>
 #include <dhd_bus.h>
 #include <dhd_linux.h>
-#if defined(OEM_ANDROID)
 #include <wl_android.h>
-#endif
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
 #include <linux/wlan_plat.h>
-#endif
-#ifdef BCMDBUS
-#include <dbus.h>
 #endif
 #ifdef CONFIG_DTS
 #include<linux/regulator/consumer.h>
@@ -369,7 +364,8 @@ static int wifi_plat_dev_drv_remove(struct platform_device *pdev)
 static int wifi_plat_dev_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	DHD_TRACE(("##> %s\n", __FUNCTION__));
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY) && defined(BCMSDIO)
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY) && \
+	defined(BCMSDIO)
 	bcmsdh_oob_intr_set(0);
 #endif /* (OOB_INTR_ONLY) */
 	return 0;
@@ -378,7 +374,8 @@ static int wifi_plat_dev_drv_suspend(struct platform_device *pdev, pm_message_t 
 static int wifi_plat_dev_drv_resume(struct platform_device *pdev)
 {
 	DHD_TRACE(("##> %s\n", __FUNCTION__));
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY) && defined(BCMSDIO)
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY) && \
+	defined(BCMSDIO)
 	if (dhd_os_check_if_up(wl_cfg80211_get_dhdp()))
 		bcmsdh_oob_intr_set(1);
 #endif /* (OOB_INTR_ONLY) */
@@ -722,9 +719,9 @@ void dhd_wifi_platform_unregister_drv(void)
 extern int dhd_watchdog_prio;
 extern int dhd_dpc_prio;
 extern uint dhd_deferred_tx;
-#if defined(OEM_ANDROID) && defined(BCMLXSDMMC)
+#if defined(BCMLXSDMMC)
 extern struct semaphore dhd_registration_sem;
-#endif /* defined(OEM_ANDROID) && defined(BCMLXSDMMC) */
+#endif
 
 #ifdef BCMSDIO
 static int dhd_wifi_platform_load_sdio(void)
@@ -743,7 +740,7 @@ static int dhd_wifi_platform_load_sdio(void)
 		!(dhd_watchdog_prio >= 0 && dhd_dpc_prio >= 0 && dhd_deferred_tx))
 		return -EINVAL;
 
-#if defined(OEM_ANDROID) && defined(BCMLXSDMMC)
+#if defined(BCMLXSDMMC)
 	sema_init(&dhd_registration_sem, 0);
 #endif
 
@@ -755,7 +752,7 @@ static int dhd_wifi_platform_load_sdio(void)
 		return err;
 	}
 
-#if defined(OEM_ANDROID) && defined(BCMLXSDMMC)
+#if defined(BCMLXSDMMC)
 	/* power up all adapters */
 	for (i = 0; i < dhd_wifi_platdata->num_adapters; i++) {
 		bool chip_up = FALSE;
@@ -836,7 +833,7 @@ fail:
 		wifi_platform_set_power(adapter, FALSE, WIFI_TURNOFF_DELAY);
 		wifi_platform_bus_enumerate(adapter, FALSE);
 	}
-#endif /* defined(OEM_ANDROID) && defined(BCMLXSDMMC) */
+#endif
 
 	return err;
 }
@@ -847,51 +844,16 @@ static int dhd_wifi_platform_load_sdio(void)
 }
 #endif /* BCMSDIO */
 
-#ifdef BCMDBUS
-/* User-specified vid/pid */
-int dhd_vid = 0xa5c;
-int dhd_pid = 0x48f;
-module_param(dhd_vid, int, 0);
-module_param(dhd_pid, int, 0);
-void *dhd_dbus_probe_cb(void *arg, const char *desc, uint32 bustype, uint32 hdrlen);
-void dhd_dbus_disconnect_cb(void *arg);
-
-static int dhd_wifi_platform_load_usb(void)
-{
-	int err = 0;
-
-	if (dhd_vid < 0 || dhd_vid > 0xffff) {
-		DHD_ERROR(("%s: invalid dhd_vid 0x%x\n", __FUNCTION__, dhd_vid));
-		return -EINVAL;
-	}
-	if (dhd_pid < 0 || dhd_pid > 0xffff) {
-		DHD_ERROR(("%s: invalid dhd_pid 0x%x\n", __FUNCTION__, dhd_pid));
-		return -EINVAL;
-	}
-
-	err = dbus_register(dhd_vid, dhd_pid, dhd_dbus_probe_cb, dhd_dbus_disconnect_cb,
-		NULL, NULL, NULL);
-
-	/* Device not detected */
-	if (err == DBUS_ERR_NODEVICE)
-		err = DBUS_OK;
-
-	return err;
-}
-#else /* BCMDBUS */
 static int dhd_wifi_platform_load_usb(void)
 {
 	return 0;
 }
-#endif /* BCMDBUS */
 
 static int dhd_wifi_platform_load()
 {
 	int err = 0;
 
-#if defined(OEM_ANDROID)
 		wl_android_init();
-#endif /* OEM_ANDROID */
 
 	if ((err = dhd_wifi_platform_load_usb()))
 		goto end;
@@ -901,12 +863,10 @@ static int dhd_wifi_platform_load()
 		err = dhd_wifi_platform_load_pcie();
 
 end:
-#if defined(OEM_ANDROID)
 	if (err)
 		wl_android_exit();
 	else
 		wl_android_post_init();
-#endif /* OEM_ANDROID */
 
 	return err;
 }

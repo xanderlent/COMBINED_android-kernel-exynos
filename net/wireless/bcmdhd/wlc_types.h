@@ -78,25 +78,12 @@ typedef struct scb_ampdu_tx scb_ampdu_tx_t;
 typedef struct scb_ampdu_tid_ini scb_ampdu_tid_ini_t;
 typedef struct wlc_ratesel_info wlc_ratesel_info_t;
 typedef struct ratesel_info ratesel_info_t;
-#ifdef WLFIPS
-typedef struct wl_fips_info wl_fips_info_t;
-#endif
 typedef struct wlc_ap_info wlc_ap_info_t;
 typedef struct cs_info cs_info_t;
 typedef struct wlc_scan_info wlc_scan_info_t;
 typedef struct wlc_scan_cmn_info wlc_scan_cmn_t;
 typedef struct wlc_slotted_bss_info wlc_slotted_bss_info_t;
 typedef struct wl_bcn_report_cfg wl_bcn_report_cfg_t;
-#ifdef WLAWDL
-typedef struct wlc_awdl_info wlc_awdl_info_t;
-#endif
-#ifdef BCMPCIE_HP2P
-typedef struct wlc_hp2p_info wlc_hp2p_info_t;
-typedef struct wlc_hp2p_cmn wlc_hp2p_cmn_t;
-#endif
-#ifdef WLDFSP
-typedef struct wlc_dfsp_info wlc_dfsp_info_t;
-#endif /* WLDFSP */
 typedef struct tdls_info tdls_info_t;
 typedef struct dls_info dls_info_t;
 typedef struct l2_filter_info l2_filter_info_t;
@@ -462,11 +449,6 @@ typedef wl_interface_info_v2_t wl_interface_info_t;
 
 #define WL_PKTENG_RU_FILL_CURRENT_VER	WL_PKTENG_RU_FILL_VER_2
 
-#ifdef WLAWDL
-typedef awdl_stats_core_v3_t awdl_stats_core_t;
-typedef awdl_stats_cmn_v3_t awdl_stats_cmn_t;
-typedef awdl_stats_v3_t awdl_stats_t;
-#endif
 typedef struct wlc_hwa_info wlc_hwa_info_t;
 #define UCM_PROFILE_VERSION UCM_PROFILE_VERSION_1
 typedef wlc_btcx_profile_v1_t wlc_btcx_profile_t;
@@ -641,7 +623,7 @@ typedef struct wlc_hw_macint_regs wlc_hw_macint_regs_t;
 #ifdef WL_SAE
 typedef struct wlc_sae_info wlc_sae_info_t;
 #endif
-#if defined(BCM_EWP) || defined (BCM_SDC)
+#if defined(BCM_EWP) || defined(BCM_SDC)
 typedef wl_hist_compact_toss_stats_v2_t wl_hist_compact_toss_stats_t;
 #endif /* BCM_EWP */
 typedef struct wlc_ewp_info wlc_ewp_info_t;

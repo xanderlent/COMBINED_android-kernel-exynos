@@ -721,8 +721,8 @@ static INLINE int wl_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
 { return 0; }
 #endif /*  (LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
 
-#if defined(WL_SUPP_EVENT) && \
-	((LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT))
+#if defined(WL_SUPP_EVENT) && ((LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || \
+	defined(WL_VENDOR_EXT_SUPPORT))
 extern int wl_cfgvendor_send_supp_eventstring(const char *func, const char *fmt, ...);
 int wl_cfgvendor_notify_supp_event_str(const char *evt_name, const char *fmt, ...);
 #define SUPP_LOG_LEN 256
@@ -786,7 +786,7 @@ int wl_cfgvendor_notify_supp_event_str(const char *evt_name, const char *fmt, ..
 #endif /* CONFIG_COMPAT */
 
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
-		LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 #define CFG80211_VENDOR_EVENT_ALLOC(wiphy, wdev, len, type, kflags) \
 	cfg80211_vendor_event_alloc(wiphy, wdev, len, type, kflags);
 #else

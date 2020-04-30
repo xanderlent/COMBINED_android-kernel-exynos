@@ -20,7 +20,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_custom_sec.c 334946 2012-05-24 20:38:00Z chanyun $
+ * $Id: dhd_custom_sec.c 334946 2012-05-24 20:38:00Z $
  */
 #if defined(CUSTOMER_HW4) || defined(CUSTOMER_HW40)
 #include <typedefs.h>

@@ -36,9 +36,6 @@
  */
 
 /* EFI does not support STATIC_ASSERT */
-#if defined(EFI)
-#define _alignment_test_
-#endif /* EFI */
 
 #ifndef _alignment_test_
 #define _alignment_test_
@@ -91,22 +88,8 @@ VARIABLE_IS_NOT_USED alignment_test(void)
 	#error "BWL_DEFAULT_PACKING not supported any more."
 #endif /* BWL_PACKED_SECTION */
 
-#if defined(_MSC_VER)
-#pragma warning(disable:4103)
-#pragma pack(push)
-#pragma pack(1)
-#endif
-
-#if defined(__GNUC__) && defined(EFI)
-#pragma pack(push)
-#pragma pack(1)
-#endif
-
 /* Declare compiler-specific directives for structure packing. */
-#if defined(_MSC_VER)
-	#define	BWL_PRE_PACKED_STRUCT
-	#define	BWL_POST_PACKED_STRUCT
-#elif defined(__GNUC__) || defined(__lint)
+#if defined(__GNUC__) || defined(__lint)
 	#define	BWL_PRE_PACKED_STRUCT
 	#define	BWL_POST_PACKED_STRUCT	__attribute__ ((packed))
 #elif defined(__CC_ARM)

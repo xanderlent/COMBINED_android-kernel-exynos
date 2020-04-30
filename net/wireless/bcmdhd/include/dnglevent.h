@@ -39,9 +39,6 @@
 #endif
 #include <bcmeth.h>
 #include <ethernet.h>
-#ifdef HEALTH_CHECK
-#include <dngl_defs.h>
-#endif /* HEALTH_CHECK */
 
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>

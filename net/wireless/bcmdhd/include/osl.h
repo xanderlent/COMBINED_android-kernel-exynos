@@ -32,9 +32,7 @@ enum {
 	TAIL_BYTES_TYPE_MIC = 3
 };
 
-#ifdef DHD_EFI
-#define OSL_PKTTAG_SZ	40 /* Size of PktTag */
-#elif defined(MACOSX)
+#if defined(MACOSX)
 #define OSL_PKTTAG_SZ	56
 #elif defined(__linux__)
 #define OSL_PKTTAG_SZ   48 /* standard linux pkttag size is 48 bytes */
@@ -42,7 +40,7 @@ enum {
 #ifndef OSL_PKTTAG_SZ
 #define OSL_PKTTAG_SZ	32 /* Size of PktTag */
 #endif /* !OSL_PKTTAG_SZ */
-#endif /* DHD_EFI */
+#endif
 
 /* Drivers use PKTFREESETCB to register a callback function when a packet is freed by OSL */
 typedef void (*pktfree_cb_fn_t)(void *ctx, void *pkt, unsigned int status);
@@ -51,23 +49,16 @@ typedef void (*pktfree_cb_fn_t)(void *ctx, void *pkt, unsigned int status);
 typedef unsigned int (*osl_rreg_fn_t)(void *ctx, volatile void *reg, unsigned int size);
 typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, unsigned int size);
 
-#if defined(EFI)
-#include <efi_osl.h>
-#elif defined(WL_UNITTEST)
+#if defined(WL_UNITTEST)
 #include <utest_osl.h>
 #elif defined(__linux__)
 #include <linux_osl.h>
 #include <linux_pkt.h>
-#elif defined(NDIS)
-#include <ndis_osl.h>
-#elif defined(_RTE_)
-#include <rte_osl.h>
-#include <hnd_pkt.h>
 #elif defined(MACOSX)
 #include <macosx_osl.h>
 #else
 #error "Unsupported OSL requested"
-#endif /* defined(DOS) */
+#endif
 
 #ifndef PKTDBG_TRACE
 #define PKTDBG_TRACE(osh, pkt, bit)	BCM_REFERENCE(osh)
@@ -141,30 +132,18 @@ typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, 
 #endif
 
 #ifndef OSL_OBFUSCATE_BUF
-#if defined (_RTE_)
-#define OSL_OBFUSCATE_BUF(x) osl_obfuscate_ptr(x)
-#else
 #define OSL_OBFUSCATE_BUF(x) (x)
-#endif	/* _RTE_ */
 #endif	/* OSL_OBFUSCATE_BUF */
 
 #ifndef OSL_GET_HCAPISTIMESYNC
-#if defined (_RTE_)
-#define OSL_GET_HCAPISTIMESYNC() osl_get_hcapistimesync()
-#else
 #define OSL_GET_HCAPISTIMESYNC()
-#endif	/* _RTE_ */
 #endif	/*  OSL_GET_HCAPISTIMESYNC */
 
 #ifndef OSL_GET_HCAPISPKTTXS
-#if defined (_RTE_)
-#define OSL_GET_HCAPISPKTTXS() osl_get_hcapispkttxs()
-#else
 #define OSL_GET_HCAPISPKTTXS()
-#endif	/* _RTE_ */
 #endif	/*  OSL_GET_HCAPISPKTTXS */
 
-#if !((defined(__linux__) && defined(PKTC)) || defined(PKTC_DONGLE))
+#if !defined(PKTC_DONGLE)
 
 #define	PKTCGETATTR(skb)	(0)
 #define	PKTCSETATTR(skb, f, p, b) BCM_REFERENCE(skb)
@@ -193,7 +172,7 @@ do { \
 		(h) = (t) = (p); \
 	} \
 } while (0)
-#endif /* !linux || !PKTC */
+#endif
 
 #ifndef PKTSETCHAINED
 #define PKTSETCHAINED(osh, skb)		BCM_REFERENCE(osh)
@@ -217,7 +196,6 @@ do { \
 #define PKTSETPROFILEIDX(p, idx)	BCM_REFERENCE(idx)
 #endif
 
-#ifndef _RTE_
 /* Lbuf with fraglist */
 #ifndef PKTFRAGPKTID
 #define PKTFRAGPKTID(osh, lb)		(0)
@@ -350,9 +328,8 @@ do { \
 #ifndef PKTSETUDR
 #define PKTRESETUDR(osh, lb)			BCM_REFERENCE(osh)
 #endif
-#endif	/* _RTE_ */
 
-#if !(defined(__linux__))
+#if !defined(__linux__)
 #define PKTLIST_INIT(x)			BCM_REFERENCE(x)
 #define PKTLIST_ENQ(x, y)		BCM_REFERENCE(x)
 #define PKTLIST_DEQ(x)			BCM_REFERENCE(x)

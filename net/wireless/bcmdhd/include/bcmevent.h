@@ -35,9 +35,9 @@
 #include <typedefs.h>
 /* #include <ethernet.h> -- TODO: req., excluded to overwhelming coupling (break up ethernet.h) */
 #include <bcmeth.h>
-#if defined(HEALTH_CHECK) || defined(DNGL_EVENT_SUPPORT)
+#if defined(DNGL_EVENT_SUPPORT)
 #include <dnglevent.h>
-#endif /* HEALTH_CHECK || DNGL_EVENT_SUPPORT */
+#endif
 
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>
@@ -98,9 +98,9 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
  */
 typedef union bcm_event_msg_u {
 	wl_event_msg_t		event;
-#if defined(HEALTH_CHECK) || defined(DNGL_EVENT_SUPPORT)
+#if defined(DNGL_EVENT_SUPPORT)
 	bcm_dngl_event_msg_t	dngl_event;
-#endif /* HEALTH_CHECK || DNGL_EVENT_SUPPORT */
+#endif
 
 	/* add new event here */
 } bcm_event_msg_u_t;
@@ -209,12 +209,6 @@ typedef union bcm_event_msg_u {
 #define WLC_E_SPEEDY_RECREATE_FAIL	93	/* fast assoc recreation failed */
 #define WLC_E_NATIVE			94	/* port-specific event and payload (e.g. NDIS) */
 #define WLC_E_PKTDELAY_IND		95	/* event for tx pkt delay suddently jump */
-
-#ifdef WLAWDL
-#define WLC_E_AWDL_AW			96	/* AWDL AW period starts */
-#define WLC_E_AWDL_ROLE			97	/* AWDL Master/Slave/NE master role event */
-#define WLC_E_AWDL_EVENT		98	/* Generic AWDL event */
-#endif /* WLAWDL */
 
 #define WLC_E_PSTA_PRIMARY_INTF_IND	99	/* psta primary interface indication */
 #define WLC_E_NAN			100     /* NAN event - Reserved for future */
@@ -454,11 +448,6 @@ typedef enum wlc_roam_cache_update_reason {
 #define WLC_E_REASON_INFRA_DISASSOC	3
 #define WLC_E_REASON_NO_MODE_CHANGE_NEEDED	4
 
-#ifdef WLAWDL
-#define WLC_E_REASON_AWDL_ENABLE	5
-#define WLC_E_REASON_AWDL_DISABLE	6
-#endif /* WLAWDL */
-
 /* TX STAT ERROR REASON CODE */
 #define WLC_E_REASON_TXBACKOFF_NOT_DECREMENTED 0x1
 
@@ -482,10 +471,6 @@ typedef struct wl_event_sdb_trans {
 
 /* reason codes for WLC_E_GTK_KEYROT_NO_CHANSW event */
 #define WLC_E_GTKKEYROT_SCANDELAY       0       /* Delay scan while gtk in progress */
-
-#ifdef WLAWDL
-#define WLC_E_GTKKEYROT_SKIPCHANSW_AWDL 1       /* Avoid chansw by awdl while gtk in progress */
-#endif /* WLAWDL */
 
 #define WLC_E_GTKKEYROT_SKIPCHANSW_P2P  2       /* Avoid chansw by p2p while gtk in progress */
 
@@ -628,11 +613,6 @@ typedef struct wlc_wsec_event {
  * WLC_E_ACTION_FRAME_RX
  */
 
-#ifdef WLAWDL
-#define WLC_E_AWDL_SCAN_START		1	/* Scan start indication to host */
-#define WLC_E_AWDL_SCAN_DONE		0	/* Scan Done indication to host */
-#endif /* WLAWDL */
-
 #define MAX_PHY_CORE_NUM 4u
 
 #define BCM_RX_FRAME_DATA_VERSION_2	2u
@@ -691,10 +671,6 @@ typedef struct wl_event_data_natoe {
 #define WLC_E_IF_ROLE_WDS		2	/* WDS link */
 #define WLC_E_IF_ROLE_P2P_GO		3	/* P2P Group Owner */
 #define WLC_E_IF_ROLE_P2P_CLIENT	4	/* P2P Client */
-
-#ifdef WLAWDL
-#define WLC_E_IF_ROLE_AWDL		7	/* AWDL */
-#endif /* WLAWDL */
 
 #define WLC_E_IF_ROLE_IBSS		8	/* IBSS */
 #define WLC_E_IF_ROLE_NAN		9	/* NAN */
@@ -788,78 +764,6 @@ typedef struct wlc_phy_cal_info {
 	uint8 reason;
 	uint8 slice;
 } wlc_phy_cal_info_t;
-
-#ifdef WLAWDL
-/* WLC_E_AWDL_EVENT subtypes */
-#define WLC_E_AWDL_SCAN_STATUS		0
-#define WLC_E_AWDL_RX_ACT_FRAME		1
-#define WLC_E_AWDL_RX_PRB_RESP		2
-#define WLC_E_AWDL_PHYCAL_STATUS	3
-#define WLC_E_AWDL_WOWL_NULLPKT		4
-#define WLC_E_AWDL_OOB_AF_STATUS	5
-/* WLC_E_AWDL_RANGING_RESULTS will be removed and only WLC_E_AWDL_UNUSED will be here
- * Keeping both of them to avoid compilation errot on trunk
- * It will be removed after wlc_ranging merge from IGUANA
- */
-#define WLC_E_AWDL_RANGING_RESULTS	6
-#define WLC_E_AWDL_UNUSED		6
-#define WLC_E_AWDL_SUB_PEER_STATE	7
-#define WLC_E_AWDL_SUB_INTERFACE_STATE	8
-#define WLC_E_AWDL_UCAST_AF_TXSTATUS	9
-#define WLC_E_AWDL_NAN_CLUSTER_MERGE	10
-#define WLC_E_AWDL_NAN_RX_BEACON	11
-#define WLC_E_AWDL_SD_DISCOVERY_RESULT	12
-#define WLC_E_AWDL_SD_REPLIED		13
-#define WLC_E_AWDL_SD_TERMINATED	14
-#define WLC_E_AWDL_SD_RECEIVE		15
-#define WLC_E_AWDL_SD_VNDR_IE		16
-#define WLC_E_AWDL_SD_DEVICE_STATE_IE	17
-#define WLC_E_AWDL_DFSP_NOTIF		18
-#define WLC_E_AWDL_DFSP_SUSPECT		19
-#define WLC_E_AWDL_DFSP_RESUME		20
-
-/* WLC_E_AWDL_SCAN_STATUS status values */
-#define WLC_E_AWDL_SCAN_START		1	/* Scan start indication to host */
-#define WLC_E_AWDL_SCAN_DONE		0	/* Scan Done indication to host */
-#define WLC_E_AWDL_PHYCAL_START		1	/* Phy calibration start indication to host */
-#define WLC_E_AWDL_PHYCAL_DONE		0	/* Phy calibration done indication to host */
-
-typedef BWL_PRE_PACKED_STRUCT struct {
-	uint8 subscribe_id;	/* local subscribe instance id */
-	uint8 publish_id;	/* publiser's  insance id */
-	struct ether_addr addr;  /* publsher's address */
-	uint8 service_info_len;  /* length of the service specific information in data[] */
-	uint8 data[1];		/* service specific info */
-} BWL_PRE_PACKED_STRUCT awdl_sd_discovery_result_t;
-
-typedef BWL_PRE_PACKED_STRUCT struct {
-	uint8 instance_id;
-	struct ether_addr addr;  /* publsher's address */
-} BWL_PRE_PACKED_STRUCT awdl_sd_replied_event_t;
-
-#define AWDL_SD_TERM_REASON_TIMEOUT	1
-#define AWDL_SD_TERM_REASON_USERREQ	2
-#define AWDL_SD_TERM_REASON_FAIL	3
-typedef BWL_PRE_PACKED_STRUCT struct {
-	uint8 instance_id;	/* publish instance id */
-	uint8 reason;		/* 1=timeout, 2=user request, 3=failure */
-} BWL_PRE_PACKED_STRUCT awdl_sd_term_event_t;
-
-typedef BWL_PRE_PACKED_STRUCT struct {
-	uint8 instance_id;	/* local publish/subscribe instance id */
-	uint8 sender_instance_id;
-	struct ether_addr addr;	/* sender's address */
-	uint8 service_info_len;	/* length of the service specific information in data[] */
-	uint8 data[1];		/* service specific info */
-} BWL_PRE_PACKED_STRUCT awdl_sd_receive_t;
-
-typedef BWL_PRE_PACKED_STRUCT struct {
-	struct ether_addr addr;	/* sender's address */
-	uint16 len;		/* length of data[] */
-	uint8 data[1];		/* vndr specific info */
-} BWL_PRE_PACKED_STRUCT awdl_sd_vndr_ie_event_t;
-
-#endif /* WLAWDL */
 
 /* GAS event data */
 typedef BWL_PRE_PACKED_STRUCT struct wl_event_gas {
@@ -957,32 +861,6 @@ typedef BWL_PRE_PACKED_STRUCT struct proxd_event_ts_results {
 	uint16  ts_cnt;                 /* number of timestamp measurements */
 	ts_sample_t ts_buff[1];         /* Timestamps */
 } BWL_POST_PACKED_STRUCT wl_proxd_event_ts_results_t;
-
-#ifdef WLAWDL
-/* WLC_E_AWDL_AW event data */
-typedef BWL_PRE_PACKED_STRUCT struct awdl_aws_event_data {
-	uint32	fw_time;			/* firmware PMU time */
-	struct	ether_addr current_master;	/* Current master Mac addr */
-	uint16	aw_counter;			/* AW seq# */
-	uint8	aw_ext_count;			/* AW extension count */
-	uint8	aw_role;			/* AW role */
-	uint8	flags;				/* AW event flag */
-	uint16	aw_chan;
-	uint8	infra_rssi;			/* rssi on the infra channel */
-	uint32	infra_rxbcn_count;		/* number of beacons received */
-	struct  ether_addr top_master;		/* Top master */
-} BWL_POST_PACKED_STRUCT awdl_aws_event_data_t;
-
-/* For awdl_aws_event_data_t.flags */
-#define AWDL_AW_LAST_EXT	0x01
-
-/* WLC_E_AWDL_OOB_AF_STATUS event data */
-typedef BWL_PRE_PACKED_STRUCT struct awdl_oob_af_status_data {
-	uint32	tx_time_diff;
-	uint16	pkt_tag;
-	uint8	tx_chan;
-} BWL_POST_PACKED_STRUCT awdl_oob_af_status_data_t;
-#endif /* WLAWDL */
 
 /* Video Traffic Interference Monitor Event */
 #define INTFER_EVENT_VERSION		1
@@ -1274,14 +1152,6 @@ typedef enum {
 	CHANSW_NAN = 18,	/* channel switch due to NAN */
 	CHANSW_NAN_DISC = 19,	/* channel switch due to NAN Disc */
 	CHANSW_NAN_SCHED = 20,	/* channel switch due to NAN Sched */
-
-#ifdef WLAWDL
-	CHANSW_AWDL_AW = 21,	/* channel switch due to AWDL aw */
-	CHANSW_AWDL_SYNC = 22,	/* channel switch due to AWDL sync */
-	CHANSW_AWDL_CAL = 23,	/* channel switch due to AWDL Cal */
-	CHANSW_AWDL_PSF = 24,	/* channel switch due to AWDL PSF */
-	CHANSW_AWDL_OOB_AF = 25, /* channel switch due to AWDL OOB action frame */
-#endif /* WLAWDL */
 
 	CHANSW_TDLS = 26,	/* channel switch due to TDLS */
 	CHANSW_PROXD = 27,	/* channel switch due to PROXD */

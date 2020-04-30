@@ -1234,7 +1234,7 @@ BCMRAMFN(spktq_cbinfo_get)(void)
 }
 
 void
-BCMATTACHFN(spktq_free_register)(spktq_cb_t cb, void *arg)
+spktq_free_register(spktq_cb_t cb, void *arg)
 {
 	spktq_cbinfo_t *cbinfop = spktq_cbinfo_get();
 	cbinfop->cb = cb;

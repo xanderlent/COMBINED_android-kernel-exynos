@@ -35,32 +35,14 @@
 #include <dhd_flowring.h>
 #endif
 
-#ifdef BCMINTERNAL
-#ifdef DHD_FWTRACE
-#include <bcm_fwtrace.h>
-#endif /* DHD_FWTRACE */
-#endif /* BCMINTERNAL */
-
 #define DEFAULT_IOCTL_RESP_TIMEOUT	(5 * 1000) /* 5 seconds */
 #ifndef IOCTL_RESP_TIMEOUT
-#if defined(BCMQT_HW)
-#define IOCTL_RESP_TIMEOUT  (600 * 1000) /* 600 sec in real time */
-#elif defined(BCMFPGA_HW)
-#define IOCTL_RESP_TIMEOUT  (60 * 1000) /* 60 sec in real time */
-#else
 /* In milli second default value for Production FW */
 #define IOCTL_RESP_TIMEOUT  DEFAULT_IOCTL_RESP_TIMEOUT
-#endif /* BCMQT */
 #endif /* IOCTL_RESP_TIMEOUT */
 
-#if defined(BCMQT_HW)
-#define IOCTL_DMAXFER_TIMEOUT  (260 * 1000) /* 260 seconds second */
-#elif defined(BCMFPGA_HW)
-#define IOCTL_DMAXFER_TIMEOUT  (120 * 1000) /* 120 seconds */
-#else
 /* In milli second default value for Production FW */
 #define IOCTL_DMAXFER_TIMEOUT  (15 * 1000) /* 15 seconds for Production FW */
-#endif /* BCMQT */
 
 #ifndef MFG_IOCTL_RESP_TIMEOUT
 #define MFG_IOCTL_RESP_TIMEOUT  20000  /* In milli second default value for MFG FW */
@@ -145,9 +127,6 @@ extern int dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf,
 extern bool dhd_prot_process_msgbuf_txcpl(dhd_pub_t *dhd, uint bound, int ringtype);
 extern bool dhd_prot_process_msgbuf_rxcpl(dhd_pub_t *dhd, uint bound, int ringtype);
 extern bool dhd_prot_process_msgbuf_infocpl(dhd_pub_t *dhd, uint bound);
-#ifdef BTLOG
-extern bool dhd_prot_process_msgbuf_btlogcpl(dhd_pub_t *dhd, uint bound);
-#endif	/* BTLOG */
 extern int dhd_prot_process_ctrlbuf(dhd_pub_t * dhd);
 extern int dhd_prot_process_trapbuf(dhd_pub_t * dhd);
 extern bool dhd_prot_dtohsplit(dhd_pub_t * dhd);
@@ -186,12 +165,6 @@ extern int dhd_prot_flow_ring_batch_suspend_request(dhd_pub_t *dhd, uint16 *ring
 extern int dhd_prot_flow_ring_resume(dhd_pub_t *dhd, flow_ring_node_t *flow_ring_node);
 #endif /* IDLE_TX_FLOW_MGMT */
 extern int dhd_prot_init_info_rings(dhd_pub_t *dhd);
-#ifdef BTLOG
-extern int dhd_prot_init_btlog_rings(dhd_pub_t *dhd);
-#endif	/* BTLOG */
-#ifdef DHD_HP2P
-extern int dhd_prot_init_hp2p_rings(dhd_pub_t *dhd);
-#endif /* DHD_HP2P */
 extern int dhd_prot_check_tx_resource(dhd_pub_t *dhd);
 #endif /* BCMPCIE */
 
@@ -218,14 +191,6 @@ extern bool dhd_prot_pkt_fixed_rate(dhd_pub_t *dhd, bool enable, bool set);
 
 extern void dhd_prot_dma_indx_free(dhd_pub_t *dhd);
 
-#ifdef SNAPSHOT_UPLOAD
-/* send request to take snapshot */
-int dhd_prot_send_snapshot_request(dhd_pub_t *dhdp, uint8 snapshot_type, uint8 snapshot_param);
-/* get uploaded snapshot */
-int dhd_prot_get_snapshot(dhd_pub_t *dhdp, uint8 snapshot_type, uint32 offset,
-	uint32 dst_buf_size, uint8 *dst_buf, uint32 *dst_size, bool *is_more);
-#endif	/* SNAPSHOT_UPLOAD */
-
 #ifdef EWP_EDL
 int dhd_prot_init_edl_rings(dhd_pub_t *dhd);
 bool dhd_prot_process_msgbuf_edl(dhd_pub_t *dhd);
@@ -249,34 +214,6 @@ void dhd_dma_buf_free(dhd_pub_t *dhd, dhd_dma_buf_t *dma_buf);
 
 int dhd_get_hscb_info(dhd_pub_t *dhd, void ** va, uint32 *len);
 int dhd_get_hscb_buff(dhd_pub_t *dhd, uint32 offset, uint32 length, void * buff);
-
-#ifdef BCMINTERNAL
-typedef struct host_page_location_info {
-	uint32 addr_lo;
-	uint32 addr_hi;
-	uint32 binary_size;
-	uint32 tlv_size;
-	uint32 tlv_signature;
-} host_page_location_info_t;
-#define BCM_HOST_PAGE_LOCATION_SIGNATURE	0xFEED10C5u
-
-#ifdef DHD_FWTRACE
-typedef struct host_fwtrace_buf_location_info {
-	fwtrace_hostaddr_info_t host_buf_info;
-	uint32 tlv_size;
-	uint32 tlv_signature;
-} host_fwtrace_buf_location_info_t;
-/* Host buffer info for pushing the trace info */
-#define BCM_HOST_FWTRACE_BUF_LOCATION_SIGNATURE	0xFEED10C6u
-#endif /* DHD_FWTRACE */
-#endif /* BCMINTERNAL */
-
-#ifdef DHD_HP2P
-extern uint8 dhd_prot_hp2p_enable(dhd_pub_t *dhd, bool set, int enable);
-extern uint32 dhd_prot_pkt_threshold(dhd_pub_t *dhd, bool set, uint32 val);
-extern uint32 dhd_prot_time_threshold(dhd_pub_t *dhd, bool set, uint32 val);
-extern uint32 dhd_prot_pkt_expiry(dhd_pub_t *dhd, bool set, uint32 val);
-#endif
 
 #ifdef DHD_MAP_LOGGING
 extern void dhd_prot_smmu_fault_dump(dhd_pub_t *dhdp);

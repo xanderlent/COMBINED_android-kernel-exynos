@@ -36,9 +36,6 @@
 #include <linux/fs.h>
 #include <dngl_stats.h>
 #include <dhd.h>
-#ifdef DHD_WMF
-#include <dhd_wmf_linux.h>
-#endif
 #if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND) */
@@ -55,12 +52,8 @@
 #endif /* PCIE_FULL_DONGLE */
 
 #ifdef WL_MONITOR
-#ifdef HOST_RADIOTAP_CONV
-#include <bcmwifi_monitor.h>
-#else
 #define MAX_RADIOTAP_SIZE      256 /* Maximum size to hold HE Radiotap header format */
 #define MAX_MON_PKT_SIZE       (4096 + MAX_RADIOTAP_SIZE)
-#endif /* HOST_RADIOTAP_CONV */
 #endif /* WL_MONITOR */
 
 #if !defined(CONFIG_WIFI_CONTROL_FUNC)
@@ -75,7 +68,7 @@ struct wifi_platform_data {
 #ifdef BCMSDIO
 	int (*get_wake_irq)(void);
 #endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58)) || defined (CUSTOM_COUNTRY_CODE)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58)) || defined(CUSTOM_COUNTRY_CODE)
 	void *(*get_country_code)(char *ccode, u32 flags);
 #else /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58)) || defined (CUSTOM_COUNTRY_CODE) */
 	void *(*get_country_code)(char *ccode);
@@ -95,7 +88,7 @@ typedef struct wifi_adapter_info {
 	uint		bus_type;
 	uint		bus_num;
 	uint		slot_num;
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 	const char	*btfw_path;
 #endif /* defined (BT_OVER_SDIO) */
 } wifi_adapter_info_t;
@@ -114,9 +107,6 @@ typedef struct dhd_sta {
 	struct list_head list;  /* link into dhd_if::sta_list */
 	int idx;                /* index of self in dhd_pub::sta_pool[] */
 	int ifidx;              /* index of interface in dhd */
-#ifdef DHD_WMF
-	struct dhd_sta *psta_prim; /* primary index of psta interface */
-#endif /* DHD_WMF */
 } dhd_sta_t;
 typedef dhd_sta_t dhd_sta_pool_t;
 
@@ -170,28 +160,12 @@ typedef struct dhd_tx_lb_pkttag_fr {
 
 #define FILE_DUMP_MAX_WAIT_TIME 4000
 
-#ifdef IL_BIGENDIAN
-#include <bcmendian.h>
-#define htod32(i) (bcmswap32(i))
-#define htod16(i) (bcmswap16(i))
-#define dtoh32(i) (bcmswap32(i))
-#define dtoh16(i) (bcmswap16(i))
-#define htodchanspec(i) htod16(i)
-#define dtohchanspec(i) dtoh16(i)
-#else
 #define htod32(i) (i)
 #define htod16(i) (i)
 #define dtoh32(i) (i)
 #define dtoh16(i) (i)
 #define htodchanspec(i) (i)
 #define dtohchanspec(i) (i)
-#endif /* IL_BIGENDINA */
-
-#if defined(DHD_TCP_WINSIZE_ADJUST)
-#define MIN_TCP_WIN_SIZE 18000
-#define WIN_SIZE_SCALE_FACTOR 2
-#define MAX_TARGET_PORTS 5
-#endif /* DHD_TCP_WINSIZE_ADJUST */
 
 #ifdef BLOCK_IPV6_PACKET
 #define HEX_PREF_STR	"0x"
@@ -202,12 +176,12 @@ typedef struct dhd_tx_lb_pkttag_fr {
 #define ZERO_TYPE_STR	"00"
 #endif /* BLOCK_IPV6_PACKET */
 
-#if defined(OEM_ANDROID) && defined(SOFTAP)
+#if defined(SOFTAP)
 extern bool ap_cfg_running;
 extern bool ap_fw_loaded;
 #endif
 
-#if defined(OEM_ANDROID) && defined(BCMPCIE)
+#if defined(BCMPCIE)
 extern int dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd, int *dtim_period, int *bcn_interval);
 #else
 extern int dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd);
@@ -246,15 +220,6 @@ extern uint32 sec_save_softap_info(void);
 extern uint32 report_hang_privcmd_err;
 #endif /* DHD_SEND_HANG_PRIVCMD_ERRORS */
 
-#if defined(SOFTAP_TPUT_ENHANCE)
-extern void dhd_bus_setidletime(dhd_pub_t *dhdp, int idle_time);
-extern void dhd_bus_getidletime(dhd_pub_t *dhdp, int* idle_time);
-#endif /* SOFTAP_TPUT_ENHANCE */
-
-#if defined(BCM_ROUTER_DHD)
-void traffic_mgmt_pkt_set_prio(dhd_pub_t *dhdp, void * pktbuf);
-#endif /* BCM_ROUTER_DHD */
-
 #ifdef DHD_LOG_DUMP
 /* 0: DLD_BUF_TYPE_GENERAL, 1: DLD_BUF_TYPE_PRESERVE
 * 2: DLD_BUF_TYPE_SPECIAL
@@ -277,9 +242,9 @@ void traffic_mgmt_pkt_set_prio(dhd_pub_t *dhdp, void * pktbuf);
 #define LOG_DUMP_RTT_MAX_BUFSIZE (256 * 1024 * CUSTOM_LOG_DUMP_BUFSIZE_MB)
 #define LOG_DUMP_FILTER_MAX_BUFSIZE (128 * 1024 * CUSTOM_LOG_DUMP_BUFSIZE_MB)
 
-#if LOG_DUMP_TOTAL_BUFSIZE < \
-	(LOG_DUMP_GENERAL_MAX_BUFSIZE + LOG_DUMP_PRESERVE_MAX_BUFSIZE + \
-	LOG_DUMP_ECNTRS_MAX_BUFSIZE + LOG_DUMP_RTT_MAX_BUFSIZE + LOG_DUMP_FILTER_MAX_BUFSIZE)
+#if LOG_DUMP_TOTAL_BUFSIZE < (LOG_DUMP_GENERAL_MAX_BUFSIZE + \
+	LOG_DUMP_PRESERVE_MAX_BUFSIZE + LOG_DUMP_ECNTRS_MAX_BUFSIZE + LOG_DUMP_RTT_MAX_BUFSIZE \
+	+ LOG_DUMP_FILTER_MAX_BUFSIZE)
 #error "LOG_DUMP_TOTAL_BUFSIZE is lesser than sum of all rings"
 #endif
 
@@ -330,12 +295,6 @@ typedef struct dhd_if {
 	char			name[IFNAMSIZ+1]; /* linux interface name */
 	char			dngl_name[IFNAMSIZ+1]; /* corresponding dongle interface name */
 	struct net_device_stats stats;
-#ifdef DHD_WMF
-	dhd_wmf_t		wmf;		/* per bsscfg wmf setting */
-	bool	wmf_psta_disable;		/* enable/disable MC pkt to each mac
-						 * of MC group behind PSTA
-						 */
-#endif /* DHD_WMF */
 #ifdef PCIE_FULL_DONGLE
 	struct list_head sta_list;		/* sll of associated stations */
 	spinlock_t	sta_list_lock;		/* lock for manipulating sll */
@@ -352,18 +311,11 @@ typedef struct dhd_if {
 	bool grat_arp;
 	bool block_tdls;
 #endif /* DHD_L2_FILTER */
-#if (defined(BCM_ROUTER_DHD) && defined(QOS_MAP_SET))
-	uint8	 *qosmap_up_table;		/* user priority table, size is UP_TABLE_MAX */
-	bool qosmap_up_table_enable;	/* flag set only when app want to set additional UP */
-#endif /* BCM_ROUTER_DHD && QOS_MAP_SET */
 #ifdef DHD_MCAST_REGEN
 	bool mcast_regen_bss_enable;
 #endif
 	bool rx_pkt_chainable;		/* set all rx packet to chainable config by default */
 	cumm_ctr_t cumm_ctr;		/* cummulative queue length of child flowrings */
-#ifdef BCM_ROUTER_DHD
-	bool	primsta_dwds;		/* DWDS status of primary sta interface */
-#endif /* BCM_ROUTER_DHD */
 	uint8 tx_paths_active;
 	bool del_in_progress;
 	bool static_if;			/* used to avoid some operations on static_if */
@@ -404,14 +356,6 @@ typedef struct dhd_axi_error_dump {
 	struct hnd_ext_trap_axi_error_v1 etd_axi_error_v1;
 } dhd_axi_error_dump_t;
 #endif /* DNGL_AXI_ERROR_LOGGING */
-#ifdef BCM_ROUTER_DHD
-typedef struct dhd_write_file {
-	char file_path[64];
-	uint32 file_flags;
-	uint8 *buf;
-	int bufsize;
-} dhd_write_file_t;
-#endif
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
 struct dhd_rx_tx_work {
@@ -457,18 +401,8 @@ void* wifi_platform_get_prealloc_func_ptr(wifi_adapter_info_t *adapter);
 
 int dhd_get_fw_mode(struct dhd_info *dhdinfo);
 bool dhd_update_fw_nv_path(struct dhd_info *dhdinfo);
-#ifdef BCM_ROUTER_DHD
-void dhd_update_dpsta_interface_for_sta(dhd_pub_t* dhdp, int ifidx, void* event_data);
-#endif /* BCM_ROUTER_DHD */
-#ifdef DHD_WMF
-dhd_wmf_t* dhd_wmf_conf(dhd_pub_t *dhdp, uint32 idx);
-int dhd_get_wmf_psta_disable(dhd_pub_t *dhdp, uint32 idx);
-int dhd_set_wmf_psta_disable(dhd_pub_t *dhdp, uint32 idx, int val);
-void dhd_update_psta_interface_for_sta(dhd_pub_t *dhdp, char* ifname,
-		void* mac_addr, void* event_data);
-#endif /* DHD_WMF */
 
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 int dhd_net_bus_get(struct net_device *dev);
 int dhd_net_bus_put(struct net_device *dev);
 #endif /* BT_OVER_SDIO */

@@ -34,10 +34,8 @@
 #include <wl_android.h>
 #include <wl_cfgnan.h>
 
-#if defined(BCMDONGLEHOST)
 #include <dngl_stats.h>
 #include <dhd.h>
-#endif /* BCMDONGLEHOST */
 #include <wl_cfgvendor.h>
 #include <bcmbloom.h>
 #include <wl_cfgp2p.h>
