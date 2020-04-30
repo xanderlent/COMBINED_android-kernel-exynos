@@ -1,0 +1,21 @@
+#include <dt-bindings/gpio/gpio.h>
+
+&dsim_0 {
+	lcd_info = <&hb120blx01>;
+	/* reset */
+	gpios = <&gpc1 1 GPIO_ACTIVE_LOW>;
+	regulator_1p8v = "vdd_ldo21";
+	regulator_3p3v = "vdd_ldo20";
+
+	hb120blx01: hb120blx01 {
+		panel_name = "hb120blx01";
+		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
+		mode = <2>;
+		resolution = <390 390>;
+		size = <30 30>;
+		timing,refresh = <45>;
+		timing,dsi-hs-clk = <384>;
+		timing,dsi-escape-clk = <16>;
+		data_lane = <1>;
+	};
+};
