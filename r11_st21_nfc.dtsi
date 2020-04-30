@@ -1,0 +1,80 @@
+/*
+ * Device Tree config for the ST21 NFC chip
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+/*******/
+/* NFC */
+/*******/
+
+&i2c_0 {
+	/*******/
+	/* I2C */
+	/*******/
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";		/* Enable I2C0 */
+
+	/* NFC ST - st21nfc */
+	st21nfc: st21nfc@08 {		/* Default I2C address 0x08 */
+		compatible = "st,st21nfc";
+		reg = <0x08>;
+		reset-gpios = <&gpg1 0 0x00>;	/* SOC_NFC_RST_L */
+		pidle-gpios = <&gpg0 1 0x00>;	/* SOC_NFC_INT_H - labeled wrong */
+		irq-gpios = <&gpa0 3 0x00>;	/* NFC_SOC_INT_H */
+		clkreq-gpios = <&gpa1 5 0x00>;	/* NFC_SOC_CLK_REQ */
+		clocks = <&clock OSCCLK>;	/* Connect Ext 26 MHz Clock */
+		clock-names = "nfc_ref_clk";
+		st,clk_pinctrl;
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_irq &nfc_clkreq &nfc_nreset &nfc_pidle>;
+		status = "ok";
+	};
+};
+
+&pinctrl_0 {
+	/* NFC_SOC_INT_H */
+	nfc_irq: nfc-irq {
+		samsung,pins = "gpa0-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	/* NFC_SOC_CLK_REQ */
+	nfc_clkreq: nfc-clkreq {
+		samsung,pins = "gpa1-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&pinctrl_5 {
+	/* SOC_NFC_RST_L */
+	nfc_nreset: nfc-nreset {
+		samsung,pins = "gpg1-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	/* SOC_NFC_INT_H - labeled incorrectly on schematic. Actually an input */
+	nfc_pidle: nfc-pidle {
+		samsung,pins = "gpg0-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
