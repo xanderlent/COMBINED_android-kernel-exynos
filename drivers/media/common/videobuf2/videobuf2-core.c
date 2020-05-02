@@ -1288,12 +1288,14 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 		spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 		return;
 	}
-	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 
-	if (vb->state == VB2_BUF_STATE_ACTIVE)
+	if (vb->state == VB2_BUF_STATE_ACTIVE) {
+		spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 		return;
-	else if (vb->state != VB2_BUF_STATE_ERROR)
+	} else if (vb->state != VB2_BUF_STATE_ERROR) {
 		vb->state = VB2_BUF_STATE_ACTIVE;
+	}
+	spin_unlock_irqrestore(&vb->fence_cb_lock, flags);
 
 	if (vb->state == VB2_BUF_STATE_ACTIVE)
 		atomic_inc(&q->owned_by_drv_count);
