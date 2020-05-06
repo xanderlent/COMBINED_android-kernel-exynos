@@ -1,0 +1,36 @@
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+&hsi2c_4 {
+	status = "ok"
+
+	raydium@39 {
+		compatible = "raydium,raydium-ts";
+		reg = <0x39>;
+		raydium,reset-gpio = <&gpp3 2 GPIO_ACTIVE_LOW>;
+		raydium,irq-gpio =<&gpa0 5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "pmx_ts_active";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		raydium,display-coords = <0 0 390 390>;
+		raydium,soft-reset-delay-ms = <360>;
+		raydium,num-max-touches = <2>;
+	};
+};
+
+&pinctrl_0 {
+	/* TP_INT */
+	ts_int_active: ts-int-active {
+		samsung,pins = "gpa0-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP;
+		samsung,pin-drv = <EXYNOS_PIN_DRV_LV1>;
+	};
+
+	/* TP_EXT_RESET */
+	ts_reset_active: ts-reset-active {
+		samsung,pins = "gpp3-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS_PIN_DRV_LV1>;
+	};
+};
