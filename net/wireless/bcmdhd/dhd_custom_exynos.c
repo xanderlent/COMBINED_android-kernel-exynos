@@ -171,7 +171,7 @@ dhd_wlan_set_carddetect(int val)
 	return 0;
 }
 
-int __init
+int
 dhd_wlan_init_gpio(void)
 {
 	const char *wlan_node = "samsung,brcm-wlan";
@@ -267,7 +267,7 @@ struct wifi_platform_data dhd_wlan_control = {
 };
 EXPORT_SYMBOL(dhd_wlan_control);
 
-int __init
+int
 dhd_wlan_init(void)
 {
 	int ret;
