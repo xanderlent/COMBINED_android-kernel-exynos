@@ -469,7 +469,6 @@ struct sc_dev {
 	struct device			*dev;
 	const struct sc_variant		*variant;
 	struct sc_m2m_device		m2m;
-	struct m2m1shot_device		*m21dev;
 	struct clk			*aclk;
 	struct clk			*pclk;
 	struct clk			*clk_chld;
@@ -514,11 +513,9 @@ struct sc_qos_request {
  * @context_type	determines if the context is @m2m_ctx or @m21_ctx.
  * @sc_dev:		the Rotator device this context applies to
  * @m2m_ctx:		memory-to-memory device context
- * @m21_ctx:		m2m1shot context
  * @frame:		source frame properties
  * @ctrl_handler:	v4l2 controls handler
  * @fh:			v4l2 file handle
- * @ktime:		start time of a task of m2m1shot
  * @flip_rot_cfg:	rotation and flip configuration
  * @bl_op:		image blend mode
  * @dith:		image dithering mode
@@ -534,7 +531,6 @@ struct sc_ctx {
 	struct sc_dev			*sc_dev;
 	union {
 		struct v4l2_m2m_ctx	*m2m_ctx;
-		struct m2m1shot_context	*m21_ctx;
 	};
 	struct sc_frame			s_frame;
 	struct sc_frame			src_blend_frame;
@@ -543,7 +539,6 @@ struct sc_ctx {
 	struct v4l2_ctrl_handler	ctrl_handler;
 	union {
 		struct v4l2_fh		fh;
-		ktime_t			ktime_m2m1shot;
 	};
 	u32				flip_rot_cfg; /* SCALER_ROT_CFG */
 	enum sc_blend_op		bl_op;
