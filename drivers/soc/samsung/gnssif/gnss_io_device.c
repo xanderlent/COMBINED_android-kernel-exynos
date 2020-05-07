@@ -524,6 +524,8 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct io_device *iod = (struct io_device *)filp->private_data;
 	struct link_device *ld = iod->ld;
 	struct gnss_ctl *gc = iod->gc;
+	struct gnss_swreg swreg;
+	struct gnss_apreg apreg;
 	int err = 0;
 	int size;
 	int ret = 0;
@@ -610,6 +612,32 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case GNSS_IOCTL_READ_RESET_COUNT:
 		gif_info("%s: GNSS_IOCTL_READ_RESET_COUNT\n", iod->name);
 		return gc->reset_count;
+
+	case GNSS_IOCTL_GET_SWREG:
+		gif_info("%s: GNSS_IOCTL_GET_SWREG\n", iod->name);
+		if (!gc->pmu_ops->get_swreg) {
+			gif_err("get_swreg is not available\n");
+			return -EINVAL;
+		}
+		gc->pmu_ops->get_swreg(&swreg);
+		err = copy_to_user((void __user *)arg, &swreg, sizeof(struct gnss_swreg));
+		if (err) {
+			gif_err("copy to user fail for swreg (0x%08x)\n", err);
+		}
+		return err;
+
+	case GNSS_IOCTL_GET_APREG:
+		gif_info("%s: GNSS_IOCTL_GET_APREG\n", iod->name);
+		if (!gc->pmu_ops->get_apreg) {
+			gif_err("get_apreg is not available\n");
+			return -EINVAL;
+		}
+		gc->pmu_ops->get_apreg(&apreg);
+		err = copy_to_user((void __user *)arg, &apreg, sizeof(struct gnss_apreg));
+		if (err) {
+			gif_err("copy to user fail for apreg (0x%08x)\n", err);
+		}
+		return err;
 
 	default:
 		gif_err("%s: ERR! undefined cmd 0x%X\n", iod->name, cmd);
