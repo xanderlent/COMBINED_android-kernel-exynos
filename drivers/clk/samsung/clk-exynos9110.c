@@ -283,7 +283,8 @@ struct init_vclk exynos9110_dvfs_vclks[] __initdata = {
 
 /* Clock out */
 struct init_vclk exynos9110_clkout_vclks[] __initdata = {
-	VCLK(OSCCLK_AUD, VCLK_CLKOUT, "OSCCLK_AUD", 0,0, NULL),
+	VCLK(OSCCLK_NFC, VCLK_CLKOUT1, "OSCCLK_NFC", 0, 0, NULL),
+	VCLK(OSCCLK_AUD, VCLK_CLKOUT0, "OSCCLK_AUD", 0, 0, NULL),
 };
 
 static __initdata struct of_device_id ext_clk_match[] = {
