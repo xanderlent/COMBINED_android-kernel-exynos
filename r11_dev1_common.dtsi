@@ -97,6 +97,58 @@
 				wakeup = <1>;
 			};
 		};
+
+		s2mpw02-charger {
+			battery,charger_name = "s2mpw02-charger";
+			/* TODO: Update float voltage */
+			battery,chg_float_voltage = <4390>;
+		};
+
+		s2mpw02-fuelgauge {
+			fuelgauge,fuel_int = <&gpa0 4 0>;
+			/* SoC at which fuelgauge sends irq */
+			fuelgauge,fuel_alert_soc = <1>;
+			/* Scale capacity units to 0.1% */
+			fuelgauge,capacity_max = <1000>;
+			fuelgauge,capacity_max_margin = <70>;
+			fuelgauge,capacity_min = <0>;
+			/* DYNAMIC_SCALE | ATOMIC | SKIP_ABNORMAL */
+			fuelgauge,capacity_calculation_type = <0x1c>;
+		};
+
+		battery {
+			battery,charger_name = "s2mpw02-charger";
+			battery,fuelgauge_name = "s2mpw02-fuelgauge";
+
+			/* TODO: Update the rest of this section using battery info */
+			battery,vendor = "SDI SDI";
+			battery,technology = <2>;
+			battery,input_current_limit =
+						<100 0 0 350 350 200 200 200 200 0 200 100 200 200
+						0 200 200 200 200 200 200 200 0 200 200 20 200>;
+			battery,fast_charging_current =
+						<100 0 0 350 350 200 200 200 200 0 200 75 200 200
+						0 200 200 200 200 200 200 200 0 200 200 20 200>;
+			battery,full_check_current_1st = <100 0 0 30 30 30 30 30 30 0 30 30 30 30 0 30 30 30 30 30 30 30 0 30 30 20 30>;
+			battery,full_check_current_2nd = <100 0 0 20 20 20 20 20 20 0 20 20 20 20 0 20 20 20 20 20 20 20 0 20 20 20 20>;
+			battery,default_input_current = <150>;
+			battery,default_charging_current = <150>;
+			battery,default_full_check_current = <20>;
+			battery,max_input_current = <350>;
+			battery,max_charging_current = <350>;
+			battery,full_check_type = <7>;
+			battery,full_check_type_2nd = <7>;
+			battery,full_check_count = <1>;
+			battery,chg_full_vcell = <4310>;
+			battery,chg_recharge_vcell = <4250>;
+			battery,full_check_condition_soc = <90>;
+			battery,temp_high = <500>;
+			battery,temp_high_recovery = <450>;
+			battery,temp_low = <100>;
+			battery,temp_low_recovery = <150>;
+			battery,max_rawsoc = <10000>;
+		};
+
 		regulators {
 			buck1_reg: BUCK1 {
 				regulator-name = "vdd_soc";
