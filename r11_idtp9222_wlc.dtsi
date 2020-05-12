@@ -1,0 +1,3 @@
+&i2c_1 {
+	status = "ok"; /* Enable I2C1 */
+};
