@@ -1,0 +1,33 @@
+#
+# Global Navigation Satellite System (GNSS) devices
+#
+
+comment "Broadcom BCM477XX module"
+
+config GPS_BCM_SENSORS_SSP
+    bool "SPI"
+    depends on SPI
+    help
+        ssp driver for sensor hub.
+        If you say yes here you get ssp support for
+        the sensor hub.
+        To compile this driver as a module, choose M here: the
+        module will be called ssp.
+
+config GPS_BCM_TTY
+    bool  "TTY"
+    depends on TTY
+    help
+        Support for BCM GPS UART driver.
+
+config GPS_BCM_I2C
+    bool "I2C"
+    depends on I2C
+    help
+        Support for BCM GPS I2C driver.
+
+config GPS_BCM_SPI
+    bool "SPI"
+    depends on SPI
+    help
+        Support for BCM GPS SPI driver.
