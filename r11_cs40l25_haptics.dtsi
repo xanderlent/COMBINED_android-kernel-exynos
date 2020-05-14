@@ -1,0 +1,18 @@
+/*
+ * Device Tree config for the CS40L25 chip - Haptics actuator
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+
+&exynos_rtc {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&haptics_refclk>;
+
+	haptics_refclk: haptics_refclk {
+		samsung,pins = "gpa1-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};

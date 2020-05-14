@@ -16,6 +16,7 @@
 #include "r11_bcm430132_bluetooth.dtsi"
 #include "r11_bcm430132_wifi.dtsi"
 #include "r11_display-lcd.dtsi"
+#include "r11_cs40l25_haptics.dtsi"
 #include "r11_cs35l41_audio.dtsi"
 #include "r11_idtp9222_wlc.dtsi"
 #include "r11_st21_nfc.dtsi"
