@@ -21,6 +21,8 @@
 #include "r11_idtp9222_wlc.dtsi"
 #include "r11_st21_nfc.dtsi"
 #include "r11_st54_ese.dtsi"
+#include "r11_adc.dtsi"
+
 #include <dt-bindings/input/input.h>
 
 &pinctrl_0 {
