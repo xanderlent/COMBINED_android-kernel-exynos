@@ -100,6 +100,7 @@
 	};
 	s2mpw02mfd@00 {
 		compatible = "samsung,s2mpw02mfd";
+		status = "disabled";
 		acpm-ipc-channel = <2>;
 		i2c-speedy-address;
 		s2mpw02,wakeup = "enabled";
