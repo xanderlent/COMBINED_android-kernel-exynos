@@ -3,6 +3,8 @@
  */
 
 &hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "ok";
 
 	cs35l41@40 {

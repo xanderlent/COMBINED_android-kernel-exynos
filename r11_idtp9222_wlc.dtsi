@@ -1,3 +1,5 @@
 &i2c_1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "ok"; /* Enable I2C1 */
 };
