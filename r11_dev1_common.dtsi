@@ -30,6 +30,30 @@
 	status = "okay";
 };
 
+/* uart5 */
+&usi_00 {
+	usi_v2_mode = "uart";
+	status = "ok";
+};
+
+/* spi0 */
+&usi_00_cmgp {
+	usi_v2_mode = "spi";
+	status = "ok";
+};
+
+/* hsi2c4 */
+&usi_02_cmgp {
+	usi_v2_mode = "i2c";
+	status = "ok";
+};
+
+/* hsi2c8 */
+&usi_i2c_00 {
+	usi_v2_mode = "i2c";
+	status = "ok";
+};
+
 &pinctrl_0 {
 	pmic_irq: pmic-irq {
 		samsung,pins = "gpa0-0";
