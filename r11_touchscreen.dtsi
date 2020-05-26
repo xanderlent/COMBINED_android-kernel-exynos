@@ -2,7 +2,9 @@
 #include <dt-bindings/pinctrl/samsung.h>
 
 &hsi2c_4 {
-	status = "ok"
+	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
 
 	raydium@39 {
 		compatible = "raydium,raydium-ts";
@@ -22,8 +24,7 @@
 	ts_int_active: ts-int-active {
 		samsung,pins = "gpa0-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP;
-		samsung,pin-drv = <EXYNOS_PIN_DRV_LV1>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 	};
 
 	/* TP_EXT_RESET */
@@ -31,6 +32,5 @@
 		samsung,pins = "gpp3-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS_PIN_DRV_LV1>;
 	};
 };
