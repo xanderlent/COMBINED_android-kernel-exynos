@@ -1,0 +1,9 @@
+/*
+ * Device Tree config for the PAT9150 chip - optical tracking sensor (RSB)
+ */
+
+&i2c_3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";
+};
