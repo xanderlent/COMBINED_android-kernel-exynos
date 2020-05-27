@@ -16,3 +16,9 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
+
+&i2c_2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";
+};
