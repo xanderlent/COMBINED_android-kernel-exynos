@@ -374,7 +374,7 @@
 &dwmmc_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "disabled";
+	status = "okay";
 	num-slots = <1>;
 	broken-cd;
 	fixed_voltage;
