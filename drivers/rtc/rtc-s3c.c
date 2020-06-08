@@ -415,6 +415,15 @@ static void s3c24xx_rtc_enable(struct s3c_rtc *info)
 		writew(tmp | S3C2410_RTCCON_RTCEN, info->base + S3C2410_RTCCON);
 	}
 
+	/* re-enable the clock out signal device */
+	if ((con & S3C2410_RTCCON_CLKOUTEN) == 0) {
+		dev_info(info->dev, "rtc clock out disabled, re-enabling\n");
+
+		tmp = readw(info->base + S3C2410_RTCCON);
+		writew(tmp | S3C2410_RTCCON_CLKOUTEN,
+			info->base + S3C2410_RTCCON);
+	}
+
 	if (con & S3C2410_RTCCON_CNTSEL) {
 		dev_info(info->dev, "removing RTCCON_CNTSEL\n");
 
