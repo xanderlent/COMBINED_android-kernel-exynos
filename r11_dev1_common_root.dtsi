@@ -61,7 +61,7 @@
 		status = "okay";
 		compatible = "samsung,exynos9110-sound";
 		samsung,routing = "VOUTPUT", "ABOX UAIF0 Playback",
-			"ABOX UAIF1 Capture", "VINPUT1",
+			"ABOX UAIF0 Capture", "VINPUT1",
 			"VTS PAD DPDM", "DMIC1",
 			"VTS Virtual Output", "VTS Virtual Output Mux",
 			"VTS Virtual Output Mux", "DMIC1",

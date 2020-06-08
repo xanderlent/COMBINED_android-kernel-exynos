@@ -29,9 +29,6 @@
 #include <dt-bindings/input/input.h>
 
 &abox {
-	// Disable abox for now: it crashes the Kernel after downloading
-	// the firmware and starting the abox cpu.
-	status = "disabled";
 	/* Disabling vss: if it is enabled, the Kernel crashes. */
 	samsung,abox-bootargs = "init=ab0x vss=0";
 	abox_vss@0 {
