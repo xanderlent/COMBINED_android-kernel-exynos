@@ -26,7 +26,7 @@
 		pidle-gpios = <&gpg0 1 0x00>;	/* SOC_NFC_INT_H - labeled wrong */
 		irq-gpios = <&gpa0 3 0x00>;	/* NFC_SOC_INT_H */
 		clkreq-gpios = <&gpa1 5 0x00>;	/* NFC_SOC_CLK_REQ */
-		clocks = <&clock OSCCLK>;	/* Connect Ext 26 MHz Clock */
+		clocks = <&clock OSCCLK_NFC>;	/* Connect Ext 26 MHz Clock */
 		clock-names = "nfc_ref_clk";
 		st,clk_pinctrl;
 		pinctrl-names = "default";
