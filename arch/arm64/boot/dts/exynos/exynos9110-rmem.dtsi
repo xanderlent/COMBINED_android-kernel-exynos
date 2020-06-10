@@ -24,7 +24,7 @@
 
 		modem_if {
 			compatible = "exynos,modem_if";
-			reg = <0x0 0x90c00000 0x6000000>;
+			reg = <0x0 0x90c00000 0x05C00000>;
 			rmem_index = <0>;
 		};
                 chub_rmem: chub_rmem {
