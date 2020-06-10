@@ -1,0 +1,9 @@
+config CS40L2X_HAPTIC
+	tristate "Cirrus Logic CS40L2X haptics support"
+	depends on I2C
+	depends on LEDS
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the CS CS40L2X haptics driver.
+
+	  To compile this driver as a module, choose M here.

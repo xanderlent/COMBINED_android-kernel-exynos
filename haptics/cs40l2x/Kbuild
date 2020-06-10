@@ -1,0 +1,4 @@
+cs40l2x-mod-y := cs40l2x.o
+cs40l2x-mod-$(CONFIG_SND_SOC_CS40L25_TABLE)	+= cs40l2x-tables.o
+
+obj-$(CONFIG_SND_SOC_CS40L25) := cs40l2x-mod.o
