@@ -130,9 +130,10 @@ inline int s51xx_pcie_send_doorbell_int(struct pci_dev *pdev, int int_num)
 		return 0;
 	}
 
+
 	if (s51xx_check_pcie_link_status(s51xx_pcie->pcie_channel_num) == 0) {
 		mif_err_limited("Can't send Interrupt(not linked)!!!\n");
-		return -EAGAIN;
+		goto check_cpl_timeout;
 	}
 
 	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
@@ -163,8 +164,7 @@ inline int s51xx_pcie_send_doorbell_int(struct pci_dev *pdev, int int_num)
 
 		if (cnt >= 10) {
 			mif_err_limited("BME is not set(cnt=%d)\n", cnt);
-			exynos_pcie_rc_register_dump(s51xx_pcie->pcie_channel_num);
-			return -EAGAIN;
+			goto check_cpl_timeout;
 		}
 	}
 
@@ -180,7 +180,7 @@ send_doorbell_again:
 
 	if (reg == 0xffffffff) {
 		count++;
-		if (count < 100) {
+		if (count < 10) {
 			if (!in_interrupt())
 				udelay(1000); /* 1ms */
 			else {
@@ -192,12 +192,20 @@ send_doorbell_again:
 			goto send_doorbell_again;
 		}
 		mif_err("[Need to CHECK] Can't send doorbell int (0x%x)\n", reg);
-		exynos_pcie_rc_register_dump(s51xx_pcie->pcie_channel_num);
-
-		return -EAGAIN;
+		goto check_cpl_timeout;
 	}
 
 	return 0;
+
+check_cpl_timeout:
+	if (exynos_pcie_rc_get_cpl_timeout_state(s51xx_pcie->pcie_channel_num)) {
+		mif_err_limited("Can't send Interrupt(cto_retry_cnt: %d)!!!\n",
+				mc->pcie_cto_retry_cnt);
+		return 0;
+	}
+
+	exynos_pcie_rc_register_dump(s51xx_pcie->pcie_channel_num);
+	return -EAGAIN;
 }
 
 void first_save_s51xx_status(struct pci_dev *pdev)
