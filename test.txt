@@ -1,2 +1,0 @@
-Test file to verify b/155187758.
-version #2.
