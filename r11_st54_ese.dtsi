@@ -8,10 +8,12 @@
 /* eSE */
 /*******/
 
-&spi_0 {
+&spi_4 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "ok";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi4_bus &spi4_cs>;
 
 	ese: ese@0 {
 		compatible = "st,st54j_se";

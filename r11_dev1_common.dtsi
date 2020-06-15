@@ -69,6 +69,12 @@
 	status = "ok";
 };
 
+/* spi4 */
+&usi_spi {
+	usi_v2_mode = "spi";
+	status = "ok";
+};
+
 /* hsi2c4 */
 &usi_02_cmgp {
 	usi_v2_mode = "i2c";
