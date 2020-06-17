@@ -6,29 +6,27 @@
 /* UART & BT */
 /*************/
 
+/* Bluetooth BRCM - rfkill */
+&rfkill {
+	compatible = "brcm,rfkill";
+	power-gpios = <&gpg5 1 0x0	/* BT_REG_ON */ >;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bt_poweren>;
+	status = "okay";
+};
+
+/* Bluetooth BRCM - lpm */
+&bluesleep {
+	compatible = "brcm,bluesleep";
+	host-wake-gpios = <&gpa1 1 0x0	/* BT_HOST_WAKE */>;
+	dev-wake-gpios = <&gpg4 1 0x0	/* BT_DEV_WAKE */ >;
+	pinctrl-names = "default";
+	pinctrl-0 = <&bt_hostwake &bt_devwake>;
+	status = "okay";
+};
+
 &serial_5 {
 	status = "okay";
-
-	bluetooth {
-		/* Bluetooth BRCM - rfkill */
-		rfkill {
-			compatible = "brcm,rfkill";
-			power-gpios = <&gpg5 1 0x0	/* BT_REG_ON */ >;
-			pinctrl-names = "default";
-			pinctrl-0 = <&bt_poweren>;
-			status = "okay";
-		};
-
-		/* Bluetooth BRCM - lpm */
-		bluesleep {
-			compatible = "brcm,bluesleep";
-			host-wake-gpios = <&gpa1 1 0x0	/* BT_HOST_WAKE */>;
-			dev-wake-gpios = <&gpg4 1 0x0	/* BT_DEV_WAKE */ >;
-			pinctrl-names = "default";
-			pinctrl-0 = <&bt_hostwake &bt_devwake>;
-			status = "okay";
-		};
-	};
 };
 
 &pinctrl_0 {
