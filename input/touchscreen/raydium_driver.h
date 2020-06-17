@@ -252,7 +252,6 @@ struct raydium_ts_platform_data {
 	u32 y_max;
 	u32 x_min;
 	u32 y_min;
-	u32 hard_rst_dly;
 	u32 soft_rst_dly;
 	u32 num_max_touches;
 };

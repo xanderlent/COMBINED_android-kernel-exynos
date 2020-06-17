@@ -1898,15 +1898,6 @@ static int raydium_parse_dt(struct device *dev,
 	if (pdata->irq_gpio < 0)
 		return pdata->irq_gpio;
 
-
-	rc = of_property_read_u32(np,
-			"raydium,hard-reset-delay-ms", &temp_val);
-	if (!rc)
-		pdata->hard_rst_dly = temp_val;
-	else
-		return rc;
-
-
 	rc = of_property_read_u32(np,
 			"raydium,soft-reset-delay-ms", &temp_val);
 	if (!rc)
