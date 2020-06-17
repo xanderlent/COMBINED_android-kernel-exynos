@@ -674,7 +674,7 @@ static int bluesleep_probe(struct platform_device *pdev)
 	}
 
 	/* low edge (falling edge) */
-	bsi->irq_polarity = POLARITY_LOW;
+	bsi->irq_polarity = POLARITY_HIGH;
 
 //	wake_lock_init(&bsi->bt_wakelock, WAKE_LOCK_SUSPEND, "bluesleep1");
 //	wake_lock_init(&bsi->host_wakelock, WAKE_LOCK_SUSPEND, "bluesleep2");
@@ -686,7 +686,7 @@ static int bluesleep_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, bsi->host_wake_irq,
 		bluesleep_hostwake_isr, bluesleep_hostwake_thread_irq,
-		(IRQF_TRIGGER_LOW | IRQF_NO_SUSPEND),
+		(IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND),
 		"host-wake-gpios", bsi);
 
 	if (ret < 0) {
