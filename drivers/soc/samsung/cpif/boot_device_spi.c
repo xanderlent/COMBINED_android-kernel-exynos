@@ -60,9 +60,12 @@ int cpboot_spi_load_cp_image(struct link_device *ld, struct io_device *iod, unsi
 		goto exit;
 	}
 
-	buff = kzalloc(img.size, GFP_KERNEL);
+	/* MUST not enable dma-mode on SPI
+	 * dma-mode does not support non-contiguous buffer
+	 */
+	buff = vzalloc(img.size);
 	if (!buff) {
-		mif_err("kzalloc(%u) error\n", img.size);
+		mif_err("vzalloc(%u) error\n", img.size);
 		ret = -ENOMEM;
 		goto exit;
 	}
@@ -85,7 +88,8 @@ int cpboot_spi_load_cp_image(struct link_device *ld, struct io_device *iod, unsi
 	}
 
 exit:
-	kfree(buff);
+	if (buff)
+		vfree(buff);
 	mutex_unlock(&cpboot->lock);
 
 	return ret;
