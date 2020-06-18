@@ -967,8 +967,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
 	struct s3c24xx_i2c *i2c = (struct s3c24xx_i2c *)adap->algo_data;
-	int retry;
-	int ret;
+	int ret, try;
 
 #ifdef CONFIG_ARCH_EXYNOS_PM
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
@@ -977,8 +976,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	if (ret)
 		return ret;
 
-
-	for (retry = 0; retry < adap->retries; retry++) {
+	for (ret = 0, try = 0; try <= adap->retries; try++) {
 
 		if (i2c->need_hw_init & S3C2410_NEED_FULL_INIT)
 			s3c24xx_i2c_init(i2c);
@@ -993,9 +991,11 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 			return ret;
 		}
 
-		dev_dbg(i2c->dev, "Retrying transmission (%d)\n", retry);
+		if (try < adap->retries) {
+			dev_dbg(i2c->dev, "Retrying transmission (%d)\n", try);
 
-		udelay(100);
+			udelay(100);
+		}
 	}
 
 	clk_disable(i2c->clk);
@@ -1330,7 +1330,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	strlcpy(i2c->adap.name, "s3c2410-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &s3c24xx_i2c_algorithm;
-	i2c->adap.retries = 2;
+	i2c->adap.retries = 1;
 	i2c->adap.class = I2C_CLASS_DEPRECATED;
 	i2c->tx_setup = 50;
 

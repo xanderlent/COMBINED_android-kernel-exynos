@@ -998,8 +998,8 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 {
 	struct exynos5_i2c *i2c = (struct exynos5_i2c *)adap->algo_data;
 	struct i2c_msg *msgs_ptr = msgs;
-	int retry, i = 0;
-	int ret = 0;
+	int i = 0;
+	int ret, try;
 	int stop = 0;
 
 #ifdef CONFIG_PM
@@ -1058,7 +1058,7 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 		exynos5_i2c_init(i2c);
 	}
 
-	for (retry = 0; retry < adap->retries; retry++) {
+	for (ret = 0, try = 0; try <= adap->retries; try++) {
 		for (i = 0; i < num; i++) {
 			stop = (i == num - 1);
 
@@ -1080,9 +1080,11 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 		if ((i == num) && (ret != -EAGAIN))
 			break;
 
-		dev_dbg(i2c->dev, "retrying transfer (%d)\n", retry);
+		if (try < adap->retries) {
+			dev_dbg(i2c->dev, "retrying transfer (%d)\n", try);
 
-		udelay(100);
+			udelay(100);
+		}
 	}
 
 	if (i == num) {
@@ -1249,7 +1251,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	strlcpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
 	i2c->adap.algo    = &exynos5_i2c_algorithm;
-	i2c->adap.retries = 2;
+	i2c->adap.retries = 1;
 	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 
 	i2c->dev = &pdev->dev;
