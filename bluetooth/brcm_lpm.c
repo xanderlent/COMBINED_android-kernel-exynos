@@ -676,8 +676,8 @@ static int bluesleep_probe(struct platform_device *pdev)
 	/* low edge (falling edge) */
 	bsi->irq_polarity = POLARITY_HIGH;
 
-//	wake_lock_init(&bsi->bt_wakelock, WAKE_LOCK_SUSPEND, "bluesleep1");
-//	wake_lock_init(&bsi->host_wakelock, WAKE_LOCK_SUSPEND, "bluesleep2");
+	wake_lock_init(&bsi->bt_wakelock, WAKE_LOCK_SUSPEND, "bluesleep1");
+	wake_lock_init(&bsi->host_wakelock, WAKE_LOCK_SUSPEND, "bluesleep2");
 	clear_bit(BT_SUSPEND, &flags);
 
 	pr_info("host_wake_irq %d, polarity %d",
