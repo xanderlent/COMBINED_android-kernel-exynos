@@ -2165,6 +2165,10 @@ static int raydium_ts_probe(struct i2c_client *client,
 
 	pr_info("[touch]RAD Touch driver ver :0x%X\n", g_u32_driver_version);
 
+	/* TODO(mbouyack@): re-enable the firmware updater once we can
+	   be sure that the included firmware is compatible with the
+	   touch panel */
+#if defined(TOUCHSCREEN_RAYDIUM_UPDATE_FW)
 	/*fw update check*/
 	ret = raydium_fw_update_check(ts, u16_i2c_data);
 	if (ret < 0) {
@@ -2172,6 +2176,7 @@ static int raydium_ts_probe(struct i2c_client *client,
 		ret = -ENODEV;
 		goto exit_irq_request_failed;
 	}
+#endif
 	return 0;
 
 exit_irq_request_failed:
