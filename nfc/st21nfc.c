@@ -131,6 +131,8 @@ struct st21nfc_device {
 	bool clk_run;
 	struct clk *s_clk;
 	uint8_t pinctrl_en;
+	int irq_clkreq;
+	atomic_t is_clock_active;
 
 	/* GPIO for NFCC IRQ pin (input) */
 	struct gpio_desc *gpiod_irq;
@@ -160,7 +162,7 @@ static int st21nfc_clock_select(struct st21nfc_device *st21nfc_dev)
 		return 0;
 
 	if (st21nfc_dev->clk_run == false) {
-		ret = clk_prepare_enable(st21nfc_dev->s_clk);
+		ret = clk_prepare(st21nfc_dev->s_clk);
 
 		if (ret)
 			goto err_clk;
@@ -183,13 +185,14 @@ static int st21nfc_clock_deselect(struct st21nfc_device *st21nfc_dev)
 		return 0;
 
 	if (st21nfc_dev->clk_run == true) {
-		clk_disable_unprepare(st21nfc_dev->s_clk);
+		if (atomic_cmpxchg(&st21nfc_dev->is_clock_active, 1, 0) == 1) {
+			clk_disable(st21nfc_dev->s_clk);
+		}
+		clk_unprepare(st21nfc_dev->s_clk);
 		st21nfc_dev->clk_run = false;
 	}
 	return 0;
 }
-
-
 
 static void st21nfc_disable_irq(struct st21nfc_device *st21nfc_dev)
 {
@@ -214,6 +217,26 @@ static void st21nfc_enable_irq(struct st21nfc_device *st21nfc_dev)
 
 	}
 	spin_unlock_irqrestore(&st21nfc_dev->irq_enabled_lock, flags);
+}
+
+static irqreturn_t st21nfc_clkreq_irq_handler(int irq, void *dev_id)
+{
+	int value;
+	struct st21nfc_device *st21nfc_dev = dev_id;
+	value = gpiod_get_value(st21nfc_dev->gpiod_clkreq);
+
+	if (value) {
+		if (atomic_cmpxchg(&st21nfc_dev->is_clock_active, 0, 1) == 0) {
+			clk_enable(st21nfc_dev->s_clk);
+		}
+	}
+	else {
+		if (atomic_cmpxchg(&st21nfc_dev->is_clock_active, 1, 0) == 1) {
+			clk_disable(st21nfc_dev->s_clk);
+		}
+	}
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t st21nfc_dev_irq_handler(int irq, void *dev_id)
@@ -870,6 +893,7 @@ static int st21nfc_probe(struct i2c_client *client,
 	/* store for later use */
 	st21nfc_dev->client = client;
 	st21nfc_dev->r_state_current = ST21NFC_HEADER;
+	atomic_set(&st21nfc_dev->is_clock_active, 0);
 	client->adapter->retries = 0;
 
 	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev),
@@ -946,11 +970,31 @@ static int st21nfc_probe(struct i2c_client *client,
 			pr_debug("[dsc]%s:[OPTIONAL] clk_pinctrl set\n",
 				 __func__);
 			st21nfc_dev->pinctrl_en = 1;
-		}
 
-		/* Set clk_run when clock pinctrl already enabled */
-		if (st21nfc_dev->pinctrl_en != 0)
-			st21nfc_dev->clk_run = true;
+			/* handle clk_req irq */
+			st21nfc_dev->irq_clkreq =
+					gpiod_to_irq(st21nfc_dev->gpiod_clkreq);
+
+			ret = irq_set_irq_type(st21nfc_dev->irq_clkreq,
+				       IRQ_TYPE_EDGE_BOTH);
+			if (ret) {
+				pr_info("%s : set_irq_type failed\n", __func__);
+				st21nfc_dev->pinctrl_en = 0;
+			} else {
+				ret = devm_request_irq(dev,
+						st21nfc_dev->irq_clkreq,
+						st21nfc_clkreq_irq_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING,
+						"st21nfc_clkreq_handle",
+						st21nfc_dev);
+				if (ret) {
+					pr_info( "%s : devm_request_irq for clkreq irq failed\n",
+						 __func__);
+					st21nfc_dev->pinctrl_en = 0;
+				}
+			}
+		}
 
 		ret = st21nfc_clock_select(st21nfc_dev);
 		if (ret < 0) {
@@ -1018,6 +1062,12 @@ err_pidle_workqueue:
 static int st21nfc_remove(struct i2c_client *client)
 {
 	struct st21nfc_device *st21nfc_dev = i2c_get_clientdata(client);
+	struct device *dev = &client->dev;
+
+	devm_free_irq(dev, st21nfc_dev->irq_pw_stats_idle, st21nfc_dev);
+	if (st21nfc_dev->pinctrl_en == 1) {
+		devm_free_irq(dev, st21nfc_dev->irq_clkreq, st21nfc_dev);
+	}
 
 	st21nfc_clock_deselect(st21nfc_dev);
 	misc_deregister(&st21nfc_dev->st21nfc_device);
