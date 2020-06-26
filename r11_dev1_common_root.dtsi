@@ -62,12 +62,9 @@
 		compatible = "samsung,exynos9110-sound";
 		samsung,routing = "VOUTPUT", "ABOX UAIF0 Playback",
 			"ABOX UAIF0 Capture", "VINPUT1",
-			"VTS PAD DPDM", "DMIC1",
-			"VTS Virtual Output", "VTS Virtual Output Mux",
-			"VTS Virtual Output Mux", "DMIC1",
 			"VOUTPUTCALL", "ABOX SIFS0 Playback",
 			"ABOX SIFS0 Capture", "VINPUTCALL";
-		samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4 &vts>;
+		samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4>;
 		samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX", "VTS";
 		/* samsung,aux = <&abox_effect>; */
 		rdma@0 {
@@ -194,7 +191,7 @@
 				sound-dai = <&abox_uaif_0>;
 			};
 			codec {
-				sound-dai = <&audio_codec_cod9005x>;
+				sound-dai = <&cs35l41>;
 			};
 		};
 		uaif@1 {
@@ -309,4 +306,19 @@
 		};
 	};
 
+	cs35l41_speaker_power_regulator: cs35l41_speaker_power_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "PPVAR_VSYS_SPKR";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	cs35l41_logic_voltage_regulator: cs35l41_logic_voltage_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "PP1800_PU";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
 };
