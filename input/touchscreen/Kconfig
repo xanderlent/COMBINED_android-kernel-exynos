@@ -2,7 +2,3 @@ comment "Raydium touchscreen module"
 
 config TOUCHSCREEN_RAYDIUM
 	tristate "Raydium touchscreen driver"
-
-config TOUCHSCREEN_RAYDIUM_UPDATE_FW
-	bool "Automatically update touch firmware"
-	default y
