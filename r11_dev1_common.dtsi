@@ -336,8 +336,8 @@
 			};
 			ldo10_reg: LDO10 {
 				regulator-name = "vdd_ldo10";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3375000>;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
