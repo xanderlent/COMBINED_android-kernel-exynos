@@ -296,31 +296,6 @@ static irqreturn_t bluesleep_hostwake_thread_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/*
- * Handles proper timer action when outgoing data is delivered to the
- * HCI line discipline. Sets BT_TXDATA.
- */
-static void bluesleep_outgoing_data(void)
-{
-	unsigned long irq_flags;
-
-	pr_info("bluesleep_outgoing_data\n");
-	spin_lock_irqsave(&rw_lock, irq_flags);
-	wake_lock(&bsi->bt_wakelock);
-
-	if (bsi->has_ext_wake == 1)
-		gpiod_set_value(bsi->ext_wake, 1);
-	pr_info("bluesleep_outgoing_data1\n");
-	set_bit(BT_EXT_WAKE, &flags);
-
-	/* log data passing by */
-	set_bit(BT_TXDATA, &flags);
-
-	spin_unlock_irqrestore(&rw_lock, irq_flags);
-	mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
-	pr_info("bluesleep_outgoing_data2\n");
-}
-
 static ssize_t bluesleep_write_proc_lpm(struct file *file,
 	const char __user *buffer, size_t count, loff_t *pos)
 {
@@ -379,9 +354,18 @@ static ssize_t bluesleep_write_proc_btwrite(struct file *file,
 		return -EFAULT;
 	pr_info("bluesleep_write_proc_btwrite=%c", b);
 
-	/* HCI_DEV_WRITE */
-	if (b != '0')
-		bluesleep_outgoing_data();
+	if (b == '1')
+	{
+		if (bsi->has_ext_wake == 1)
+			gpiod_set_value(bsi->ext_wake, 1);
+		set_bit(BT_EXT_WAKE, &flags);
+		set_bit(BT_TXDATA, &flags);
+	} else {
+		if (bsi->has_ext_wake == 1)
+			gpiod_set_value(bsi->ext_wake, 0);
+		clear_bit(BT_EXT_WAKE, &flags);
+		clear_bit(BT_TXDATA, &flags);
+	}
 
 	return count;
 }
