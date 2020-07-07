@@ -51,6 +51,16 @@
 	status = "okay";
 };
 
+&serial_4 {
+	status = "okay";
+};
+
+/* uart4 */
+&usi_03_cmgp {
+	usi_v2_mode = "uart";
+	status = "okay";
+};
+
 /* uart5 */
 &usi_00 {
 	usi_v2_mode = "uart";
