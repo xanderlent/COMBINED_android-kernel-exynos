@@ -185,6 +185,33 @@ struct  pdn_table {
 } __packed;
 #define IOCTL_SET_MULTIPLE_PDN_INFO	_IOW(IOCTL_MAGIC, 0x61, struct pdn_info)
 
+/* This number must not exceed 192. */
+#define MAX_FILTER_SIZE 192
+struct single_packet_filter {
+	u32 filter_size;
+	u8 filter[MAX_FILTER_SIZE];
+	u8 mask[MAX_FILTER_SIZE];
+} __packed;
+
+/* If the host simply wishes to clear (remove) any previous filter
+ * for the specified SessionId, the value of PacketFiltersCount is set to zero
+ * and no DataBuffer (pattern filter structure) follows.
+ */
+
+/* This number must not be smaller than 16. */
+#define NUMBER_FILTERS 16
+struct packet_filter {
+	u8 cid;
+	u32 filters_count;
+	struct single_packet_filter single_filter[NUMBER_FILTERS];
+} __packed;
+
+struct  packet_filter_table {
+	struct packet_filter rmnet[RMNET_COUNT];
+} __packed;
+#define IOCTL_SET_IP_PACKET_FILTERS	_IOW(IOCTL_MAGIC, 0x62, struct packet_filter)
+#define IOCTL_GET_IP_PACKET_FILTERS	_IOWR(IOCTL_MAGIC, 0x63, struct packet_filter)
+
 /*
  * Definitions for IO devices
  */
@@ -485,6 +512,8 @@ struct link_device {
 
 	u32 internet_pdn_cid;
 
+	bool is_modern_standby;
+
 	/* SIPC version */
 	enum sipc_ver ipc_version;
 
@@ -513,6 +542,9 @@ struct link_device {
 
 	/* Save Source IP addresses for each PDN setup request */
 	struct pdn_table pdn_table;
+
+	/* Save Source IP addresses for packet filter */
+	struct packet_filter_table packet_filter_table;
 
 	int (*init_comm)(struct link_device *ld, struct io_device *iod);
 	void (*terminate_comm)(struct link_device *ld, struct io_device *iod);
