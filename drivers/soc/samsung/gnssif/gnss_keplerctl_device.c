@@ -24,6 +24,10 @@
 
 #include <asm/cacheflush.h>
 
+#if defined(CONFIG_GNSS_ACTIVE_WA)
+#include <soc/samsung/exynos-powermode.h>
+#endif
+
 #include "gnss_mbox.h"
 #include "gnss_prj.h"
 #include "gnss_link_device_shmem.h"
@@ -336,6 +340,14 @@ static int kepler_power_on(struct gnss_ctl *gc)
 		gif_err("%s: sw_init_cmpl TIMEOUT!\n", gc->name);
 		return -EIO;
 	}
+#if defined(CONFIG_GNSS_ACTIVE_WA)
+	gif_info("enable GNSS active wakeup\n");
+	ret = exynos_wakeup_disable(WAKEUP_INT2, GNSS_ACTIVE, true);
+	if (ret < 0) {
+		gif_err("failed to enable GNSS active wakeup\n");
+		return -EIO;
+	}
+#endif
 	msleep(100);
 	ret = gc->pmu_ops->req_security();
 	if (ret != 0) {

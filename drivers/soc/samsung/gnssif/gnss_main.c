@@ -39,7 +39,9 @@
 #include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
 #endif
-
+#if defined(CONFIG_GNSS_ACTIVE_WA)
+#include <soc/samsung/exynos-powermode.h>
+#endif
 #include "gnss_mbox.h"
 #include "gnss_prj.h"
 #include "gnss_utils.h"
@@ -397,6 +399,7 @@ static int gnss_probe(struct platform_device *pdev)
 	struct io_device *iod;
 	struct link_device *ld;
 	unsigned size;
+	int ret;
 
 	gif_info("Exynos GNSS interface driver %s\n", get_gnssif_driver_version());
 
@@ -448,7 +451,14 @@ static int gnss_probe(struct platform_device *pdev)
 		gif_err("%s: Could not create IOD\n", pdata->name);
 		goto free_iod;
 	}
-
+#if defined(CONFIG_GNSS_ACTIVE_WA)
+	gif_info("disable gnss active wakeup\n");
+	ret = exynos_wakeup_disable(WAKEUP_INT2, GNSS_ACTIVE, false);
+	if (ret < 0) {
+		gif_err("failed to disable gnss active wakeup\n");
+		goto free_iod;
+	}
+#endif
 	/* attach device */
 	gif_info("set %s->%s\n", iod->name, ld->name);
 	set_current_link(iod, iod->ld);
