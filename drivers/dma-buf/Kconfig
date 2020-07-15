@@ -50,5 +50,6 @@ config DMABUF_TRACE
 	bool "dma-buf trace support"
 	default y
 	depends on DMA_SHARED_BUFFER
+	depends on DEBUG_FS
 
 endmenu
