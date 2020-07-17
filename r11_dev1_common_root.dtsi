@@ -191,7 +191,10 @@
 				sound-dai = <&abox_uaif_0>;
 			};
 			codec {
-				sound-dai = <&cs35l41>;
+				sound-dai = <&audio_codec_cod9005x>;
+				/* TODO(b/161492847): Return the below speaker driver here when the bug
+				   is fixed. */
+				/* sound-dai = <&cs35l41>; */
 			};
 		};
 		uaif@1 {
