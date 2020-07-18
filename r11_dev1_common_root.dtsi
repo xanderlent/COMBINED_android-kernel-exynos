@@ -52,6 +52,11 @@
 		compatible = "snd-soc-dummy";
 	};
 
+	mcu_mic_codec: audio_codec {
+		status = "okay";
+		compatible = "google,mcu_mic_codec";
+	};
+
 	/* The whole sound block was copied from the reference platform without
 	*  changes. We likely don't need most of it, as most of it are dummy
 	*  codecs/dais. Most probably the only useful subnode is uaif@0.
@@ -204,7 +209,7 @@
 				sound-dai = <&abox_uaif_1>;
 			};
 			codec {
-				sound-dai = <&dummy_audio_codec>;
+				sound-dai = <&mcu_mic_codec>;
 			};
 		};
 		uaif@4 {
