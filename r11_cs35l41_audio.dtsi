@@ -40,10 +40,11 @@
 		reset-gpios = <&gpg1 1 GPIO_ACTIVE_HIGH>;
 		interrupts = <GIC_SPI 8 IRQ_TYPE_EDGE_RISING>;
 
-		// cirrus,boost-peak-milliamp = <1600>;
-		// cirrus,boost-ind-nanohenry = <1000>;
-		// cirrus,boost-cap-microfarad = <30>;
-		// cirrus,right-channel-amp;
+		cirrus,boost-peak-milliamp = <1000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <30>;
+
+		cirrus,right-channel-amp;
 		// Mode 3: Hi-Z during unused slots and while all transmit channels disabled
 		cirrus,asp-sdout-hiz = <3>;
 	};
