@@ -4,6 +4,7 @@
 	lcd_info = <&hb120blx01>;
 	/* reset */
 	gpios = <&gpc1 1 GPIO_ACTIVE_LOW>, <&gpm14 0 GPIO_ACTIVE_HIGH>;
+	mux-gpios = <&gpm10 0 GPIO_ACTIVE_HIGH>, <&gpm11 0 GPIO_ACTIVE_LOW>;
 	regulator_1p8v = "vdd_ldo21";
 	regulator_3p3v = "vdd_ldo20";
 
@@ -21,4 +22,5 @@
 		data_lane = <1>;
 		type_of_ddi = <2>;
 	};
+
 };
