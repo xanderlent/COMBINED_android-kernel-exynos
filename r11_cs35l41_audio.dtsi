@@ -40,7 +40,7 @@
 		reset-gpios = <&gpg1 1 GPIO_ACTIVE_HIGH>;
 		interrupts = <GIC_SPI 8 IRQ_TYPE_EDGE_RISING>;
 
-		cirrus,boost-peak-milliamp = <1000>;
+		cirrus,boost-peak-milliamp = <1600>;
 		cirrus,boost-ind-nanohenry = <1000>;
 		cirrus,boost-cap-microfarad = <30>;
 
