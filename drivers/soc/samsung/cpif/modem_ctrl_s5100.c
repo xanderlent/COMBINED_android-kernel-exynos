@@ -475,7 +475,10 @@ static int power_on_cp(struct modem_ctl *mc)
 	print_mc_state(mc);
 
 	mif_gpio_set_value(mc->s5100_gpio_cp_reset, 0, 50);
-#ifdef CONFIG_CP_RESET_WA
+#if defined(CONFIG_CP_WRESET_WA)
+	mif_gpio_set_value(mc->s5100_gpio_cp_pwr, 0, 0);
+	udelay(50);
+#elif defined(CONFIG_CP_RESET_WA)
 	/*
 	 * Workaround code for CP RESET issue
 	 */
@@ -584,8 +587,11 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 	mif_info("s5100_cp_reset_required:%d\n", mc->s5100_cp_reset_required);
 	if (mc->s5100_cp_reset_required == true) {
 		mif_gpio_set_value(mc->s5100_gpio_cp_reset, 0, 50);
-		print_mc_state(mc);
-
+#if defined(CONFIG_CP_WRESET_WA)
+		mif_gpio_set_value(mc->s5100_gpio_cp_pwr, 0, 0);
+		udelay(50);
+		mif_gpio_set_value(mc->s5100_gpio_cp_pwr, 1, 50);
+#endif
 		mif_gpio_set_value(mc->s5100_gpio_cp_reset, 1, 50);
 		print_mc_state(mc);
 	}
@@ -616,8 +622,11 @@ static int power_reset_cp(struct modem_ctl *mc)
 	}
 
 	mif_gpio_set_value(mc->s5100_gpio_cp_reset, 0, 50);
-	print_mc_state(mc);
-
+#if defined(CONFIG_CP_WRESET_WA)
+	mif_gpio_set_value(mc->s5100_gpio_cp_pwr, 0, 0);
+	udelay(50);
+	mif_gpio_set_value(mc->s5100_gpio_cp_pwr, 1, 50);
+#endif
 	mif_gpio_set_value(mc->s5100_gpio_cp_reset, 1, 50);
 	print_mc_state(mc);
 
