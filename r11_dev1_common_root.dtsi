@@ -242,6 +242,16 @@
 		};
 	};
 
+	/* UART SWITCH FOR CP */
+	uart_sel {
+		compatible = "samsung,exynos-uart-sel";
+
+		int_ap2cp_uart_noti = <15>;
+		mbx_ap2cp_united_status = <2>;
+		sbi_uart_noti_mask = <0x1>;
+		sbi_uart_noti_pos = <16>;
+		use_usb_phy = <1>;
+	};
 
 	usb@13600000 {
 		status = "okay";

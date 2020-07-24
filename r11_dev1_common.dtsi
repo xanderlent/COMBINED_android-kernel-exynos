@@ -25,6 +25,7 @@
 #include "r11_st54_ese.dtsi"
 #include "r11_touchscreen.dtsi"
 #include "r11_adc.dtsi"
+#include "r11_cp.dtsi"
 
 #include <dt-bindings/input/input.h>
 
