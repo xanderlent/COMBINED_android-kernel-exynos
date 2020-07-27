@@ -79,6 +79,7 @@
 #define QUIRK_HAS_WTMINCNT_REG			BIT(4)
 
 #define EXYNOS_CLUSTER0_NONCPU_INT_EN		(0x1244)
+#define EXYNOS_CLUSTER0_NONCPU_OUT		(0x1220)
 
 /* These quirks require that we have a PMU register map */
 #define QUIRKS_HAVE_PMUREG			(QUIRK_HAS_PMU_CONFIG | \
@@ -366,6 +367,40 @@ static int s3c2410wdt_noncpu_int_en(struct s3c2410_wdt *wdt, bool mask)
 
 	dev_info(wdt->dev, "NONCPU_INT_EN set %s done, val = %x, mask = %d\n",
 		 val ? "true" : "false", reg_val, mask);
+
+	return ret;
+}
+
+static int s3c2410wdt_noncpu_out(struct s3c2410_wdt *wdt, bool en)
+{
+	int ret;
+	u32 cnt_en_val = 1 << wdt->drv_data->cnt_en_bit;
+	u32 val = cnt_en_val, reg_val = 0;
+
+	/* No need to do anything if no PMU CONFIG needed */
+	if (!(wdt->drv_data->quirks & QUIRK_HAS_PMU_CONFIG))
+		return 0;
+
+	/* If en value is false, wdt counter disable */
+	if (!en)
+		val = 0;
+
+	ret = exynos_pmu_update(wdt->drv_data->noncpu_out, cnt_en_val, val);
+	if (ret < 0) {
+		dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
+		return ret;
+	}
+
+	ret = exynos_pmu_read(wdt->drv_data->noncpu_out, &reg_val);
+	if (ret < 0) {
+		dev_err(wdt->dev, "Couldn't get NONCPU_OUT register, ret = (%d)\n", ret);
+		return ret;
+	}
+
+	wdt->noncpu_out_reg_val = reg_val;
+
+	dev_info(wdt->dev, "NONCPU_OUT set %s done, val = %x, en= %d\n",
+		 val ? "true" : "false", reg_val, en);
 
 	return ret;
 }
