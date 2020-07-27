@@ -478,14 +478,6 @@ static int power_on_cp(struct modem_ctl *mc)
 #if defined(CONFIG_CP_WRESET_WA)
 	mif_gpio_set_value(mc->s5100_gpio_cp_pwr, 0, 0);
 	udelay(50);
-#elif defined(CONFIG_CP_RESET_WA)
-	/*
-	 * Workaround code for CP RESET issue
-	 */
-	mif_info("sys_rev(%d)\n", sys_rev);
-
-	if (sys_rev < 21)
-		mif_gpio_set_value(mc->s5100_gpio_cp_pwr, 0, 50);
 #endif
 	mif_gpio_set_value(mc->s5100_gpio_cp_pwr, 1, 50);
 	mif_gpio_set_value(mc->s5100_gpio_cp_reset, 1, 50);
