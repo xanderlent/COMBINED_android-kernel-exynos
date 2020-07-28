@@ -1676,6 +1676,18 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 		goto exit;
 	}
 
+	/* Google: Call snd_soc_codec_set_sysclk directly here to get PLL running,
+	 * otherwise sound will not be produced.
+	 * NOTE: May look into moving the clock source selection and frequency into
+	 *       DTS in the future. */
+	ret = snd_soc_codec_set_sysclk(codec,
+					/* clk_id    = */ CS35L41_PLLSRC_SCLK,
+					/* source    = */ 0, /* ignored */
+					/* frequency = */ 3072000,
+					/* dir       = */ 0 /* ignored */);
+	if (ret != 0)
+		dev_err(codec->dev, "Failed to set SYS CLK: %d\n", ret);
+
 	kcontrol->name	= "Fast Use Case Delta File";
 	kcontrol->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	kcontrol->info	= snd_soc_info_enum_double;
