@@ -513,6 +513,18 @@ static void abox_dump_register_card_work_func(struct work_struct *work)
 
 	pr_debug("%s\n", __func__);
 
+	// Skipping registering the fake sound card, because otherwise it may
+	// get registered as Sound Card Id 0 and used by Audio HAL instead of
+	//  the Exynos9110 Sound Card, see: b/161492847.
+	// Abox dump debugfs API keeps working fine without the sound card being
+	// registered (though the pcm interface is not available),
+	// see: b/162263264.
+	if (true) {
+		pr_info("%s: Skip registering abox-dump Sound Card!\n",
+			__func__);
+		return;
+	}
+
 	snd_soc_unregister_card(&abox_dump_card);
 	for (i = 0; i < abox_dump_card.num_links; i++) {
 		struct snd_soc_dai_link *link = &abox_dump_card.dai_link[i];
