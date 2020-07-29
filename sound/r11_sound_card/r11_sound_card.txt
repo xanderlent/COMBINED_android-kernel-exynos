@@ -1,0 +1,75 @@
+ASOC R11 sound card (machine) driver
+
+Required properties:
+
+  - compatible : "google,r11-sound-card"
+
+Example:
+
+	sound {
+		status = "okay";
+		compatible = "google,r11-sound-card";
+		samsung,routing = "VOUTPUT", "ABOX UAIF0 Playback",
+			"ABOX UAIF0 Capture", "VINPUT1",
+			"VOUTPUTCALL", "ABOX SIFS0 Playback",
+			"ABOX SIFS0 Capture", "VINPUTCALL";
+		samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1>;
+		samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX";
+		rdma@0 {
+			dai_link = "RDMA0";
+			cpu {
+				sound-dai = <&abox 0>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		rdma@1 {
+			dai_link = "RDMA1";
+			cpu {
+				sound-dai = <&abox 1>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		wdma@0 {
+			dai_link = "WDMA0";
+			cpu {
+				sound-dai = <&abox 8>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		wdma@1 {
+			dai_link = "WDMA1";
+			cpu {
+				sound-dai = <&abox 9>;
+			};
+			codec {
+				sound-dai = <&dummy_audio_codec>;
+			};
+		};
+		uaif@0 {
+			dai_link = "UAIF0";
+			format = "i2s";
+			cpu {
+				sound-dai = <&abox_uaif_0>;
+			};
+			codec {
+				sound-dai-1 = <&audio_codec_cod9005x>;
+				sound-dai-2 = <&cs35l41>;
+			};
+		};
+		uaif@1 {
+			dai_link = "UAIF1";
+			format = "i2s";
+			cpu {
+				sound-dai = <&abox_uaif_1>;
+			};
+			codec {
+				sound-dai = <&mcu_mic_codec>;
+			};
+		};
+	};

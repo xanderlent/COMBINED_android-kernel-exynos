@@ -1,0 +1,4 @@
+config SND_SOC_R11_SOUND_CARD
+	tristate "ASOC R11 sound card (machine) driver"
+	help
+	  ASOC R11 sound card (machine) driver

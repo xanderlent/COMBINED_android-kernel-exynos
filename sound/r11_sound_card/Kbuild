@@ -1,0 +1,5 @@
+#
+# Makefile for the kernel ASOC R11 sound card (machine) driver.
+#
+
+obj-$(CONFIG_SND_SOC_R11_SOUND_CARD) += r11_sound_card.o
