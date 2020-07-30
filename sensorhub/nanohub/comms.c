@@ -89,8 +89,8 @@ static struct nanohub_packet_pad *packet_alloc(int flags)
 }
 
 static int packet_create(struct nanohub_packet *packet, uint32_t seq,
-			 uint32_t reason, uint8_t len, const uint8_t *data,
-			 bool user)
+			 uint32_t reason, uint8_t id, uint8_t len,
+			 const uint8_t *data, bool user)
 {
 	struct nanohub_packet_crc crc;
 	int ret = sizeof(struct nanohub_packet) + len +
@@ -100,6 +100,7 @@ static int packet_create(struct nanohub_packet *packet, uint32_t seq,
 		packet->sync = COMMS_SYNC;
 		packet->seq = seq;
 		packet->reason = reason;
+		packet->id = id;
 		packet->len = len;
 		if (len > 0) {
 			if (user) {
@@ -306,7 +307,8 @@ static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 
 static int nanohub_comms_tx_rx(struct nanohub_data *data,
 			       struct nanohub_packet_pad *pad, int packet_size,
-			       uint32_t seq, uint8_t *rx, size_t rx_len)
+			       uint32_t seq, uint8_t *rx_id, uint8_t *rx,
+			       size_t rx_len)
 {
 	int ret;
 
@@ -329,6 +331,9 @@ static int nanohub_comms_tx_rx(struct nanohub_data *data,
 			} else {
 				ret = 0;
 			}
+			if (rx_id != NULL) {
+				*rx_id = pad->packet.id;
+			}
 		}
 	} else {
 		ret = ERROR_NACK;
@@ -338,6 +343,7 @@ static int nanohub_comms_tx_rx(struct nanohub_data *data,
 }
 
 int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
+				      uint8_t tx_id, uint8_t *rx_id,
 				      uint8_t *rx, size_t rx_len,
 				      int retrans_cnt, int retrans_delay)
 {
@@ -359,12 +365,13 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 		get_monotonic_boottime(&ts);
 		boottime = timespec_to_ns(&ts);
 		packet_size =
-		    packet_create(&pad->packet, seq, cmd, sizeof(boottime),
-				  (uint8_t *)&boottime, false);
+		    packet_create(&pad->packet, seq, cmd, tx_id,
+				  sizeof(boottime), (uint8_t *)&boottime,
+				  false);
 
 		ret =
-		    nanohub_comms_tx_rx(data, pad, packet_size, seq, rx,
-					rx_len);
+		    nanohub_comms_tx_rx(data, pad, packet_size, seq, rx_id,
+					rx, rx_len);
 
 		if (nanohub_wakeup_eom(data,
 				       (ret == ERROR_BUSY) ||
@@ -391,9 +398,10 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 }
 
 int nanohub_comms_tx_rx_retrans(struct nanohub_data *data, uint32_t cmd,
-				const uint8_t *tx, uint8_t tx_len,
-				uint8_t *rx, size_t rx_len, bool user,
-				int retrans_cnt, int retrans_delay)
+				uint8_t tx_id, const uint8_t *tx,
+				uint8_t tx_len, uint8_t *rx_id, uint8_t *rx,
+				size_t rx_len, bool user, int retrans_cnt,
+				int retrans_delay)
 {
 	int packet_size = 0;
 	struct nanohub_packet_pad *pad = packet_alloc(GFP_KERNEL);
@@ -408,11 +416,12 @@ int nanohub_comms_tx_rx_retrans(struct nanohub_data *data, uint32_t cmd,
 
 	do {
 		packet_size =
-		    packet_create(&pad->packet, seq, cmd, tx_len, tx, user);
+		    packet_create(&pad->packet, seq, cmd, tx_id, tx_len, tx,
+				  user);
 
 		data->comms.open(data);
 		ret =
-		    nanohub_comms_tx_rx(data, pad, packet_size, seq, rx,
+		    nanohub_comms_tx_rx(data, pad, packet_size, seq, rx_id, rx,
 					rx_len);
 
 		if (nanohub_wakeup_eom(data,
@@ -473,8 +482,9 @@ static int nanohub_comms_download(struct nanohub_data *data,
 	if (request_wakeup(data))
 		return -ERESTARTSYS;
 	ret = nanohub_comms_tx_rx_retrans(data, CMD_COMMS_START_KERNEL_UPLOAD,
+					  ID_NANOHUB_COMMS,
 					  (const uint8_t *)&header,
-					  sizeof(header), &accepted,
+					  sizeof(header), NULL, &accepted,
 					  sizeof(accepted), false, 10, 10);
 	release_wakeup(data);
 
@@ -494,9 +504,10 @@ static int nanohub_comms_download(struct nanohub_data *data,
 			ret =
 			    nanohub_comms_tx_rx_retrans(data,
 							CMD_COMMS_KERNEL_CHUNK,
+							ID_NANOHUB_COMMS,
 							(const uint8_t *)&chunk,
 							sizeof(uint32_t) +
-							chunk_size,
+							chunk_size, NULL,
 							&chunk_reply,
 							sizeof(chunk_reply),
 							false, 10, 10);
@@ -514,8 +525,9 @@ static int nanohub_comms_download(struct nanohub_data *data,
 					}
 					nanohub_comms_tx_rx_retrans(data,
 					    CMD_COMMS_CLR_GET_INTR,
+					    ID_NANOHUB_COMMS,
 					    (uint8_t *)clear_interrupts,
-					    sizeof(clear_interrupts),
+					    sizeof(clear_interrupts), NULL,
 					    (uint8_t *)data->interrupts,
 					    sizeof(data->interrupts),
 					    false, 10, 0);
@@ -555,7 +567,7 @@ static int nanohub_comms_download(struct nanohub_data *data,
 		}
 		ret = nanohub_comms_tx_rx_retrans(data,
 					CMD_COMMS_FINISH_KERNEL_UPLOAD,
-					NULL, 0,
+					ID_NANOHUB_COMMS, NULL, 0, NULL,
 					&upload_reply, sizeof(upload_reply),
 					false, 10, 10);
 		release_wakeup(data);

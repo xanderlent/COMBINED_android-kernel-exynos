@@ -40,20 +40,16 @@ struct nanohub_io {
 	struct nanohub_data *data;
 	wait_queue_head_t buf_wait;
 	struct list_head buf_list;
+	atomic_t busy;
+	uint8_t id;
 };
-
-static inline struct nanohub_data *dev_get_nanohub_data(struct device *dev)
-{
-	struct nanohub_io *io = dev_get_drvdata(dev);
-
-	return io->data;
-}
 
 struct nanohub_data {
 	/* indices for io[] array */
-	#define ID_NANOHUB_SENSOR 0
-	#define ID_NANOHUB_COMMS 1
-	#define ID_NANOHUB_MAX 2
+	#define ID_NANOHUB_COMMS 0
+	#define ID_NANOHUB_CLIENT 1
+	#define ID_NANOHUB_CLIENTS 15
+	#define ID_NANOHUB_MAX 16
 
 	struct iio_dev *iio_dev;
 	struct nanohub_io io[ID_NANOHUB_MAX];
