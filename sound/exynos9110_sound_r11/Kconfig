@@ -1,4 +1,4 @@
-config SND_SOC_R11_SOUND_CARD
+config SND_SOC_EXYNOS9110_SOUND_R11
 	tristate "ASOC R11 sound card (machine) driver"
 	help
 	  ASOC R11 sound card (machine) driver

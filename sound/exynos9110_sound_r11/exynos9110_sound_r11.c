@@ -4,8 +4,6 @@
  * The file originally is based on
  * private/exynos-google-cw/sound/soc/samsung/exynos9110_sound.c.
  *
- * TODO(b/162429788): Rename methods, constants here to get rid of
- * "exynos9110_", "samsung" etc.
  *
  * Copyright 2020 Google LLC
  *
@@ -747,7 +745,7 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id exynos9110_of_match[] = {
-	{ .compatible = "google,r11-sound-card", },
+	{ .compatible = "samsung,exynos9110-sound-r11", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos9110_of_match);
@@ -755,7 +753,7 @@ MODULE_DEVICE_TABLE(of, exynos9110_of_match);
 
 static struct platform_driver exynos9110_audio_driver = {
 	.driver		= {
-		.name	= "r11-sound-card",
+		.name	= "exynos9110-sound-r11",
 		.owner	= THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = of_match_ptr(exynos9110_of_match),
@@ -768,5 +766,5 @@ module_platform_driver(exynos9110_audio_driver);
 
 MODULE_DESCRIPTION("ALSA SoC R11 sound driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:r11-sound-card");
+MODULE_ALIAS("platform:exynos9110-sound-r11");
 
