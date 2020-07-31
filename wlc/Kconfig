@@ -1,0 +1,5 @@
+comment "Halo Microelectronics HL6111R charger"
+
+config WLC_HL6111R
+		tristate "Halo Microelectronics HL6111R Wireless Power Receiver Driver"
+		depends on I2C
