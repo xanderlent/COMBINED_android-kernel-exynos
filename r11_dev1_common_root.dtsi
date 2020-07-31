@@ -64,7 +64,7 @@
 	*/
 	sound {
 		status = "okay";
-		compatible = "google,r11-sound-card";
+		compatible = "samsung,exynos9110-sound-r11";
 		samsung,routing = "VOUTPUT", "ABOX UAIF0 Playback",
 			"ABOX UAIF0 Capture", "VINPUT1",
 			"VOUTPUTCALL", "ABOX SIFS0 Playback",
