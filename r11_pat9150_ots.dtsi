@@ -2,7 +2,10 @@
  * Device Tree config for the PAT9150 chip - optical tracking sensor (RSB)
  */
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+&gpa0 {
+	#interrupt-cells = <2>;
+};
 
 &i2c_3 {
 	#address-cells = <1>;
@@ -14,7 +17,7 @@
 		status = "ok";
 		reg = <0x75>;
 		pixart,inverse-x;
-		pixart,irq-gpio = <&gpa0 2 GPIO_ACTIVE_LOW>;
+		interrupts-extended = <&gpa0 2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ots_int_default>;
 	};
@@ -27,3 +30,4 @@
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 	};
 };
+
