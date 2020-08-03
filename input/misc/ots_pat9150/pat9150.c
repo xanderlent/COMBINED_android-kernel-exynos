@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/of_gpio.h>
 #include <linux/delay.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/regulator/consumer.h>
@@ -20,7 +19,6 @@ struct pixart_pat9150_data {
 	struct i2c_client *client;
 	struct input_dev *input;
 	u32 press_keycode;
-	u32 irq_gpio;
 	bool press_en;
 	bool inverse_x;
 };
@@ -241,11 +239,6 @@ static int pat9150_parse_dt(struct device *dev,
 	u32 temp_val;
 	int ret;
 
-	data->irq_gpio =
-	    of_get_named_gpio_flags(np, "pixart,irq-gpio", 0, &temp_val);
-	if (data->irq_gpio < 0)
-		return data->irq_gpio;
-
 	data->inverse_x = of_property_read_bool(np, "pixart,inverse-x");
 	ret = of_property_read_u32(np, "pixart,press-keycode", &temp_val);
 	if (ret) {
@@ -258,34 +251,6 @@ static int pat9150_parse_dt(struct device *dev,
 	return 0;
 }
 
-static int pat9150_configure_gpio(struct device *dev,
-				  struct pixart_pat9150_data *data)
-{
-	int ret = 0;
-
-	if (gpio_is_valid(data->irq_gpio)) {
-		ret = gpio_request(data->irq_gpio, "pixart_irq_gpio");
-		if (ret) {
-			dev_err(dev, "[ots] failed to get irq gpio\n");
-			goto free_gpio;
-		}
-
-		ret = gpio_direction_input(data->irq_gpio);
-		if (ret) {
-			dev_err(dev,
-				"[ots] failed to set irq gpio direction\n");
-			goto free_gpio;
-		}
-	}
-
-	return 0;
-
-free_gpio:
-	if (gpio_is_valid(data->irq_gpio))
-		gpio_free(data->irq_gpio);
-	return ret;
-}
-
 static int pat9150_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
@@ -293,7 +258,6 @@ static int pat9150_i2c_probe(struct i2c_client *client,
 	struct pixart_pat9150_data *data;
 	struct input_dev *input;
 	struct device *dev = &client->dev;
-	int irq;
 
 	ret = i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE);
 	if (ret < 0) {
@@ -311,12 +275,6 @@ static int pat9150_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 	data->client = client;
-
-	ret = pat9150_configure_gpio(dev, data);
-	if (ret) {
-		dev_err(dev, "failed to configure gpio:%d\n", ret);
-		return ret;
-	}
 
 	input = devm_input_allocate_device(dev);
 	if (!input) {
@@ -345,11 +303,8 @@ static int pat9150_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	irq = gpio_to_irq(data->irq_gpio);
-	ret =
-	    devm_request_threaded_irq(dev, irq, NULL, pat9150_irq,
-				      IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-				      "pixart_pat9150_irq", data);
+	ret = devm_request_threaded_irq(dev, client->irq, NULL, pat9150_irq,
+				        IRQF_ONESHOT, "pat9150_irq", data);
 	if (ret) {
 		dev_err(dev, "Req irq %d failed, errno:%d\n", client->irq, ret);
 		return ret;
