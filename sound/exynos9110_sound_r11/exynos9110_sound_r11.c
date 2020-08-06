@@ -170,10 +170,10 @@ static struct snd_soc_pcm_stream sound_amp_params[] = {
 	},
 };
 
-static struct snd_soc_dai_link_component uaif0_codecs[] = {
+static struct snd_soc_dai_link_component uaif1_codecs[] = {
 	{
 		/* Capture */
-		.dai_name = "cod9005x-aif",
+		.dai_name = "mcu-mic-codec-dai",
 	},
 	{
 		/* Playback */
@@ -343,8 +343,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.stream_name = "UAIF0",
 		.cpu_dai_name = "UAIF0",
 		.platform_name = "snd-soc-dummy",
-		.codecs = uaif0_codecs,
-		.num_codecs = ARRAY_SIZE(uaif0_codecs),
+		.codec_dai_name = "cod9005x-aif",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
@@ -359,8 +358,9 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.stream_name = "UAIF1",
 		.cpu_dai_name = "UAIF1",
 		.platform_name = "snd-soc-dummy",
-		.codec_dai_name = "mcu-mic-codec-dai",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM,
+		.codecs = uaif1_codecs,
+		.num_codecs = ARRAY_SIZE(uaif1_codecs),
+		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
