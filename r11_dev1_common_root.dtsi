@@ -191,23 +191,23 @@
 		};
 		uaif@0 {
 			dai_link = "UAIF0";
-			format = "dsp_a";
+			format = "i2s";
 			cpu {
 				sound-dai = <&abox_uaif_0>;
 			};
 			codec {
-				sound-dai-1 = <&audio_codec_cod9005x>;
-				sound-dai-2 = <&cs35l41>;
+				sound-dai = <&audio_codec_cod9005x>;
 			};
 		};
 		uaif@1 {
 			dai_link = "UAIF1";
-			format = "i2s";
+			format = "dsp_a";
 			cpu {
 				sound-dai = <&abox_uaif_1>;
 			};
 			codec {
-				sound-dai = <&mcu_mic_codec>;
+				sound-dai-1 = <&mcu_mic_codec>;
+				sound-dai-2 = <&cs35l41>;
 			};
 		};
 		uaif@4 {
