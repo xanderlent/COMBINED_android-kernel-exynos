@@ -521,6 +521,50 @@ static ssize_t nanohub_wakeup_query(struct device *dev,
 			 data->irq2 ? gpio_get_value(pdata->irq2_gpio) : -1);
 }
 
+static ssize_t nanohub_pin_nreset_get(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	const struct nanohub_platform_data *pdata = data->pdata;
+	return scnprintf(buf, PAGE_SIZE, "%d\n", gpio_get_value(pdata->nreset_gpio));
+}
+
+static ssize_t nanohub_pin_boot0_get(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	const struct nanohub_platform_data *pdata = data->pdata;
+	return scnprintf(buf, PAGE_SIZE, "%d\n", gpio_get_value(pdata->boot0_gpio));
+}
+
+static ssize_t nanohub_pin_nreset_set(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	const struct nanohub_platform_data *pdata = data->pdata;
+	if (count >= 1 && buf[0] == '0') {
+		gpio_set_value(pdata->nreset_gpio, 0);
+	} else if (count >= 1 && buf[0] == '1') {
+		gpio_set_value(pdata->nreset_gpio, 1);
+	}
+	return count;
+}
+
+static ssize_t nanohub_pin_boot0_set(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	const struct nanohub_platform_data *pdata = data->pdata;
+	if (count >= 1 && buf[0] == '0') {
+		gpio_set_value(pdata->boot0_gpio, 0);
+	} else if (count >= 1 && buf[0] == '1') {
+		gpio_set_value(pdata->boot0_gpio, 1);
+	}
+	return count;
+}
+
 static ssize_t nanohub_app_info(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -647,16 +691,16 @@ static inline int nanohub_wakeup_unlock(struct nanohub_data *data)
 
 static void __nanohub_hw_reset(struct nanohub_data *data, int boot0)
 {
-	const struct nanohub_platform_data *pdata = data->pdata;
+	//const struct nanohub_platform_data *pdata = data->pdata;
 
 	//gpio_set_value(pdata->nreset_gpio, 0);
-	gpio_set_value(pdata->boot0_gpio, boot0 > 0);
-	usleep_range(30, 40);
+	//gpio_set_value(pdata->boot0_gpio, boot0 > 0);
+	//usleep_range(30, 40);
 	//gpio_set_value(pdata->nreset_gpio, 1);
-	if (boot0 > 0)
-		usleep_range(70000, 75000);
-	else if (!boot0)
-		usleep_range(750000, 800000);
+	//if (boot0 > 0)
+	//	usleep_range(70000, 75000);
+	//else if (!boot0)
+	//	usleep_range(750000, 800000);
 	nanohub_clear_err_cnt(data);
 }
 
@@ -992,7 +1036,9 @@ static struct device_attribute attributes[] = {
 	__ATTR(erase_shared, 0220, NULL, nanohub_erase_shared),
 	__ATTR(erase_shared_bl, 0220, NULL, nanohub_erase_shared_bl),
 #endif
-	__ATTR(reset, 0220, NULL, nanohub_try_hw_reset),
+	__ATTR(hw_reset, 0220, NULL, nanohub_try_hw_reset),
+	__ATTR(nreset, 0660, nanohub_pin_nreset_get, nanohub_pin_nreset_set),
+	__ATTR(boot0, 0660, nanohub_pin_boot0_get, nanohub_pin_boot0_set),
 #ifdef CONFIG_NANOHUB_BL
 	__ATTR(lock, 0220, NULL, nanohub_lock_bl),
 	__ATTR(unlock, 0220, NULL, nanohub_unlock_bl),
@@ -1653,7 +1699,7 @@ static void nanohub_release_gpios_irqs(struct nanohub_data *data)
 	gpio_free(pdata->nreset_gpio);
 	mcu_wakeup_gpio_set_value(data, 1);
 	gpio_free(pdata->wakeup_gpio);
-	gpio_set_value(pdata->boot0_gpio, 0);
+	gpio_set_value(pdata->boot0_gpio, 1);
 	gpio_free(pdata->boot0_gpio);
 }
 
