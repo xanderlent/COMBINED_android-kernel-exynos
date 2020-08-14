@@ -337,4 +337,39 @@
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
+
+	google_battery: battery {
+		status = "okay";
+		compatible = "google,battery";
+		battery,charger_name = "s2mpw02-charger";
+		battery,fuelgauge_name = "s2mpw02-fuelgauge";
+
+		/* TODO: Update the rest of this section using battery info */
+		battery,vendor = "Desay";
+		battery,technology = <2>; // Li-ion
+		// Each element of the following arrays corresponds to a power supply type
+		battery,input_current_limit =
+					<100 0 0 125 125 0 0 0 0 0 0 0 0 0 0 0>;
+		battery,fast_charging_current =
+					<100 0 0 125 125 0 0 0 0 0 0 0 0 0 0 0>;
+		battery,full_check_current_1st = <30 0 0 30 30 0 0 0 0 0 0 0 0 0 0 0>;
+		battery,full_check_current_2nd = <20 0 0 20 20 0 0 0 0 0 0 0 0 0 0 0>;
+		battery,default_input_current = <125>;
+		battery,default_charging_current = <125>;
+		battery,default_full_check_current = <20>;
+		battery,max_input_current = <250>;
+		battery,max_charging_current = <250>;
+		battery,full_check_type = <7>; // seems to be unused
+		battery,full_check_type_2nd = <7>; // seems to be unused
+		battery,full_check_count = <1>;
+		battery,chg_full_vcell = <4310>; // seems to be unused
+		battery,chg_recharge_vcell = <4250>; // seems to be unused
+		battery,full_check_condition_soc = <90>;
+
+		battery,temp_high = <420>;
+		battery,temp_high_recovery = <410>;
+		battery,temp_low = <190>;
+		battery,temp_low_recovery = <200>;
+		battery,max_rawsoc = <4400>;
+	};
 };
