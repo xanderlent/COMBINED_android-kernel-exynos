@@ -354,6 +354,7 @@ static ssize_t bluesleep_write_proc_btwrite(struct file *file,
 		return -EFAULT;
 	pr_info("bluesleep_write_proc_btwrite=%c", b);
 
+	/* HCI_DEV_WRITE */
 	if (b == '1')
 	{
 		if (bsi->has_ext_wake == 1)

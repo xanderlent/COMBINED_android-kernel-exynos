@@ -48,7 +48,7 @@
 #ifdef PLATFORM_SLP
 #define MACINFO_EFS "/csa/.mac.info"
 #else
-#define MACINFO_EFS "/efs/wifi/.mac.info"
+#define MACINFO_EFS MAC_PATH".mac.info"
 #define CIDINFO_DATA "/data/.cid.info"
 #endif /* PLATFORM_SLP */
 

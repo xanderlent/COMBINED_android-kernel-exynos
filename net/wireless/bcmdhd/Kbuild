@@ -520,6 +520,10 @@ DHDCFLAGS += -DWL_WPS_SYNC -DBCMCRYPTO_COMPONENT
 # Path name to store the FW Debug symbol files
 DHDCFLAGS += -DPLATFORM_PATH="\"/data/misc/wifi/\""
 
+# To Read the MAC address from a file
+DHDCFLAGS += -DREAD_MACADDR
+DHDCFLAGS += -DMAC_PATH="\"/mnt/vendor/persist/wifi/\""
+
 ##########################
 # driver type
 # m: module type driver
@@ -767,6 +771,10 @@ endif
 
 ifneq ($(filter -DDHD_EVENT_LOG_FILTER, $(DHDCFLAGS)),)
 	DHDOFILES += dhd_event_log_filter.o
+endif
+
+ifneq ($(filter -DREAD_MACADDR, $(DHDCFLAGS)),)
+	DHDOFILES += dhd_custom_cis.o
 endif
 
 bcmdhd-objs := $(DHDOFILES)

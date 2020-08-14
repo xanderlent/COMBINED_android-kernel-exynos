@@ -10340,9 +10340,11 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 #endif
 /* xxx andrey tmp fix for dk8000 build error  */
 	struct ether_addr p2p_ea;
+#ifndef READ_MACADDR
 #ifdef GET_CUSTOM_MAC_ENABLE
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
+#endif /* READ_MACADDR */
 #ifdef BCMPCIE_OOB_HOST_WAKE
 	uint32 hostwake_oob = 0;
 #endif /* BCMPCIE_OOB_HOST_WAKE */
@@ -10544,6 +10546,7 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 	}
 #endif /* DNGL_AXI_ERROR_LOGGING */
 
+#ifndef READ_MACADDR
 #ifdef GET_CUSTOM_MAC_ENABLE
 	ret = wifi_platform_get_mac_addr(dhd->info->adapter, ea_addr.octet);
 	if (!ret) {
@@ -10580,6 +10583,7 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 		/* Update public MAC address after reading from Firmware */
 		memcpy(dhd->mac.octet, buf, ETHER_ADDR_LEN);
 	}
+#endif /* READ_MACADDR */
 
 	if (ETHER_ISNULLADDR(dhd->mac.octet)) {
 		DHD_ERROR(("%s: NULL MAC address during pre-init\n", __FUNCTION__));
@@ -11139,9 +11143,11 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 apsta = 0;
 	int ap_mode = 1;
 #endif /* (defined(AP) || defined(WLP2P)) && !defined(SOFTAP_AND_GC) */
+#ifndef READ_MACADDR
 #ifdef GET_CUSTOM_MAC_ENABLE
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
+#endif /* READ_MACADDR */
 #ifdef OKC_SUPPORT
 	uint32 okc = 1;
 #endif
@@ -11325,6 +11331,7 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* EVENT_LOG_RATE_HC */
 
+#ifndef READ_MACADDR
 #ifdef GET_CUSTOM_MAC_ENABLE
 	ret = wifi_platform_get_mac_addr(dhd->info->adapter, ea_addr.octet);
 	if (!ret) {
@@ -11361,6 +11368,7 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 		/* Update public MAC address after reading from Firmware */
 		memcpy(dhd->mac.octet, buf, ETHER_ADDR_LEN);
 	}
+#endif /* READ_MACADDR */
 
 	if (ETHER_ISNULLADDR(dhd->mac.octet)) {
 		DHD_ERROR(("%s: NULL MAC address during pre-init\n", __FUNCTION__));
