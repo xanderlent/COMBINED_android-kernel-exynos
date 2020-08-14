@@ -1,0 +1,4 @@
+config BATTERY_GOOGLE
+	tristate "Google battery driver"
+	help
+	  Say Y here to enable support for Google battery driver.
