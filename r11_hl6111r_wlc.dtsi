@@ -4,9 +4,9 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "ok"; /* Enable I2C1 */
-	hl6111@18 {
+	hl6111@25 {
 		compatible = "halo,hl6111";
-		reg = <0x18>;
+		reg = <0x25>;
 		halo,int-gpio = <&gpa1 3 0>;
 		halo,det-gpio = <&gpa1 4 0>;
 		halo,clm-vth = <0x07>;
