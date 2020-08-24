@@ -111,23 +111,22 @@
 #define REG_IOUT_LIM_SEL                    0x28
 #define BITS_IOUTLIM                        BITS(7,3)
 
+#define REG_VRECT_TARGET                    0x2A
+#define BITS_VRECT_TRGT                     BITS(4,0)
+
 #define REG_VOUT_RANGE_SEL                  0x30
 #define BITS_VOUT_RNG_SEL                   BITS(7,6)
 
 #define REG_LDOP_REF                        0x31
 #define BITS_LDOP_REF                       BITS(1,0)
 
-#define REG_VOUT_AVG                        0x8E
+#define REG_VOUT_AVG                        0x83
 #define BITS_VOUT                           BITS(7,0)
 
 #define REG_IOUT_AVG                        0x8F
 #define BITS_IOUT                           BITS(7,0)
 
 #define REG_MAX     0xFF
-
-
-
-
 #define HALO_DBG
 
 #ifdef HALO_DBG
@@ -138,11 +137,18 @@
 
 #define HL6111_I2C_NAME "hl6111"
 
+//#define HL6111_ENABLE_CHOK
+#ifdef HL6111_ENABLE_CHOK
+#define HL6111_CHOK_START_DELAY_T           500         //500ms
+#define HL6111_CHOK_RETRY_DELAY_T           100         //100ms
+#define HL6111_CHOK_MAX_RETRY_CNT           3
+#endif
 
 enum hl6111_ept_reason {
     internal,
     sys_fault,
     fully_charged,
+    over_temp,
 };
 
 
@@ -169,20 +175,27 @@ enum {
     LDOP_3_3V,
 };
 
+enum VOUT_RANGE {
+    VOUT_RANGE_20MV = 0,
+    VOUT_RANGE_30MV,
+    VOUT_RANGE_40MV,
+    VOUT_RANGE_16MV,
+};
 
 struct hl6111_platform_data{
     /* IRQ NUM */
     unsigned int irq;
     unsigned int irq_det;
     /* GPIO CTRL */
-    // These were previously unsigned, but the code treats them as signed
     int det_gpio;
     int int_gpio;
+
     //dtsi
     unsigned int clm_vth;
     unsigned int bypass;
     unsigned int ldop;
-
+    unsigned int vout_range;
+    unsigned int trgt_vout;
 };
 
 struct hl6111_charger{
@@ -194,6 +207,10 @@ struct hl6111_charger{
     struct hl6111_platform_data     *pdata;
     struct i2c_client               *client;
     struct delayed_work             rx_work;
+#ifdef HL6111_ENABLE_CHOK
+    struct delayed_work             chok_work;
+    unsigned int retry_cnt;
+#endif
 
     struct dentry                   *debug_root;
 

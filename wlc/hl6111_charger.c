@@ -35,7 +35,7 @@ static char *hl6111_supplied_to[] = {
     "hl6111-charger",
 };
 
-static int hl6111_read_reg(struct hl6111_charger *halo, int reg, void *value)
+static int hl6111_read_reg(struct hl6111_charger *halo, int reg, int *value)
 {
     int ret = 0;
     mutex_lock(&halo->i2c_lock);
@@ -108,14 +108,35 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
     pdata->ldop = of_property_read_u32(np, "halo,ldop", &temp);
     if (rc) {
         pr_err("Invalid ldop\n");
+        pdata->ldop = LDOP_1_8V;
     }else{
         pdata->ldop = temp;
         LOG_DBG("ldop[%d] \n", pdata->ldop);
     }
 
+    /*VOUT Range */
+    pdata->vout_range = of_property_read_u32(np, "halo,vout-range", &temp);
+    if (rc) {
+        pr_err("Invalid Vrange\n");
+        pdata->vout_range = VOUT_RANGE_16MV;
+    }else{
+        pdata->vout_range = temp;
+        LOG_DBG("VOUT_RANGE[%d] \n", pdata->vout_range);
+    }
+
+    /* VOUT_TARGET */
+    pdata->trgt_vout = of_property_read_u32(np, "halo,trgt-vout", &temp);
+    if (rc) {
+        pr_err("Invalid TargetVout\n");
+        pdata->trgt_vout = 0x15;
+    }else{
+        pdata->trgt_vout = temp;
+        LOG_DBG("trgt_vout[%d]\n", pdata->trgt_vout);
+    }
 
     return rc;
 }
+
 #else
 static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdata)
 {
@@ -125,7 +146,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
 
 static void hl6111_get_chip_info(struct hl6111_charger *chg)
 {
-    u8 r_val;
+    int r_val;
     int ret;
 
     ret = hl6111_read_reg(chg, REG_ID, &r_val);
@@ -163,33 +184,16 @@ static void hl6111_send_ept(struct hl6111_charger *chg, enum hl6111_ept_reason e
     }else if (ept == fully_charged){
         LOG_DBG("fully_charged!!\r\n");
         hl6111_update_reg(chg, 0xED, 0x20, 0x20);
+    }else if (ept == over_temp){
+        LOG_DBG("Over Temp\n");
+        hl6111_update_reg(chg, REG_NTC_OTA_CONFIG, BIT_NTC_OTA_SEL, BIT_NTC_OTA_SEL);
     }
-}
-
-
-static void hl6111_device_init(struct hl6111_charger *chg)
-{
-    int bypass = chg->pdata->bypass;
-    int clm_vth = chg->pdata->clm_vth;
-    int ldop = chg->pdata->ldop;
-
-
-    LOG_DBG("Start!!\r\n");
-
-    //Need to set the value from DTSI
-    hl6111_write_reg(chg, REG_LDOP_REF, ldop);
-    hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);   //enable interrupt
-
-    //bypass setting
-    hl6111_update_reg(chg, REG_VOUT_BYPASS, BITS_VOUT_BP, (bypass << 4));
-    hl6111_update_reg(chg, REG_CLAMP_TH,    BITS_CLM_VTH, (clm_vth << 4));
-
 }
 
 static int hl6111_get_health(struct hl6111_charger *chg, union power_supply_propval *val)
 {
     int ret, health;
-    u8 sts;
+    int sts;
 
     LOG_DBG("Start!!\r\n");
     ret = hl6111_read_reg(chg, REG_STATUS, &sts);
@@ -213,27 +217,25 @@ static int hl6111_get_health(struct hl6111_charger *chg, union power_supply_prop
         LOG_DBG("Vrect Over Voltage!!\r\n");
     }else if (sts & BIT_OUT_EN_L){
         health = POWER_SUPPLY_HEALTH_DEAD;
-        LOG_DBG("BIT_OUT_EN_L is Disabled, %d\r\n", (unsigned int)(sts & BIT_OUT_EN_L));
+        LOG_DBG("BIT_OUT_EN_L is Enabled, %d\r\n", (unsigned int)(sts & BIT_OUT_EN_L));
     }else if (!(sts & BIT_OUT_EN_L)){
         health = POWER_SUPPLY_HEALTH_GOOD;
-        LOG_DBG("BIT_OUT_EN_L is Enabled, %d\r\n", (unsigned int)(sts & BIT_OUT_EN_L));
+        LOG_DBG("BIT_OUT_EN_L is Disabled, %d\r\n", (unsigned int)(sts & BIT_OUT_EN_L));
     }
 
         val->intval = health;
     return 0;
 }
 
-static void hl6111_isr_check(struct hl6111_charger *chg)
+static int hl6111_isr_check(struct hl6111_charger *chg)
 {
-    //union power_supply_propval value;
-    //struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
-    int ret;
-    u8 sts;
+    int ret = 0;
+    int sts;
 
     ret =  hl6111_read_reg(chg, REG_LATCHED_STATUS, &sts);
     if (ret < 0){
         pr_err("Can't read latched_status, reg0x%x rc =%d\r\n", REG_LATCHED_STATUS, ret);
-        return;
+        return -EINVAL;
     }
 
     LOG_DBG("Start!!, intsts == [0x%x]\r\n", sts);
@@ -246,18 +248,18 @@ static void hl6111_isr_check(struct hl6111_charger *chg)
     }else if (sts & BIT_OVA_L){
         LOG_DBG("Vrect Over Voltage!!\r\n");
     }else if (sts & BIT_OUT_EN_L){
-        LOG_DBG("BIT_OUT_EN_L is Disabled, %d\r\n", (unsigned int)(sts & BIT_OUT_EN_L));
+        LOG_DBG("BIT_OUT_EN_L is Enabled, %d\r\n", (unsigned int)(sts & BIT_OUT_EN_L));
     }else if (!(sts & BIT_OUT_EN_L)){
-         LOG_DBG("BIT_OUT_EN_L is Enabled, %d\r\n", (unsigned int)(sts & BIT_OUT_EN_L));
+        LOG_DBG("BIT_OUT_EN_L is Disabled, %d\r\n", (unsigned int)(sts & BIT_OUT_EN_L));
     }
 
-    return;
+    return ret;
 }
 
 static void hl6111_measure_vout(struct hl6111_charger *chg)
 {
     int ret;
-    u8 value;
+    int value;
 
     LOG_DBG("Start!!\r\n");
     ret =  hl6111_read_reg(chg, REG_VOUT_AVG, &value);
@@ -266,14 +268,14 @@ static void hl6111_measure_vout(struct hl6111_charger *chg)
         return;
     }
 
-    chg->vout = value * 9375;
+    chg->vout = (value * 93750);
     LOG_DBG("address = [0x%x], value = [0x%x], [%dmA]\n", (u8)REG_VOUT_AVG, value, chg->vout);
 }
 
 static void hl6111_measure_vheadroom(struct hl6111_charger *chg)
 {
     int ret;
-    u8 value;
+    int value;
 
     LOG_DBG("Start!!\r\n");
     ret =  hl6111_read_reg(chg, REG_VRECT_HEADROOM, &value);
@@ -298,11 +300,10 @@ static void  hl6111_vheadroom_ctrl(struct hl6111_charger *chg, u8 update)
 }
 
 
-
 static void hl6111_measure_vrect(struct hl6111_charger *chg)
 {
     int ret;
-    u8 value;
+    int value;
 
     LOG_DBG("Start!!\r\n");
     ret =  hl6111_read_reg(chg, REG_VRECT, &value);
@@ -311,14 +312,14 @@ static void hl6111_measure_vrect(struct hl6111_charger *chg)
         return;
     }
 
-    chg->vrect = (value * 9375); //(24/256)
-    LOG_DBG("addr[0x%x], read[0x%x], vrect is %d!!\r\n", REG_VRECT, value, chg->vrect);
+    chg->vrect = value * 93750;
+    LOG_DBG("addr[0x%x], read[0x%x], vrect is [%d mA]!!\r\n", REG_VRECT, value, chg->vrect);
 }
 
 static void hl6111_measure_irect(struct hl6111_charger *chg)
 {
     int ret;
-    u8 value;
+    int value;
 
     LOG_DBG("Start!!");
     ret =  hl6111_read_reg(chg, REG_IRECT, &value);
@@ -327,14 +328,14 @@ static void hl6111_measure_irect(struct hl6111_charger *chg)
         return;
     }
 
-    chg->irect = (value * 13);
-    LOG_DBG("addr[0x%x], read[0x%x],Irect[%dmA]\r\n", REG_IRECT, value, chg->irect);
+    chg->irect = (value * 13) * 1000;
+    LOG_DBG("addr[0x%x], read[0x%x], Irect[%d uA]\r\n", REG_IRECT, value, chg->irect);
 }
 
 static void hl6111_measure_tdie(struct hl6111_charger *chg)
 {
     int ret;
-    u8 value;
+    int value;
     //float temp;
 
     LOG_DBG("Start!!");
@@ -353,7 +354,7 @@ static void hl6111_measure_tdie(struct hl6111_charger *chg)
 static void hl6111_measure_iout(struct hl6111_charger *chg)
 {
     int ret;
-    u8 value;
+    int value;
 
     LOG_DBG("Start!!");
     ret =  hl6111_read_reg(chg, REG_IOUT_AVG, &value);
@@ -362,16 +363,15 @@ static void hl6111_measure_iout(struct hl6111_charger *chg)
         return;
     }
 
-    chg->iout = (value * 9171) / 1000;
+    chg->iout = ((value * 9171) + 9171);
 
-    LOG_DBG("addr[0x%x], read[0x%x], iout[%d]\r\n", REG_IOUT_AVG, value, chg->iout);
-
+    LOG_DBG("addr[0x%x], read[0x%x], iout[%d uA]\r\n", REG_IOUT_AVG, value, chg->iout);
 }
 
 static void hl6111_measure_ntc_temp(struct hl6111_charger *chg)
 {
     int ret, ntc;
-    u8 h_val, l_val;
+    int h_val, l_val;
 
     LOG_DBG("Start!!");
     ret = hl6111_read_reg(chg, REG_NTC_MEASURED_H, &h_val);
@@ -390,7 +390,7 @@ static void hl6111_measure_ntc_temp(struct hl6111_charger *chg)
 static void hl6111_get_target_vout(struct hl6111_charger *chg)
 {
     int ret;
-    u8 vout, range;
+    int vout, range;
 
     ret =  hl6111_read_reg(chg, REG_VOUT_TARGET, &vout);
     if (ret < 0){
@@ -414,7 +414,9 @@ static void hl6111_get_target_vout(struct hl6111_charger *chg)
     else if ((range & 0xC0) == 0xC0)
         chg->trgt_vout = 3952 + (vout * 16);
 
-    LOG_DBG("Target Vout is [%dmV]\r\n", chg->trgt_vout);
+    chg->trgt_vout = chg->trgt_vout * 1000;
+
+    LOG_DBG("Target Vout is [%d uV]\r\n", chg->trgt_vout);
 }
 
 
@@ -435,7 +437,7 @@ static void hl6111_target_vout_ctrl(struct hl6111_charger *chg, u8 update)
 static void hl6111_get_ioutlim(struct hl6111_charger *chg)
 {
     int ret;
-    u8 ilim;
+    int ilim;
 
     ret =  hl6111_read_reg(chg, REG_IOUT_LIM_SEL, &ilim);
     if (ret < 0){
@@ -443,14 +445,10 @@ static void hl6111_get_ioutlim(struct hl6111_charger *chg)
         return;
     }
 
-    if ((ilim >> 3) < 19)
-        chg->iout_lim = ((ilim >> 3) * 50) + 100;
-    else
-        chg->iout_lim = ((ilim >> 3) * 100) + 1100;
+    chg->iout_lim = (((ilim >> 3) * 50) + 100) * 1000;
 
-    LOG_DBG("Output corrent Regulation:: [%dmA], ilim:[0x%x]\r\n", chg->iout_lim, ilim);
+    LOG_DBG("ioutlim:: [%d uA], ilim:[0x%x]\r\n", chg->iout_lim, ilim);
 }
-
 
 static void hl6111_set_ioutlim(struct hl6111_charger *chg, u8 update)
 {
@@ -458,6 +456,9 @@ static void hl6111_set_ioutlim(struct hl6111_charger *chg, u8 update)
     if (update < 0) update = 0;
     else if (update > 0x1F) update = 0x1F;
 
+    if (update == 0x1F){
+        LOG_DBG("No Limit!!\n");
+    }
 
     hl6111_write_reg(chg, REG_IOUT_LIM_SEL, (update << 3));
 
@@ -467,7 +468,7 @@ static void hl6111_set_ioutlim(struct hl6111_charger *chg, u8 update)
 static void hl6111_get_vout_bypass(struct hl6111_charger *chg)
 {
     int ret;
-    u8 r_val;
+    int r_val;
 
     ret =  hl6111_read_reg(chg, REG_VOUT_BYPASS, &r_val);
     if (ret < 0){
@@ -480,14 +481,14 @@ static void hl6111_get_vout_bypass(struct hl6111_charger *chg)
     if((r_val >> 4) == 0x0F)
         chg->bypass = 12000;
     else
-        chg->bypass = 5000 + ((r_val >> 4) * 500);
+        chg->bypass = (5000 + ((r_val >> 4) * 500)) * 1000;
 
-    LOG_DBG("vout bypass:: [%dmV], pdata->bypass::[0x%x]\r\n", chg->bypass, chg->pdata->bypass);
+    LOG_DBG("vout bypass:: [%duV], pdata->bypass::[0x%x]\r\n", chg->bypass, chg->pdata->bypass);
 }
 
 static void hl6111_set_vout_bypass(struct hl6111_charger *chg, u8 update)
 {
-    u8 r_val;
+    int r_val;
 
     LOG_DBG("Start!! update::[0x%x]\r\n", update);
 
@@ -502,10 +503,52 @@ static void hl6111_set_vout_bypass(struct hl6111_charger *chg, u8 update)
 #endif
 }
 
+static void hl6111_device_init(struct hl6111_charger *chg)
+{
+    //int voutsel_mode;
+#if 1
+    int rVal;
+#endif
+
+    int bypass = chg->pdata->bypass;
+    int clm_vth = chg->pdata->clm_vth;
+
+    LOG_DBG("Start!!\r\n");
+
+    hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);   //enable interrupt
+
+    //bypass setting
+    hl6111_update_reg(chg, REG_VOUT_BYPASS, BITS_VOUT_BP, (bypass << 4));
+    /*clamp setting*/
+    hl6111_update_reg(chg, REG_CLAMP_TH,    BITS_CLM_VTH, (clm_vth << 4));
+
+
+    /* VOUT Range setting to select lowest voltage range which from 3.952 to 8.040V*/
+    hl6111_update_reg(chg, REG_VOUT_RANGE_SEL, BITS_VOUT_RNG_SEL, (chg->pdata->vout_range << 6));
+    /* Vout == 4.304V 16mV/step*/
+    hl6111_target_vout_ctrl(chg, chg->pdata->trgt_vout);
+
+#if 1
+    hl6111_read_reg(chg, REG_VOUT_BYPASS, &rVal);
+    LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_VOUT_BYPASS, rVal);
+    hl6111_read_reg(chg, REG_INTERRUPT_ENABLE, &rVal);
+    LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_INTERRUPT_ENABLE, rVal);
+    hl6111_read_reg(chg, REG_CLAMP_TH, &rVal);
+    LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_CLAMP_TH, rVal);
+
+    hl6111_read_reg(chg, REG_VOUT_RANGE_SEL, &rVal);
+    LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_VOUT_RANGE_SEL, rVal);
+    hl6111_read_reg(chg, REG_VOUT_TARGET, &rVal);
+    LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_VOUT_TARGET, rVal);
+
+    hl6111_read_reg(chg, REG_NTC_OTA_CONFIG, &rVal);
+    LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_NTC_OTA_CONFIG, rVal);
+#endif
+}
+
 static irqreturn_t hl6111_interrupt_handler(int irg, void *data)
 {
     struct hl6111_charger *chg = data;
-    u8 inten, latched_sts;
 
     int ret;
     //bool handled = false;
@@ -517,14 +560,9 @@ static irqreturn_t hl6111_interrupt_handler(int irg, void *data)
     //hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0x00);
     //schedule_delayed_work(&chg->rx_work, msecs_to_jiffies(100));
 
-    ret =  hl6111_read_reg(chg, REG_INTERRUPT_ENABLE, &inten);
+    ret = hl6111_isr_check(chg);
     if (ret < 0)
         goto I2C_FAIL;
-    ret =  hl6111_read_reg(chg, REG_LATCHED_STATUS, &latched_sts);
-    if (ret < 0)
-        goto I2C_FAIL;
-
-    hl6111_isr_check(chg);
 
     enable_irq(chg->pdata->irq);
     return IRQ_HANDLED;
@@ -534,14 +572,76 @@ I2C_FAIL:
     return IRQ_NONE;
 }
 
+static int hl6111_psy_set_property(struct power_supply *psy, enum power_supply_property psp,
+                                        const union power_supply_propval *val)
+{
+    struct hl6111_charger *chg = power_supply_get_drvdata(psy);
+    u8 update;
+
+    LOG_DBG("Start!, prop==[%d], val==[%d]\n", psp, val->intval);
+    switch(psp) {
+        case POWER_SUPPLY_PROP_ONLINE:
+            LOG_DBG("ONLINE:\r\n");
+            if (val->intval == 0 ){      //charging off
+                chg->online = false;
+            }else{
+                chg->online = true;
+            }
+
+            break;
+        case POWER_SUPPLY_PROP_STATUS:
+            LOG_DBG("STATUS:\r\n");
+            if (val->intval == POWER_SUPPLY_STATUS_FULL){
+                LOG_DBG("Fully charged!!\r\n");
+                hl6111_send_ept(chg, fully_charged);
+            }
+
+            break;
+        case POWER_SUPPLY_PROP_PRESENT:
+            LOG_DBG("PRESENT:\r\n");
+            break;
+        case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:     //OUTPUT CURRENT LIMIT
+            if (val->intval == 0)
+                hl6111_set_ioutlim(chg, 0x1F);//no limit
+            else if (val->intval >= 2200)
+                update = 0x1E;//iin = 2200;
+            else if ((val->intval <= 1100) && (val->intval > 0))
+                update = (val->intval - 100)/50;
+            else if ((val->intval > 1100) && (val->intval < 2200))
+                update = (val->intval - 1100)/100;
+
+            hl6111_set_ioutlim(chg, update);
+            LOG_DBG("output current limit:  value[%d], update[0x%x] \r\n", val->intval, update);
+            break;
+
+        default:
+            return -EINVAL;
+    }
+    LOG_DBG("END!");
+    return 0;
+}
+
+#ifdef HL6111_ENABLE_CHOK
 static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
 {
     struct hl6111_charger *chg = data;
-    union power_supply_propval value;
-    int sts;
-    struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
 
-    LOG_DBG("START!, irq_handled=%d, irq_none=%d\n", IRQ_HANDLED, IRQ_NONE);
+    //LOG_DBG("START!, irq_handled=%d, irq_none=%d\n", IRQ_HANDLED, IRQ_NONE);
+
+    if (chg->retry_cnt == 0)
+        schedule_delayed_work(&chg->chok_work, msecs_to_jiffies(HL6111_CHOK_START_DELAY_T));
+    else{
+        LOG_DBG("previous request is not finished yet!\n");
+    }
+
+
+    return IRQ_HANDLED;
+}
+#else
+static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
+{
+    struct hl6111_charger *chg = data;
+    int sts;
 
     sts = gpio_get_value(chg->pdata->det_gpio);
     if ((sts == 1) && (!chg->online)){
@@ -549,8 +649,7 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
         enable_irq(chg->pdata->irq);
 
         LOG_DBG("TX is connected!! \r\n");
-        value.intval = HL6111_WPC_CONNECTED;
-        power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+        chg->online = true;
 
         hl6111_get_chip_info(chg);
         __pm_stay_awake(&chg->wake_lock);
@@ -561,15 +660,14 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
         disable_irq(chg->pdata->irq);
 
         LOG_DBG("TX is not connected!! \r\n");
-        value.intval = HL6111_WPC_DISCONNECTED;
-        power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+        chg->online = false;
 
         __pm_relax(&chg->wake_lock);
     }
 
     return IRQ_HANDLED;
 }
-
+#endif
 
 static int hl6111_irq_init(struct hl6111_charger *chg, struct i2c_client *client)
 {
@@ -591,22 +689,30 @@ static int hl6111_irq_init(struct hl6111_charger *chg, struct i2c_client *client
 
     pdata->irq = irq;
     client->irq = irq;
+    disable_irq(chg->pdata->irq);
 
     if (pdata->det_gpio > 0){
         irq_det = gpio_to_irq(pdata->det_gpio);
+
+#ifdef HL6111_ENABLE_CHOK
         ret = request_threaded_irq(irq_det, NULL, hl6111_pad_detect_handler,
-                                     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-                                     "wireless-det-irq", chg);
+                              IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+                              "wireless-det-irq", chg);
         if(ret < 0)
             goto fail_irq;
-
         pdata->irq_det = irq_det;
+#else
+        ret = request_threaded_irq(irq_det, NULL, hl6111_pad_detect_handler,
+                              IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+                              "wireless-det-irq", chg);
+        if(ret < 0)
+            goto fail_irq;
+        pdata->irq_det = irq_det;
+        disable_irq(chg->pdata->irq_det);
+#endif
+
         LOG_DBG("irq_det::%d, det_gpio::%d\r\n",pdata->irq_det,  pdata->det_gpio);
     }
-
-
-    disable_irq(chg->pdata->irq_det);
-    disable_irq(chg->pdata->irq);
 
     return 0;
 
@@ -626,8 +732,6 @@ static void hl6111_work_func(struct work_struct *work)
     struct hl6111_charger *chg = container_of(work, struct hl6111_charger, rx_work.work);
     int ret = 0;
     unsigned int r_reg00, r_reg07;
-    union power_supply_propval value;
-    struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
 
     ret =  hl6111_read_reg(chg, REG_LATCHED_STATUS, &r_reg00);
     if (ret < 0)
@@ -640,8 +744,7 @@ static void hl6111_work_func(struct work_struct *work)
     if(!chg->online){
         hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);
         enable_irq(chg->pdata->irq);
-        value.intval = HL6111_WPC_CONNECTED;
-        power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+        chg->online = true;
         LOG_DBG("LATCHED STATUS REG :: [0x%x]\n", r_reg00);
         LOG_DBG("REG_STATUS REG :: [0x%x]\n", r_reg07);
         hl6111_get_chip_info(chg);
@@ -663,12 +766,71 @@ I2C_FAIL:
     if (chg->online){
         LOG_DBG("TX is not connected!! \r\n");
         disable_irq(chg->pdata->irq);
-        value.intval = HL6111_WPC_DISCONNECTED;
-        power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+        chg->online = false;
         __pm_relax(&chg->wake_lock);
     }
     schedule_delayed_work(&chg->rx_work, msecs_to_jiffies(100));
 }
+
+#ifdef HL6111_ENABLE_CHOK
+static void hl6111_chok_pin_work(struct work_struct *work)
+{
+    struct hl6111_charger *chg = container_of(work, struct hl6111_charger, chok_work.work);
+    int reg07;
+    int ret = 0;
+    union power_supply_propval value;
+    struct power_supply *psy = chg->psy_chg;
+
+    LOG_DBG("START! retry_cnt[%d]!, irq_det[%d]\n", chg->retry_cnt, chg->pdata->irq_det);
+
+    disable_irq(chg->pdata->irq_det);
+    ret = hl6111_read_reg(chg, REG_STATUS, &reg07);
+    if (ret < 0) {
+        if (chg->online) {
+            disable_irq(chg->pdata->irq);
+            LOG_DBG("TX is not connected!! \r\n");
+            chg->online = false;
+            __pm_relax(&chg->wake_lock);
+            chg->retry_cnt = 0;
+        } else {
+            LOG_DBG("CHG off -> on but i2c doesn't work\n");
+            chg->retry_cnt++;
+            if (chg->retry_cnt < HL6111_CHOK_MAX_RETRY_CNT)
+                schedule_delayed_work(&chg->chok_work, msecs_to_jiffies(HL6111_CHOK_RETRY_DELAY_T));
+            else{
+                chg->retry_cnt = 0;
+                LOG_DBG("tried 3times but doesn't work! there is no TX\n");
+            }
+        }
+    } else {
+        if (chg->online) {
+            /* try to check i2c again */
+            chg->retry_cnt++;
+            if (chg->retry_cnt < HL6111_CHOK_MAX_RETRY_CNT)
+                schedule_delayed_work(&chg->chok_work, msecs_to_jiffies(HL6111_CHOK_RETRY_DELAY_T));
+            else{
+                chg->retry_cnt = 0;
+                hl6111_device_init(chg);
+                LOG_DBG("tried 3 times, i2c still works, tx is OK\n")
+            }
+        }else {
+            //hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);
+            enable_irq(chg->pdata->irq);
+
+            LOG_DBG("TX is connected!! \r\n");
+            chg->online = true;
+
+            hl6111_get_chip_info(chg);
+            __pm_stay_awake(&chg->wake_lock);
+
+            hl6111_device_init(chg);
+            chg->retry_cnt = 0;
+        }
+    }
+
+    enable_irq(chg->pdata->irq_det);
+}
+#endif
 
 static void hl6111_regmap_init(struct hl6111_charger *chg)
 {
@@ -736,8 +898,6 @@ static int hl6111_psy_get_property(struct power_supply *psy, enum power_supply_p
 
         case POWER_SUPPLY_PROP_ENERGY_AVG: //vout
             LOG_DBG("VOUT\r\n");
-            //hl6111_get_target_vout(chg);
-            //val->intval = chg->trgt_vout;
             hl6111_measure_vout(chg);
             val->intval = chg->vout;
             break;
@@ -765,66 +925,11 @@ static int hl6111_psy_get_property(struct power_supply *psy, enum power_supply_p
             hl6111_measure_ntc_temp(chg);
             val->intval = chg->ntc_temp;
             break;
-/*
-        case POWER_SUPPLY_PROP_CHARGING_ENABLED:
-            break;
-*/
+
        default:
             return -EINVAL;
     }
 
-    LOG_DBG("END!");
-    return 0;
-}
-
-static int hl6111_psy_set_property(struct power_supply *psy, enum power_supply_property psp,
-                                        const union power_supply_propval *val)
-{
-    struct hl6111_charger *chg = power_supply_get_drvdata(psy);
-    u8 update;
-
-    LOG_DBG("Start!, prop==[%d], val==[%d]\n", psp, val->intval);
-    switch(psp) {
-        case POWER_SUPPLY_PROP_ONLINE:
-            LOG_DBG("ONLINE:\r\n");
-            if (val->intval == 0 ){      //charging off
-                chg->online = false;
-            }else{
-                chg->online = true;
-            }
-
-            break;
-        case POWER_SUPPLY_PROP_STATUS:
-            LOG_DBG("STATUS:\r\n");
-            if (val->intval == POWER_SUPPLY_STATUS_FULL){
-                LOG_DBG("Fully charged!!\r\n");
-                hl6111_send_ept(chg, fully_charged);
-            }
-
-            break;
-        case POWER_SUPPLY_PROP_PRESENT:
-            LOG_DBG("PRESENT:\r\n");
-            break;
-        case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:     //OUTPUT CURRENT LIMIT
-            if (val->intval == 0)
-                hl6111_set_ioutlim(chg, 0x1F);//no limit
-            else if (val->intval >= 2200)
-                update = 0x1E;//iin = 2200;
-            else if ((val->intval <= 1100) && (val->intval > 0))
-                update = (val->intval - 100)/50;
-            else if ((val->intval > 1100) && (val->intval < 2200))
-                update = (val->intval - 1100)/100;
-
-            hl6111_set_ioutlim(chg, update);
-            LOG_DBG("output current limit:  value[%d], update[0x%x] \r\n", val->intval, update);
-            break;
-/*
-        case POWER_SUPPLY_PROP_CHARGING_ENABLED:
-            break;
-*/
-        default:
-            return -EINVAL;
-    }
     LOG_DBG("END!");
     return 0;
 }
@@ -885,89 +990,59 @@ static int vrect_head_set(void *data, u64 val)
 
 static int vrect_show(void *data, u64 *val)
 {
-    int ret;
     struct hl6111_charger *chg = data;
-    struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
-    union power_supply_propval value;
 
     LOG_DBG("Start!\n");
 
     hl6111_measure_vrect(chg);
     *val = chg->vrect;
 
-    ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ENERGY_NOW, &value);
-    *val = value.intval;
-
     return 0;
 }
 
 static int irect_show(void *data, u64 *val)
 {
-    int ret;
     struct hl6111_charger *chg = data;
-    struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
-    union power_supply_propval value;
 
     LOG_DBG("Start!");
     hl6111_measure_irect(chg);
     *val = chg->irect;
-
-    ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
-    *val = value.intval;
 
     return 0;
 }
 
 static int tdie_show(void *data, u64 *val)
 {
-    int ret;
     struct hl6111_charger *chg = data;
-    struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
-    union power_supply_propval value;
 
     LOG_DBG("Start!!");
+
     hl6111_measure_tdie(chg);
     *val = chg->t_die;
-
-
-    ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_TEMP, &value);
-    *val = value.intval;
 
     return 0;
 }
 
 static int iout_get(void *data, u64 *val)
 {
-    int ret;
     struct hl6111_charger *chg = data;
-    struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
-    union power_supply_propval value;
 
     LOG_DBG("Start!!\r\n");
+
     hl6111_measure_iout(chg);
     *val = chg->iout;
-
-    ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_AVG, &value);
-    *val = value.intval;
 
     return 0;
 }
 
 static int vout_get(void *data, u64 *val)
 {
-    int ret;
     struct hl6111_charger *chg = data;
-    struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
-    union power_supply_propval value;
 
     LOG_DBG("Start!!");
-    //hl6111_get_target_vout(chg);
-    //*val = chg->trgt_vout;
     hl6111_measure_vout(chg);
     *val = chg->vout;
 
-    ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ENERGY_AVG, &value);
-    *val = value.intval;
     return 0;
 }
 
@@ -1063,17 +1138,12 @@ static int ept_set(void *data, u64 val)
 
 static int ntc_temp_get(void *data, u64 *val)
 {
-    int ret;
     struct hl6111_charger *chg = data;
-    struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
-    union power_supply_propval value;
 
     LOG_DBG("Start!!");
     hl6111_measure_ntc_temp(chg);
     *val = chg->ntc_temp;
 
-    ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_TEMP_AMBIENT, &value);
-    *val = value.intval;
     return 0;
 }
 
@@ -1216,10 +1286,10 @@ static int hl6111_create_debugfs_entries(struct hl6111_charger *chg)
     return rc;
 }
 
-
 static enum power_supply_property hl6111_psy_props[] = {
     POWER_SUPPLY_PROP_STATUS,
     POWER_SUPPLY_PROP_ONLINE,
+    /*
     POWER_SUPPLY_PROP_PRESENT,
     POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
     POWER_SUPPLY_PROP_HEALTH,
@@ -1230,6 +1300,7 @@ static enum power_supply_property hl6111_psy_props[] = {
     POWER_SUPPLY_PROP_CURRENT_NOW, //irect
     POWER_SUPPLY_PROP_TEMP,        //die temperature
     POWER_SUPPLY_PROP_TEMP_AMBIENT, //NTC TEMP
+    */
 };
 
 static const struct power_supply_desc hl6111_psy_desc = {
@@ -1246,8 +1317,6 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
     struct hl6111_platform_data *pdata;
     struct hl6111_charger *charger;
     struct power_supply_config psy_cfg = {};
-    union power_supply_propval value;
-
     int ret;
 
     LOG_DBG("Start!\n");
@@ -1300,9 +1369,7 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
     }
 
     mutex_init(&charger->i2c_lock);
-
     wakeup_source_init(&charger->wake_lock, "hl6111-monitor");
-
 
    if (pdata->int_gpio >= 0){
         ret = hl6111_irq_init(charger, client);
@@ -1316,33 +1383,36 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
         INIT_DELAYED_WORK(&charger->rx_work, hl6111_work_func);
         schedule_delayed_work(&charger->rx_work, msecs_to_jiffies(100));
     }else {
-        struct power_supply *psy = power_supply_get_by_name(hl6111_supplied_to[0]);
+#ifdef HL6111_ENABLE_CHOK
+        INIT_DELAYED_WORK(&charger->chok_work, hl6111_chok_pin_work);
+        charger->retry_cnt = 0;
+        schedule_delayed_work(&charger->chok_work, msecs_to_jiffies(100));
+#else
+        struct power_supply *psy = charger->psy_chg;
 
         if (gpio_get_value(charger->pdata->det_gpio)){
 
             LOG_DBG("TX is connected!! \r\n");
-            value.intval = HL6111_WPC_CONNECTED;
-            power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+            charger->online = true;
 
             hl6111_get_chip_info(charger);
             __pm_stay_awake(&charger->wake_lock);
 
             hl6111_device_init(charger);
             enable_irq(charger->pdata->irq);
-       } else {
+        } else {
             LOG_DBG("TX is not connected!! \r\n");
-            value.intval = HL6111_WPC_DISCONNECTED;
-            power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+            charger->online = false;
         }
             enable_irq(charger->pdata->irq_det);
+        power_supply_put(psy);
+#endif
     }
-
 
     ret = hl6111_create_debugfs_entries(charger);
     if (ret < 0){
         goto FAIL_DEBUGFS;
     }
-
 
     return 0;
 
