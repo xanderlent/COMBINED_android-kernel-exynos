@@ -143,6 +143,7 @@ struct s3c24xx_i2c {
 	struct pinctrl          *pctrl;
 	int			idle_ip_index;
 	int			fix_doxfer_return;
+	int			filter_on;
 };
 
 static const struct platform_device_id s3c24xx_driver_ids[] = {
@@ -1124,6 +1125,9 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 		} else
 			sda_delay = 0;
 
+		if (i2c->filter_on)
+			sda_delay |= S3C2410_IICLC_FILTER_ON;
+
 		dev_dbg(i2c->dev, "IICLC=%08lx\n", sda_delay);
 		writel(sda_delay, i2c->regs + S3C2440_IICLC);
 	}
@@ -1316,6 +1320,11 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		i2c->fix_doxfer_return = 1;
 	else
 		i2c->fix_doxfer_return = 0;
+
+	if (of_get_property(pdev->dev.of_node, "samsung,glitch-filter", NULL))
+		i2c->filter_on = 1;
+	else
+		i2c->filter_on = 0;
 
 	strlcpy(i2c->adap.name, "s3c2410-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner = THIS_MODULE;
