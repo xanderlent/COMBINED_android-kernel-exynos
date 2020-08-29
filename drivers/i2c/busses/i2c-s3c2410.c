@@ -935,9 +935,10 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 				, ret
 				, readl(i2c->regs + S3C2410_IICSTAT)
 				, readl(i2c->regs + S3C2410_IICCON));
-		if (i2c->fix_doxfer_return && (ret >= 0)) {
-			ret = -EIO;
+		if (i2c->fix_doxfer_return) {
 			recover_i2c_gpio(i2c);
+			if (ret >= 0)
+				ret = -EIO;
 		}
 	}
 
