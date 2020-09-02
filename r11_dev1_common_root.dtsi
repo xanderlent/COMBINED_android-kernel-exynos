@@ -349,9 +349,9 @@
 		battery,technology = <2>; // Li-ion
 		// Each element of the following arrays corresponds to a power supply type
 		battery,input_current_limit =
-					<100 0 0 125 125 0 0 0 0 0 0 0 0 0 0 0>;
+					<100 0 0 150 150 0 0 0 0 0 0 0 0 0 0 0>;
 		battery,fast_charging_current =
-					<100 0 0 125 125 0 0 0 0 0 0 0 0 0 0 0>;
+					<100 0 0 150 150 0 0 0 0 0 0 0 0 0 0 0>;
 		battery,full_check_current_1st = <30 0 0 30 30 0 0 0 0 0 0 0 0 0 0 0>;
 		battery,full_check_current_2nd = <20 0 0 20 20 0 0 0 0 0 0 0 0 0 0 0>;
 		battery,default_input_current = <125>;
@@ -370,6 +370,6 @@
 		battery,temp_high_recovery = <410>;
 		battery,temp_low = <190>;
 		battery,temp_low_recovery = <200>;
-		battery,max_rawsoc = <4400>;
+		battery,max_rawsoc = <10000>; /* In units of 0.001% */
 	};
 };

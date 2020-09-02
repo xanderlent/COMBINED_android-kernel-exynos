@@ -12,6 +12,8 @@
 		halo,clm-vth = <0x07>;
 		halo,bypass = <0x00>;		//5.0V
 		halo,ldop = <0x00>;		//1.8V
+		halo,vout-range = <0x03>; //16mV step
+		halo,trgt-vout = <0x16>; //4.304V
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&wlc_irq &wlc_det>;
