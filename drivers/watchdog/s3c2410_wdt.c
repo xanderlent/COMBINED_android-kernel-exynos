@@ -1484,8 +1484,11 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Prevent watchdog reset while setting */
-	s3c2410wdt_stop_intclear(wdt);
+	/* Stop watchdog reset or Keepalive watchdog while setting */
+	if (!tmr_atboot)
+		s3c2410wdt_stop_intclear(wdt);
+	else
+		s3c2410wdt_keepalive(&wdt->wdt_device);
 
 	if (wdt->drv_data->pmu_count_en_func) {
 		ret = wdt->drv_data->pmu_count_en_func(wdt, true);
