@@ -1388,8 +1388,6 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
         charger->retry_cnt = 0;
         schedule_delayed_work(&charger->chok_work, msecs_to_jiffies(100));
 #else
-        struct power_supply *psy = charger->psy_chg;
-
         if (gpio_get_value(charger->pdata->det_gpio)){
 
             LOG_DBG("TX is connected!! \r\n");
@@ -1404,8 +1402,7 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
             LOG_DBG("TX is not connected!! \r\n");
             charger->online = false;
         }
-            enable_irq(charger->pdata->irq_det);
-        power_supply_put(psy);
+        enable_irq(charger->pdata->irq_det);
 #endif
     }
 
