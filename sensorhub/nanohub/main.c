@@ -1079,16 +1079,16 @@ done:
 static int nanohub_create_devices(struct nanohub_data *data)
 {
 	int i, j, k, ret;
-	static const char *names[ID_NANOHUB_MAX - ID_NANOHUB_CLIENTS + 1] = {
-		"nanohub_comms", "nanohub"
+	static const char *names[] = {
+		"nanohub_comms", "nanohub", "nanohub_audio"
 	};
-	const uint8_t ids[ID_NANOHUB_MAX - ID_NANOHUB_CLIENTS + 1] = {
-		1, ID_NANOHUB_CLIENTS
+	const uint8_t ids[] = {
+		1, ID_NANOHUB_CLIENT_NUM_IDS, 1
 	};
 
-	for (i = 0, j = 0; j < ID_NANOHUB_MAX - ID_NANOHUB_CLIENTS + 1; ++j) {
+	for (i = 0, j = 0; j < ID_NANOHUB_MAX - ID_NANOHUB_CLIENT_NUM_IDS + 1; ++j) {
 		struct device *dev = device_create(sensor_class, NULL,
-						   MKDEV(major, j), data,
+						   MKDEV(major, i), data,
 						   names[j]);
 		if (IS_ERR(dev)) {
 			ret = PTR_ERR(dev);
@@ -1131,12 +1131,8 @@ static int nanohub_open(struct inode *inode, struct file *file)
 	dev = class_find_device(sensor_class, NULL, &devt, nanohub_match_devt);
 	if (dev) {
 		struct nanohub_data *data = dev_get_drvdata(dev);
-		if (MINOR(devt) == ID_NANOHUB_COMMS) {
-			file->private_data = &data->io[ID_NANOHUB_COMMS];
-			nonseekable_open(inode, file);
-			return 0;
-		} else {
-			for (i = 0; i<ID_NANOHUB_CLIENTS; ++i) {
+		if (MINOR(devt) == ID_NANOHUB_CLIENT) {
+			for (i = 0; i<ID_NANOHUB_CLIENT_NUM_IDS; ++i) {
 				struct nanohub_io *io =
 					&data->io[ID_NANOHUB_CLIENT + i];
 				if (atomic_cmpxchg(&io->busy, 0, 1) == 0) {
@@ -1146,6 +1142,10 @@ static int nanohub_open(struct inode *inode, struct file *file)
 				}
 			}
 			return -EBUSY;
+		} else {
+			file->private_data = &data->io[MINOR(devt)];
+			nonseekable_open(inode, file);
+			return 0;
 		}
 	}
 
@@ -1212,13 +1212,16 @@ static unsigned int nanohub_poll(struct file *file, poll_table *wait)
 static int nanohub_release(struct inode *inode, struct file *file)
 {
 	dev_t devt = inode->i_rdev;
-	if (MINOR(devt) != ID_NANOHUB_COMMS) {
+	if (MINOR(devt) == ID_NANOHUB_CLIENT) {
 		int drop_cnt = 0;
+		struct nanohub_buf *buf;
 		struct nanohub_io *io = file->private_data;
+		struct nanohub_data *data = io->data;
 
 		/* discard packets on release */
 		atomic_set(&io->busy, 2);
-		while (nanohub_io_get_buf(io, false) != NULL) {
+		while ((buf = nanohub_io_get_buf(io, false)) != NULL) {
+			nanohub_io_put_buf(&data->free_pool, buf);
 			drop_cnt++;
 		}
 		if (drop_cnt > 0) {
@@ -1315,11 +1318,11 @@ static void nanohub_process_buffer(struct nanohub_data *data, uint8_t id,
 	wakeup = true;
 	io = &data->io[id];
 
-	if (id == ID_NANOHUB_COMMS || atomic_read(&io->busy) == 1) {
+	if (id == ID_NANOHUB_CLIENT && atomic_read(&io->busy) != 1) {
+		pr_info("nanohub: dropping packet for /dev/nanohub/%d\n", id);
+	} else {
 		nanohub_io_put_buf(io, *buf);
 		*buf = NULL;
-	} else {
-		pr_info("nanohub: dropping packet for /dev/nanohub/%d", id);
 	}
 
 	/* (for wakeup interrupts): hold a wake lock for 250ms so the sensor hal
