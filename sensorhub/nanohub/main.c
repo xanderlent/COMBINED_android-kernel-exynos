@@ -35,6 +35,7 @@
 #include <linux/time.h>
 
 #include "nanohub.h"
+#include "nanohub_exports.h"
 #include "main.h"
 #include "comms.h"
 #include "bl.h"
@@ -91,6 +92,10 @@ static ssize_t nanohub_write(struct file *, const char *, size_t, loff_t *);
 static unsigned int nanohub_poll(struct file *, poll_table *);
 static int nanohub_release(struct inode *, struct file *);
 static int nanohub_hw_reset(struct nanohub_data *data);
+
+// Kernel client support.
+static struct nanohub_data *priv_nanohub_data;
+EXPORT_SYMBOL(nanohub_send_message);
 
 static struct class *sensor_class;
 static int major;
@@ -1189,7 +1194,28 @@ static ssize_t nanohub_write(struct file *file, const char *buffer,
 	if (ret)
 		return ret;
 
-	ret = nanohub_comms_write(data, io->id, buffer, length);
+	ret = nanohub_comms_write(data, io->id, buffer, length, true);
+
+	release_wakeup(data);
+
+	return ret;
+}
+
+ssize_t nanohub_send_message(int channel_id, const char *buffer, size_t length)
+{
+	struct nanohub_data *data = priv_nanohub_data;
+	int ret;
+
+	if (!data) {
+		pr_warn("nanohub is not ready for kernel access\n");
+		return -EAGAIN;
+	}
+
+	ret = request_wakeup_timeout(data, WAKEUP_TIMEOUT_MS);
+	if (ret)
+		return ret;
+
+	ret = nanohub_comms_write(data, channel_id, buffer, length, false);
 
 	release_wakeup(data);
 
@@ -1309,7 +1335,7 @@ static void nanohub_process_buffer(struct nanohub_data *data, uint8_t id,
 		release_wakeup(data);
 		return;
 	} else if (id >= ID_NANOHUB_MAX) {
-		pr_err("nanohub_process_buffer: id %d >= max %d", id, ID_NANOHUB_MAX);
+		pr_err("nanohub_process_buffer: id %d >= max %d\n", id, ID_NANOHUB_MAX);
 		release_wakeup(data);
 		return;
 	}
@@ -1779,8 +1805,10 @@ struct iio_dev *nanohub_probe(struct device *dev, struct iio_dev *iio_dev)
 		goto fail_dev;
 
 	data->thread = kthread_create(nanohub_kthread, data, "nanohub");
-	if (!IS_ERR(data->thread))
+	if (!IS_ERR(data->thread)) {
+		priv_nanohub_data = data;
 		return iio_dev;
+	}
 
 fail_dev:
 	iio_device_unregister(iio_dev);
@@ -1814,6 +1842,7 @@ int nanohub_remove(struct iio_dev *iio_dev)
 {
 	struct nanohub_data *data = iio_priv(iio_dev);
 
+	priv_nanohub_data = NULL;
 	nanohub_notify_thread(data);
 	kthread_stop(data->thread);
 
