@@ -2129,7 +2129,8 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct cs35l41_private *cs35l41 =
-			snd_soc_component_get_drvdata(dai->component);
+		snd_soc_component_get_drvdata(dai->component);
+	const int bit_width_adjust = 3;
 	int i;
 	unsigned int rate = params_rate(params);
 	u8 asp_width, asp_wl;
@@ -2174,14 +2175,15 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 					CS35L41_ASP_RX2_SLOT_MASK,
 					((cs35l41->pdata.right_channel) ? 0 : 1)
 					 << CS35L41_ASP_RX2_SLOT_SHIFT);
+		} else {
+			dev_info(cs35l41->dev, "asp_width = %u :: asp_wl = %u", asp_width, asp_wl);
+			regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
+					CS35L41_ASP_WIDTH_TX_MASK,
+					(asp_width - bit_width_adjust) << CS35L41_ASP_WIDTH_TX_SHIFT);
+			regmap_update_bits(cs35l41->regmap, CS35L41_SP_TX_WL,
+					CS35L41_ASP_TX_WL_MASK,
+					(asp_wl - bit_width_adjust) << CS35L41_ASP_TX_WL_SHIFT);
 		}
-	} else {
-		regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
-				CS35L41_ASP_WIDTH_TX_MASK,
-				asp_width << CS35L41_ASP_WIDTH_TX_SHIFT);
-		regmap_update_bits(cs35l41->regmap, CS35L41_SP_TX_WL,
-				CS35L41_ASP_TX_WL_MASK,
-				asp_wl << CS35L41_ASP_TX_WL_SHIFT);
 	}
 
 	return 0;
