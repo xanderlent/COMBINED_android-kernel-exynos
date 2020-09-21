@@ -73,6 +73,10 @@ static enum power_supply_property google_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
+static enum power_supply_property charging_props[] = {
+	POWER_SUPPLY_PROP_ONLINE,
+};
+
 enum battery_voltage_mode {
 	BATTERY_VOLTAGE_AVERAGE = 0,
 	BATTERY_VOLTAGE_OCV,
@@ -131,6 +135,8 @@ struct battery_info {
 
 	struct power_supply *psy_battery;
 	struct power_supply_desc psy_battery_desc;
+	struct power_supply *psy_ac;
+	struct power_supply_desc psy_ac_desc;
 
 	struct mutex iolock;
 
@@ -464,6 +470,34 @@ static int battery_set_property(struct power_supply *psy,
 	}
 
 	return ret;
+}
+
+/*
+ * AC charger operations
+ */
+static int ac_get_property(struct power_supply *psy,
+		enum power_supply_property psp,
+		union power_supply_propval *val)
+{
+	struct battery_info *battery =  power_supply_get_drvdata(psy);
+
+	if (psp != POWER_SUPPLY_PROP_ONLINE)
+		return -EINVAL;
+
+	/* Set enable=1 only if the AC charger is connected */
+	switch (battery->cable_type) {
+	case POWER_SUPPLY_TYPE_MAINS:
+	case POWER_SUPPLY_TYPE_UNKNOWN:
+	case POWER_SUPPLY_TYPE_PREPARE_TA:
+	case POWER_SUPPLY_TYPE_HV_MAINS:
+		val->intval = 1;
+		break;
+	default:
+		val->intval = 0;
+		break;
+	}
+
+	return 0;
 }
 
 #if defined(CONFIG_MUIC_NOTIFIER)
@@ -1144,6 +1178,13 @@ static int google_battery_probe(struct platform_device *pdev)
 	battery->psy_battery_desc.properties = google_battery_props;
 	battery->psy_battery_desc.num_properties =  ARRAY_SIZE(google_battery_props);
 
+	/* Register an AC power supply so charging registers correctly */
+	battery->psy_ac_desc.name = "ac";
+	battery->psy_ac_desc.type = POWER_SUPPLY_TYPE_MAINS;
+	battery->psy_ac_desc.properties = charging_props;
+	battery->psy_ac_desc.num_properties = ARRAY_SIZE(charging_props);
+	battery->psy_ac_desc.get_property = ac_get_property;
+
 	/* Initialize work queue for periodic polling thread */
 	battery->monitor_wqueue =
 		create_singlethread_workqueue(dev_name(&pdev->dev));
@@ -1169,12 +1210,22 @@ static int google_battery_probe(struct platform_device *pdev)
 	}
 	pr_info("%s: Registered battery as power supply\n", __func__);
 
+	battery->psy_ac = power_supply_register(&pdev->dev, &battery->psy_ac_desc, &psy_cfg);
+	if (IS_ERR(battery->psy_ac)) {
+		pr_err("%s: Failed to Register psy_ac\n", __func__);
+		ret = PTR_ERR(battery->psy_ac);
+		goto err_unreg_battery;
+	}
+	pr_info("%s: Registered AC as power supply\n", __func__);
+
 	/* Initialize battery level*/
 	value.intval = 0;
 
 	psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
-	if (!psy)
-		return -EINVAL;
+	if (!psy) {
+		ret = -EINVAL;
+		goto err_unreg_ac;
+	}
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
@@ -1192,7 +1243,10 @@ static int google_battery_probe(struct platform_device *pdev)
 
 	dev_info(battery->dev, "%s: Battery driver is loaded\n", __func__);
 	return 0;
-
+err_unreg_ac:
+	power_supply_unregister(battery->psy_ac);
+err_unreg_battery:
+	power_supply_unregister(battery->psy_battery);
 err_workqueue:
 	destroy_workqueue(battery->monitor_wqueue);
 err_irr:
