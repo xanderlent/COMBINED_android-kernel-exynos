@@ -44,7 +44,7 @@ static int hwrng_disabled;
 static int start_up_test;
 
 #ifdef CONFIG_EXYRNG_DEBUG
-#define exyrng_debug(args...)	printk(KERN_INFO args)
+#define exyrng_debug(args...)	pr_debug(args)
 #else
 #define exyrng_debug(args...)
 #endif
@@ -53,7 +53,7 @@ void exynos_swd_test_fail(void)
 {
 #if defined(CONFIG_EXYRNG_FAIL_POLICY_DISABLE)
 	hwrng_disabled = 1;
-	printk("[ExyRNG] disabled for test failures\n");
+	pr_info("[ExyRNG] disabled for test failures\n");
 #else /* defined(CONFIG_EXYRNG_POLICY_RESET) */
 	panic("[ExyRNG] It failed to health tests. It means that it detects "
 	"the malfunction of TRNG(HW) which generates random numbers. If it "
@@ -109,7 +109,7 @@ static int exynos_swd_startup_test(void)
 		ret = exynos_cm_smc(&reg0, &reg1, &reg2, &reg3);
 		if (ret == HWRNG_RET_RETRY_ERROR) {
 			if (retry_cnt++ > EXYRNG_RETRY_MAX_COUNT) {
-				printk("[ExyRNG] exceed retry in start-up test\n");
+				pr_info("[ExyRNG] exceed retry in start-up test\n");
 				break;
 			}
 			usleep_range(50, 100);
@@ -119,11 +119,11 @@ static int exynos_swd_startup_test(void)
 		if (ret == HWRNG_RET_TEST_ERROR || ret == HWRNG_RET_TEST_KAT_ERROR) {
 #ifndef CONFIG_EXYRNG_USE_CRYPTOMANAGER
 			if (ret == HWRNG_RET_TEST_KAT_ERROR) {
-				printk("[ExyRNG] start-up KAT test failed: %d\n", ret);
+				pr_info("[ExyRNG] start-up KAT test failed: %d\n", ret);
 			} else if (test_cnt < EXYRNG_START_UP_TEST_MAX_RETRY) {
 				start_up_size = EXYRNG_START_UP_SIZE;
 				test_cnt++;
-				printk("[ExyRNG] It performs start-up test "
+				pr_info("[ExyRNG] It performs start-up test "
 				"again to detect the malfunction of TRNG with "
 				"accuracy\n");
 				continue;
@@ -188,12 +188,12 @@ static int exynos_swd_read(struct hwrng *rng, void *data, size_t max, bool wait)
 
 			if (ret == HWRNG_RET_RETRY_ERROR) {
 				if (retry_cnt++ > EXYRNG_RETRY_MAX_COUNT) {
-					printk("[ExyRNG] exceed retry in init\n");
+					pr_info("[ExyRNG] exceed retry in init\n");
 					break;
 				}
 				usleep_range(50, 100);
 			} else if (ret == HWRNG_RET_TEST_ERROR) {
-				printk("[ExyRNG] health test fail after resume\n");
+				pr_info("[ExyRNG] health test fail after resume\n");
 				ret = -EAGAIN;
 				goto out;
 			}
@@ -213,7 +213,7 @@ static int exynos_swd_read(struct hwrng *rng, void *data, size_t max, bool wait)
 			goto out;
 
 		start_up_test = 0;
-		printk("[ExyRNG] passed the start-up test\n");
+		pr_info("[ExyRNG] passed the start-up test\n");
 	}
 
 	retry_cnt = 0;
@@ -232,7 +232,7 @@ static int exynos_swd_read(struct hwrng *rng, void *data, size_t max, bool wait)
 		if (ret == HWRNG_RET_RETRY_ERROR) {
 			if (retry_cnt++ > EXYRNG_RETRY_MAX_COUNT) {
 				ret = -EFAULT;
-				printk("[ExyRNG] exceed retry in read\n");
+				pr_info("[ExyRNG] exceed retry in read\n");
 				goto out;
 			}
 			usleep_range(50, 100);
@@ -277,7 +277,7 @@ out:
 		spin_unlock_irqrestore(&hwrandom_lock, flag);
 
 		if (retry_cnt++ > EXYRNG_RETRY_MAX_COUNT) {
-			printk("[ExyRNG] exceed retry in exit\n");
+			pr_info("[ExyRNG] exceed retry in exit\n");
 			break;
 		}
 		usleep_range(50, 100);
@@ -303,7 +303,7 @@ static int exyswd_rng_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	printk(KERN_INFO "ExyRNG: hwrng registered\n");
+	pr_info("ExyRNG: hwrng registered\n");
 
 	return 0;
 }
@@ -334,7 +334,7 @@ static int exyswd_rng_suspend(struct device *dev)
 
 		ret = exynos_cm_smc(&reg0, &reg1, &reg2, &reg3);
 		if (ret != HWRNG_RET_OK)
-			printk("[ExyRNG] failed to enter suspend with %d\n", ret);
+			pr_info("[ExyRNG] failed to enter suspend with %d\n", ret);
 	}
 	spin_unlock_irqrestore(&hwrandom_lock, flag);
 
@@ -359,8 +359,9 @@ static int exyswd_rng_resume(struct device *dev)
 
 	ret = exynos_cm_smc(&reg0, &reg1, &reg2, &reg3);
 	if (ret != HWRNG_RET_OK)
-		printk("[ExyRNG] failed to resume with %d\n", ret);
+		pr_info("[ExyRNG] failed to resume with %d\n", ret);
 #endif
+
 	if (hwrng_read_flag) {
 		reg0 = SMC_CMD_RANDOM;
 		reg1 = HWRNG_INIT;
@@ -369,7 +370,7 @@ static int exyswd_rng_resume(struct device *dev)
 
 		ret = exynos_cm_smc(&reg0, &reg1, &reg2, &reg3);
 		if (ret != HWRNG_RET_OK)
-			printk("[ExyRNG] failed to resume with %d\n", ret);
+			pr_info("[ExyRNG] failed to resume with %d\n", ret);
 	}
 	spin_unlock_irqrestore(&hwrandom_lock, flag);
 
@@ -408,7 +409,7 @@ static int __init exyswd_rng_init(void)
 		return ret;
 	}
 
-	printk(KERN_INFO "ExyRNG driver, (c) 2014 Samsung Electronics\n");
+	pr_info("ExyRNG driver, (c) 2014 Samsung Electronics\n");
 
 	return 0;
 }
