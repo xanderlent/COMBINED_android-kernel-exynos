@@ -37,6 +37,7 @@
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/rtc.h>
+#include <linux/reboot.h>
 #include <linux/syscore_ops.h>
 #include <soc/samsung/exynos-pmu.h>
 #include <linux/preempt.h>
@@ -1035,6 +1036,22 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 	return 0;
 }
 
+static int s3c2410wdt_reboot_handler(struct notifier_block *nb,
+				unsigned long mode, void *cmd)
+{
+	if (!s3c_wdt[0])
+		return NOTIFY_DONE;
+
+	s3c2410wdt_keepalive_emergency(true, 0, 5);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block s3c2410wdt_nb_reboot_block = {
+	.notifier_call = s3c2410wdt_reboot_handler,
+	.priority = INT_MAX,
+};
+
 int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt, int index)
 {
 	struct s3c2410_wdt *wdt = s3c_wdt[index];
@@ -1534,6 +1551,8 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 				(void *)s3c2410wdt_keepalive_emergency,
 				(void *)s3c2410wdt_set_emergency_reset,
 				(void *)s3c2410wdt_set_emergency_stop);
+
+		register_reboot_notifier(&s3c2410wdt_nb_reboot_block);
 	}
 	dev_info(dev, "watchdog cluster %d, %sactive, reset %sabled, irq %sabled\n", cluster_index,
 		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
