@@ -27,6 +27,8 @@
 #include <sound/soc.h>
 #include <sound/core.h>
 
+#define NANOHUB_AUDIO_CHANNEL_ID 16
+extern ssize_t nanohub_send_message(int channel_id, const char *buffer, size_t length);
 
 struct mcu_mic_codec_data {
   int mic_on;
@@ -58,6 +60,9 @@ static int dmic_mcu_on_put(struct snd_kcontrol *kcontrol,
 	struct mcu_mic_codec_data *codec_data = snd_soc_codec_get_drvdata(codec);
 	int value = ucontrol->value.integer.value[0];
 
+	char buffer[2];
+	ssize_t bytes;
+
 	dev_info(codec->dev, "Called static int dmic_mcu_on_put\n");
 
 	if (value != 0 && value != 1) {
@@ -65,10 +70,17 @@ static int dmic_mcu_on_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
+	buffer[0] = 0; // message identifier and version
+	buffer[1] = value ? 1 : 0;
+
+	bytes = nanohub_send_message(NANOHUB_AUDIO_CHANNEL_ID, buffer, sizeof(buffer));
+	if (bytes != sizeof(buffer)) {
+		dev_err(codec->dev, "Bytes sent expected = %zd, actual = %zd\n", sizeof(buffer), bytes);
+		return -EIO;
+	}
+
 	codec_data->mic_on = value;
 	dev_info(codec->dev, "new mcu_mic_on: %d \n", codec_data->mic_on);
-	// TODO(b/159142217): Call MCU and enable or disable the Mic depends on the
-	// value.
 
 	return 0;
 }
