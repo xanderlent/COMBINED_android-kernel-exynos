@@ -393,7 +393,7 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 	u32 fs_div, uTSCL_H_FS, uTSCL_L_FS, uTSTART_HD_FS;
 	u32 utemp;
 
-	if (i2c->default_clk) {
+	if (clk_get_rate(i2c->rate_clk) != i2c->default_clk) {
 		ret = clk_set_rate(i2c->rate_clk, i2c->default_clk);
 
 		if (ret < 0)
