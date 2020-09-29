@@ -24,7 +24,7 @@
 	wlc_irq: wlc_irq {
 		samsung,pins = "gpa1-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 	wlc_det: wlc_det {
 		samsung,pins = "gpa1-4";
