@@ -72,6 +72,7 @@
 		cirrus,boost-ipk-milliamp = <4500>;
 		cirrus,boost-ctl-millivolt = <5500>; /* 5V5 */
 		cirrus,boost-ovp-millivolt = <9000>; /* 9V */
+
 		cirrus,f0-default = <2514000>; /* 153 Hz */
 		cirrus,f0-min = <2293760>; /* 140 Hz */
 		cirrus,f0-max = <2703360>; /* 165 Hz */
@@ -79,18 +80,15 @@
 		cirrus,redc-default = <327728>; /* 15 Ohm */
 		cirrus,redc-min = <302112>; /* 13.5 Ohm */
 		cirrus,redc-max = <369248>; /* 16.5 Ohm */
-		cirrus,gpio1-rise-index = <5>; /* 100% HEAVY_CLICK */
-		cirrus,gpio1-fall-index = <4>; /* 75% HEAVY_CLICK */
-		cirrus,gpio1-fall-timeout = <47278>; /* 985 ms */
-		cirrus,gpio1-mode = <2>; /* enabled only in suspend mode */
-		cirrus,hiber-enable;
+
 		cirrus,refclk-gpio2;
-		cirrus,asp-bclk-freq-hz = <6144000>;
-		cirrus,asp-bclk-inv;
+
 		cirrus,asp-fmt = <0>;
+		cirrus,asp-bclk-freq-hz = <3072000>;
 		cirrus,asp-slot-num = <2>;
-		cirrus,asp-slot-width = <32>;
-		cirrus,asp-samp-width = <24>;
+		cirrus,asp-slot-width = <16>;
+		cirrus,asp-samp-width = <16>;
+		cirrus,fw-id-remap = <0x1400CF>;
 		status = "ok";
 	};
 };
@@ -116,7 +114,6 @@
 		cirrus,boost-cap-microfarad = <30>;
 		cirrus,boost-ctl-millivolt = <5500>;
 
-		cirrus,right-channel-amp;
 		// Mode 3: Hi-Z during unused slots and while all transmit channels disabled
 		cirrus,asp-sdout-hiz = <3>;
 
