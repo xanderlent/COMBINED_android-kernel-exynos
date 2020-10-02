@@ -33,6 +33,7 @@
 #include <linux/sched.h>
 #include <linux/sched/rt.h>
 #include <linux/time.h>
+#include <uapi/linux/sched/types.h>
 
 #include "nanohub.h"
 #include "nanohub_exports.h"
@@ -109,7 +110,6 @@ static const struct gpio_config gconf[] = {
 };
 
 static const struct iio_info nanohub_iio_info = {
-	.driver_module = THIS_MODULE,
 };
 
 static const struct file_operations nanohub_fileops = {
@@ -1812,7 +1812,7 @@ struct iio_dev *nanohub_probe(struct device *dev, struct iio_dev *iio_dev)
 	for (i = 0; i < READ_QUEUE_DEPTH; i++)
 		nanohub_io_put_buf(&data->free_pool, &buf[i]);
 	atomic_set(&data->kthread_run, 0);
-	wakeup_source_init(&data->wakesrc_read, "nanohub_wakelock_read");
+	wakeup_source_add(&data->wakesrc_read);
 
 	/* hold lock until reset completes */
 	atomic_set(&data->lock_mode, LOCK_MODE_RESET);
@@ -1850,7 +1850,7 @@ fail_dev:
 fail_irq:
 	nanohub_release_gpios_irqs(data);
 fail_gpio:
-	wakeup_source_trash(&data->wakesrc_read);
+	wakeup_source_remove(&data->wakesrc_read);
 	vfree(buf);
 fail_vma:
 	if (own_iio_dev)
@@ -1884,7 +1884,7 @@ int nanohub_remove(struct iio_dev *iio_dev)
 	nanohub_destroy_devices(data);
 	iio_device_unregister(iio_dev);
 	nanohub_release_gpios_irqs(data);
-	wakeup_source_trash(&data->wakesrc_read);
+	wakeup_source_remove(&data->wakesrc_read);
 	vfree(data->vbuf);
 	iio_device_free(iio_dev);
 
