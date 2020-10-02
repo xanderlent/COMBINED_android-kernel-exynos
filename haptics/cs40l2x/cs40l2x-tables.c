@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cs40l2x-tables.c -- CS40L20/CS40L25/CS40L25A/CS40L25B Haptics Driver
  *
@@ -11,7 +12,7 @@
  *
  */
 
-#include "cs40l2x.h"
+#include <linux/mfd/cs40l2x.h>
 
 const unsigned char cs40l2x_bst_k1_table[4][5] = {
 	{0x24, 0x32, 0x32, 0x4F, 0x57},
@@ -966,11 +967,13 @@ const unsigned int cs40l2x_pbq_dig_scale[CS40L2X_PBQ_SCALE_MAX + 1] = {
 
 static const char * const cs40l2x_coeff_files_orig[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
+	CS40L2X_DYN_F0_FILE_NAME,
 };
 
 static const char * const cs40l2x_coeff_files_remap[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_exc.bin",
+	CS40L2X_DYN_F0_FILE_NAME,
 };
 
 static const char * const cs40l2x_coeff_files_cal[] = {
@@ -981,6 +984,18 @@ static const char * const cs40l2x_coeff_files_clab[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_clab.bin",
 };
+
+static const char * const cs40l2x_coeff_files_par[] = {
+	CS40L2X_WT_FILE_NAME_DEFAULT,
+	"cs40l25a_par.bin",
+	CS40L2X_DYN_F0_FILE_NAME,
+};  /* PWLE Amplitude Regulation */
+
+static const char * const cs40l2x_coeff_files_a2h[] = {
+	CS40L2X_WT_FILE_NAME_DEFAULT,
+	"cs40l25a_a2h.bin",
+	CS40L2X_DYN_F0_FILE_NAME,
+};  /* PWLE Amplitude Regulation */
 
 const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 	{
@@ -1023,6 +1038,22 @@ const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 		.coeff_files = cs40l2x_coeff_files_clab,
 		.fw_file = "cs40l25a_clab.wmfw",
 	},
+	{
+		.id = CS40L2X_FW_ID_PAR,
+		.min_rev = 0x080A00,
+		.halo_state_run = 203,
+		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_par),
+		.coeff_files = cs40l2x_coeff_files_par,
+		.fw_file = "cs40l25a_par.wmfw",
+	},  /* PWLE Amplitude Regulation */
+	{
+		.id = CS40L2X_FW_ID_A2H,
+		.min_rev = 0x080A05,
+		.halo_state_run = 203,
+		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_a2h),
+		.coeff_files = cs40l2x_coeff_files_a2h,
+		.fw_file = "cs40l25a_a2h.wmfw",
+	},  /* PWLE Amplitude Regulation */
 };
 
 const struct cs40l2x_hw_err_desc cs40l2x_hw_errs[CS40L2X_NUM_HW_ERRS] = {
