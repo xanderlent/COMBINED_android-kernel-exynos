@@ -94,6 +94,14 @@
 	};
 };
 
+&pinctrl_1 {
+	key_sidebutton: key-sidebutton {
+		samsung,pins = "gpm22-0";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0x0>;
+	};
+};
+
 &pinctrl_5 {
 	pm_wrsti: pm_wrsti {
 		samsung,pins = "gpg7-1";
