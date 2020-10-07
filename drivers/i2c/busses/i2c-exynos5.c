@@ -1098,10 +1098,9 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 #ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
-	} else {
-		pm_runtime_mark_last_busy(i2c->dev);
-		pm_runtime_put_autosuspend(i2c->dev);
 	}
+	pm_runtime_mark_last_busy(i2c->dev);
+	pm_runtime_put_autosuspend(i2c->dev);
 #else
 	clk_disable(i2c->clk);
 #ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
