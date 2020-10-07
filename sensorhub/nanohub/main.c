@@ -1085,10 +1085,10 @@ static int nanohub_create_devices(struct nanohub_data *data)
 {
 	int i, j, k, ret;
 	static const char *names[] = {
-		"nanohub_comms", "nanohub", "nanohub_audio"
+		"nanohub_comms", "nanohub", "nanohub_audio", "nanohub_skg"
 	};
 	const uint8_t ids[] = {
-		1, ID_NANOHUB_CLIENT_NUM_IDS, 1
+		1, ID_NANOHUB_CLIENT_NUM_IDS, 1, 1
 	};
 
 	for (i = 0, j = 0; j < ID_NANOHUB_MAX - ID_NANOHUB_CLIENT_NUM_IDS + 1; ++j) {

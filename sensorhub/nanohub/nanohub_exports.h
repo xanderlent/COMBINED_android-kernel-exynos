@@ -11,6 +11,7 @@
 
 #define MAX_MESSAGE_SIZE 255
 #define NANOHUB_AUDIO_CHANNEL_ID 16
+#define NANOHUB_SKG_CHANNEL_ID 17
 
 /**
  * Sends a message over a nanohub channel.
