@@ -29,7 +29,7 @@
 	board_rev = <0x0>;
 
 	fragment@common {
-		target-patch = "/";
+		target-path = "/";
 		__overlay__
 		/include/ "r11_dev1_common_root.dtsi"
 	};
