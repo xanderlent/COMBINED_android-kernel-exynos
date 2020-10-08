@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
+ * CHUB IF Driver
+ *
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
+ * Authors:
+ *      Boojin Kim <boojin.kim@samsung.com>
+ *      Sukwon Ryu <sw.ryoo@samsung.com>
  *
- * Boojin Kim <boojin.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -54,12 +54,7 @@
 enum { CHUB_ON, CHUB_OFF };
 enum { C2A_ON, C2A_OFF };
 
-struct contexthub_ipc_info *chub_info;
-static struct memlog *memlog_chub;
-struct memlog_obj *memlog_sram_file_chub;
-struct memlog_obj *memlog_sram_chub;
-struct memlog_obj *memlog_printf_file_chub;
-struct memlog_obj *memlog_printf_chub;
+static struct contexthub_ipc_info *chub_info;
 
 const char *os_image[SENSOR_VARIATION] = {
 	"os.checked_0.bin",
@@ -94,11 +89,11 @@ void chub_printf(int level, int fw_idx, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	memlog_write_printf(memlog_printf_chub, MEMLOG_LEVEL_ERR, "%pV", &vaf);
+	memlog_write_printf(chub_info->mlog.memlog_printf_chub, MEMLOG_LEVEL_ERR, "%pV", &vaf);
 	pr_info("nanohub: %pV", &vaf);
 	n = snprintf(log.buf, 239, "%pV", &vaf);
 	log.buf[238] = '\n';
-	ipc_logbuf_printf(&log, strlen(log.buf));
+	ipc_logbuf_printf(chub_info, &log, strlen(log.buf));
 	kfree(log.buf);
 	va_end(args);
 }
@@ -374,17 +369,17 @@ void cipc_func_handle_irq(int evt, void *priv)
 	}
 }
 
-struct cipc_funcs cipc_func = {
-    .mbusywait = cipc_func_sleep,
-    .memcpy = cipc_func_memcpy,
-    .memset = cipc_func_memset,
-    .getlock_evt = cipc_func_get_evtlock,
-    .putlock_evt = cipc_func_put_evtlock,
-    .getlock_data = cipc_func_get_datalock,
-    .putlock_data = cipc_func_put_datalock,
-    .strncmp = cipc_func_strncmp,
-    .strncpy = cipc_func_strncpy,
-    .print = cipc_func_logout,
+static struct cipc_funcs cipc_func = {
+	.mbusywait = cipc_func_sleep,
+	.memcpy = cipc_func_memcpy,
+	.memset = cipc_func_memset,
+	.getlock_evt = cipc_func_get_evtlock,
+	.putlock_evt = cipc_func_put_evtlock,
+	.getlock_data = cipc_func_get_datalock,
+	.putlock_data = cipc_func_put_datalock,
+	.strncmp = cipc_func_strncmp,
+	.strncpy = cipc_func_strncpy,
+	.print = cipc_func_logout,
 };
 
 #ifdef IPC_DEBUG
@@ -420,20 +415,10 @@ static void ipc_test(struct contexthub_ipc_info *chub)
 
 static int contexthub_notifier(struct contexthub_notifier_block *nb)
 {
-	nanohub_dev_info("%s called!: subsys:%s, start_off:%x, end_off:%x",
-		__func__, nb->subsystem, nb->start_off, nb->end_off);
+	nanohub_info("%s called!: subsys:%s, start_off:%x, end_off:%x",
+		     __func__, nb->subsystem, nb->start_off, nb->end_off);
 	return 0;
 }
-
-struct contexthub_notifier_block chub_cipc_nb = {
-	"CHUB", 0, 0, CHUB_FW_ST_INVAL, contexthub_notifier
-};
-
-struct contexthub_notifi_info {
-	char name[IPC_NAME_MAX];
-	enum ipc_owner id;
-	struct contexthub_notifier_block *nb;
-};
 
 static struct contexthub_notifi_info cipc_noti[IPC_OWN_MAX] = {
 	{"EMP", 0, NULL},
@@ -568,12 +553,12 @@ int contexthub_notifier_register(struct contexthub_notifier_block *nb)
 }
 EXPORT_SYMBOL(contexthub_notifier_register);
 
-int contexthub_sync_memlogger(void)
+int contexthub_sync_memlogger(struct contexthub_ipc_info *ipc)
 {
 	int ret = 0;
 
-	if (memlog_printf_chub)
-		ret |= memlog_sync_to_file(memlog_printf_chub);
+	if (ipc->mlog.memlog_printf_chub)
+		ret |= memlog_sync_to_file(ipc->mlog.memlog_printf_chub);
 
 	return ret;
 }
@@ -596,7 +581,7 @@ static int contexthub_chub_ipc_init(struct contexthub_ipc_info *chub)
 		nanohub_dev_info(chub->dev, "%s: ipc_init success\n", __func__);
 		ret = cipc_register(chub->mailbox, CIPC_USER_CHUB2AP, CIPC_USER_AP2CHUB, cipc_func_handle_irq, chub, &cipc_start_offset, &cipc_size);
 		if (ret) {
-			CSP_PRINTF_ERROR("%s: c2a cipc_request fails\n", __func__);
+			nanohub_dev_err(chub->dev, "%s: c2a cipc_request fails\n", __func__);
 			return -EINVAL;
 		}
 		nanohub_dev_info(chub->dev, "%s: cipc_register success: offset:+%x, size:%d\n", __func__, cipc_start_offset, cipc_size);
@@ -609,15 +594,14 @@ static int contexthub_chub_ipc_init(struct contexthub_ipc_info *chub)
 
 static int contexthub_ipc_drv_init(struct contexthub_ipc_info *chub)
 {
-	int ret = 0;
+	int ret = contexthub_chub_ipc_init(chub);
 
-	ret = contexthub_chub_ipc_init(chub);
-	if (ret)
-		nanohub_err("%s: fails in contexthub_ipc_drv_init. ret:%d\n", __func__, ret);
-	else {
+	if (!ret) {
 		ret = chub_dbg_init(chub, chub->chub_rt_log.buffer, chub->chub_rt_log.buffer_size);
 		if (ret)
 			nanohub_err("%s: fails in chub_dbg_init. ret:%d\n", __func__, ret);
+	} else {
+		nanohub_err("%s: fails in contexthub_ipc_drv_init. ret:%d\n", __func__, ret);
 	}
 	return ret;
 }
@@ -777,7 +761,7 @@ retry:
 	}
 	ipc_logbuf_flush_on(1);
 	mutex_lock(&log_mutex);
-	if (ipc_logbuf_outprint(&ipc->chub_rt_log, 100))
+	if (ipc_logbuf_outprint())
 		ipc->err_cnt[CHUB_ERR_NANOHUB_LOG]++;
 	mutex_unlock(&log_mutex);
 	ipc_logbuf_flush_on(0);
@@ -1021,8 +1005,8 @@ static void contexthub_set_baaw(struct contexthub_ipc_info *chub)
 		IPC_HW_WRITE_BAAW_CHUB3(chub->chub_baaw_d, BAAW_RW_ACCESS_ENABLE);
 	}
 }
-#define os_name_idx (11)
 
+#define os_name_idx (11)
 int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
 {
 	struct sensor_map *sensor_map;
@@ -1039,7 +1023,6 @@ int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
 	}  else {
 		clear_err_cnt(ipc, CHUB_ERR_CHUB_ST_ERR);
 	}
-
 
 	do {
 		ret = contexthub_get_token(ipc);
@@ -1065,10 +1048,10 @@ int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf)
 
 		for (i = 0; i < MAX_PHYSENSOR_NUM; i++)
 			nanohub_dev_info(ipc->dev, "%s2: %d/%d - %d: %s,%s\n",
-			__func__, i, pack->sensormap.index,
-			pack->sensormap.sinfo[i].sensortype,
-			pack->sensormap.sinfo[i].name,
-			pack->sensormap.sinfo[i].vendorname);
+				__func__, i, pack->sensormap.index,
+				pack->sensormap.sinfo[i].sensortype,
+				pack->sensormap.sinfo[i].name,
+				pack->sensormap.sinfo[i].vendorname);
 	}
 	contexthub_put_token(ipc);
 
@@ -1084,8 +1067,10 @@ void contexthub_ipc_status_reset(struct contexthub_ipc_info *ipc)
 	atomic_set(&ipc->log_work_active, 0);
 }
 
-int contexthub_reset_prepare(struct contexthub_ipc_info *ipc) {
+int contexthub_reset_prepare(struct contexthub_ipc_info *ipc)
+{
 	int ret;
+
 	/* pmu call reset-release_config */
 	ret = cal_chub_reset_release_config();
 	if (ret) {
@@ -1321,9 +1306,10 @@ int contexthub_poweron(struct contexthub_ipc_info *ipc)
 			else {  /* with multi-os */
 				nanohub_dev_info(dev, "%s: wait for multi-os poweron\n", __func__);
 				ret = chub_wait_event(&ipc->poweron_lock, WAIT_TIMEOUT_MS * 2);
-				nanohub_dev_info(dev, "%s: multi-os poweron %s, status:%d, ret:%d, flag:%d\n", __func__,
-					atomic_read(&ipc->chub_status) == CHUB_ST_RUN ? "success" : "fails",
-					atomic_read(&ipc->chub_status), ret, ipc->poweron_lock.flag);
+				nanohub_dev_info(dev, "%s: multi-os poweron %s, status:%d, ret:%d, flag:%d\n",
+						 __func__,
+						 atomic_read(&ipc->chub_status) == CHUB_ST_RUN ? "success" : "fails",
+						 atomic_read(&ipc->chub_status), ret, ipc->poweron_lock.flag);
 			}
 		}
 	} else
@@ -1375,7 +1361,8 @@ static int contexthub_download_and_check_image(struct contexthub_ipc_info *ipc, 
 			}
 	}
 out:
-	nanohub_dev_info(ipc->dev, "%s: download and checked bl(%d) ret:%d \n", __func__, reg == IPC_REG_BL, ret);
+	nanohub_dev_info(ipc->dev, "%s: download and checked bl(%d) ret:%d\n",
+			 __func__, reg == IPC_REG_BL, ret);
 	vfree(fw);
 	return ret;
 }
@@ -1391,7 +1378,7 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub
 		sysevent_put((void *) ipc->sysevent_dev);
 
 	/* debug dump */
-	memlog_do_dump(memlog_sram_chub, MEMLOG_LEVEL_EMERG);
+	memlog_do_dump(ipc->mlog.memlog_sram_chub, MEMLOG_LEVEL_EMERG);
 	chub_dbg_dump_hw(ipc, err);
 
 	mutex_lock(&reset_mutex);
@@ -1484,12 +1471,12 @@ int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub
 	/* reset release */
 	ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_RESET);
 	if (ret) {
-	        nanohub_dev_err(ipc->dev, "%s: chub reset fail! (ret:%d)\n", __func__, ret);
+		nanohub_dev_err(ipc->dev, "%s: chub reset fail! (ret:%d)\n", __func__, ret);
 	} else {
-	        nanohub_dev_info(ipc->dev, "%s: chub reset done! (cnt:%d)\n",
-	                __func__, ipc->err_cnt[CHUB_ERR_RESET_CNT]);
-	        ipc->err_cnt[CHUB_ERR_RESET_CNT]++;
-			contexthub_reset_token(ipc);
+		nanohub_dev_info(ipc->dev, "%s: chub reset done! (cnt:%d)\n",
+				 __func__, ipc->err_cnt[CHUB_ERR_RESET_CNT]);
+		ipc->err_cnt[CHUB_ERR_RESET_CNT]++;
+		contexthub_reset_token(ipc);
 	}
 out:
 	if (ret) {
@@ -1510,8 +1497,8 @@ out:
 	if (ipc->sysevent_dev && sysevent_get("CHB") == PTR_ERR)
 		nanohub_warn("%s sysevent_get fail!", __func__);
 
-	if (memlog_printf_chub)
-		memlog_sync_to_file(memlog_printf_chub);
+	if (ipc->mlog.memlog_printf_chub)
+		memlog_sync_to_file(ipc->mlog.memlog_printf_chub);
 
 	return ret;
 }
@@ -1535,7 +1522,7 @@ static int contexthub_verify_symtable(struct contexthub_ipc_info *chub, void *da
 		nanohub_dev_info(chub->dev, "symbol table size : %d\n", symbol_size);
 
 		if (symbol_size < size - offset) {
-			chub->symbol_table = (struct contexthub_symbol_table *) kmalloc(symbol_size, GFP_KERNEL);
+			chub->symbol_table = kmalloc(symbol_size, GFP_KERNEL);
 			if (chub->symbol_table) {
 				memcpy(chub->symbol_table, data + size - symbol_size - offset - 8, symbol_size);
 				nanohub_dev_info(chub->dev, "Load symbol table Done!!!\n");
@@ -1558,13 +1545,11 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, enum ipc_region r
 		nanohub_dev_info(ipc->dev, "%s: download bl\n", __func__);
 		ret = request_firmware(&entry, "bl.unchecked.bin", ipc->dev);
 		chub_addr = ipc->sram;
-	}
-	else if (reg == IPC_REG_OS) {
+	} else if (reg == IPC_REG_OS) {
 		nanohub_dev_info(ipc->dev, "%s: download %s\n", __func__, ipc->os_name);
 		ret = request_firmware(&entry, ipc->os_name, ipc->dev);
 		chub_addr = ipc_get_base(reg);
-	}
-	else {
+	} else {
 		nanohub_dev_err(ipc->dev, "%s: invalid reg:%d\n", __func__, reg);
 		return -EINVAL;
 	}
@@ -1594,9 +1579,8 @@ int contexthub_download_image(struct contexthub_ipc_info *ipc, enum ipc_region r
 		return -1;
 	}
 
-	if ( reg == IPC_REG_OS) {
+	if (reg == IPC_REG_OS)
 		contexthub_verify_symtable(ipc, (void *) entry->data, entry->size);
-	}
 
 	release_firmware(entry);
 
@@ -1619,7 +1603,7 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 	start_index = ipc_hw_start_bit(rcv_mb_id);
 	irq_num = IRQ_NUM_CHUB_ALIVE + start_index;
 
-	if(atomic_read(&ipc->chub_sleep)) {
+	if (atomic_read(&ipc->chub_sleep)) {
 		nanohub_dev_info(ipc->dev,
 			"%s wakeup_by_me: status:0x%x\n", __func__, status);
 		ipc_dump();
@@ -1636,7 +1620,7 @@ static irqreturn_t contexthub_irq_handler(int irq, void *data)
 		}
 
 		if (ipc_read_hw_value(IPC_VAL_HW_AP_STATUS) == CHUB_REBOOT_REQ) {
-			nanohub_dev_err(ipc->dev," chub sends to request reboot\n");
+			nanohub_dev_err(ipc->dev, "chub sends to request reboot\n");
 			contexthub_handle_debug(ipc, CHUB_ERR_FW_REBOOT);
 		} else {
 			/* set wakeup flag for chub_alive_lock */
@@ -1706,7 +1690,7 @@ error:
 }
 
 static void __iomem *get_iomem(struct platform_device *pdev,
-                const char *name, u32 *size)
+			       const char *name, u32 *size)
 {
 	struct resource *res;
 	void __iomem *ret;
@@ -1725,6 +1709,7 @@ static void __iomem *get_iomem(struct platform_device *pdev,
 
 	if (size)
 		*size = resource_size(res);
+
 	nanohub_dev_info(&pdev->dev, "%s: %s is mapped on with size of %zu\n",
 		__func__, name, (size_t)resource_size(res));
 
@@ -2020,18 +2005,14 @@ static int chub_itmon_notifier(struct notifier_block *nb,
 #endif
 
 static int contexthub_panic_handler(struct notifier_block *nb,
-                               unsigned long action, void *data)
+				    unsigned long action, void *data)
 {
-	memlog_do_dump(memlog_sram_chub, MEMLOG_LEVEL_EMERG);
+	struct contexthub_ipc_info *chub = container_of(nb, struct contexthub_ipc_info, panic_nb);
+
+	memlog_do_dump(chub->mlog.memlog_sram_chub, MEMLOG_LEVEL_EMERG);
 	chub_dbg_dump_ram(CHUB_ERR_KERNEL_PANIC);
 	return NOTIFY_OK;
 }
-
-static struct notifier_block chub_panic_notifier = {
-        .notifier_call  = contexthub_panic_handler,
-        .next           = NULL,
-        .priority       = 0     /* priority: INT_MAX >= x >= 0 */
-};
 
 int contexthub_sysevent_shutdown(const struct sysevent_desc *desc, bool force_stop)
 {
@@ -2062,55 +2043,55 @@ void contexthub_sysevent_crash_shutdown(const struct sysevent_desc *desc)
 	nanohub_info("%s\n", __func__);
 }
 
-static int contexthub_memlog_init(struct device *dev)
+static int contexthub_memlog_init(struct contexthub_ipc_info *chub)
 {
 	int ret;
 
-	ret = memlog_register("CHB", dev, &memlog_chub);
-	if (!memlog_chub) {
-		nanohub_dev_err(dev, "memlog chub desc registration fail");
+	ret = memlog_register("CHB", chub->dev, &chub->mlog.memlog_chub);
+	if (!chub->mlog.memlog_chub) {
+		dev_err(chub->dev, "memlog chub desc registration fail ret:%d\n", ret);
 		return -1;
 	}
 
-	memlog_printf_file_chub = memlog_alloc_file(memlog_chub, "log-fil", SZ_512K, SZ_1M, 1000, 3);
-	dev_info(dev, "memlog printf file chub %s\n",
-				memlog_printf_file_chub ? "pass" : "fail");
-	if (memlog_printf_file_chub) {
-		memlog_obj_set_sysfs_mode(memlog_printf_file_chub, true);
-		memlog_printf_chub = memlog_alloc_printf(memlog_chub, SZ_512K,
-							memlog_printf_file_chub, "log-mem", 0);
+	chub->mlog.memlog_printf_file_chub = memlog_alloc_file(chub->mlog.memlog_chub,
+						    "log-fil", SZ_512K, SZ_1M, 1000, 3);
+	dev_info(chub->dev, "memlog printf file chub %s\n",
+				chub->mlog.memlog_printf_file_chub ? "pass" : "fail");
+	if (chub->mlog.memlog_printf_file_chub) {
+		memlog_obj_set_sysfs_mode(chub->mlog.memlog_printf_file_chub, true);
+		chub->mlog.memlog_printf_chub =
+		    memlog_alloc_printf(chub->mlog.memlog_chub, SZ_512K,
+					chub->mlog.memlog_printf_file_chub, "log-mem", 0);
 	}
-	dev_info(dev, "memlog printf chub %s\n",
-				memlog_printf_chub ? "pass" : "fail");
+	dev_info(chub->dev, "memlog printf chub %s\n",
+				chub->mlog.memlog_printf_chub ? "pass" : "fail");
 
-	memlog_sram_file_chub = memlog_alloc_file(memlog_chub, "srm-fil", SZ_1M, SZ_1M, 1000, 3);
-	if (memlog_sram_file_chub)
-		memlog_sram_chub = memlog_alloc_dump(memlog_chub, SZ_1M,
-					PHYS_SRAM_BASE, false,
-					memlog_sram_file_chub, "srm-dmp");
-
+	chub->mlog.memlog_sram_file_chub = memlog_alloc_file(chub->mlog.memlog_chub,
+							     "srm-fil", SZ_1M, SZ_1M, 1000, 3);
+	if (chub->mlog.memlog_sram_file_chub)
+		chub->mlog.memlog_sram_chub =
+		    memlog_alloc_dump(chub->mlog.memlog_chub, SZ_1M,
+				      PHYS_SRAM_BASE, false,
+				      chub->mlog.memlog_sram_file_chub, "srm-dmp");
 
 	return 0;
 }
 
-static int contexthub_s2mpu_notifier(struct s2mpufd_notifier_block *nb, struct s2mpufd_notifier_info *nb_data)
+static int contexthub_s2mpu_notifier(struct s2mpufd_notifier_block *nb,
+				     struct s2mpufd_notifier_info *nb_data)
 {
 	struct contexthub_ipc_info *data = container_of(nb, struct contexthub_ipc_info, s2mpu_nb);
-	struct s2mpufd_notifier_info *s2mpu_data = nb_data;
-
-	(void) data;
-	(void) s2mpu_data;
+	/* struct s2mpufd_notifier_info *s2mpu_data = nb_data; */
 
 	nanohub_info("%s called!\n", __func__);
-
 	contexthub_handle_debug(data, CHUB_ERR_S2MPU);
 	return S2MPUFD_NOTIFY_OK;
 }
 
-
 #define MAX_FIRMWARE_NUM 3
 int contexthub_imgloader_mem_setup(struct imgloader_desc *desc, const u8 *metadata, size_t size,
-		                phys_addr_t *fw_phys_base, size_t *fw_bin_size, size_t *fw_mem_size)
+				   phys_addr_t *fw_phys_base,
+				   size_t *fw_bin_size, size_t *fw_mem_size)
 {
 	void *addr = NULL;
 	struct contexthub_ipc_info *chub = (struct contexthub_ipc_info *) desc->data;
@@ -2136,30 +2117,29 @@ int contexthub_imgloader_mem_setup(struct imgloader_desc *desc, const u8 *metada
 }
 
 int contexthub_imgloader_verify_fw(struct imgloader_desc *desc, phys_addr_t fw_phys_base,
-                size_t fw_bin_size, size_t fw_mem_size)
+				   size_t fw_bin_size, size_t fw_mem_size)
 {
-        uint64_t ret64 = 0;
+	uint64_t ret64 = 0;
 
-        ret64 = exynos_verify_subsystem_fw(desc->name, desc->fw_id,
-                        fw_phys_base, fw_bin_size,
-                        ALIGN(fw_mem_size, SZ_4K));
-        if (ret64) {
-                nanohub_dev_warn(desc->dev, "Failed F/W verification, ret=%llu\n", ret64);
-                return -EIO;
-        }
+	ret64 = exynos_verify_subsystem_fw(desc->name, desc->fw_id,
+					   fw_phys_base, fw_bin_size,
+	ALIGN(fw_mem_size, SZ_4K));
+	if (ret64) {
+		nanohub_dev_warn(desc->dev, "Failed F/W verification, ret=%llu\n", ret64);
+		return -EIO;
+	}
 
-        ret64 = exynos_request_fw_stage2_ap(desc->name);
-        if (ret64) {
-                nanohub_dev_warn(desc->dev, "Failed F/W verification to S2MPU, ret=%llu\n", ret64);
-                return -EIO;
-        }
+	ret64 = exynos_request_fw_stage2_ap(desc->name);
+	if (ret64) {
+		nanohub_dev_warn(desc->dev, "Failed F/W verification to S2MPU, ret=%llu\n", ret64);
+		return -EIO;
+	}
 
-        return 0;
+	return 0;
 }
 
-
-struct imgloader_ops contexthub_imgloader_ops = {
-        .mem_setup = contexthub_imgloader_mem_setup,
+static struct imgloader_ops contexthub_imgloader_ops = {
+	.mem_setup = contexthub_imgloader_mem_setup,
 	.verify_fw = contexthub_imgloader_verify_fw
 };
 
@@ -2173,7 +2153,7 @@ static int contexthub_imgloader_init(struct contexthub_ipc_info *chub)
 		chub->chub_img_desc[i].dev = chub->dev;
 		chub->chub_img_desc[i].owner = THIS_MODULE;
 		chub->chub_img_desc[i].ops = &contexthub_imgloader_ops;
-		chub->chub_img_desc[i].data = (void *) chub;
+		chub->chub_img_desc[i].data = (void *)chub;
 		chub->chub_img_desc[i].name = "CHUB";
 		chub->chub_img_desc[i].s2mpu_support = true;
 		chub->chub_img_desc[i].fw_name = i ? os_image[i - 1] : "bl.unchecked.bin";
@@ -2194,11 +2174,6 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 #ifdef CONFIG_CHRE_SENSORHUB_HAL
 	struct iio_dev *iio_dev;
 #endif
-	/* register memlog at 1st to log chub */
-	ret = contexthub_memlog_init(&pdev->dev);
-	if (ret)
-		dev_err(&pdev->dev, "memlog not registered...\n");
-
 	chub = chub_dbg_get_memory(pdev->dev.of_node, DBG_NANOHUB_DD_AREA);
 	if (!chub) {
 		chub =
@@ -2214,6 +2189,12 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 
 	chub_info = chub;
 	chub->dev = &pdev->dev;
+	/* register memlog at 1st to log chub */
+	ret = contexthub_memlog_init(chub);
+	if (ret)
+		dev_err(&pdev->dev, "memlog not registered...\n");
+	else
+		chub_info = chub; /* set chub_info for print */
 
 	chub->log_info = log_register_buffer(chub->dev, 0,
 					     &chub->chub_rt_log,
@@ -2272,8 +2253,12 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 	chub->itmon_nb.notifier_call = contexthub_itmon_notifier;
 	itmon_notifier_chain_register(&chub->itmon_nb);
 #endif
-	atomic_notifier_chain_register(&panic_notifier_list, &chub_panic_notifier);
-	contexthub_notifier_register(&chub_cipc_nb);
+	chub->panic_nb.notifier_call = contexthub_panic_handler;
+	atomic_notifier_chain_register(&panic_notifier_list, &chub->panic_nb);
+
+	chub->chub_cipc_nb.subsystem = "CHUB";
+	chub->chub_cipc_nb.notifier_call = contexthub_notifier;
+	contexthub_notifier_register(&chub->chub_cipc_nb);
 
 	chub->s2mpu_nb.notifier_call = contexthub_s2mpu_notifier;
 	chub->s2mpu_nb.subsystem = "CHUB";
@@ -2309,8 +2294,9 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 		if (IS_ERR(chub->sysevent_dev)) {
 			ret = PTR_ERR(chub->sysevent_dev);
 			nanohub_dev_err(&pdev->dev, "%s: failed to register sysevent:%d\n", __func__, ret);
-		} else
+		} else {
 			nanohub_dev_info(&pdev->dev, "%s: success to register sysevent\n", __func__);
+		}
 	}
 	contexthub_imgloader_init(chub);
 

@@ -981,7 +981,9 @@ static ssize_t nanohub_sync_memlogger(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	contexthub_sync_memlogger();
+	struct nanohub_data *data = dev_get_nanohub_data(dev);
+
+	contexthub_sync_memlogger(data->pdata->mailbox_client);
 
 	return count;
 }

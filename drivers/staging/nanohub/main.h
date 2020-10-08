@@ -55,7 +55,7 @@ static inline struct nanohub_data *dev_get_nanohub_data(struct device *dev)
 	struct nanohub_io *io = dev_get_drvdata(dev);
 
 	if(io == NULL) {
-		nanohub_info("%s io not available!\n", __func__);
+		nanohub_err("%s io not available!\n", __func__);
 		return NULL;
 	}
 
@@ -120,10 +120,6 @@ struct nanohub_data {
 	int irq1;
 	int irq2;
 
-#ifdef CHUB_USER_DEBUG
-	struct chub_user_debug chub_user;
-#endif
-
 	atomic_t kthread_run;
 	atomic_t thread_state;
 	atomic_t in_reset;
@@ -151,6 +147,10 @@ struct nanohub_data {
 
 	void *vbuf;
 	struct task_struct *thread;
+
+#ifdef CHUB_USER_DEBUG
+	struct chub_user_debug chub_user;
+#endif
 };
 
 enum {

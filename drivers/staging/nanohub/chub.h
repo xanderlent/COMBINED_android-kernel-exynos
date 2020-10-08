@@ -1,12 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
+ * CHUB IF Driver
+ *
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
+ * Authors:
+ *      Boojin Kim <boojin.kim@samsung.com>
+ *      Sukwon Ryu <sw.ryoo@samsung.com>
  *
- * Boojin Kim <boojin.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __CONTEXTHUB_IPC_H_
@@ -47,9 +47,7 @@
 #endif
 
 #define MEMLOGGER_KMSG
-#define LOG_TAG "contexthub: "
-extern struct memlog_obj *memlog_printf_chub;
-extern struct contexthub_ipc_info *chub_info;
+
 #ifndef MEMLOGGER_KMSG
 #define nanohub_debug(fmt, ...) \
 	        pr_debug(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
@@ -218,6 +216,24 @@ struct contexthub_symbol_table {
 	struct contexthub_symbol_addr symbol[0];
 };
 
+struct memlogs {
+	struct memlog *memlog_chub;
+	struct memlog_obj *memlog_file_chub;
+	struct memlog_obj *memlog_obj_chub;
+	struct memlog_obj *memlog_arr_file_chub;
+	struct memlog_obj *memlog_arr_chub;
+	struct memlog_obj *memlog_sram_file_chub;
+	struct memlog_obj *memlog_sram_chub;
+	struct memlog_obj *memlog_printf_file_chub;
+	struct memlog_obj *memlog_printf_chub;
+};
+
+struct contexthub_notifi_info {
+	char name[IPC_NAME_MAX];
+	enum ipc_owner id;
+	struct contexthub_notifier_block *nb;
+};
+
 #define CHUB_IRQ_PIN_MAX (5)
 struct contexthub_ipc_info {
 	u32 cur_err;
@@ -275,18 +291,30 @@ struct contexthub_ipc_info {
 	bool os_load;
 	u8 num_os;
 	char os_name[MAX_FILE_LEN];
-	struct imgloader_desc chub_img_desc[3];
-	u32 chub_dfs_gov;
-	struct notifier_block itmon_nb;
-	struct s2mpufd_notifier_block s2mpu_nb;
-	struct wakeup_source *ws;
-	struct wakeup_source *ws_reset;
-	struct contexthub_symbol_table *symbol_table;
-	struct sysevent_desc sysevent_desc;
-	struct sysevent_device *sysevent_dev;
 #ifdef CONFIG_CONTEXTHUB_DEBUG
 	struct work_struct utc_work;
 #endif
+	u32 chub_dfs_gov;
+	/* wakeup control */
+	struct wakeup_source *ws;
+	struct wakeup_source *ws_reset;
+	/* chub f/w callstack */
+	struct contexthub_symbol_table *symbol_table;
+
+	/* communicate with others */
+	/* image loader */
+	struct imgloader_desc chub_img_desc[3];
+	/* chub notifiers */
+	struct contexthub_notifier_block chub_cipc_nb;
+	struct contexthub_notifi_info cipc_noti[IPC_OWN_MAX];
+	struct notifier_block itmon_nb;
+	struct s2mpufd_notifier_block s2mpu_nb;
+	struct notifier_block panic_nb;
+	/* sysevent */
+	struct sysevent_desc sysevent_desc;
+	struct sysevent_device *sysevent_dev;
+	/* memlogger */
+	struct memlogs mlog;
 };
 
 #define SENSOR_VARIATION 10
@@ -396,7 +424,7 @@ int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
 void chub_wake_event(struct chub_alive *event);
 int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf);
 void contexthub_handle_debug(struct contexthub_ipc_info *ipc, enum chub_err_type err);
-int contexthub_sync_memlogger(void);
+int contexthub_sync_memlogger(struct contexthub_ipc_info *ipc);
 int contexthub_get_token(struct contexthub_ipc_info *ipc);
 void contexthub_put_token(struct contexthub_ipc_info *ipc);
 #endif

@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
+ * Common IPC Driver
+ *
  * Copyright (c) 2020 Samsung Electronics Co., Ltd.
+ * Authors:
+ *      Boojin Kim <boojin.kim@samsung.com>
  *
- * Boojin Kim <boojin.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "ipc_common.h"
@@ -15,16 +14,16 @@
 #define EVT_WAIT_TIME (1)
 #define WAIT_CHUB_MS (100)
 
+static struct cipc_info cipc; /* local cipc */
+
 enum lock_type {
 	LOCK_ADD_EVT,
 	LOCK_WT_DATA,
 };
 
-struct cipc_info cipc;		/* local cipc */
-
-//#define CIPC_PRINT(fmt, ...) cipc.user_func->print(fmt, ##__VA_ARGS__)
 #include "chub.h"
 #define CIPC_PRINT(fmt, ...) nanohub_info(fmt, ##__VA_ARGS__)
+/* #define CIPC_PRINT(fmt, ...) cipc.user_func->print(fmt, ##__VA_ARGS__) */
 
 static inline void CIPC_USER_MEMCPY(void *dst, void *src, int size, int dst_io,
 				    int src_io)
@@ -184,7 +183,8 @@ static inline int is_valid_cipc_map(enum cipc_region reg)
 	}
 	if (CIPC_USER_STRNCMP
 	    (CIPC_MAGIC, cipc.cipc_map->magic, sizeof(CIPC_MAGIC))) {
-		CIPC_PRINT("%s: worng magic\n", __func__);
+		CIPC_PRINT("%s: wrong magic, reg:%d, offset:+%x\n",
+			   __func__, reg, cipc_get_offset_addr(cipc.cipc_map));
 		return CIPC_FALSE;
 	}
 	return CIPC_TRUE;
@@ -201,15 +201,44 @@ static inline int is_evt(enum cipc_region reg)
 		else
 			return CIPC_FALSE;
 	} else {
-		CIPC_PRINT("%s: worng is_valid_cipc_map, reg:%d\n", __func__,
-			   reg);
+		CIPC_PRINT("%s: worng is_valid_cipc_map, reg:%d\n",
+			   __func__, reg);
 	}
 	return CIPC_FALSE;
+}
+
+#define MAX_TRY_CNT (5)
+
+static inline int cipc_check_lock(void)
+{
+	if (cipc.lock) {
+		int trycnt = 0;
+
+		CIPC_PRINT("%s: wait for unlock:lock:%d, trycnt:%d\n",
+			   __func__, cipc.lock, trycnt);
+		do {
+			CIPC_USER_MSLEEP(100);
+		} while (cipc.lock && (trycnt++ < MAX_TRY_CNT));
+		if (cipc.lock)
+			return CIPC_ERR;
+	}
+	return 0;
+}
+
+void cipc_set_lock(int lock)
+{
+	CIPC_PRINT("%s: org:%d ->%d\n", __func__, cipc.lock, lock);
+	cipc.lock = lock;
 }
 
 static inline int is_evt_valid(enum cipc_region reg)
 {
 	struct cipc_evt *evt;
+
+	if (cipc_check_lock()) {
+		CIPC_PRINT("%s: is locked\n", __func__);
+		return CIPC_NULL;
+	}
 
 	if (is_evt(reg)) {
 		evt = cipc_get_base(reg);
@@ -248,6 +277,11 @@ static inline int is_data_valid(enum cipc_region reg)
 {
 	struct cipc_data *data;
 
+	if (cipc_check_lock()) {
+		CIPC_PRINT("%s: is locked\n", __func__);
+		return CIPC_NULL;
+	}
+
 	if (is_data(reg)) {
 		data = cipc_get_base(reg);
 		if (!CIPC_USER_STRNCMP
@@ -285,6 +319,11 @@ static inline int is_user_valid(enum cipc_user_id id)
 {
 	struct cipc_user *user;
 	enum cipc_region reg = user_to_reg(id);
+
+	if (cipc_check_lock()) {
+		CIPC_PRINT("%s: is locked\n", __func__);
+		return CIPC_NULL;
+	}
 
 	if (is_user(reg)) {
 		user = cipc_get_base(reg);
@@ -629,6 +668,43 @@ int cipc_get_offset_owner(enum ipc_owner owner, unsigned int *start_off,
 	return 0;
 }
 
+void cipc_register_callback(client_isr_func cb)
+{
+	cipc.cb = cb;
+}
+
+static void cipc_clear_map(enum cipc_user_id tx, enum cipc_user_id rx)
+{
+	struct cipc_user_info *user_info;
+	struct cipc_evt *evt;
+	struct cipc_data *data;
+	enum cipc_region reg;
+	int j;
+	int i;
+
+	CIPC_PRINT("%s: tx user:%d, rx user:%d\n", __func__, tx, rx);
+	user_info = &cipc.user_info[tx];
+	for (i = 0; i < 2; i++) {
+		CIPC_PRINT("%s: clear reg:%d, %d, %d\n",
+			   __func__, user_info->map_info.evt_reg,
+			   user_info->map_info.data_reg[0], user_info->map_info.data_reg[1]);
+		reg = user_info->map_info.evt_reg;
+		evt = cipc_get_base(reg);
+		evt->ctrl.qctrl.dq = 0;
+		evt->ctrl.qctrl.eq = 0;
+
+		for (j = 0; j < user_info->map_info.data_pool_cnt; j++) {
+			reg = user_info->map_info.data_reg[j];
+			data = cipc_get_base(reg);
+			if (data) {
+				data->ctrl.qctrl.dq = 0;
+				data->ctrl.qctrl.eq = 0;
+			}
+		}
+		user_info = &cipc.user_info[rx];
+	}
+}
+
 int cipc_register(void *mb_addr, enum cipc_user_id tx, enum cipc_user_id rx,
 		  rx_isr_func isr, void *priv, unsigned int *start_offset,
 		  int *size)
@@ -641,7 +717,13 @@ int cipc_register(void *mb_addr, enum cipc_user_id tx, enum cipc_user_id rx,
 		return CIPC_ERR;
 	}
 
+	if (cipc_check_lock()) {
+		CIPC_PRINT("%s: is locked\n", __func__);
+		return CIPC_NULL;
+	}
+
 	/* step: set local user info into local cipc */
+	cipc.cb = CIPC_NULL;
 	cipc.user_info[rx].mb_base = mb_addr;
 	cipc.user_info[tx].mb_base = mb_addr;
 	cipc.user_info[rx].rx_isr = isr;
@@ -656,6 +738,14 @@ int cipc_register(void *mb_addr, enum cipc_user_id tx, enum cipc_user_id rx,
 		ipc_hw_read_int_status_reg_all((void *)mb_addr, IPC_SRC_MB0);
 		ipc_hw_read_int_status_reg_all((void *)mb_addr, IPC_DST_MB1);
 		ipc_hw_set_mcuctrl((void *)mb_addr, 0x1);
+	}
+	/* clean up my ipc */
+	if (my_owner_id == IPC_OWN_ABOX) {
+		CIPC_PRINT("%s: owner:%d, clear my ipc\n", my_owner_id);
+		ipc_hw_read_int_status_reg_all((void *)mb_addr, IPC_SRC_MB0);
+		ipc_hw_read_int_status_reg_all((void *)mb_addr, IPC_DST_MB1);
+		ipc_hw_set_mcuctrl((void *)mb_addr, 0x1);
+		cipc_clear_map(tx, rx);
 	}
 
 	if ((my_owner_id != IPC_OWN_MASTER) && (my_owner_id != IPC_OWN_HOST) &&
@@ -673,14 +763,14 @@ int cipc_register(void *mb_addr, enum cipc_user_id tx, enum cipc_user_id rx,
 	}
 
 	/* step: set 'cipc addr' into local cipc.  'cipc addr' is from cipc map. I'm the owner of rx */
-	if (cipc_get_offset_owner(my_owner_id, start_offset, size)) {// bboot
+	if (cipc_get_offset_owner(my_owner_id, start_offset, size)) {
 		CIPC_PRINT("%s: fails to get cipc_get_offset_owner", __func__);
 		return CIPC_ERR;
 	}
 
 	/* step: print out cipc_map */
-	CIPC_PRINT("%s: owner:%d done: printout cipc local information: start_offset:%d, size;%d\n",
-		__func__, my_owner_id, *start_offset, *size);
+	CIPC_PRINT("%s: owner:%d done: printout cipc local info: start_offset:+%x, size;%d\n",
+		   __func__, my_owner_id, *start_offset, *size);
 
 	return 0;
 }
@@ -747,6 +837,13 @@ struct cipc_info *cipc_init(enum ipc_owner owner, void *sram_base,
 	cipc.sram_base = sram_base;
 	cipc.owner = owner;
 	cipc.user_func = funcs;
+	cipc.user_cnt = 0;
+
+	if (cipc_check_lock()) {
+		CIPC_PRINT("%s: is locked\n", __func__);
+		return CIPC_NULL;
+	}
+
 	/*set cipc start */
 	cipc.chub_bootargs = cipc.sram_base + MAP_INFO_OFFSET;
 	cipc.cipc_map = cipc.sram_base + cipc.chub_bootargs->ipc_start + CIPC_START_OFFSET;
@@ -783,8 +880,6 @@ enum {
 	IPC_EVT_DQ,		/* empty */
 	IPC_EVT_EQ,		/* fill */
 };
-
-#define MAX_TRY_CNT (5)
 
 static inline void *get_data_ch_addr(struct cipc_data *ipc_data, int ch_num)
 {
@@ -847,7 +942,6 @@ static inline int __ipc_queue_cnt(struct cipc_queue_ctrl *qctrl,
 
 int cipc_get_remain_qcnt(enum cipc_region reg)
 {
-
 	if (is_evt_valid(reg)) {
 		struct cipc_evt *ipc_evt = cipc_get_base(reg);
 
@@ -884,6 +978,64 @@ static void cipc_evt_fail_dbg(struct cipc_evt *ipc_evt, enum cipc_region reg)
 	}
 	cipc_dump(reg_to_user(reg));
 }
+
+#ifdef IPC_DBG_DUMP
+#include "ipc_chub.h"
+struct ipc_dbg_dump ipc_dbg;
+
+enum ipc_dbg_caller {
+	IPC_DBG_WT_IRQ,
+	IPC_DBG_AP_SLEEP,
+	IPC_DBG_AP_WAKE,
+	IPC_DBG_RD_IRQ,
+	IPC_DBG_WT_DATA,
+	IPC_DBG_WT_EVT,
+	IPC_DBG_RD_DATA,
+	IPC_DBG_RD_EVT,
+	IPC_DBG_APINT_SET,
+	IPC_DBG_APINT_CLR,
+};
+
+struct ipc_dbg_dump_caller {
+	enum ipc_dbg_caller caller;
+	unsigned int req_irq;
+	unsigned int evt;
+};
+
+#define IPC_DBG_CALL_MAX_IDX (48)
+#define IPC_DBG_BUF_MAX_IDX (8)
+
+struct ipc_dbg_dump {
+	int caller_idx;
+	int wt_buf_idx;
+	int rd_buf_idx;
+	char wt_buf[IPC_DBG_BUF_MAX_IDX][272];
+	char rd_buf[IPC_DBG_BUF_MAX_IDX][272];
+	struct ipc_dbg_dump_caller caller[IPC_DBG_CALL_MAX_IDX];
+};
+
+void ipc_dbg_put_dump(int caller, int val, char *buf, int length)
+{
+	if ((caller == IPC_DBG_AP_SLEEP) || (caller == IPC_DBG_AP_WAKE) ||
+	    (ipc_get_ap_wake() == AP_SLEEP)) {
+		int caller_idx = ipc_dbg.caller_idx++ % IPC_DBG_CALL_MAX_IDX;
+		int buf_idx;
+
+		ipc_dbg.caller[caller_idx].caller = caller;
+		ipc_dbg.caller[caller_idx].req_irq = val;
+		ipc_dbg.caller[caller_idx].evt = 0;
+		if (caller == IPC_DBG_WT_DATA) {
+			buf_idx = ipc_dbg.wt_buf_idx++ % IPC_DBG_CALL_MAX_IDX;
+			CIPC_USER_MEMCPY(ipc_dbg.wt_buf[buf_idx], buf, length, 0, 0);
+		} else if (caller == IPC_DBG_RD_DATA) {
+			buf_idx = ipc_dbg.rd_buf_idx++ % IPC_DBG_CALL_MAX_IDX;
+			CIPC_USER_MEMCPY(ipc_dbg.rd_buf[buf_idx], buf, length, 0, 0);
+		} else {
+			ipc_dbg.caller[caller_idx].evt = length;
+		}
+	}
+}
+#endif
 
 struct cipc_evt_buf *cipc_get_evt(enum cipc_region reg)
 {
@@ -1317,7 +1469,7 @@ struct ipc_test_buf {
 };
 
 #define IPC_TEST_MAGIC "IPC_LOOPBACK"
-struct ipc_test_buf ipc_testbuf = {
+static struct ipc_test_buf ipc_testbuf = {
 	"IPC_LOOPBACK", 0x1, 0x0,
 	{0x1234, 0x4321, 0x1234, 0x4321,
 	 0xbb00, 0xbb00, 0xbb00, 0xbb00,
@@ -1335,18 +1487,19 @@ int cipc_loopback_test(int reg_val, int start)
 	enum cipc_user_id user_id;
 	int err = 0;
 	struct ipc_test_buf local_ipc_testbuf;
-	enum cipc_region reg = reg_val & ((1 << CIPC_TEST_BAAW_REQ_BIT) -1 );
+	enum cipc_region reg = reg_val & ((1 << CIPC_TEST_BAAW_REQ_BIT) - 1);
 	int baaw_test = reg_val >> CIPC_TEST_BAAW_REQ_BIT;
 
-	CIPC_PRINT("%s: reg_val:%d, reg:%d, start:%d, baaw_test:%d\n",
-		__func__, reg_val, reg, start, baaw_test);
+	CIPC_PRINT("%s: reg_val:%x, reg:%x, start:%d, baaw_t:%d\n",
+		   __func__, reg_val, reg, start, baaw_test);
 
 #ifdef CIPC_DEF_IPC_TEST_CHUB_ONLY_ABOX_TEST
 if (reg == CIPC_REG_DATA_CHUB2ABOX) {
 	CIPC_PRINT("%s: hack c2abox -> abox2chub\n", __func__, reg, start);
-	reg = CIPC_REG_DATA_ABOX2CHUB_AUD;
+	reg = CIPC_REG_DATA_ABOX2CHUB;
 }
 #endif
+
 	if (is_data(reg) != CIPC_TRUE) {
 		CIPC_PRINT("%s: fails: reg:%d\n", __func__, reg);
 		return 0;
@@ -1355,21 +1508,23 @@ if (reg == CIPC_REG_DATA_CHUB2ABOX) {
 	if (start) {
 		ipc_testbuf.start = 1;
 		ipc_testbuf.baaw_test = baaw_test;
+
 		ret = cipc_write_data(reg, &ipc_testbuf, sizeof(ipc_testbuf));
 		if (ret)
 			CIPC_PRINT("%s: fails to send data\n", __func__);
 	} else {
 		buf = cipc_read_data(reg, &len);
 		CIPC_USER_MEMCPY(&local_ipc_testbuf, buf, len, 0, 1);
-		CIPC_PRINT("%s: Read data: reg:%d %d bytes, buf:+%x, baaw_test:%d\n",
-			__func__, reg, len, cipc_get_offset_addr(buf), local_ipc_testbuf.baaw_test);
+		CIPC_PRINT("%s: Read data: reg:%d %d bytes, buf:+%x, baaw_t:%d\n",
+			   __func__, reg, len, cipc_get_offset_addr(buf),
+			   local_ipc_testbuf.baaw_test);
 		if (local_ipc_testbuf.baaw_test) {
 			for (i = CIPC_REG_IPC_BASE; i >= CIPC_REG_SRAM_BASE; i--) {
-				CIPC_PRINT("Baaw_test(reg:%d): write '0xbb00' on unaccess area: Base: +%x (val:%x)\n",
-					i, cipc_get_offset(i), CIPC_RAW_READL(cipc_get_base(i)));
+				CIPC_PRINT("Baaw(reg:%d): WT '0xbb00' on unaccess: +%x(val:%x)\n",
+					   i, cipc_get_offset(i), CIPC_RAW_READL(cipc_get_base(i)));
 				CIPC_RAW_WRITEL(0xbb00, cipc_get_base(i));
-				CIPC_PRINT("Baaw_test(reg:%d): result: Base: +%x (val:%x)\n",
-					i, cipc_get_offset(i), CIPC_RAW_READL(cipc_get_base(i)));
+				CIPC_PRINT("Baaw(reg:%d): Result: Base: +%x (val:%x)\n",
+					   i, cipc_get_offset(i), CIPC_RAW_READL(cipc_get_base(i)));
 			}
 		}
 
@@ -1387,7 +1542,7 @@ if (reg == CIPC_REG_DATA_CHUB2ABOX) {
 			}
 			CIPC_PRINT("[ %s: test result: err:%d ]\n", __func__, err);
 #ifdef CIPC_DEF_IPC_TEST_CHUB_ONLY_ABOX_TEST
-if (reg == CIPC_REG_DATA_ABOX2CHUB_AUD) {
+if (reg == CIPC_REG_DATA_ABOX2CHUB) {
 	CIPC_PRINT("%s: hack return chub2abox\n", __func__);
 	return 0;
 }

@@ -1,12 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
+ * Common IPC Driver
+ *
  * Copyright (c) 2020 Samsung Electronics Co., Ltd.
+ * Authors:
+ *      Boojin Kim <boojin.kim@samsung.com>
  *
- * Boojin Kim <boojin.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _COMMON_IPC_H
@@ -234,17 +233,22 @@ struct chub_bootargs_cipc {		/* struct chub_bootargs */
 	unsigned int cipc_init_map;
 };
 
+typedef void (*client_isr_func) (int evt, char *buf, unsigned int len);
+
 struct cipc_info {
 	struct ipc_area cipc_addr[CIPC_REG_MAX];
 	struct chub_bootargs_cipc *chub_bootargs;
 	struct cipc_map_area *cipc_map;
 	void *sram_base;
+	int lock;
 	enum ipc_owner owner;
 	struct cipc_funcs *user_func;
 	int user_cnt;
 	struct cipc_user_info user_info[CIPC_USER_MAX];	/* hold address of ipc_user */
+	client_isr_func cb;
 };
 
+void cipc_register_callback(client_isr_func cb);
 void *cipc_get_base(enum cipc_region area);
 unsigned int cipc_get_size(enum cipc_region area);
 int cipc_get_offset_owner(enum ipc_owner owner, unsigned int *start_adr,
@@ -262,18 +266,21 @@ struct cipc_evt_buf *cipc_get_evt(enum cipc_region evtq);
 int cipc_add_evt(enum cipc_region evtq, unsigned int evt);
 
 /* Event IPC */
-int cipc_write_data(enum cipc_region dir, void *tx, unsigned int length);
-void *cipc_read_data(enum cipc_region dir, unsigned int *len);
+int cipc_write_data(enum cipc_region reg, void *tx, unsigned int length);
+void *cipc_read_data(enum cipc_region reg, unsigned int *len);
 
 int cipc_get_remain_qcnt(enum cipc_region reg);
 
 /* debug */
 int cipc_irqhandler(enum cipc_user_id id, unsigned int status);
 void cipc_dump(enum cipc_user_id id);
+void cipc_set_lock(int lock);
 
 #define IPC_DEF_IPC_TEST
+#undef IPC_DEF_IPC_TEST_CB
 #define CIPC_TEST_BAAW_REQ_BIT (16)
 #ifdef IPC_DEF_IPC_TEST
+#define CIPC_LOOPBACK_EVT (0xbb)
 int cipc_loopback_test(int reg_val, int start);
 #else
 #define cipc_loopback_test(a, b) (void)(0)

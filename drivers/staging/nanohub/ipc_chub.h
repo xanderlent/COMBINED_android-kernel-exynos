@@ -1,68 +1,27 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 2020 Samsung Electronics Co., Ltd.
+ * CHUB IPC Driver
  *
- * Boojin Kim <boojin.kim@samsung.com>
+ * Copyright (c) 2017 Samsung Electronics Co., Ltd.
+ * Authors:
+ *      Boojin Kim <boojin.kim@samsung.com>
+ *      Sukwon Ryu <sw.ryoo@samsung.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _MAILBOX_CHUB_IPC_H
 #define _MAILBOX_CHUB_IPC_H
 
-#if defined(SEOS) || defined(EMBOS)
-#define CHUB_IPC
-#else
-#define AP_IPC
-#endif
-
 #include "ipc_hw.h"
 #include "ipc_common.h"
 
+#if defined(SEOS) || defined(EMBOS)
+#include "ipc_chub_chub.h"
+#else
+#include "ipc_chub_ap.h"
+#endif
+
 #define IPC_VERSION (20200831)
-
-#if defined(CHUB_IPC)
-#if defined(SEOS)
-#include <nanohubPacket.h>
-#include <csp_common.h>
-#elif defined(EMBOS)
-/* TODO: Add embos */
-#define SUPPORT_LOOPBACKTEST
-#endif
-#elif defined(AP_IPC)
-#include <linux/device.h>
-#include "comms.h"
-#endif
-
-#define MAP_INFO_OFFSET (0x200)
-#ifndef PACKET_SIZE_MAX
-#define PACKET_SIZE_MAX (272)
-#endif
-
-#ifdef LOWLEVEL_DEBUG
-#define DEBUG_LEVEL (0)
-#else
-#if defined(CHUB_IPC)
-#define DEBUG_LEVEL (LOG_ERROR)
-#elif defined(AP_IPC)
-#define DEBUG_LEVEL (KERN_ERR)
-#endif
-#endif
-
-#ifndef CSP_PRINTF_INFO
-#ifdef AP_IPC
-#ifdef LOWLEVEL_DEBUG
-#define CSP_PRINTF_INFO(fmt, ...) log_printf(fmt, ##__VA_ARGS__)
-#define CSP_PRINTF_ERROR(fmt, ...) log_printf(fmt, ##__VA_ARGS__)
-#else
-#define CSP_PRINTF_INFO(fmt, ...) nanohub_info(fmt, ##__VA_ARGS__)
-#define CSP_PRINTF_ERROR(fmt, ...) nanohub_err(fmt, ##__VA_ARGS__)
-#define CSP_PRINTF_DEBUG(fmt, ...) nanohub_debug(fmt, ##__VA_ARGS__)
-#endif
-#endif
-#endif
 
 #define CHECK_HW_TRIGGER
 #define SENSOR_NAME_SIZE (32)
@@ -71,6 +30,17 @@
 #define BL_OFFSET		(0x0)
 #define MAP_INFO_MAX_SIZE (128)
 #define CHUB_PERSISTBUF_SIZE (96)
+
+#define INVAL_CHANNEL (-1)
+
+#ifndef HOSTINTF_SENSOR_DATA_MAX
+#define HOSTINTF_SENSOR_DATA_MAX    240
+#endif
+
+#ifndef PACKET_SIZE_MAX
+#define PACKET_SIZE_MAX (272)
+#endif
+
 //size for 20 sensors
 #define CHUB_DFS_SIZE (120)
 
@@ -104,10 +74,9 @@ struct chub_bootargs {
 	u32 chubclk;
 	u16 bootmode;
 	u16 runtimelog;
-#if defined(LOCAL_POWERGATE)
+	/* LOCAL_POWERGATE */
 	u32 psp;
 	u32 msp;
-#endif
 };
 
 /* ipc map
@@ -150,14 +119,6 @@ enum irq_evt_chub {
 	IRQ_EVT_CHUB_MAX,
 	IRQ_EVT_CHUB_INVAL = 0xffff,
 };
-#ifdef AP_IPC
-enum DfsGovernor {
-	DFS_GOVERNOR_OFF,
-	DFS_GOVERNOR_SIMPLE,
-	DFS_GOVERNOR_POWER,
-	DFS_GVERNOR_MAX,
-};
-#endif
 
 enum ipc_debug_event {
 	IPC_DEBUG_UTC_STOP,	/* no used. UTC_NONE */
@@ -223,11 +184,6 @@ enum ipc_region {
 	IPC_REG_MAX,
 };
 
-#define INVAL_CHANNEL (-1)
-
-#if defined(AP_IPC) || defined(EMBOS)
-#define HOSTINTF_SENSOR_DATA_MAX    240
-#endif
 
 /* it's from struct HostIntfDataBuffer buf */
 struct ipc_log_content {
@@ -266,17 +222,6 @@ enum ipc_fw_loglevel {
 	CHUB_RT_LOG_DUMP,
 	CHUB_RT_LOG_DUMP_PRT,
 };
-
-struct runtimelog_buf {
-	char *buffer;
-	unsigned int buffer_size;
-	unsigned int write_index;
-	enum ipc_fw_loglevel loglevel;
-	wait_queue_head_t wq;
-	bool wrap;
-	bool updated;
-};
-
 struct ipc_logbuf {
 	struct logbuf_content log[LOGBUF_NUM];
 	u32 eq;			/* write owner chub (index_writer) */
@@ -369,34 +314,7 @@ int ipc_hw_read_int_start_index(enum ipc_owner owner);
 /* logbuf functions */
 enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel,
 					 int set);
-void *ipc_logbuf_inbase(bool force);
-void ipc_logbuf_flush_on(bool on);
-bool ipc_logbuf_filled(void);
-int ipc_logbuf_printf(struct logbuf_output *log, u32 len);
-int ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop);
-void ipc_logbuf_req_flush(struct logbuf_content *log);
-void ipc_logbuf_set_req_num(struct logbuf_content *log);
-struct logbuf_content *ipc_logbuf_get_curlogbuf(struct logbuf_content *log);
-/* evt functions */
-#ifdef AP_IPC
-u32 ipc_get_chub_mem_size(void);
-void ipc_set_chub_clk(u32 clk);
-void ipc_reset_map(void);
-u8 ipc_get_sensor_info(u8 type);
-#else
-void ipc_set_sensor_info(u8 type, const char *name, const char *vendor,
-			 u8 senstype, u8 id);
-u32 ipc_get_chub_clk(void);
-struct sampleTimeTable *ipc_get_dfs_sampleTime(void);
-struct cipc_info *chub_cipc_init(enum ipc_owner owner, void *sram_base);
-void mailboxABOXHandleIRQ(int evt, void *priv);
-
-#if defined(LOCAL_POWERGATE)
-u32 *ipc_get_chub_psp(void);
-u32 *ipc_get_chub_msp(void);
-#endif
 struct ipc_info *ipc_get_info(void);
-#endif
 void ipc_set_chub_bootmode(u16 bootmode, u16 rtlog);
 u16 ipc_get_chub_rtlogmode(void);
 u16 ipc_get_chub_bootmode(void);
