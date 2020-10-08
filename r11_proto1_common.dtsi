@@ -18,22 +18,48 @@
 #include "r11_bcm430132_bluetooth.dtsi"
 #include "r11_bcm430132_wifi.dtsi"
 #include "r11_bcm47765_gnss.dtsi"
-#include "r11_dev1_audio_haptics.dtsi"
-#include "r11_dev1_display_lcd.dtsi"
-#include "r11_dev1_wlc.dtsi"
+#include "r11_proto1_audio_haptics.dtsi"
+#include "r11_proto1_wlc.dtsi"
 #include "r11_nanohub.dtsi"
-#include "r11_dev1_crown.dtsi"
 #include "r11_st21_nfc.dtsi"
 #include "r11_st54_ese.dtsi"
-#include "r11_dev1_touchscreen.dtsi"
 #include "r11_adc.dtsi"
 #include "r11_cp.dtsi"
 
 &regulators {
+	ldo15_reg: LDO15 {
+		regulator-name = "vdd_ldo15";
+		regulator-min-microvolt = <700000>;
+		regulator-max-microvolt = <1300000>;
+		regulator-ramp-delay = <12000>;
+		regulator-initial-mode = <0>;
+	};
 	ldo22_reg: LDO22 {
 		regulator-name = "vdd_ldo22";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3375000>;
 		regulator-ramp-delay = <12000>;
+		regulator-initial-mode = <0>;
+	};
+	ldo28_reg: LDO28 {
+		regulator-name = "vdd_ldo28";
+		regulator-min-microvolt = <700000>;
+		regulator-max-microvolt = <1300000>;
+		regulator-ramp-delay = <12000>;
+		regulator-initial-mode = <0>;
+	};
+	ldo29_reg: LDO29 {
+		regulator-name = "vdd_ldo29";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3375000>;
+		regulator-ramp-delay = <12000>;
+		regulator-initial-mode = <0>;
+	};
+	ldo30_reg: LDO30 {
+		regulator-name = "vdd_ldo30";
+		regulator-min-microvolt = <700000>;
+		regulator-max-microvolt = <1300000>;
+		regulator-ramp-delay = <12000>;
+		regulator-initial-mode = <0>;
 	};
 };

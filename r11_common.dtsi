@@ -1,0 +1,417 @@
+/*
+ * Google R11 common DTSI file
+ *
+ * Copyright 2020 Google LLC
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <dt-bindings/input/input.h>
+
+&abox {
+	/* Enable vss again */
+	samsung,abox-bootargs = "init=ab0x vss=1";
+	abox_vss@0 {
+		compatible = "samsung,abox-vss";
+		magic_offset = <0x300000>;
+		reg = <0x0 0x0 0x0>;
+	};
+	// Disable external firmware: we don't have binaries for them.
+	// According to the SOC provider, abox should work without them.
+	ext_bin@0 {
+		status = "disabled";
+	};
+	ext_bin@1 {
+		status = "disabled";
+	};
+	ext_bin@2 {
+		status = "disabled";
+	};
+};
+
+&serial_0 {
+	status = "okay";
+};
+
+&serial_4 {
+	status = "okay";
+};
+
+/* uart4 */
+&usi_03_cmgp {
+	usi_v2_mode = "uart";
+	status = "okay";
+};
+
+/* uart5 */
+&usi_00 {
+	usi_v2_mode = "uart";
+	status = "ok";
+};
+
+/* spi0 */
+&usi_00_cmgp {
+	usi_v2_mode = "spi";
+	status = "ok";
+};
+
+/* spi1 */
+&usi_01_cmgp {
+	usi_v2_mode = "spi";
+	status = "ok";
+};
+
+/* spi4 */
+&usi_spi {
+	usi_v2_mode = "spi";
+	status = "ok";
+};
+
+/* hsi2c4 */
+&usi_02_cmgp {
+	usi_v2_mode = "i2c";
+	status = "ok";
+};
+
+/* hsi2c8 */
+&usi_i2c_00 {
+	usi_v2_mode = "i2c";
+	status = "ok";
+};
+
+&pinctrl_0 {
+	pmic_irq: pmic-irq {
+		samsung,pins = "gpa0-0";
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <3>;
+	};
+};
+
+&pinctrl_5 {
+	pm_wrsti: pm_wrsti {
+		samsung,pins = "gpg7-1";
+		samsung,pin-con-pdn = <3>;
+	};
+};
+
+&speedy {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	/*
+	* The document S2MPW02X02_Data Sheet_6030_ALL_REV 1.2.pdf justifies the
+	* below parameters. You can find it here:
+	* https://drive.google.com/corp/drive/u/0/folders/1oJWggugDl7EeUM3SbeKJ1Y6b1tvxxeSs
+	*/
+	audio_codec_cod9005x: cod9005x@03 {
+		compatible = "codec,cod9005x";
+		/* 0x03 was copied from the DT of the reference platform. It should be
+		   the same for r11, because the whole PMIC block is the same. */
+		reg = <0x03>;
+		i2c-speedy-address;
+		/* section "3.7 CODEC" of the S2MPW02X02 datasheet specifies that LDO 27
+		   is used to control the Mic. */
+		vdd-supply = <&ldo27_reg>;
+		pinctrl-names = "default";
+		/* r10 used voltage 1.8 for the Mic. Same Mic is used in r11, so
+		   the same voltage should be used.
+		   The S2MPW02X02 datasheet, page 147, contains:
+		   "Table 26  Voltage Table for (P) LDO 2, 4, 13, 17, 18, 21, 24, 26, 27".
+		   The table points out that 0x2C value corresponds to 1.8 voltage level.
+		*/
+		mic-bias-ldo-voltage = <0x2C>;
+		/* Consider to set avc-slope-param1/2 to non default values if
+		   the codec doesn't work. */
+	};
+	s2mpw02mfd@00 {
+		compatible = "samsung,s2mpw02mfd";
+		acpm-ipc-channel = <2>;
+		i2c-speedy-address;
+		s2mpw02,wakeup = "enabled";
+		s2mpw02,irq-gpio = <&gpa0 0 0>;
+		reg = <0x00>;
+		interrupts = <0 0 0>;
+		interrupt-parent = <&gpa0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_irq &pm_wrsti>;
+		/* RTC: wtsr/smpl */
+		wtsr_en = "enabled"; /* watchdog timer software reset: enable */
+		smpl_en = "enabled"; /* sudden momentery power loss: enable */
+		wtsr_timer_val = <3>; /* 1000ms */
+		smpl_timer_val = <4>; /* 500ms */
+		check_jigon = <0>; /* do not check jigon */
+		/* RTC: If it's first boot, reset rtc to 1/1/2018 12:00:00(Wed) */
+		init_time,sec = <0>;
+		init_time,min = <0>;
+		init_time,hour = <12>;
+		init_time,mday = <1>;
+		init_time,mon = <0>;
+		init_time,year = <118>;
+		init_time,wday = <1>;
+		s2mpw02-keys {
+			button@1 {
+				label = "pmic-keys: KEY_POWER";
+				linux,code = <KEY_POWER>;
+				wakeup = <1>;
+			};
+		};
+
+		s2mpw02-charger {
+			battery,charger_name = "s2mpw02-charger";
+			/* TODO: Update float voltage */
+			battery,chg_float_voltage = <4200>;
+		};
+
+		s2mpw02-fuelgauge {
+			fuelgauge,fuel_int = <&gpa0 4 0>;
+			/* SoC at which fuelgauge sends irq */
+			fuelgauge,fuel_alert_soc = <1>;
+			/* Scale capacity units to 0.1% */
+			fuelgauge,capacity_max = <1000>;
+			fuelgauge,capacity_max_margin = <70>;
+			fuelgauge,capacity_min = <0>;
+			/* DYNAMIC_SCALE | ATOMIC | SKIP_ABNORMAL */
+			fuelgauge,capacity_calculation_type = <0x1c>;
+		};
+
+		regulators: regulators {
+			buck1_reg: BUCK1 {
+				regulator-name = "vdd_soc";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			buck2_reg: BUCK2 {
+				regulator-name = "vdd_lldo";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			buck3_reg: BUCK3 {
+				regulator-name = "vdd_mldo";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <2100000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			bst1_reg: BST1 {
+				regulator-name = "vdd_hrm";
+				regulator-min-microvolt = <4900000>;
+				regulator-max-microvolt = <5100000>;
+			};
+			bst2_reg: BST2 {
+				regulator-name = "vdd_codec";
+				regulator-min-microvolt = <4900000>;
+				regulator-max-microvolt = <5100000>;
+			};
+			ldo1_reg: LDO1 {
+				regulator-name = "vdd_ldo1";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo2_reg: LDO2 {
+				regulator-name = "vdd_ldo2";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo3_reg: LDO3 {
+				regulator-name = "vdd_ldo3";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo4_reg: LDO4 {
+				regulator-name = "vdd_ldo4";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo5_reg: LDO5 {
+				regulator-name = "vdd_ldo5";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo6_reg: LDO6 {
+				regulator-name = "vdd_ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1287500>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo7_reg: LDO7 {
+				regulator-name = "vdd_ldo7";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo8_reg: LDO8 {
+				regulator-name = "vdd_ldo8";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo9_reg: LDO9 {
+				regulator-name = "vdd_ldo9";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo10_reg: LDO10 {
+				regulator-name = "vdd_ldo10";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+				ldo18_reg: LDO18 {
+				regulator-name = "vemmc";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-ramp-delay = <12000>;
+			};
+			ldo19_reg: LDO19 {
+				regulator-name = "vqemmc";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3375000>;
+				regulator-ramp-delay = <12000>;
+			};
+			ldo20_reg: LDO20 {
+				regulator-name = "vdd_ldo20";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3375000>;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo21_reg: LDO21 {
+				regulator-name = "vdd_ldo21";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo25_reg: LDO25 {
+				regulator-name = "vdd_ldo25";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3375000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo27_reg: LDO27 {
+				regulator-name = "vdd_ldo27";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-ramp-delay = <12000>;
+			};
+		};
+	};
+};
+
+/* dwmmc_0 was copied from the DT of the reference platform. It should be
+	 mostly the same for r11. */
+&dwmmc_0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	num-slots = <1>;
+	broken-cd;
+	fixed_voltage;
+	supports-highspeed;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	supports-8bit;
+	supports-cmd23;
+	supports-erase;
+	card-init-hwacg-ctrl;
+	enable-ulp-mode;
+	emmc-pwr-suspend = <1>;
+	emmc-dis-charge-time = <30>;
+	fifo-depth = <0x40>;
+	non-removable;
+	desc-size = <4>;
+	card-detect-delay = <200>;
+	data-timeout = <200>;
+	hto-timeout = <80>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-txdt-crc-timer-fastlimit = <0x13>;
+	samsung,dw-mshc-txdt-crc-timer-initval = <0x15>;
+	samsung,dw-mshc-ulp-txdt-crc-timer-fastlimit = <0x34>;
+	samsung,dw-mshc-ulp-txdt-crc-timer-initval = <0x38>;
+	samsung,dw-mshc-hs400-delay-line = <0x60>;
+	samsung,dw-mshc-sdr-timing = <3 0 4 0>;
+	samsung,dw-mshc-ddr-timing = <3 0 4 2>;
+	samsung,dw-mshc-hs200-timing = <3 0 3 0>;
+	samsung,dw-mshc-hs400-timing = <1 0 4 0>;
+	samsung,dw-mshc-hs400-ulp-timing = <3 0 4 0>;
+
+	num-ref-clks = <12>;
+	ciu_clkin = <25 50 50 25 50 100 200 50 50 200 200 200>;
+
+	clk-drive-number = <4>;
+	pinctrl-names = "default",
+		"fast-slew-rate-1x",
+		"fast-slew-rate-2x",
+		"fast-slew-rate-3x",
+		"fast-slew-rate-4x",
+		"pdn-default";
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_rdqs &sd0_hwrst &sd0_bus1 &sd0_bus4 &sd0_bus8>;
+	pinctrl-1 = <&sd0_clk_fast_slew_rate_1x>;
+	pinctrl-2 = <&sd0_clk_fast_slew_rate_2x>;
+	pinctrl-3 = <&sd0_clk_fast_slew_rate_3x>;
+	pinctrl-4 = <&sd0_clk_fast_slew_rate_4x>;
+	pinctrl-5 = <&sd0_pdn_clk &sd0_pdn_cmd &sd0_pdn_rdqs
+		     &sd0_pdn_hwrst &sd0_pdn_bus1 &sd0_pdn_bus4 &sd0_pdn_bus8>;
+	slot@0 {
+		reg = <0>;
+		bus-width = <8>;
+	};
+};

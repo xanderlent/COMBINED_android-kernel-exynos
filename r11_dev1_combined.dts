@@ -16,5 +16,7 @@
 #include "../exynos/exynos9110.dts"
 #include "r11_dev1_common.dtsi"
 
-/
-/include/ "r11_dev1_common_root.dtsi"
+/{
+	/include/ "r11_dev1_common_root.dtsi"
+	/include/ "r11_common_root.dtsi"
+};

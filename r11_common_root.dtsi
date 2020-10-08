@@ -1,0 +1,333 @@
+/*
+* Google R11 common root DTSI file
+*
+* Copyright 2020 Google LLC
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License version 2 and
+* only version 2 as published by the Free Software Foundation.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
+
+ect {
+	parameter_address = <0x90000000>;
+	parameter_size = <0x32000>;
+};
+
+firmware {
+	android {
+		compatible = "android,firmware";
+		fstab {
+			compatible = "android,fstab";
+			system {
+				compatible = "android,system";
+				dev = "/dev/block/platform/13500000.dwmmc0/by-name/system";
+				type = "ext4";
+				mnt_flags = "ro";
+				fsmgr_flags = "wait";
+			};
+			vendor {
+				compatible = "android,vendor";
+				dev = "/dev/block/platform/13500000.dwmmc0/by-name/vendor";
+				type = "ext4";
+				mnt_flags = "ro";
+				fsmgr_flags = "wait";
+			};
+		};
+	};
+};
+
+dummy_audio_codec: audio_codec_dummy {
+	status = "okay";
+	compatible = "snd-soc-dummy";
+};
+
+mcu_mic_codec: audio_codec {
+	status = "okay";
+	compatible = "google,mcu_mic_codec";
+};
+
+/* The whole sound block was copied from the reference platform without
+*  changes. We likely don't need most of it, as most of it are dummy
+*  codecs/dais. Most probably the only useful subnode is uaif@0.
+*  TODO(bsp team): Delete whatever we don't need here.
+*/
+sound {
+	status = "okay";
+	compatible = "samsung,exynos9110-sound-r11";
+	samsung,routing = "VOUTPUT", "ABOX UAIF0 Playback",
+		"ABOX UAIF0 Capture", "VINPUT1",
+		"VOUTPUTCALL", "ABOX SIFS0 Playback",
+		"ABOX SIFS0 Capture", "VINPUTCALL";
+	samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4>;
+	samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX", "VTS";
+	/* samsung,aux = <&abox_effect>; */
+	rdma@0 {
+		dai_link = "RDMA0";
+		cpu {
+			sound-dai = <&abox 0>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@1 {
+		dai_link = "RDMA1";
+		cpu {
+			sound-dai = <&abox 1>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@2 {
+		dai_link = "RDMA2";
+		cpu {
+			sound-dai = <&abox 2>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@3 {
+		dai_link = "RDMA3";
+		cpu {
+			sound-dai = <&abox 3>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@4 {
+		dai_link = "RDMA4";
+		cpu {
+			sound-dai = <&abox 4>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@5 {
+		dai_link = "RDMA5";
+		cpu {
+			sound-dai = <&abox 5>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@6 {
+		dai_link = "RDMA6";
+		cpu {
+			sound-dai = <&abox 6>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@7 {
+		dai_link = "RDMA7";
+		cpu {
+			sound-dai = <&abox 7>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@0 {
+		dai_link = "WDMA0";
+		cpu {
+			sound-dai = <&abox 8>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@1 {
+		dai_link = "WDMA1";
+		cpu {
+			sound-dai = <&abox 9>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@2 {
+		dai_link = "WDMA2";
+		cpu {
+			sound-dai = <&abox 10>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@3 {
+		dai_link = "WDMA3";
+		cpu {
+			sound-dai = <&abox 11>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@4 {
+		dai_link = "WDMA4";
+		cpu {
+			sound-dai = <&abox 12>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	uaif@0 {
+		dai_link = "UAIF0";
+		format = "i2s";
+		cpu {
+			sound-dai = <&abox_uaif_0>;
+		};
+		codec {
+			sound-dai = <&audio_codec_cod9005x>;
+		};
+	};
+	uaif@1 {
+		dai_link = "UAIF1";
+		format = "dsp_a";
+		cpu {
+			sound-dai = <&abox_uaif_1>;
+		};
+		codec {
+			sound-dai-1 = <&mcu_mic_codec>;
+			sound-dai-2 = <&cs35l41>;
+		};
+	};
+	uaif@4 {
+		dai_link = "UAIF4";
+		format = "i2s";
+		bitclock-master;
+		frame-master;
+		cpu {
+			sound-dai = <&abox_uaif_4>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	vts@0 {
+		dai_link = "VTS-Trigger";
+		cpu {
+			sound-dai = <&vts 0>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	vts@1 {
+		dai_link = "VTS-Record";
+		cpu {
+			sound-dai = <&vts 1>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+};
+
+/* UART SWITCH FOR CP */
+uart_sel {
+	compatible = "samsung,exynos-uart-sel";
+
+	int_ap2cp_uart_noti = <15>;
+	mbx_ap2cp_united_status = <2>;
+	sbi_uart_noti_mask = <0x1>;
+	sbi_uart_noti_pos = <16>;
+	use_usb_phy = <1>;
+};
+
+usb@13600000 {
+	status = "okay";
+	dwc3 {
+		dr_mode = "otg";
+		maximum-speed = "high-speed";
+	};
+};
+
+phy@135D0000 {
+	status = "okay";
+	hs_tune_param = <&usb_hs_tune>;
+};
+
+usb_hs_tune:hs_tune {
+	hs_tune_cnt = <12>;
+	/* value = <device host> */
+	hs_tune1 {
+		tune_name = "tx_vref";
+		tune_value = <0x9 0x9>;
+	};
+	hs_tune2 {
+		tune_name = "tx_pre_emp";
+		tune_value = <0x3 0x3>;
+	};
+	hs_tune3 {
+		tune_name = "tx_pre_emp_plus";
+		tune_value = <0x0 0x0>;
+	};
+	hs_tune4 {
+		tune_name = "tx_res";
+		tune_value = <0x3 0x3>;
+	};
+	hs_tune5 {
+		tune_name = "tx_rise";
+		tune_value = <0x3 0x3>;
+	};
+	hs_tune6 {
+		tune_name = "tx_hsxv";
+		tune_value = <0x3 0x3>;
+	};
+	hs_tune7 {
+		tune_name = "tx_fsls";
+		tune_value = <0x3 0x3>;
+	};
+	hs_tune8 {
+		tune_name = "rx_sqrx";
+		tune_value = <0x3 0x3>;
+	};
+	hs_tune9 {
+		tune_name = "compdis";
+		tune_value = <0x7 0x7>;
+	};
+	hs_tune10 {
+		tune_name = "otg";
+		tune_value = <0x2 0x2>;
+	};
+	hs_tune11 {
+	/* true : 1, false: 0 */
+	/* <enable_user_imp user_imp_value> */
+		tune_name = "enable_user_imp";
+		tune_value = <0x0 0x0>;
+	};
+	hs_tune12 {
+	/* PHY clk : 1 , FREE clk : 0 */
+		tune_name = "is_phyclock";
+		tune_value = <0x1 0x1>;
+	};
+};
+
+cs35l41_speaker_power_regulator: cs35l41_speaker_power_regulator {
+	compatible = "regulator-fixed";
+	regulator-name = "PPVAR_VSYS_SPKR";
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-always-on;
+};
+
+cs35l41_logic_voltage_regulator: cs35l41_logic_voltage_regulator {
+	compatible = "regulator-fixed";
+	regulator-name = "PP1800_PU";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-always-on;
+};
