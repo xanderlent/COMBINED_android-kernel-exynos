@@ -331,15 +331,3 @@ cs35l41_logic_voltage_regulator: cs35l41_logic_voltage_regulator {
 	regulator-max-microvolt = <1800000>;
 	regulator-always-on;
 };
-
-gpio_keys {
-	status = "okay";
-	compatible = "gpio-keys";
-	pinctrl-names = "default";
-	pinctrl-0 = <&key_sidebutton>;
-	button@1 {
-		label = "side_button";
-		linux,code = <114>;
-		gpios = <&gpm22 0 1>;
-	};
-};
