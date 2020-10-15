@@ -10,7 +10,6 @@
 #include "configfs.h"
 #include "u_f.h"
 #include "u_os_desc.h"
-#include <linux/soc/samsung/exynos-soc.h>
 
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
 #include <linux/platform_device.h>
@@ -41,8 +40,6 @@ EXPORT_SYMBOL_GPL(create_function_device);
 void set_usb_enumeration_state(bool state);
 void set_usb_enable_state(void);
 #endif
-
-#define CHIPID_SIZE	(16)
 
 int check_user_usb_string(const char *name,
 		struct usb_gadget_strings *stringtab_dev)
@@ -170,27 +167,6 @@ static int usb_string_copy(const char *s, char **s_copy)
 	kfree(copy);
 	*s_copy = str;
 	return 0;
-}
-
-static int set_alt_serialnumber(struct gadget_strings *gs)
-{
-	char *str;
-	int ret = -ENOMEM;
-
-	str = kmalloc(CHIPID_SIZE + 1, GFP_KERNEL);
-	if (!str) {
-		pr_err("%s: failed to alloc for string\n", __func__);
-		return ret;
-	}
-
-	snprintf(str, CHIPID_SIZE + 1, "%016lx", (long)exynos_soc_info.unique_id);
-	if (usb_string_copy(str, &gs->serialnumber))
-		pr_err("%s: failed to copy alternative string\n", __func__);
-	else
-		ret = 0;
-
-	kfree(str);
-	return ret;
 }
 
 #define GI_DEVICE_DESC_SIMPLE_R_u8(__name)	\
@@ -1369,9 +1345,6 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 			gs->strings[USB_GADGET_MANUFACTURER_IDX].s =
 				gs->manufacturer;
 			gs->strings[USB_GADGET_PRODUCT_IDX].s = gs->product;
-			if (gs->serialnumber && !set_alt_serialnumber(gs))
-				pr_info("usb: serial number: %s\n",
-						gs->serialnumber);
 			gs->strings[USB_GADGET_SERIAL_IDX].s = gs->serialnumber;
 			i++;
 		}
