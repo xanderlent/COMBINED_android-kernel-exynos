@@ -308,9 +308,14 @@
 			     <0 42 0>; /* PERI_CORE */
 	};
 
-	reboot {
-		compatible = "exynos,reboot";
-		pmu_base = <0x11860000>;
+	exynos-reboot {
+		compatible = "samsung,exynos-reboot";
+		samsung,syscon-phandle = <&pmu_system_controller>;
+		shutdown-offset = <0x330C>;
+		shutdown-trigger = <0x100>;
+		reboot-offset = <0x400>;
+		reboot-trigger = <0x0>;
+		reboot-cmd-offset = <0x0810>;
 	};
 
 	/* DMA */
