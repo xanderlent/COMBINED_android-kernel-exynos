@@ -21,4 +21,8 @@ config EXYNOS_PM_DOMAINS
 	bool "Exynos PM domains" if COMPILE_TEST
 	depends on PM_GENERIC_DOMAINS || COMPILE_TEST
 
+config EXYNOS_CHIPID
+	bool "Exynos Chipid controller driver"
+	depends on ARCH_EXYNOS
+	select SOC_BUS
 endif
