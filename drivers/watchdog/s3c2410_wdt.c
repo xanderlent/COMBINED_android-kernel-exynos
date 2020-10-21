@@ -1524,10 +1524,12 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		wdt_block.nb_panic_block.priority = 256;
 		wdt_block.wdt = wdt;
 		atomic_notifier_chain_register(&panic_notifier_list, &wdt_block.nb_panic_block);
+		/*
 		dbg_snapshot_register_wdt_ops(
 				(void *)s3c2410wdt_keepalive_emergency,
 				(void *)s3c2410wdt_set_emergency_reset,
 				(void *)s3c2410wdt_set_emergency_stop);
+		*/
 
 		register_reboot_notifier(&s3c2410wdt_nb_reboot_block);
 	}
