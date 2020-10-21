@@ -86,6 +86,25 @@
 		mfc0 = &mfc_0;
 	};
 
+	ect {
+		parameter_address = <0x90000000>;
+		parameter_size = <0x32000>;
+	};
+
+	chosen {
+		bootargs = "console=ram skip_initramfs rootwait ro init=/init androidboot.hardware=samsungexynos9110 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware bcm_setup=0xffffff80f8e00000 ecd_setup=disable sec_debug.cp=3";
+		linux,initrd-start = <0x84000000>;
+		linux,initrd-end = <0x841FFFFF>;
+	};
+
+	fixed-rate-clocks {
+		oscclk {
+			compatible = "samsung,exynos9110-oscclk";
+			clock-frequency = <26000000>;
+		};
+	};
+
+
 	chipid@10000000 {
 		compatible = "samsung,exynos9810-chipid";
 		reg = <0x0 0x10000000 0x100>;

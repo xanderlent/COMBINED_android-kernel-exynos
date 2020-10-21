@@ -37,23 +37,6 @@
 				reg = <0x0 0x80000000 0x30000000>;
 			};
 
-			ect {
-				parameter_address = <0x90000000>;
-				parameter_size = <0x32000>;
-			};
-
-			chosen {
-				bootargs = "console=ram skip_initramfs rootwait ro init=/init androidboot.hardware=samsungexynos9110 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware bcm_setup=0xffffff80f8e00000 ecd_setup=disable sec_debug.cp=3";
-				linux,initrd-start = <0x84000000>;
-				linux,initrd-end = <0x841FFFFF>;
-			};
-
-			fixed-rate-clocks {
-				oscclk {
-					compatible = "samsung,exynos9110-oscclk";
-					clock-frequency = <26000000>;
-				};
-			};
 
 			firmware {
 				android {
@@ -455,6 +438,7 @@
 			dummy_audio_codec: audio_codec_dummy {
 				status = "okay";
 				compatible = "snd-soc-dummy";
+				#sound-dai-cells = <0>;
 			};
 
 			sound {
@@ -644,6 +628,7 @@
 			exynos_console_debugger {
 				compatible = "samsung,exynos_console_debugger";
 				reg = <0x0 0x13820000 0x100>;
+				interrupt-parent = <&gic>;
 				interrupts = <0 INTREQ_USI_UART 0>;
 				interrupt-names = "uart_irq";
 				pinctrl-names = "default";
@@ -882,6 +867,7 @@
 	audio_codec_cod9005x: cod9005x@03 {
 
 		compatible = "codec,cod9005x";
+		#sound-dai-cells = <0>;
 		reg = <0x03>;
 		i2c-speedy-address;
 		vdd-supply = <&ldo27_reg>;
@@ -1152,6 +1138,7 @@
 };
 
 &pinctrl_1 {
+	interrupt-parent = <&gic>;
 	interrupts = <0 122 0>, <0 123 0>, <0 124 0>, <0 125 0>,
 			<0 142 0>, <0 143 0>, <0 146 0>;
 };
