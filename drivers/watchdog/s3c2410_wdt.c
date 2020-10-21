@@ -253,30 +253,11 @@ static const struct s3c2410_wdt_variant drv_data_exynos9_v1 = {
 	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT | QUIRK_HAS_WTCLRINT_REG,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos9_v2 = {
-	.noncpu_int_en = EXYNOS_CLUSTER2_NONCPU_INT_EN,
-	.mask_bit = 2,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
-	.rst_stat_bit = 23,	/* CLUSTER2 WDTRESET */
-	.pmu_reset_func = s3c2410wdt_noncpu_int_en,
-	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT | QUIRK_HAS_WTCLRINT_REG,
-};
-
 static const struct s3c2410_wdt_variant drv_data_exynos9_v3 = {
 	.noncpu_int_en = EXYNOS_CLUSTER0_NONCPU_INT_EN,
 	.mask_bit = 2,
 	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 24,	/* CLUSTER0 WDTRESET */
-	.pmu_reset_func = s3c2410wdt_noncpu_int_en,
-	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT | QUIRK_HAS_WTCLRINT_REG |
-		  QUIRK_HAS_DBGACK_BIT | QUIRK_HAS_WTMINCNT_REG,
-};
-
-static const struct s3c2410_wdt_variant drv_data_exynos9_v4 = {
-	.noncpu_int_en = EXYNOS_CLUSTER2_NONCPU_INT_EN,
-	.mask_bit = 2,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
-	.rst_stat_bit = 23,	/* CLUSTER2 WDTRESET */
 	.pmu_reset_func = s3c2410wdt_noncpu_int_en,
 	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT | QUIRK_HAS_WTCLRINT_REG |
 		  QUIRK_HAS_DBGACK_BIT | QUIRK_HAS_WTMINCNT_REG,
@@ -297,12 +278,8 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 	  .data = &drv_data_exynos8 },
 	{ .compatible = "samsung,exynos9-v1-wdt",
 	  .data = &drv_data_exynos9_v1 },
-	{ .compatible = "samsung,exynos9-v2-wdt",
-	  .data = &drv_data_exynos9_v2 },
 	{ .compatible = "samsung,exynos9-v3-wdt",
 	  .data = &drv_data_exynos9_v3 },
-	{ .compatible = "samsung,exynos9-v4-wdt",
-	  .data = &drv_data_exynos9_v4 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
