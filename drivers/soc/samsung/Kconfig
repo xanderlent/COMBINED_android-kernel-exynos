@@ -8,14 +8,9 @@ menuconfig SOC_SAMSUNG
 if SOC_SAMSUNG
 
 config EXYNOS_PMU
-	bool "Exynos PMU controller driver" if COMPILE_TEST
-	depends on ARCH_EXYNOS || ((ARM || ARM64) && COMPILE_TEST)
-	select EXYNOS_PMU_ARM_DRIVERS if ARM && ARCH_EXYNOS
-
-# There is no need to enable these drivers for ARMv8
-config EXYNOS_PMU_ARM_DRIVERS
-	bool "Exynos PMU ARMv7-specific driver extensions" if COMPILE_TEST
-	depends on EXYNOS_PMU
+	bool "Exynos Power Management Unit Driver Support"
+	depends on ARCH_EXYNOS
+	select MFD_SYSCON
 
 config EXYNOS_PM_DOMAINS
 	bool "Exynos PM domains" if COMPILE_TEST
@@ -25,4 +20,87 @@ config EXYNOS_CHIPID
 	bool "Exynos Chipid controller driver"
 	depends on ARCH_EXYNOS
 	select SOC_BUS
+
+config ECT
+	bool "Enable Exynos Characteristic Table File"
+	default n
+	depends on ARCH_EXYNOS
+
+config ECT_DUMP
+	bool "Enable Exynos Characteristic Table File Dump sysfs"
+	default n
+	depends on ECT
+
+config EXYNOS_PD
+	bool "Exynos PM domain Support"
+	depends on ARCH_EXYNOS
+	depends on PM
+	select PM_GENERIC_DOMAINS
+
+config EXYNOS_RGT
+	bool "Exynos Regulator Debug Support"
+	depends on REGULATOR
+	depends on DEBUG_FS
+	depends on OF
+	help
+	  dummy device driver for debugging samsung PMIC
+
+config EXYNOS_BCM
+	bool "EXYNOS_BCM driver support"
+	default n
+	help
+	  Enable exynos_bcm driver support
+
+config CAL_IF
+	bool "Exynos Chip Abstraction Layer Interface"
+	help
+	  Support CMU CAL for Exynos SoC.
+
+config EXYNOS_PM_DVS
+       bool "Enable Exynos dynamic voltage setting"
+       default n
+
+config PMUCAL
+	bool "Exynos PMU Chip Abstraction Layer"
+	depends on CAL_IF
+	default y
+	help
+	 Support PMUCAL for Exynos SoC.
+
+config FLEXPMU
+	bool "Exynos FLEXPMU"
+	depends on PMUCAL
+	default n
+	help
+	 Support PMUCAL for Exynos SoC.
+
+config EXYNOS_FLEXPMU_DBG
+	bool "Exynos FLEXPMU DBG"
+	depends on FLEXPMU
+	default y
+	help
+	 Support FLEXPMU for Exynos SoC.
+
+config CMUCAL
+	bool "Exynos CMU Chip Abstraction Layer"
+	depends on CAL_IF
+	default y
+	help
+	  Support CMUCAL for Exynos SoC.
+
+config CMUCAL_DEBUG
+	bool "CMUCAL Debug Interface"
+	depends on CMUCAL
+
+config CMUCAL_QCH_IGNORE_SUPPORT
+	bool "CMUCAL QCH IGNORE Support"
+	depends on CMUCAL
+
+config ACPM_DVFS
+	bool "Exynos ACPM DVFS manager"
+	depends on CAL_IF && CMUCAL
+	default y
+	help
+	  Support ACPM DVFS for Exynos SoC.
+
 endif
