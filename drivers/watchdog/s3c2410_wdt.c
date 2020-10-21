@@ -323,14 +323,14 @@ static int s3c2410wdt_noncpu_int_en(struct s3c2410_wdt *wdt, bool mask)
 	if (mask)
 		val = 0;
 
-	ret = exynos_pmu_update(wdt->drv_data->noncpu_int_en, mask_val, val);
+	ret = regmap_update_bits(wdt->pmureg, wdt->drv_data->noncpu_int_en, mask_val, val);
 
 	if (ret < 0) {
 		dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
 		return ret;
 	}
 
-	ret = exynos_pmu_read(wdt->drv_data->noncpu_int_en, &reg_val);
+	ret = regmap_read(wdt->pmureg, wdt->drv_data->noncpu_int_en, &reg_val);
 	if (ret < 0) {
 		dev_err(wdt->dev,
 			"Couldn't get NONCPU_INT_EN register, ret = (%d)\n", ret);
@@ -359,13 +359,13 @@ static int s3c2410wdt_noncpu_out(struct s3c2410_wdt *wdt, bool en)
 	if (!en)
 		val = 0;
 
-	ret = exynos_pmu_update(wdt->drv_data->noncpu_out, cnt_en_val, val);
+	ret = regmap_update_bits(wdt->pmureg, wdt->drv_data->noncpu_out, cnt_en_val, val);
 	if (ret < 0) {
 		dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
 		return ret;
 	}
 
-	ret = exynos_pmu_read(wdt->drv_data->noncpu_out, &reg_val);
+	ret = regmap_read(wdt->pmureg, wdt->drv_data->noncpu_out, &reg_val);
 	if (ret < 0) {
 		dev_err(wdt->dev, "Couldn't get NONCPU_OUT register, ret = (%d)\n", ret);
 		return ret;
