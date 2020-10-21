@@ -1,0 +1,3 @@
+obj-$(CONFIG_INPUT_PIXART_OTS_PAT9126_SWITCH) += ots-pat9126.o
+
+ots-pat9126-y += pat9126.o
