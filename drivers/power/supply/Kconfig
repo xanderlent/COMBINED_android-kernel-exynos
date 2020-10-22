@@ -668,4 +668,10 @@ config FUELGAUGE_S2MPW02
 	help
 	 Say Y to enable support for the Samsung S2MPW02 Fuelgauge
 
+config BATTERY_S2MU00X
+	tristate "S2MU00X battery driver"
+	depends on (MFD_S2MPW02) && I2C
+	help
+	  Say Y here to enable support for S2MU00X battery driver.
+
 endif # POWER_SUPPLY
