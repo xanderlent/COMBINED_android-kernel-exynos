@@ -28,6 +28,14 @@
 #define S3C2410_UFSTAT	  (0x18)
 #define S3C2410_UMSTAT	  (0x1C)
 
+#define USI_CON			(0xC4)
+#define USI_OPTION		(0xC8)
+
+#define USI_RESET		(0<<0)
+#define USI_SET_RESET		(1<<0)
+#define USI_HWACG_CLKREQ_ON	(1<<1)
+#define USI_HWACG_CLKSTOP_ON	(1<<2)
+
 #define S3C2410_LCON_CFGMASK	  ((0xF<<3)|(0x3))
 
 #define S3C2410_LCON_CS5	  (0x0)

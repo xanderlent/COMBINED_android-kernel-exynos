@@ -1790,6 +1790,11 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		goto err;
 	}
 
+	/* set the HWACG option bit in case of UART Rx mode.
+	 * CLKREQ_ON = 1, CLKSTOP_ON = 0 (set USI_OPTION[2:1] = 2'h1)
+	 */
+	wr_regl(port, USI_OPTION, USI_HWACG_CLKREQ_ON);
+
 	/* Keep all interrupts masked and cleared */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
 		wr_regl(port, S3C64XX_UINTM, 0xf);
@@ -1948,6 +1953,11 @@ static int s3c24xx_serial_resume(struct device *dev)
 		clk_prepare_enable(ourport->clk);
 		if (!IS_ERR(ourport->baudclk))
 			clk_prepare_enable(ourport->baudclk);
+
+		/* set the HWACG option bit in case of UART Rx mode.
+		 * CLKREQ_ON = 1, CLKSTOP_ON = 0 (set USI_OPTION[2:1] = 2'h1)
+		 */
+		wr_regl(port, USI_OPTION, USI_HWACG_CLKREQ_ON);
 		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
 		if (!IS_ERR(ourport->baudclk))
 			clk_disable_unprepare(ourport->baudclk);
