@@ -274,6 +274,13 @@
 		clock-output-names = "ext-26m";
 	};
 
+	ext_133m: ext_133m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <133250000>;
+		clock-output-names = "ext-133m";
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13
@@ -953,16 +960,16 @@
 	};
 
 	serial_0: uart@13820000 {
-		compatible = "samsung,exynos-uart";
-		samsung,separate-uart-clk;
+		compatible = "samsung,exynos4210-uart";
 		reg = <0x0 0x13820000 0x100>;
-		samsung,fifo-size = <256>;
+		samsung,uart-fifosize = <256>;
 		interrupts = <0 INTREQ_USI_UART IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_bus_single>; /* or _bus_dual */
-		samsung,usi-serial-v2;
-		clocks = <&clock GATE_USI_UART>, <&clock PERI_UART>;
-		clock-names = "gate_pclk0", "gate_uart0";
+		//clocks = <&clock GATE_USI_UART>, <&clock PERI_UART>;
+		//clock-names = "gate_pclk0", "gate_uart0";
+		clocks = <&ext_133m>, <&ext_133m>;
+		clock-names = "uart", "clk_uart_baud0";
 		status = "disabled";
 	};
 
