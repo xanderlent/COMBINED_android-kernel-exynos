@@ -21,8 +21,8 @@
 	sysmmu_dpu: sysmmu@14820000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x0 0x14820000 0x9000>;
-		interrupts = <0 64 0>,
-			     <0 63 0>;
+		interrupts = <0 64 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 63 IRQ_TYPE_LEVEL_HIGH>;
 		qos = <15>;
 /*
 		clock-names = "aclk";
@@ -42,7 +42,7 @@
 	sysmmu_abox: sysmmu@14920000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x0 0x14920000 0x9000>;
-		interrupts = <0 62 0>;
+		interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 		qos = <15>;
 /*
 		clock-names = "aclk";
@@ -59,8 +59,8 @@
 	sysmmu_isp: sysmmu@14540000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x0 0x14540000 0x9000>;
-		interrupts = <0 275 0>,
-			     <0 276 0>;
+		interrupts = <0 275 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 276 IRQ_TYPE_LEVEL_HIGH>;
 		qos = <15>;
 /*
 		clock-names = "aclk";
@@ -88,8 +88,8 @@
 	sysmmu_mfcmscl: sysmmu@12C50000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x0 0x12C50000 0x9000>;
-		interrupts = <0 207 0>,
-			     <0 208 0>;
+		interrupts = <0 207 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 208 IRQ_TYPE_LEVEL_HIGH>;
 		qos = <15>;
 /*
 		clock-names = "aclk";

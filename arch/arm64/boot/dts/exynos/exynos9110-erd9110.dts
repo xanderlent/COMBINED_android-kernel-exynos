@@ -629,7 +629,7 @@
 				compatible = "samsung,exynos_console_debugger";
 				reg = <0x0 0x13820000 0x100>;
 				interrupt-parent = <&gic>;
-				interrupts = <0 INTREQ_USI_UART 0>;
+				interrupts = <0 INTREQ_USI_UART IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "uart_irq";
 				pinctrl-names = "default";
 				pinctrl-0 = <&uart0_bus_single>;
@@ -1139,6 +1139,8 @@
 
 &pinctrl_1 {
 	interrupt-parent = <&gic>;
-	interrupts = <0 122 0>, <0 123 0>, <0 124 0>, <0 125 0>,
-			<0 142 0>, <0 143 0>, <0 146 0>;
+	interrupts = <0 122 IRQ_TYPE_LEVEL_HIGH>, <0 123 IRQ_TYPE_LEVEL_HIGH>,
+			<0 124 IRQ_TYPE_LEVEL_HIGH>, <0 125 IRQ_TYPE_LEVEL_HIGH>,
+			<0 142 IRQ_TYPE_LEVEL_HIGH>, <0 143 IRQ_TYPE_LEVEL_HIGH>,
+			<0 146 IRQ_TYPE_LEVEL_HIGH>;
 };

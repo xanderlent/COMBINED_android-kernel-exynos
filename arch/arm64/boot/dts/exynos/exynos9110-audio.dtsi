@@ -14,7 +14,7 @@
 		compatible = "samsung,abox_gic";
 		reg = <0x0 0x14AF1000 0x1000>, <0x0 0x14AF2000 0x1004>;
 		reg-names = "gicd", "gicc";
-		interrupts = <0 INTREQ__ABOX_GIC400 0>;
+		interrupts = <0 INTREQ__ABOX_GIC400 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	abox: abox@0x14A50000 {
@@ -245,7 +245,7 @@
 		compatible = "samsung,mailbox-asoc";
 		reg = <0x0 0x111A0000 0x1000>;
 		reg-names = "sfr";
-		interrupts = <0 189 0>;
+		interrupts = <0 189 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
 	};

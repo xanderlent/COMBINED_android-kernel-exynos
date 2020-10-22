@@ -22,8 +22,10 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 74 0>, <0 75 0>, <0 76 0>, <0 77 0>,
-				     <0 78 0>, <0 79 0>, <0 80 0>, <0 81 0>;
+			interrupts = <0 74 IRQ_TYPE_LEVEL_HIGH>, <0 75 IRQ_TYPE_LEVEL_HIGH>,
+					<0 76 IRQ_TYPE_LEVEL_HIGH>, <0 77 IRQ_TYPE_LEVEL_HIGH>,
+					<0 78 IRQ_TYPE_LEVEL_HIGH>, <0 79 IRQ_TYPE_LEVEL_HIGH>,
+					<0 80 IRQ_TYPE_LEVEL_HIGH>, <0 81 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpa1: gpa1 {
@@ -33,8 +35,9 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 82 0>, <0 83 0>, <0 84 0>, <0 85 0>,
-				     <0 86 0>, <0 87 0>;
+			interrupts = <0 82 IRQ_TYPE_LEVEL_HIGH>, <0 83 IRQ_TYPE_LEVEL_HIGH>,
+					<0 84 IRQ_TYPE_LEVEL_HIGH>, <0 85 IRQ_TYPE_LEVEL_HIGH>,
+					<0 86 IRQ_TYPE_LEVEL_HIGH>, <0 87 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpq0: gpq0 {
@@ -70,7 +73,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 122 0>;
+			interrupts = <0 122 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm1: gpm1 {
@@ -80,7 +83,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 123 0>;
+			interrupts = <0 123 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm2: gpm2 {
@@ -90,7 +93,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 124 0>;
+			interrupts = <0 124 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm3: gpm3 {
@@ -100,7 +103,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 125 0>;
+			interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm20: gpm20 {
@@ -110,7 +113,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 142 0>;
+			interrupts = <0 142 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm21: gpm21 {
@@ -120,7 +123,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 143 0>;
+			interrupts = <0 143 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm22: gpm22 {
@@ -130,7 +133,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 144 0>;
+			interrupts = <0 144 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm23: gpm23 {
@@ -140,7 +143,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 145 0>;
+			interrupts = <0 145 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm24: gpm24 {
@@ -150,7 +153,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 146 0>;
+			interrupts = <0 146 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm25: gpm25 {
@@ -160,7 +163,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 147 0>;
+			interrupts = <0 147 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		/* I2C_CMGP_4 */
@@ -378,7 +381,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 126 0>;
+			interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm5: gpm5 {
@@ -388,7 +391,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 127 0>;
+			interrupts = <0 127 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm6: gpm6 {
@@ -398,7 +401,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 128 0>;
+			interrupts = <0 128 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm7: gpm7 {
@@ -408,7 +411,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 129 0>;
+			interrupts = <0 129 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm8: gpm8 {
@@ -418,7 +421,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 130 0>;
+			interrupts = <0 130 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm9: gpm9 {
@@ -428,7 +431,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 131 0>;
+			interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm10: gpm10 {
@@ -438,7 +441,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 132 0>;
+			interrupts = <0 132 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm11: gpm11 {
@@ -448,7 +451,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 133 0>;
+			interrupts = <0 133 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm12: gpm12 {
@@ -458,7 +461,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 134 0>;
+			interrupts = <0 134 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm13: gpm13 {
@@ -468,7 +471,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 135 0>;
+			interrupts = <0 135 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm14: gpm14 {
@@ -478,7 +481,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 136 0>;
+			interrupts = <0 136 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm15: gpm15 {
@@ -488,7 +491,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 137 0>;
+			interrupts = <0 137 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm16: gpm16 {
@@ -498,7 +501,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 138 0>;
+			interrupts = <0 138 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm17: gpm17 {
@@ -508,7 +511,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 139 0>;
+			interrupts = <0 139 IRQ_TYPE_LEVEL_HIGH>;
 		};
 		gpm18: gpm18 {
 			gpio-controller;
@@ -517,7 +520,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 140 0>;
+			interrupts = <0 140 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gpm19: gpm19 {
@@ -527,7 +530,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
-			interrupts = <0 141 0>;
+			interrupts = <0 141 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 	};

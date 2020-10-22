@@ -279,6 +279,7 @@
 	        clock-frequency = <26000000>;
 		use-clocksource-only;
 		use-physical-timer;
+
 	};
 
 	clock: clock-controller@0x11800000 {
@@ -305,26 +306,26 @@
 			#interrupt-cells = <1>;
 			#address-cells = <0>;
 			#size-cells = <0>;
-			interrupt-map = <0 &gic 0 233 0>,
-					<1 &gic 0 234 0>,
-					<2 &gic 0 235 0>,
-					<3 &gic 0 236 0>,
-					<4 &gic 0 237 0>,
-					<5 &gic 0 238 0>,
-					<6 &gic 0 239 0>,
-					<7 &gic 0 240 0>,
-					<8 &gic 0 241 0>,
-					<9 &gic 0 242 0>,
-					<10 &gic 0 243 0>,
-					<11 &gic 0 244 0>;
+			interrupt-map = <0 &gic 0 233 IRQ_TYPE_LEVEL_HIGH>,
+					<1 &gic 0 234 IRQ_TYPE_LEVEL_HIGH>,
+					<2 &gic 0 235 IRQ_TYPE_LEVEL_HIGH>,
+					<3 &gic 0 236 IRQ_TYPE_LEVEL_HIGH>,
+					<4 &gic 0 237 IRQ_TYPE_LEVEL_HIGH>,
+					<5 &gic 0 238 IRQ_TYPE_LEVEL_HIGH>,
+					<6 &gic 0 239 IRQ_TYPE_LEVEL_HIGH>,
+					<7 &gic 0 240 IRQ_TYPE_LEVEL_HIGH>,
+					<8 &gic 0 241 IRQ_TYPE_LEVEL_HIGH>,
+					<9 &gic 0 242 IRQ_TYPE_LEVEL_HIGH>,
+					<10 &gic 0 243 IRQ_TYPE_LEVEL_HIGH>,
+					<11 &gic 0 244 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 
 	ITMON {
 		compatible = "samsung,exynos-itmon";
-		interrupts = <0 40 0>, /* DATA_CORE */
-			     <0 41 0>, /* DATA_NRT */
-			     <0 42 0>; /* PERI_CORE */
+		interrupts = <0 40 IRQ_TYPE_LEVEL_HIGH>, /* DATA_CORE */
+			     <0 41 IRQ_TYPE_LEVEL_HIGH>, /* DATA_NRT */
+			     <0 42 IRQ_TYPE_LEVEL_HIGH>; /* PERI_CORE */
 	};
 
 	exynos-reboot {
@@ -348,7 +349,7 @@
 		pdma0: pdma0@10520000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0x10520000 0x1000>;
-			interrupts = <0 19 0>;
+			interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock GATE_PDMA_CORE>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
@@ -373,10 +374,13 @@
 	pinctrl_0: pinctrl@11850000 {
 		compatible = "samsung,exynos9110-pinctrl";
 		reg = <0x0 0x11850000 0x1000>;
-		interrupts = <0 74 0>, <0 75 0>, <0 76 0>, <0 77 0>,
-				<0 78 0>, <0 79 0>, <0 80 0>, <0 81 0>,
-				<0 82 0>, <0 83 0>, <0 84 0>, <0 85 0>,
-				<0 86 0>, <0 87 0>;
+		interrupts = <0 74 IRQ_TYPE_LEVEL_HIGH>, <0 75 IRQ_TYPE_LEVEL_HIGH>,
+				<0 76 IRQ_TYPE_LEVEL_HIGH>, <0 77 IRQ_TYPE_LEVEL_HIGH>,
+				<0 78 IRQ_TYPE_LEVEL_HIGH>, <0 79 IRQ_TYPE_LEVEL_HIGH>,
+				<0 80 IRQ_TYPE_LEVEL_HIGH>, <0 81 IRQ_TYPE_LEVEL_HIGH>,
+				<0 82 IRQ_TYPE_LEVEL_HIGH>, <0 83 IRQ_TYPE_LEVEL_HIGH>,
+				<0 84 IRQ_TYPE_LEVEL_HIGH>, <0 85 IRQ_TYPE_LEVEL_HIGH>,
+				<0 86 IRQ_TYPE_LEVEL_HIGH>, <0 87 IRQ_TYPE_LEVEL_HIGH>;
 		wakeup-interrupt-controller {
 			compatible = "samsung,exynos7-wakeup-eint";
 		};
@@ -386,9 +390,11 @@
 	pinctrl_1: pinctrl@11A50000{
 		compatible = "samsung,exynos9110-pinctrl";
 		reg = <0x0 0x11A50000 0x1000>;
-		interrupts = <0 122 0>, <0 123 0>, <0 124 0>, <0 125 0>,
-				<0 142 0>, <0 143 0>, <0 144 0>, <0 145 0>,
-				<0 146 0>, <0 147 0>;
+		interrupts = <0 122 IRQ_TYPE_LEVEL_HIGH>, <0 123 IRQ_TYPE_LEVEL_HIGH>,
+				<0 124 IRQ_TYPE_LEVEL_HIGH>, <0 125 IRQ_TYPE_LEVEL_HIGH>,
+				<0 142 IRQ_TYPE_LEVEL_HIGH>, <0 143 IRQ_TYPE_LEVEL_HIGH>,
+				<0 144 IRQ_TYPE_LEVEL_HIGH>, <0 145 IRQ_TYPE_LEVEL_HIGH>,
+				<0 146 IRQ_TYPE_LEVEL_HIGH>, <0 147 IRQ_TYPE_LEVEL_HIGH>;
 		wakeup-interrupt-controller {
 			compatible = "samsung,exynos7-wakeup-eint";
 		};
@@ -398,10 +404,14 @@
 	pinctrl_2: pinctrl@11C30000{
 		compatible = "samsung,exynos9110-pinctrl";
 		reg = <0x0 0x11C30000 0x1000>;
-		interrupts = <0 126 0>, <0 127 0>, <0 128 0>, <0 129 0>,
-				<0 130 0>, <0 131 0>, <0 132 0>, <0 133 0>,
-				<0 134 0>, <0 135 0>, <0 136 0>, <0 137 0>,
-				<0 138 0>, <0 139 0>, <0 140 0>, <0 141 0>;
+		interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>, <0 127 IRQ_TYPE_LEVEL_HIGH>,
+				<0 128 IRQ_TYPE_LEVEL_HIGH>, <0 129 IRQ_TYPE_LEVEL_HIGH>,
+				<0 130 IRQ_TYPE_LEVEL_HIGH>, <0 131 IRQ_TYPE_LEVEL_HIGH>,
+				<0 132 IRQ_TYPE_LEVEL_HIGH>, <0 133 IRQ_TYPE_LEVEL_HIGH>,
+				<0 134 IRQ_TYPE_LEVEL_HIGH>, <0 135 IRQ_TYPE_LEVEL_HIGH>,
+				<0 136 IRQ_TYPE_LEVEL_HIGH>, <0 137 IRQ_TYPE_LEVEL_HIGH>,
+				<0 138 IRQ_TYPE_LEVEL_HIGH>, <0 139 IRQ_TYPE_LEVEL_HIGH>,
+				<0 140 IRQ_TYPE_LEVEL_HIGH>, <0 141 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	/* DISPAUD */
@@ -414,14 +424,14 @@
 	pinctrl_4: pinctrl@13430000 {
 		compatible = "samsung,exynos9110-pinctrl";
 		reg = <0x0 0x13430000 0x1000>;
-		interrupts = <0 180 0>;
+		interrupts = <0 180 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	/* PERI */
 	pinctrl_5: pinctrl@139B0000 {
 		compatible = "samsung,exynos9110-pinctrl";
 		reg = <0x0 0x139B0000 0x1000>;
-		interrupts = <0 256 0>;
+		interrupts = <0 256 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	/* VTS */
@@ -540,7 +550,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D00000 0x1000>;
-		interrupts = <0 INTREQ_USI_CMGP_00 0>;
+		interrupts = <0 INTREQ_USI_CMGP_00 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -560,7 +570,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D10000 0x1000>;
-		interrupts = <0 INTREQ_USI_CMGP_00_I2C 0>;
+		interrupts = <0 INTREQ_USI_CMGP_00_I2C IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -580,7 +590,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D20000 0x1000>;
-		interrupts = <0 INTREQ_USI_CMGP_01 0>;
+		interrupts = <0 INTREQ_USI_CMGP_01 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -600,7 +610,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D30000 0x1000>;
-		interrupts = <0 INTREQ_USI_CMGP_01_I2C 0>;
+		interrupts = <0 INTREQ_USI_CMGP_01_I2C IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -620,7 +630,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D40000 0x1000>;
-		interrupts = <0 INTREQ_USI_CMGP_02 0>;
+		interrupts = <0 INTREQ_USI_CMGP_02 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -640,7 +650,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D50000 0x1000>;
-		interrupts = <0 INTREQ_USI_CMGP_02_I2C 0>;
+		interrupts = <0 INTREQ_USI_CMGP_02_I2C IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -660,7 +670,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D60000 0x1000>;
-		interrupts = <0 INTREQ_USI_CMGP_03 0>;
+		interrupts = <0 INTREQ_USI_CMGP_03 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -680,7 +690,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D70000 0x1000>;
-		interrupts = <0 INTREQ_USI_CMGP_03_I2C 0>;
+		interrupts = <0 INTREQ_USI_CMGP_03_I2C IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -700,7 +710,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x138A0000 0x1000>;
-		interrupts = <0 INTREQ_USI_I2C_00 0>;
+		interrupts = <0 INTREQ_USI_I2C_00 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -720,7 +730,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x13900000 0x1000>;
-		interrupts = <0 INTREQ_USI_00 0>;
+		interrupts = <0 INTREQ_USI_00 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -740,7 +750,7 @@
 		samsung,check-transdone-int;
 		default-clk = <200000000>;
 		reg = <0x0 0x13910000 0x1000>;
-		interrupts = <0 INTREQ_USI_00_I2C 0>;
+		interrupts = <0 INTREQ_USI_00_I2C IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -759,7 +769,7 @@
 		compatible = "samsung,exynos-spi";
 		reg = <0x0 0x11D00000 0x100>;
 		samsung,spi-fifosize = <64>;
-		interrupts = <0 INTREQ_USI_CMGP_00 0>;
+		interrupts = <0 INTREQ_USI_CMGP_00 IRQ_TYPE_LEVEL_HIGH>;
 /*
 		dma-mode;
 		dmas = <&pdma0 25 &pdma0 24>;
@@ -780,7 +790,7 @@
 		compatible = "samsung,exynos-spi";
 		reg = <0x0 0x11D20000 0x100>;
 		samsung,spi-fifosize = <64>;
-		interrupts = <0 INTREQ_USI_CMGP_01 0>;
+		interrupts = <0 INTREQ_USI_CMGP_01 IRQ_TYPE_LEVEL_HIGH>;
 /*
 		dma-mode;
 		dmas = <&pdma0 25 &pdma0 24>;
@@ -801,7 +811,7 @@
 		compatible = "samsung,exynos-spi";
 		reg = <0x0 0x11D40000 0x100>;
 		samsung,spi-fifosize = <64>;
-		interrupts = <0 INTREQ_USI_CMGP_02 0>;
+		interrupts = <0 INTREQ_USI_CMGP_02 IRQ_TYPE_LEVEL_HIGH>;
 /*
 		dma-mode;
 		dmas = <&pdma0 25 &pdma0 24>;
@@ -822,7 +832,7 @@
 		compatible = "samsung,exynos-spi";
 		reg = <0x0 0x11D60000 0x100>;
 		samsung,spi-fifosize = <64>;
-		interrupts = <0 INTREQ_USI_CMGP_03 0>;
+		interrupts = <0 INTREQ_USI_CMGP_03 IRQ_TYPE_LEVEL_HIGH>;
 /*
 		dma-mode;
 		dmas = <&pdma0 25 &pdma0 24>;
@@ -843,7 +853,7 @@
 		compatible = "samsung,exynos-spi";
 		reg = <0x0 0x13940000 0x100>;
 		samsung,spi-fifosize = <64>;
-		interrupts = <0 INTREQ_USI_SPI 0>;
+		interrupts = <0 INTREQ_USI_SPI IRQ_TYPE_LEVEL_HIGH>;
 /*
 		dma-mode;
 		dmas = <&pdma0 25 &pdma0 24>;
@@ -864,7 +874,7 @@
 		compatible = "samsung,exynos-spi";
 		reg = <0x0 0x13900000 0x100>;
 		samsung,spi-fifosize = <256>;
-		interrupts = <0 INTREQ_USI_00 0>;
+		interrupts = <0 INTREQ_USI_00 IRQ_TYPE_LEVEL_HIGH>;
 /*
 		dma-mode;
 		dmas = <&pdma0 25 &pdma0 24>;
@@ -885,7 +895,7 @@
 	speedy: speedy@11A20000 {
 		compatible = "samsung,exynos-speedy";
 		reg = <0x0 0x11A20000 0x2000>;
-		interrupts = <0 98 0>;
+		interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -917,7 +927,7 @@
 		compatible = "samsung,exynos-acpm-ipc";
 		#address-cells = <2>;
 		#size-cells = <1>;
-		interrupts = <0 106 0>;	/* AP2APM MAILBOX SPI NUM*/
+		interrupts = <0 106 IRQ_TYPE_LEVEL_HIGH>;	/* AP2APM MAILBOX SPI NUM*/
 		reg = <0x0 0x11900000 0x1000>,		/* AP2APM MAILBOX */
 			<0x0 0x2039000 0x30000>;	/* APM SRAM */
 		initdata-base = <0x6F00>;
@@ -942,7 +952,7 @@
 		samsung,separate-uart-clk;
 		reg = <0x0 0x13820000 0x100>;
 		samsung,fifo-size = <256>;
-		interrupts = <0 INTREQ_USI_UART 0>;
+		interrupts = <0 INTREQ_USI_UART IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
@@ -957,7 +967,7 @@
 			<0x0 0x13508000 0x200>;
 		reg-names = "dw_mmc",
 			"cmdq_mem";
-		interrupts = <0 176 0>;
+		interrupts = <0 176 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock FSYS_MMC_EMBD>, <&clock GATE_MMC_EMBD>;
@@ -971,7 +981,7 @@
 		compatible = "samsung,exynos-dw-mshc";
 		reg = <0x0 0x13550000 0x2000>;
 		reg-names = "dw_mmc";
-		interrupts = <0 177 0>;
+		interrupts = <0 177 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&clock FSYS_MMC_CARD>, <&clock GATE_MMC_CARD>;
@@ -982,7 +992,7 @@
 	mali: mali@11400000 {
 		compatible = "arm,mali";
 		reg = <0x0 0x11400000 0x5000>;
-		interrupts = <0 70 0>, <0 71 0>, <0 69 0>;
+		interrupts = <0 70 IRQ_TYPE_LEVEL_HIGH>, <0 71 IRQ_TYPE_LEVEL_HIGH>, <0 69 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "JOB", "MMU", "GPU";
 		g3d_cmu_cal_id = <ACPM_DVFS_G3D>;
 		samsung,power-domain = <&pd_g3d>;
@@ -1025,7 +1035,7 @@
 	mfc_0: mfc0@12C80000 {
 		compatible = "samsung,mfc-v6";
 		reg = <0x0 0x12C80000 0x10000>;
-		interrupts = <0 206 0>;
+		interrupts = <0 206 IRQ_TYPE_LEVEL_HIGH>;
 		clock-names = "aclk_mfc";
 		clocks = <&clock GATE_MFC>;
 		samsung,power-domain = <&pd_mfcmscl>;
@@ -1068,7 +1078,7 @@
 		reg = <0x0 0x14891000 0x1000>, <0x0 0x14881000 0x1000>, <0x0 0x14880000 0x110>;
 		/* DPU_DMA IRQ, DPP IRQ */
 		/* 54, 58 */
-		interrupts = <0 54 0>, <0 58 0>;
+		interrupts = <0 54 IRQ_TYPE_LEVEL_HIGH>, <0 58 IRQ_TYPE_LEVEL_HIGH>;
 /*		interrupts = <0 INTREQ__DPU_DMA_G0 0>, <0 INTREQ__DPU_DPP_G0 0>; */
 	};
 
@@ -1079,7 +1089,7 @@
 		reg = <0x0 0x14892000 0x1000>, <0x0 0x14882000 0x1000>;
 		/* DPU_DMA IRQ, DPP IRQ */
 		/* 55, 59 */
-		interrupts = <0 55 0>, <0 59 0>;
+		interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>, <0 59 IRQ_TYPE_LEVEL_HIGH>;
 /*		interrupts = <0 INTREQ__DPU_DMA_G1 0>, <0 INTREQ__DPU_DPP_G1 0>; */
 	};
 
@@ -1090,7 +1100,7 @@
 		reg = <0x0 0x14894000 0x1000>, <0x0 0x14884000 0x1000>;
 		/* DPU_DMA IRQ, DPP IRQ */
 		/* 57, 61 */
-		interrupts = <0 57 0>, <0 61 0>;
+		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>, <0 61 IRQ_TYPE_LEVEL_HIGH>;
 /*		interrupts = <0 INTREQ__DPU_DMA_VG 0>, <0 INTREQ__DPU_DPP_VG 0>; */
 	};
 
@@ -1123,7 +1133,7 @@
 		/* DSIM0, DPHY M4S4(APB) */
 		reg = <0x0 0x148E0000 0x100>, <0x0 0x14470000 0x4000>;
 		/* 53 */
-		interrupts = <0 53 0>;
+		interrupts = <0 53 IRQ_TYPE_LEVEL_HIGH>;
 /*		interrupts = <0 INTREQ__DSIM0 0>; */
 		iommus = <&sysmmu_dpu>;
 
@@ -1145,10 +1155,10 @@
 
 		/* interrupt num : FRAME_START, FRMAE_DONE, EXTRA, GPIO_PERIC1(EXT_INT_TE: GPC1[0]) */
 		/* 50, 51, 52, 256 */
-		interrupts = <0 50 0>,
-			     <0 51 0>,
-			     <0 52 0>,
-			     <0 256 0>;
+		interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 51 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 52 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 256 IRQ_TYPE_LEVEL_HIGH>;
 /*
 		interrupts = <0 INTREQ__DPU_DECON0_FRAME_START 0>,
 			     <0 INTREQ__DPU_DECON0_FRAME_DONE 0>,
@@ -1196,7 +1206,7 @@
 		samsung,separate-uart-clk;
 		reg = <0x0 0x11D00000 0x100>;
 		samsung,fifo-size = <64>;
-		interrupts = <0 INTREQ_USI_CMGP_00 0>;
+		interrupts = <0 INTREQ_USI_CMGP_00 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart1_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
@@ -1211,7 +1221,7 @@
 		samsung,separate-uart-clk;
 		reg = <0x0 0x11D20000 0x100>;
 		samsung,fifo-size = <64>;
-		interrupts = <0 INTREQ_USI_CMGP_01 0>;
+		interrupts = <0 INTREQ_USI_CMGP_01 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
@@ -1226,7 +1236,7 @@
 		samsung,separate-uart-clk;
 		reg = <0x0 0x11D40000 0x100>;
 		samsung,fifo-size = <64>;
-		interrupts = <0 INTREQ_USI_CMGP_02 0>;
+		interrupts = <0 INTREQ_USI_CMGP_02 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart3_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
@@ -1241,7 +1251,7 @@
 		samsung,separate-uart-clk;
 		reg = <0x0 0x11D60000 0x100>;
 		samsung,fifo-size = <64>;
-		interrupts = <0 INTREQ_USI_CMGP_03 0>;
+		interrupts = <0 INTREQ_USI_CMGP_03 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart4_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
@@ -1256,7 +1266,7 @@
 		samsung,separate-uart-clk;
 		reg = <0x0 0x13900000 0x100>;
 		samsung,fifo-size = <256>;
-		interrupts = <0 INTREQ_USI_00 0>;
+		interrupts = <0 INTREQ_USI_00 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart5_bus_single>; /* or _bus_dual */
 		samsung,usi-serial-v2;
@@ -1269,7 +1279,7 @@
 	i2c_0: i2c@13830000 {
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x0 0x13830000 0x100>;
-		interrupts = <0 INTREQ_I2C_0 0>;
+		interrupts = <0 INTREQ_I2C_0 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -1283,7 +1293,7 @@
 	i2c_1: i2c@13840000 {
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x0 0x13840000 0x100>;
-		interrupts = <0 INTREQ_I2C_1 0>;
+		interrupts = <0 INTREQ_I2C_1 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -1297,7 +1307,7 @@
 	i2c_2: i2c@13850000 {
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x0 0x13850000 0x100>;
-		interrupts = <0 INTREQ_I2C_2 0>;
+		interrupts = <0 INTREQ_I2C_2 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -1311,7 +1321,7 @@
 	i2c_3: i2c@11D80000 {
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x0 0x11D80000 0x100>;
-		interrupts = <0 INTREQ_I2C_CMGP_4 0>;
+		interrupts = <0 INTREQ_I2C_CMGP_4 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -1325,7 +1335,7 @@
 	i2c_4: i2c@11D90000 {
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x0 0x11D90000 0x100>;
-		interrupts = <0 INTREQ_I2C_CMGP_5 0>;
+		interrupts = <0 INTREQ_I2C_CMGP_5 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -1339,7 +1349,7 @@
 	i2c_5: i2c@11DA0000 {
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x0 0x11DA0000 0x100>;
-		interrupts = <0 INTREQ_I2C_CMGP_6 0>;
+		interrupts = <0 INTREQ_I2C_CMGP_6 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
@@ -1366,7 +1376,7 @@
 	watchdog_cl0@10050000 {
 		compatible = "samsung,exynos8-wdt";
 		reg = <0x0 0x10050000 0x100>;
-		interrupts = <0 INTREQ__WDT_CLUSTER0 0>;
+		interrupts = <0 INTREQ__WDT_CLUSTER0 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock OSCCLK>, <&clock GATE_WDT_CLUSTER0>;
 		clock-names = "rate_watchdog", "gate_watchdog";
 		timeout-sec = <30>;
@@ -1387,7 +1397,7 @@
 	exynos_adc: adc@11C40000 {
 		compatible = "samsung,exynos-adc-v3";
 		reg = <0x0 0x11C40000 0x100>;
-		interrupts = <0 INTREQ__ADC_CMGP_S0 0>;
+		interrupts = <0 INTREQ__ADC_CMGP_S0 IRQ_TYPE_LEVEL_HIGH>;
 		#io-channel-cells = <1>;
 		io-channel-ranges;
 		clocks = <&clock GATE_ADC_CMGP_S0>;
@@ -1397,7 +1407,7 @@
 	rtc@11A30000 {
 		compatible = "samsung,exynos8-rtc";
 		reg = <0x0 0x11A30000 0x100>;
-		interrupts = <0 INTREQ__RTC_ALARM_INT 0>, <0 INTREQ__RTC_TIC_INT_0 0>;
+		interrupts = <0 INTREQ__RTC_ALARM_INT IRQ_TYPE_LEVEL_HIGH>, <0 INTREQ__RTC_TIC_INT_0 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	udc: usb@13600000 {
@@ -1413,7 +1423,7 @@
 		usbdrd_dwc3: dwc3 {
 			compatible = "synopsys,dwc3";
 			reg = <0x0 0x13600000 0x10000>;
-			interrupts = <0 181 0>;
+			interrupts = <0 181 IRQ_TYPE_LEVEL_HIGH>;
 			//suspend_clk_freq = <66000000>;
 			tx-fifo-resize = <0>;
 			adj-sof-accuracy = <0>;
@@ -1736,7 +1746,7 @@
 	contexthub: contexthub_ipc@11A00000 {
 		compatible = "samsung,exynos-contexthub";
 		/* INTREQ MAILBOX_AP2CHUB */
-		interrupts = <0 110 0>;
+		interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH>;
 		/* mailbox, sram, dumpgpr, chub reset & chub cpu reset, osc rco, rtc cotrol */
 		/* chub control, chub reset status, baaw_p_apm_shub */
 		reg = <0x0 0x11A00000 0x200>,
@@ -1757,7 +1767,7 @@
 	tmuctrl_0: CPU@10070000 {
 		compatible = "samsung,exynos9110-tmu";
 		reg = <0x0 0x10070000 0x700>;
-		interrupts = <0 INTREQ__TMU 0>;
+		interrupts = <0 INTREQ__TMU IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "CPU";
 		id = <0>;
 		sensors = <1>;		/* 0x1 */
@@ -1768,7 +1778,7 @@
 	tmuctrl_1: GPU@10070000 {
 		compatible = "samsung,exynos9110-tmu";
 		reg = <0x0 0x10070000 0x700>;
-		interrupts = <0 INTREQ__TMU 0>;
+		interrupts = <0 INTREQ__TMU IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "GPU";
 		id = <1>;
 		sensors = <1>;		/* 0x1 */
@@ -1963,7 +1973,7 @@
 	/* tbase */
 	tee {
 		compatible = "samsung,exynos-tee";
-	        interrupts = <0 454 0>;
+	        interrupts = <0 454 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	fmp: fmp {
@@ -1974,13 +1984,13 @@
 
 	mmc-srpmb {
 		compatible = "samsung,mmc-srpmb";
-		interrupts = <0 460 0>;
+		interrupts = <0 460 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	scaler_0: scaler@12CB0000 {
 		compatible = "samsung,exynos5-scaler";
 		reg = <0x0 0x12CB0000 0x1300>;
-		interrupts = <0 205 0>;
+		interrupts = <0 205 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock GATE_M2M>;
 		clock-names = "gate";
 		iommus = <&sysmmu_mfcmscl>;
@@ -1990,6 +2000,6 @@
 	/* Secure log */
 	seclog {
 		compatible = "samsung,exynos-seclog";
-		interrupts = <0 455 0>;
+		interrupts = <0 455 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
