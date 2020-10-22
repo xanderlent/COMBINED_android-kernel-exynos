@@ -92,7 +92,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ram skip_initramfs rootwait ro init=/init androidboot.hardware=samsungexynos9110 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware bcm_setup=0xffffff80f8e00000 ecd_setup=disable sec_debug.cp=3";
+		//bootargs = "console=ram skip_initramfs rootwait ro init=/init androidboot.hardware=samsungexynos9110 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware bcm_setup=0xffffff80f8e00000 ecd_setup=disable sec_debug.cp=3";
+		bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200n8 clocksource=arch_sys_counter root=/dev/ram0 rw ramdisk=8192 initrd=0x84000000,8M init=/linuxrc clk_ignore_unused maxcpus=1";
 		linux,initrd-start = <0x84000000>;
 		linux,initrd-end = <0x841FFFFF>;
 	};
@@ -266,6 +267,13 @@
 		interrupts = <1 9 0xf04>;
 	};
 
+	ext_26m: ext_26m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+		clock-output-names = "ext-26m";
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13
@@ -277,9 +285,6 @@
 			     <GIC_PPI 10
 				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	        clock-frequency = <26000000>;
-		use-clocksource-only;
-		use-physical-timer;
-
 	};
 
 	clock: clock-controller@0x11800000 {
@@ -298,9 +303,9 @@
 		interrupts =	<0>, <1>, <2>, <3>,
 				<4>, <5>, <6>, <7>,
 				<8>, <9>, <10>, <11>;
-		clocks = <&clock OSCCLK>, <&clock GATE_MCT>;
+		//clocks = <&clock OSCCLK>, <&clock GATE_MCT>;
+		clocks = <&ext_26m>, <&ext_26m>;
 		clock-names = "fin_pll", "mct";
-		use-clockevent-only;
 
 		mct_map: mct-map {
 			#interrupt-cells = <1>;
