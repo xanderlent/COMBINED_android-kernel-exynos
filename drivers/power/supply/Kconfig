@@ -662,4 +662,10 @@ config S2MPW02_RID_DETECT
 	  for S2MPW02 charger RID detection feature.
 	  This feature replace MUIC fuctionality.
 
+config FUELGAUGE_S2MPW02
+	tristate "Samsung S2MPW02 fuelgauge driver"
+	depends on MFD_S2MPW02 && I2C
+	help
+	 Say Y to enable support for the Samsung S2MPW02 Fuelgauge
+
 endif # POWER_SUPPLY
