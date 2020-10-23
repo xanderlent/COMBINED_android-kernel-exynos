@@ -181,7 +181,7 @@
 			};
 
 			s2mpw02-fuelgauge {
-				fuelgauge,fuel_int = <&gpa0 5 0>;
+				fuelgauge,fuel_int = <&gpa1 1 0>;
 				fuelgauge,fuel_alert_soc = <1>;
 				fuelgauge,capacity_max = <1000>;
 				fuelgauge,capacity_max_margin = <70>;
@@ -649,7 +649,7 @@
 	};
 
 	fuel_irq: fuel-irq {
-		samsung,pins = "gpa0-5";
+		samsung,pins = "gpa1-1";
 		samsung,pin-function = <0>;
 		samsung,pin-pud = <2>;
 		samsung,pin-drv = <2>;
