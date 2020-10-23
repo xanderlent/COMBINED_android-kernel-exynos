@@ -18,7 +18,7 @@
 #include <linux/reboot.h>
 #include <linux/reset/exynos-reset.h>
 #include <linux/soc/samsung/exynos-soc.h>
-#include <soc/samsung/debug-snapshot.h>
+//#include <soc/samsung/debug-snapshot.h>
 
 #include <asm/proc-fns.h>
 
