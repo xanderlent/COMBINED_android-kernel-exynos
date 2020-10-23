@@ -25,7 +25,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/samsung_usb.h>
 #include <linux/mfd/samsung/s2mps18-private.h>
-#include <soc/samsung/exynos-pm.h>
+//#include <soc/samsung/exynos-pm.h>
 #if defined(CONFIG_TYPEC)
 #include <linux/usb/typec.h>
 #endif
@@ -369,12 +369,12 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			on ? "on" : "off", otg->gadget->name);
 
 	if (on) {
-		wake_lock(&dotg->wakelock);
+//		wake_lock(&dotg->wakelock);
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
 		if (ret) {
 			dev_err(dwc->dev, "%s: failed to reinitialize core\n",
 					__func__);
-			goto err1;
+			goto err2;
 		}
 
 		dwc3_otg_set_peripheral_mode(dotg);
@@ -402,8 +402,8 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 					__func__);
 err2:
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
-err1:
-		wake_unlock(&dotg->wakelock);
+//err1:
+//		wake_unlock(&dotg->wakelock);
 	}
 
 	return ret;
@@ -823,7 +823,7 @@ int dwc3_otg_init(struct dwc3 *dwc)
 		dev_err(dwc->dev, "failed register partner\n");
 #endif
 
-	wake_lock_init(&dotg->wakelock, WAKE_LOCK_SUSPEND, "dwc3-otg");
+//	wake_lock_init(&dotg->wakelock, WAKE_LOCK_SUSPEND, "dwc3-otg");
 	mutex_init(&dotg->lock);
 
 	ret = sysfs_create_group(&dwc->dev->kobj, &dwc3_otg_attr_group);
@@ -855,7 +855,7 @@ void dwc3_otg_exit(struct dwc3 *dwc)
 	dwc3_ext_otg_exit(dotg);
 
 	sysfs_remove_group(&dwc->dev->kobj, &dwc3_otg_attr_group);
-	wake_lock_destroy(&dotg->wakelock);
+//	wake_lock_destroy(&dotg->wakelock);
 	free_irq(dotg->irq, dotg);
 	dotg->otg.state = OTG_STATE_UNDEFINED;
 	kfree(dotg);
