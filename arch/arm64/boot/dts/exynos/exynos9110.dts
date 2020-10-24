@@ -346,7 +346,7 @@
 		shutdown-offset = <0x330C>;
 		shutdown-trigger = <0x100>;
 		reboot-offset = <0x400>;
-		reboot-trigger = <0x0>;
+		reboot-trigger = <0x1>;
 		reboot-cmd-offset = <0x0810>;
 	};
 
