@@ -18,7 +18,7 @@
 #ifdef CONFIG_OF
 #include <linux/pinctrl/consumer.h>
 #endif
-#include <linux/i2c/zxt_ztm620_ts.h>
+#include <linux/input/zxt_ztm620_ts.h>
 #ifdef CONFIG_SEC_SYSFS
 #include <linux/sec_sysfs.h>
 #endif
@@ -28,11 +28,8 @@
 #ifdef ZINITIX_FILE_DEBUG
 #include <linux/fs.h>
 #endif
-#ifdef ENABLE_TOUCH_BOOSTER
-#include <linux/trm.h>
-#endif
 #include <linux/time.h>
-#include <linux/ztm620_motor.h>
+#include "ztm620_motor.h"
 #ifdef ZINITIX_MISC_DEBUG
 static struct ztm620_info *misc_info = NULL;
 #endif
@@ -2192,9 +2189,6 @@ static void ztm620_clear_report_data(struct ztm620_info *info)
 	}
 	input_sync(info->input_dev);
 
-#ifdef ENABLE_TOUCH_BOOSTER
-	touch_booster_release();
-#endif
 #if SUPPORTED_PALM_TOUCH
 	info->palm_flag = false;
 #endif
@@ -2290,10 +2284,6 @@ static irqreturn_t ztm620_touch_work(int irq, void *data)
 	}
 	info->work_state = NORMAL;
 
-#ifdef ENABLE_TOUCH_BOOSTER
-	if ((!info->palm_flag) && (!info->finger_cnt))
-		touch_booster_press();
-#endif
 
 	ret = ztm620_ts_read_coord(info);
 	if (!ret || info->touch_info.status == 0xffff || info->touch_info.status == 0x1) {
@@ -2552,10 +2542,6 @@ static irqreturn_t ztm620_touch_work(int irq, void *data)
 	input_sync(info->input_dev);
 
 out:
-#ifdef ENABLE_TOUCH_BOOSTER
-	if ((!info->palm_flag) && (!info->finger_cnt))
-		touch_booster_release();
-#endif
 
 	ret = ztm620_clear_interrupt(info);
 	if (ret)
