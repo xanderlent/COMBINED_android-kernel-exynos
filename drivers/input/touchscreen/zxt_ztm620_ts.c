@@ -4865,7 +4865,7 @@ static ssize_t ztm620_show_glove_enable(struct device *dev,
 
 	dev_info(&client->dev, "%s: status[0x%04x]\n", __func__, status);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", status && 0x02);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", status & 0x02);
 }
 
 static ssize_t ztm620_show_gesture_mode(struct device *dev,
