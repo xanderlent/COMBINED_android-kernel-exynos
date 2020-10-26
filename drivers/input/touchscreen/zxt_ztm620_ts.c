@@ -989,12 +989,14 @@ static int ztm620_hard_reset(struct ztm620_info *info)
 
 	enable_irq(info->irq);
 
+/*
 	ret = ztm620_motor_reset_handler();
 	if (ret) {
 		dev_err(&client->dev,
 			"%s: ztm620_motor reset handler failed. [%d]\n",
 			__func__, ret);
 	}
+*/
 
 	return 0;
 }

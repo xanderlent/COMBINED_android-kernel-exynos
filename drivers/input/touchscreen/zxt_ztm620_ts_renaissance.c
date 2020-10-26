@@ -1073,12 +1073,14 @@ static int ztm620_hard_reset(struct ztm620_info *info)
 
 	enable_irq(info->irq);
 
+	/*
 	ret = ztm620_motor_reset_handler();
 	if (ret) {
 		dev_err(&client->dev,
 			"%s:ztm620_motor reset handler failed. [%d]\n",
 			__func__, ret);
 	}
+	*/
 
 	return 0;
 
@@ -1951,17 +1953,19 @@ retry_fail_init:
 	return false;
 }
 
-extern bool ztm620_motor_is_running(void);
+//extern bool ztm620_motor_is_running(void);
 static int ztm620_mode_change_recovery(struct ztm620_info *info)
 {
 	struct i2c_client *client = info->client;
 	int ret;
 
+	/*
 	ret = ztm620_motor_is_running();
 	if (ret) {
 		dev_info(&client->dev, "%s:Skip mode_change_recovery by motor\n", __func__);
 		return 0;
 	}
+	*/
 
 	ret = ztm620_mode_change_reset(info);
 	if (ret) {
@@ -1975,12 +1979,14 @@ static int ztm620_mode_change_recovery(struct ztm620_info *info)
 		return -1;
 	}
 
+	/*
 	ret = ztm620_motor_reset_handler();
 	if (ret) {
 		dev_err(&client->dev,
 			"%s: ztm620_motor reset handler failed. [%d]\n",
 			__func__, ret);
 	}
+	*/
 
 	return 0;
 }
