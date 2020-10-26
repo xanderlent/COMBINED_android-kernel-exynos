@@ -173,8 +173,7 @@
 
 		s2mpw02-charger {
 			battery,charger_name = "s2mpw02-charger";
-			/* TODO: Update float voltage */
-			battery,chg_float_voltage = <4200>;
+			battery,chg_float_voltage = <4400>;
 		};
 
 		s2mpw02-fuelgauge {
