@@ -2334,7 +2334,7 @@ static int ztm620_suspend(struct device *dev)
 }
 #endif
 
-extern unsigned int lpcharge;
+//extern unsigned int lpcharge;
 static int ztm620_input_open(struct input_dev *dev)
 {
 	struct ztm620_info *info = input_get_drvdata(dev);
@@ -2353,10 +2353,12 @@ static int ztm620_input_open(struct input_dev *dev)
 		return 0;
 	}
 
+	/*
 	if (lpcharge) {
 		pr_info("%s: lpcharge [%d]\n", __func__, lpcharge);
 		return 0;
 	}
+	*/
 
 	down(&info->work_lock);
 
@@ -6451,10 +6453,12 @@ static int ztm620_probe(struct i2c_client *client, const struct i2c_device_id *i
 	info->init_done = true;
 	dev_info(&client->dev, "%s: done.\n", __func__);
 
+	/*
 	if (lpcharge) {
 		ztm620_input_close(info->input_dev);
 		pr_info("%s: lpcharge [%d]\n", __func__, lpcharge);
 	}
+	*/
 
 	return 0;
 

@@ -2556,7 +2556,7 @@ err_out:
 	return IRQ_HANDLED;
 }
 
-extern unsigned int lpcharge;
+static unsigned int lpcharge = 0;
 #ifdef CONFIG_PM
 static int ztm620_resume(struct device *dev)
 {
