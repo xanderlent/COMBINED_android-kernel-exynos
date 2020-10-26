@@ -29,7 +29,6 @@
 #include <linux/regmap.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <linux/wakelock.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/regulator/consumer.h>
@@ -137,7 +136,6 @@ struct ztm620_motor_data {
 	struct device *dev;
 	struct regmap *mpRegmap;
 
-	struct wake_lock wklock;
 	struct mutex lock;
 	struct work_struct vibrator_work;
 	struct work_struct delay_en_off;

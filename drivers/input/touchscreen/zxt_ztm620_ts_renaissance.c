@@ -2256,7 +2256,7 @@ static irqreturn_t ztm620_touch_work(int irq, void *data)
 
 	if ((info->gesture_enable) && (info->work_state == SUSPEND)) {
 		dev_info(&client->dev, "%s:waiting AP resume..\n", __func__);
-		wake_lock_timeout(&info->wake_lock, WAKELOCK_TIME);
+		pm_wakeup_event(&client->dev, WAKELOCK_TIME);
 		t = wait_event_timeout(info->wait_q, info->wait_until_wake,
 			msecs_to_jiffies(I2C_RESUME_DELAY));
 		if (!t) {
@@ -7048,8 +7048,6 @@ static int ztm620_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	init_waitqueue_head(&info->wait_q);
 	device_init_wakeup(&client->dev, true);
-	wake_lock_init(&info->wake_lock,
-			WAKE_LOCK_SUSPEND, "TSP_wake_lock");
 
 	info->input_dev->open = ztm620_input_open;
 	info->input_dev->close = ztm620_input_close;
@@ -7147,7 +7145,7 @@ err_input_register_device:
 #ifdef CONFIG_SLEEP_MONITOR
 	sleep_monitor_unregister_ops(SLEEP_MONITOR_TSP);
 #endif
-	wake_lock_destroy(&info->wake_lock);
+	device_init_wakeup(&client->dev, false);
 #ifdef USE_TSP_TA_CALLBACKS
 	ztm620_register_callback(NULL);
 #endif
@@ -7189,7 +7187,7 @@ static int ztm620_remove(struct i2c_client *client)
 	down(&info->work_lock);
 
 	info->work_state = REMOVE;
-	wake_lock_destroy(&info->wake_lock);
+	device_init_wakeup(&client->dev, false);
 
 #ifdef SEC_FACTORY_TEST
 	devm_kfree(&client->dev, info->factory_info);
