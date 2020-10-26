@@ -634,6 +634,34 @@ static ssize_t nanohub_firmware_query(struct device *dev,
 	}
 }
 
+static ssize_t nanohub_time_sync(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	struct nanohub_time_sync {
+		uint64_t ap_time_ns;
+		uint64_t mcu_time_ns;
+	} __packed time_sync_result;
+	int ret;
+
+	if (request_wakeup(data))
+		return -ERESTARTSYS;
+
+	ret = nanohub_comms_rx_retrans_boottime
+	    (data, CMD_COMMS_TIME_SYNC, ID_NANOHUB_COMMS,
+	     NULL, (uint8_t *)&time_sync_result, sizeof(time_sync_result),
+	     10, 10);
+
+	release_wakeup(data);
+	if (ret == sizeof(time_sync_result)) {
+		return scnprintf(buf, PAGE_SIZE,
+				 "ap time: %llu mcu time: %llu\n",
+				 time_sync_result.ap_time_ns, time_sync_result.mcu_time_ns);
+	} else {
+		return scnprintf(buf, PAGE_SIZE, "time sync error: %d\n", ret);
+	}
+}
+
 static inline int nanohub_wakeup_lock(struct nanohub_data *data, int mode)
 {
 	int ret;
@@ -1029,6 +1057,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(wakeup, 0440, nanohub_wakeup_query, NULL),
 	__ATTR(app_info, 0440, nanohub_app_info, NULL),
 	__ATTR(firmware_version, 0440, nanohub_firmware_query, NULL),
+	__ATTR(time_sync, 0440, nanohub_time_sync, NULL),
 #ifdef CONFIG_NANOHUB_BL
 	__ATTR(download_bl, 0220, NULL, nanohub_download_bl),
 #endif
