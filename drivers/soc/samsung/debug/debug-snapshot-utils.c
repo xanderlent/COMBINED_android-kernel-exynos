@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2020 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *
- * Debug-SnapShot: Debug Framework for Ramdump based debugging method
- * The original code is Exynos-Snapshot for Exynos SoC
- *
- * Author: Hosung Kim <hosung0.kim@samsung.com>
- * Author: Changki Kim <changki.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -701,6 +692,108 @@ void dbg_snapshot_register_debug_ops(void *halt, void *arraydump,
 }
 EXPORT_SYMBOL(dbg_snapshot_register_debug_ops);
 
+static inline bool is_event_supported(unsigned int type, unsigned int code)
+{
+       return (type == EV_KEY) && (code == KEY_VOLUMEDOWN ||
+		       code == KEY_VOLUMEUP || code == KEY_POWER || code == KEY_BACK);
+}
+
+static void dbg_snanpshot_event(struct input_handle *handle, unsigned int type,
+			       unsigned int code, int value)
+{
+	static bool volup_p;
+	static bool voldown_p;
+	static int loopcount;
+	static ktime_t start;
+
+	if (!is_event_supported(type, code))
+		return;
+
+	dev_info(dss_desc.dev, "KEY(%d) %s\n", code, value ? "pressed" : "released");
+	/* Enter Forced Upload. Hold volume down key first
+	 * and then press power key twice. Volume up key should not be pressed.
+	 */
+	if (!value) {
+		if (code == KEY_VOLUMEUP)
+			volup_p = false;
+		if (code == KEY_VOLUMEDOWN || code == KEY_BACK) {
+			loopcount = 0;
+			voldown_p = false;
+		}
+		return;
+	}
+	if (code == KEY_VOLUMEUP)
+		volup_p = true;
+	if (code == KEY_VOLUMEDOWN || code == KEY_BACK)
+		voldown_p = true;
+	if (!volup_p && voldown_p) {
+		if (code != KEY_POWER)
+			return;
+
+		if (!loopcount)
+			start = ktime_get();
+		dev_err(dss_desc.dev, "entering forced upload[%d]\n", ++loopcount);
+		if ((ktime_ms_delta(ktime_get(), start) < 2 * MSEC_PER_SEC) &&
+				loopcount == 2)
+			panic("Crash Key");
+	}
+}
+
+static int dbg_snanpshot_connect(struct input_handler *handler,
+				struct input_dev *dev,
+				const struct input_device_id *id)
+{
+	struct input_handle *handle;
+	int error;
+
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
+
+	handle->dev = dev;
+	handle->handler = handler;
+	handle->name = "dss_input_handler";
+
+	error = input_register_handle(handle);
+	if (error)
+		goto err_free_handle;
+
+	error = input_open_device(handle);
+	if (error)
+		goto err_unregister_handle;
+
+	return 0;
+
+err_unregister_handle:
+	input_unregister_handle(handle);
+err_free_handle:
+	kfree(handle);
+	return error;
+}
+
+static void dbg_snanpshot_disconnect(struct input_handle *handle)
+{
+	input_close_device(handle);
+	input_unregister_handle(handle);
+	kfree(handle);
+}
+
+static const struct input_device_id dbg_snanpshot_ids[] = {
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+	},
+	{},
+};
+
+static struct input_handler dbg_snapshot_input_handler = {
+	.event		= dbg_snanpshot_event,
+	.connect	= dbg_snanpshot_connect,
+	.disconnect	= dbg_snanpshot_disconnect,
+	.name		= "dss_input_handler",
+	.id_table	= dbg_snanpshot_ids,
+};
+
 void dbg_snapshot_init_utils(void)
 {
 	size_t vaddr;
@@ -723,6 +816,7 @@ void dbg_snapshot_init_utils(void)
 	register_restart_handler(&nb_restart_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_pre_panic_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_post_panic_block);
+	input_register_handler(&dbg_snapshot_input_handler);
 
 	smp_call_function(dbg_snapshot_save_system, NULL, 1);
 	dbg_snapshot_save_system(NULL);
