@@ -32,12 +32,6 @@
 
 			model = "Samsung ERD9110 board based on EXYNOS9110";
 
-			memory@80000000 {
-				device_type = "memory";
-				reg = <0x0 0x80000000 0x30000000>;
-			};
-
-
 			firmware {
 				android {
 					compatible = "android,firmware";
