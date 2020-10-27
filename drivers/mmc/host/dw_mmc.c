@@ -3964,10 +3964,13 @@ static void dw_mci_cmdq_cmd_log(struct mmc_host *mmc, bool new_cmd,
 
 }
 #endif
+
+#ifdef CONFIG_MMC_CQHCI
 static int dw_mci_cmdq_core_reset(struct mmc_host *mmc)
 {
 	return 0;
 }
+#endif
 #endif
 
 static const struct cqhci_host_ops dw_mci_cmdq_ops = {
