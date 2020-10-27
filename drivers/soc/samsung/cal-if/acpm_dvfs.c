@@ -275,7 +275,7 @@ static int acpm_dvfs_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	pm_qos_add_request(&mif_request_from_acpm, PM_QOS_BUS_THROUGHPUT, 0);
+	//pm_qos_add_request(&mif_request_from_acpm, PM_QOS_BUS_THROUGHPUT, 0);
 
 #if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 	acpm_dvfs_get_cpu_cold_temp_list(dev);
