@@ -74,12 +74,7 @@
 		cirrus,boost-ovp-millivolt = <9000>; /* 9V */
 
 		cirrus,f0-default = <2514000>; /* 153 Hz */
-		cirrus,f0-min = <2293760>; /* 140 Hz */
-		cirrus,f0-max = <2703360>; /* 165 Hz */
-		cirrus,redc-comp-disable = <1>; /* disabling ReDC clk comp */
 		cirrus,redc-default = <327728>; /* 15 Ohm */
-		cirrus,redc-min = <302112>; /* 13.5 Ohm */
-		cirrus,redc-max = <369248>; /* 16.5 Ohm */
 
 		cirrus,refclk-gpio2;
 
