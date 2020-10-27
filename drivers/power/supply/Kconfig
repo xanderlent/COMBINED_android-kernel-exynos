@@ -645,4 +645,21 @@ config CHARGER_CROS_USBPD
 	  what is connected to USB PD ports from the EC and converts
 	  that into power_supply properties.
 
+config CHARGER_S2MPW02
+	tristate "Samsung S2MPW02 charger driver"
+	depends on MFD_S2MPW02 && I2C
+	help
+	  Say Y here to enable support for the Samsung S2MPW02
+	  battery charger can supoprt PMIC, Audio Codec, Fuel-gauge.
+
+config S2MPW02_RID_DETECT
+	tristate "S2MPW02 RID detect feature"
+	default n
+	depends on CHARGER_S2MPW02
+	depends on MFD_S2MPW02
+	help
+	  Say Y to include support
+	  for S2MPW02 charger RID detection feature.
+	  This feature replace MUIC fuctionality.
+
 endif # POWER_SUPPLY
