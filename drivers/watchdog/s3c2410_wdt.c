@@ -181,7 +181,9 @@ static int s3c2410wdt_get_multistage_index(void);
 static int s3c2410wdt_mask_wdt_reset(struct s3c2410_wdt *wdt, bool mask);
 static int s3c2410wdt_automatic_disable_wdt(struct s3c2410_wdt *wdt, bool mask);
 static int s3c2410wdt_noncpu_int_en(struct s3c2410_wdt *wdt, bool mask);
+/*
 static int s3c2410wdt_noncpu_out(struct s3c2410_wdt *wdt, bool mask);
+*/
 
 static const struct s3c2410_wdt_variant drv_data_s3c2410 = {
 	.pmu_reset_func = s3c2410wdt_mask_wdt_reset,
@@ -345,6 +347,7 @@ static int s3c2410wdt_noncpu_int_en(struct s3c2410_wdt *wdt, bool mask)
 	return ret;
 }
 
+#if 0
 static int s3c2410wdt_noncpu_out(struct s3c2410_wdt *wdt, bool en)
 {
 	int ret;
@@ -378,6 +381,7 @@ static int s3c2410wdt_noncpu_out(struct s3c2410_wdt *wdt, bool en)
 
 	return ret;
 }
+#endif
 
 static int s3c2410wdt_mask_wdt_reset(struct s3c2410_wdt *wdt, bool mask)
 {
