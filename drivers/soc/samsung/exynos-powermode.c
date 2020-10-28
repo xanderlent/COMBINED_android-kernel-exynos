@@ -706,6 +706,7 @@ int exynos_hotplug_out_callback(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(exynos_hotplug_out_callback);
 
+#if 0
 static int exynos_cpu_callback(struct notifier_block *nfb,
 				 unsigned long action, void *hcpu)
 {
@@ -733,7 +734,7 @@ static int exynos_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 #endif
-
+#endif
 /**
  * powermode_cpufreq_transition() blocks to power down the cluster
  * before frequency changing. And it release the blocking after
