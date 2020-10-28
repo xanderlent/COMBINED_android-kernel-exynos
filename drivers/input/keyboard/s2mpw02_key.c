@@ -57,6 +57,8 @@ struct power_button_data {
 	struct input_dev *input;
 	struct timer_list timer;
 	struct work_struct work;
+	struct delayed_work key_work;
+	struct workqueue_struct *irq_wqueue;
 	struct workqueue_struct *workqueue;
 	unsigned int timer_debounce;	/* in msecs */
 	unsigned int irq;
@@ -65,6 +67,7 @@ struct power_button_data {
 	bool disabled;
 	bool key_pressed;
 	bool key_state;
+	bool suspended;
 };
 
 struct power_keys_drvdata {
@@ -82,6 +85,8 @@ struct power_keys_drvdata {
 	u32 press_cnt;
 	bool resume_state;
 #endif
+	bool irq_pwronr_disabled;
+	bool irq_pwronf_disabled;
 	struct power_button_data button_data[0];
 };
 
@@ -155,6 +160,8 @@ static void power_keys_disable_button(struct power_button_data *bdata)
 		disable_irq(bdata->irq);
 		if (bdata->timer_debounce)
 			del_timer_sync(&bdata->timer);
+
+		cancel_delayed_work_sync(&bdata->key_work);
 
 		bdata->disabled = true;
 	}
@@ -531,6 +538,17 @@ static void power_keys_power_report_event(struct power_button_data *bdata)
 #endif
 }
 
+static void s2mpw02_keys_work_func(struct work_struct *work)
+{
+	struct power_button_data *bdata = container_of(work,
+						      struct power_button_data,
+						      key_work.work);
+
+	power_keys_power_report_event(bdata);
+
+	if (bdata->button->wakeup)
+		pm_relax(bdata->input->dev.parent);
+}
 
 static irqreturn_t power_keys_rising_irq_handler(int irq, void *dev_id)
 {
@@ -540,7 +558,23 @@ static irqreturn_t power_keys_rising_irq_handler(int irq, void *dev_id)
 
 	bdata->key_pressed = true;
 	bdata->isr_status = true;
-	power_keys_power_report_event(bdata);
+
+	if (bdata->button->wakeup) {
+		const struct power_keys_button *button = bdata->button;
+
+		pm_stay_awake(bdata->input->dev.parent);
+		if (bdata->suspended  &&
+		    (button->type == 0 || button->type == EV_KEY)) {
+			/*
+			 * Simulate wakeup key press in case the key has
+			 * already released by the time we got interrupt
+			 * handler to run.
+			 */
+			input_report_key(bdata->input, button->code, 1);
+		}
+	}
+
+	queue_delayed_work(bdata->irq_wqueue, &bdata->key_work, 0);
 
 	return IRQ_HANDLED;
 }
@@ -553,7 +587,9 @@ static irqreturn_t power_keys_falling_irq_handler(int irq, void *dev_id)
 
 	bdata->key_pressed = false;
 	bdata->isr_status = true;
-	power_keys_power_report_event(bdata);
+
+	queue_delayed_work(bdata->irq_wqueue, &bdata->key_work, 0);
+
 	return IRQ_HANDLED;
 }
 
@@ -571,16 +607,47 @@ static void power_keys_report_state(struct power_keys_drvdata *ddata)
 	input_sync(input);
 }
 
+static void power_keys_check_enable_irq(struct power_keys_drvdata *ddata)
+{
+	if (ddata->irq_pwronf_disabled) {
+		mutex_lock(&ddata->disable_lock);
+		enable_irq(ddata->irq_pwronf);
+		mutex_unlock(&ddata->disable_lock);
+		ddata->irq_pwronf_disabled = false;
+	}
+
+	if (ddata->irq_pwronr_disabled) {
+		mutex_lock(&ddata->disable_lock);
+		enable_irq(ddata->irq_pwronr);
+		mutex_unlock(&ddata->disable_lock);
+		ddata->irq_pwronr_disabled = false;
+	}
+}
+
+static void power_keys_check_disable_irq(struct power_keys_drvdata *ddata)
+{
+	if (!ddata->irq_pwronf_disabled) {
+		mutex_lock(&ddata->disable_lock);
+		disable_irq(ddata->irq_pwronf);
+		mutex_unlock(&ddata->disable_lock);
+		ddata->irq_pwronf_disabled = true;
+	}
+
+	if (!ddata->irq_pwronr_disabled) {
+		mutex_lock(&ddata->disable_lock);
+		disable_irq(ddata->irq_pwronr);
+		mutex_unlock(&ddata->disable_lock);
+		ddata->irq_pwronr_disabled = true;
+	}
+}
+
 static int power_keys_open(struct input_dev *input)
 {
 	struct power_keys_drvdata *ddata = input_get_drvdata(input);
 
 	dev_info(ddata->dev, "%s()\n", __func__);
 
-	mutex_lock(&ddata->disable_lock);
-	enable_irq(ddata->irq_pwronf);
-	enable_irq(ddata->irq_pwronr);
-	mutex_unlock(&ddata->disable_lock);
+	power_keys_check_enable_irq(ddata);
 
 	power_keys_report_state(ddata);
 
@@ -593,10 +660,7 @@ static void power_keys_close(struct input_dev *input)
 
 	dev_info(ddata->dev, "%s()\n", __func__);
 
-	mutex_lock(&ddata->disable_lock);
-	disable_irq(ddata->irq_pwronf);
-	disable_irq(ddata->irq_pwronr);
-	mutex_unlock(&ddata->disable_lock);
+	power_keys_check_disable_irq(ddata);
 }
 
 /*
@@ -779,13 +843,18 @@ static int power_keys_probe(struct platform_device *pdev)
 		if (button->wakeup)
 			wakeup = 1;
 
+		bdata->irq_wqueue = create_singlethread_workqueue("s2mpw02-key-wqueue");
+		if (!bdata->irq_wqueue) {
+			pr_err("%s: fail to create workqueue\n", __func__);
+			goto fail1;
+		}
+		INIT_DELAYED_WORK(&bdata->key_work, s2mpw02_keys_work_func);
+
 		input_set_capability(input, button->type ?: EV_KEY, button->code);
 	}
 
 	ddata->irq_pwronr = mpdata->irq_base + S2MPW02_PMIC_IRQ_PWRONR_INT1;
 	ddata->irq_pwronf = mpdata->irq_base + S2MPW02_PMIC_IRQ_PWRONF_INT1;
-	irq_set_status_flags(ddata->irq_pwronr, IRQ_NOAUTOEN);
-	irq_set_status_flags(ddata->irq_pwronf, IRQ_NOAUTOEN);
 
 	ret = devm_request_threaded_irq(&pdev->dev, ddata->irq_pwronr, NULL,
 			power_keys_rising_irq_handler, 0, "pwronr-irq", ddata);
@@ -794,6 +863,8 @@ static int power_keys_probe(struct platform_device *pdev)
 				__func__, ddata->irq_pwronr, ret);
 		goto fail1;
 	}
+	else
+		ddata->irq_pwronr_disabled = false;
 
 	ret = devm_request_threaded_irq(&pdev->dev, ddata->irq_pwronf, NULL,
 			power_keys_falling_irq_handler, 0, "pwronf-irq", ddata);
@@ -802,6 +873,8 @@ static int power_keys_probe(struct platform_device *pdev)
 				__func__, ddata->irq_pwronf, ret);
 		goto fail1;
 	}
+	else
+		ddata->irq_pwronf_disabled = false;
 
 	ret = sysfs_create_group(&dev->kobj, &power_keys_attr_group);
 	if (ret) {
@@ -911,6 +984,7 @@ static int power_keys_suspend(struct device *dev)
 			struct power_button_data *bdata = &ddata->button_data[i];
 			if ((bdata->button->wakeup) && (bdata->irq))
 				enable_irq_wake(bdata->irq);
+			bdata->suspended = true;
 		}
 	} else {
 		mutex_lock(&input->mutex);
@@ -942,6 +1016,7 @@ static int power_keys_resume(struct device *dev)
 			struct power_button_data *bdata = &ddata->button_data[i];
 			if ((bdata->button->wakeup) && (bdata->irq))
 				disable_irq_wake(bdata->irq);
+			bdata->suspended = false;
 		}
 	} else {
 		mutex_lock(&input->mutex);
