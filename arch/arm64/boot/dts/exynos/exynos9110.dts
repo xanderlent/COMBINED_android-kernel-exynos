@@ -409,21 +409,6 @@
 		reg = <0x0 0x11180000 0x1000>;
 	};
 
-	speedy: speedy@11A20000 {
-		compatible = "samsung,exynos-speedy";
-		reg = <0x0 0x11A20000 0x2000>;
-		interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&speedy_bus>;
-#if 0
-		clocks = <&clock GATE_SPEEDY_BATCHER_WRAP_BATCHER_AP>;
-		clock-names = "gate_speedy";
-#endif
-		status = "disabled";
-	};
-
 	acpm {
 		compatible = "samsung,exynos-acpm";
 		#address-cells = <2>;
@@ -747,6 +732,21 @@
 		io-channel-ranges;
 		clocks = <&clock GATE_ADC_CMGP_S0>;
 		clock-names = "gate_adcif";
+	};
+
+	speedy: speedy@11A20000 {
+		compatible = "samsung,exynos-speedy";
+		reg = <0x0 0x11A20000 0x2000>;
+		interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&speedy_bus>;
+#if 0
+		clocks = <&clock GATE_SPEEDY_BATCHER_WRAP_BATCHER_AP>;
+		clock-names = "gate_speedy";
+#endif
+		status = "disabled";
 	};
 
 	rtc@11A30000 {
