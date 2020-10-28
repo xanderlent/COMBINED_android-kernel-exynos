@@ -16,6 +16,7 @@ config EXYNOS_PM_DOMAINS
 	bool "Exynos PM domains" if COMPILE_TEST
 	depends on PM_GENERIC_DOMAINS || COMPILE_TEST
 
+source "drivers/soc/samsung/acpm/Kconfig"
 config EXYNOS_CHIPID
 	bool "Exynos Chipid controller driver"
 	depends on ARCH_EXYNOS
