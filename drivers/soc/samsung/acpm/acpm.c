@@ -34,37 +34,6 @@ static struct acpm_info *exynos_acpm;
 static int acpm_send_data(struct device_node *node, unsigned int check_id,
 		struct ipc_config *config);
 
-static int handle_dynamic_plugin(struct device_node *node, unsigned int id, unsigned int attach)
-{
-	struct ipc_config config;
-	unsigned int cmd[4] = {0, };
-	int ret = 0;
-
-	config.cmd = cmd;
-	if (attach)
-		config.cmd[0] = (1 << ACPM_IPC_PROTOCOL_DP_A);
-	else
-		config.cmd[0] = (1 << ACPM_IPC_PROTOCOL_DP_D);
-
-	config.cmd[0] |= id << ACPM_IPC_PROTOCOL_ID;
-
-	config.response = true;
-	config.indirection = false;
-
-	ret = acpm_send_data(node, id, &config);
-
-	config.cmd = NULL;
-
-	if (!ret) {
-		if (attach)
-			pr_info("[ACPM] plugin(id = %d) attach done!\n", id);
-		else
-			pr_info("[ACPM] plugin(id = %d) detach done!\n", id);
-	}
-
-	return ret;
-}
-
 static void firmware_load(void *base, const char *firmware, int size)
 {
 	memcpy(base, firmware, size);
@@ -106,65 +75,16 @@ static int plugins_init(void)
 	plugins = (struct plugin *)(acpm_srambase + acpm_initdata->plugins);
 
 	for (i = 0; i < acpm_initdata->num_plugins; i++) {
-		if ((plugins[i].is_attached == 0 && plugins[i].stay_attached == 1) ||
-			(plugins[i].is_attached == 1 && plugins[i].stay_attached == 0)) {
+		fw_name = (const char *)(acpm_srambase + plugins[i].fw_name);
 
-			if (plugins[i].is_attached == 0 && plugins[i].stay_attached == 1) {
-				fw_name = (const char *)(acpm_srambase + plugins[i].fw_name);
-				if (!plugins[i].fw_name) {
-					dev_err(exynos_acpm->dev, "fw_name missing on plugins %d.\n", plugins[i].id);
-					return -ENOENT;
-				}
+		if (plugins[i].fw_name && fw_name &&
+				(strstr(fw_name, "DVFS") || strstr(fw_name, "dvfs"))) {
 
-				fw_base_addr = acpm_srambase + (plugins[i].base_addr & ~0x1);
-				if (!plugins[i].base_addr) {
-					dev_err(exynos_acpm->dev, "base_addr missing on plugins %d.\n", plugins[i].id);
-					return -ENOENT;
-				}
-
-				/* Override fw_name from acpm firmware if it is described on DT. */
-				node = of_get_child_by_name(exynos_acpm->dev->of_node, "dynamic-plugins");
-				for_each_child_of_node(node, child) {
-					prop = of_get_property(child, "plugin-id", &len);
-					if (!prop)
-						continue;
-					plugin_id = be32_to_cpup(prop);
-
-					if (plugin_id != i)
-						continue;
-
-					if (of_property_read_string(child, "fw-name", &fw_name)) {
-						dev_err(exynos_acpm->dev, "fw name of plugin %d is invalid in DT.\n", i);
-						return -EINVAL;
-					}
-				}
-
-				strncpy(name, fw_name, 50);
-				name[49]= 0;
-
-				firmware_update(exynos_acpm->dev, fw_base_addr, name);
-			}
-
-			ret = handle_dynamic_plugin(exynos_acpm->dev->of_node, plugins[i].id, plugins[i].stay_attached);
-			if (ret < 0)
-				dev_err(exynos_acpm->dev, "plugin attach/detach:%u fail! plugin_id:%d, ret:%d",
-						plugins[i].stay_attached, plugins[i].id, ret);
-
-			if (fw_name && strstr(fw_name, "dvfs"))
-				fvmap_init(fw_base_addr + plugins[i].size);
-
-		} else if (plugins[i].is_attached == 1 && plugins[i].stay_attached == 1) {
-			fw_name = (const char *)(acpm_srambase + plugins[i].fw_name);
-
-			if (plugins[i].fw_name && fw_name &&
-					(strstr(fw_name, "DVFS") || strstr(fw_name, "dvfs"))) {
-
-				fw_base_addr = acpm_srambase + (plugins[i].base_addr & ~0x1);
-				prop = of_get_property(exynos_acpm->dev->of_node, "fvmap_offset", &len);
-				if (prop) {
-					offset = be32_to_cpup(prop);
-					fvmap_init(fw_base_addr + offset);
-				}
+			fw_base_addr = acpm_srambase + (plugins[i].base_addr & ~0x1);
+			prop = of_get_property(exynos_acpm->dev->of_node, "fvmap_offset", &len);
+			if (prop) {
+				offset = be32_to_cpup(prop);
+				//	fvmap_init(fw_base_addr + offset);
 			}
 		}
 	}
