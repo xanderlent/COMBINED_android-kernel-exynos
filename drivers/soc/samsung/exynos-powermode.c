@@ -915,14 +915,14 @@ arch_initcall(exynos_powermode_init);
 
 static int __init exynos_powermode_cpu_hotplug_init(void)
 {
-//	cpuhp_setup_state(CPUHP_AP_EXYNOS_CPU_UP_POWER_CONTROL,
-//				"AP_EXYNOS_CPU_UP_POWER_CONTROL",
-//				exynos_hotplug_in_callback,
-//				NULL);
-//	cpuhp_setup_state(CPUHP_AP_EXYNOS_CPU_DOWN_POWER_CONTROL,
-//				"AP_EXYNOS_CPU_DOWN_POWER_CONTROL",
-//				NULL,
-//				exynos_hotplug_out_callback);
+	cpuhp_setup_state(CPUHP_AP_EXYNOS_CPU_UP_POWER_CONTROL,
+				"AP_EXYNOS_CPU_UP_POWER_CONTROL",
+				exynos_hotplug_in_callback,
+				NULL);
+	cpuhp_setup_state(CPUHP_AP_EXYNOS_CPU_DOWN_POWER_CONTROL,
+				"AP_EXYNOS_CPU_DOWN_POWER_CONTROL",
+				NULL,
+				exynos_hotplug_out_callback);
 
 	return 0;
 }
