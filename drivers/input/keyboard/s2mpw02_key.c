@@ -507,7 +507,7 @@ static void power_keys_power_report_event(struct power_button_data *bdata)
 {
 	const struct power_keys_button *button = bdata->button;
 	struct input_dev *input = bdata->input;
-	struct power_keys_drvdata *ddata = input_get_drvdata(input);
+//	struct power_keys_drvdata *ddata = input_get_drvdata(input);
 	unsigned int type = button->type ?: EV_KEY;
 	int state = bdata->key_pressed;
 
