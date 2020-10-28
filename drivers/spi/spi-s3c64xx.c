@@ -2232,6 +2232,7 @@ static struct platform_driver s3c64xx_spi_driver = {
 		.pm = &s3c64xx_spi_pm,
 		.of_match_table = of_match_ptr(s3c64xx_spi_dt_match),
 	},
+	.probe = s3c64xx_spi_probe,
 	.remove = s3c64xx_spi_remove,
 	.id_table = s3c64xx_spi_driver_ids,
 };
@@ -2242,7 +2243,7 @@ static int __init s3c64xx_spi_init(void)
 #if defined(CONFIG_CPU_IDLE)
 	exynos_pm_register_notifier(&s3c64xx_spi_notifier_block);
 #endif
-	return platform_driver_probe(&s3c64xx_spi_driver, s3c64xx_spi_probe);
+	return platform_driver_register(&s3c64xx_spi_driver);
 }
 subsys_initcall(s3c64xx_spi_init);
 
