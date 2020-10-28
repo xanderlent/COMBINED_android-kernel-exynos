@@ -59,7 +59,7 @@
 	};
 
 	serial_0: uart@13820000 {
-		compatible = "samsung,exynos4210-uart";
+		compatible = "samsung,exynos-uart";
 		reg = <0x0 0x13820000 0x100>;
 		samsung,separate-uart-clk;
 		samsung,fifo-size = <256>;
@@ -67,8 +67,7 @@
 		interrupts = <0 INTREQ_USI_UART IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_bus_single>; /* or _bus_dual */
-		//clocks = <&clock GATE_USI_UART>, <&clock PERI_UART>;
-		clocks = <&ext_133m>, <&ext_133m>;
+		clocks = <&clock GATE_USI_UART>, <&clock PERI_UART>;
 		clock-names = "gate_uart_clk0", "ipclk_uart0";
 		samsung,usi-serial-v2;
 		samsung,dbg-uart-ch;
