@@ -42,3 +42,6 @@ obj-$(CONFIG_EXYNOS_DVFS_MANAGER)	+= exynos-dm.o
 
 # DEBUG
 obj-$(CONFIG_EXYNOS_DEBUG)      += debug/
+
+# CPU HOTPLUG
+obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-cpu_hotplug.o
