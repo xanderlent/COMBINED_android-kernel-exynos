@@ -402,6 +402,42 @@ static int psci_suspend_finisher(unsigned long state_id)
 	return psci_ops.cpu_suspend(state_id,
 				    __pa_symbol(cpu_resume));
 }
+
+/*
+ * We hope that PSCI framework cover the all platform specific power
+ * states, unfortunately PSCI can support only state managed by cpuidle.
+ * psci_suspend_customized_finisher supports extra power state which
+ * cpuidle does not handle. This function is only for Exynos.
+ */
+static int psci_suspend_customized_finisher(unsigned long index)
+{
+	u32 state;
+
+	switch (index) {
+		case PSCI_CLUSTER_SLEEP:
+			state = psci_power_state_pack(0, 0, 1);
+			break;
+		case PSCI_SYSTEM_IDLE:
+		case PSCI_SYSTEM_IDLE_AUDIO:
+			state = psci_power_state_pack(1, 0, 0);
+			break;
+		case PSCI_SYSTEM_IDLE_CLUSTER_SLEEP:
+			state = psci_power_state_pack(1, 0, 1);
+			break;
+		case PSCI_CP_CALL:
+			state = psci_power_state_pack(0, 0, 2);
+			break;
+		case PSCI_SYSTEM_SLEEP:
+			state = psci_power_state_pack(0, 0, 3);
+			break;
+		default:
+			panic("Unsupported psci state, index = %ld\n", index);
+			break;
+	};
+
+	return psci_ops.cpu_suspend(state, virt_to_phys(cpu_resume));
+}
+
 int psci_cpu_suspend_enter(unsigned long state_id)
 {
 	int ret;
@@ -412,6 +448,9 @@ int psci_cpu_suspend_enter(unsigned long state_id)
 	 */
 	if (WARN_ON_ONCE(!state_id))
 		return -EINVAL;
+
+	if (unlikely(state_id >= PSCI_UNUSED_INDEX))
+		return cpu_suspend(state_id, psci_suspend_customized_finisher);
 
 	if (!psci_power_state_loses_context(state_id))
 		ret = psci_ops.cpu_suspend(state_id, 0);
