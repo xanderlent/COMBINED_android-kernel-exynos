@@ -17,9 +17,9 @@
 
 #include <mali_kbase.h>
 #if defined(CONFIG_SOC_EXYNOS9110)
-#include <linux/apm-exynos.h>
+//#include <linux/apm-exynos.h>
 #include <soc/samsung/exynos-pd.h>
-#include <soc/samsung/asv-exynos.h>
+//#include <soc/samsung/asv-exynos.h>
 #endif
 
 #include "mali_kbase_platform.h"

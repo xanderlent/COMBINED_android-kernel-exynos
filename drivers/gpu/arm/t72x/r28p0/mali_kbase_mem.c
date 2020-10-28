@@ -42,9 +42,6 @@
 #include <mali_kbase_hw.h>
 #include <mali_kbase_tlstream.h>
 
-/* MALI_SEC_INTEGRATION */
-#include <linux/exynos_ion.h>
-
 /* Forward declarations */
 static void free_partial_locked(struct kbase_context *kctx,
 		struct kbase_mem_pool *pool, struct tagged_addr tp);
@@ -1113,20 +1110,6 @@ void kbase_free_alloced_region(struct kbase_va_region *reg)
 
 		reg->flags |= KBASE_REG_VA_FREED;
 		kbase_va_region_alloc_put(kctx, reg);
-
-		/* MALI_SEC_SECURE_RENDERING */
-#ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
-		if ((reg->flags & KBASE_REG_SECURE) && !(reg->flags & KBASE_REG_SECURE_CRC)) {
-            struct kbase_context *kctx = kbase_reg_flags_to_kctx(reg);
-            struct kbase_device *kbdev = kctx->kbdev;
-			if (kbdev->protected_mode_support == true && kbdev->protected_ops != NULL) {
-				int err = -EINVAL;
-				err = kbdev->protected_ops->secure_mem_disable(kbdev, reg);
-				if (err)
-					dev_warn(kbdev->dev, "Failed to disable secure memory : 0x%08x\n", err);
-			}
-		}
-#endif
 	} else {
 		kfree(reg);
 	}
@@ -1253,8 +1236,6 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu,
 			reg->start_pfn, kbase_reg_current_backed_size(reg),
 			kctx->as_nr);
-		/* MALI_SEC_INTEGRATION */
-		if (reg->gpu_alloc)
 			kbase_mem_phy_alloc_gpu_unmapped(reg->gpu_alloc);
 	}
 
@@ -1441,12 +1422,6 @@ static int kbase_do_syncset(struct kbase_context *kctx,
 
 	kbase_os_mem_map_lock(kctx);
 	kbase_gpu_vm_lock(kctx);
-
-	/* MALI_SEC_INTEGRATION */
-	if (sset->size > 8*1024*1024) {
-		flush_all_cpu_caches();
-		goto out_unlock;
-	}
 
 	/* find the region where the virtual address is contained */
 	reg = kbase_region_tracker_find_region_enclosing_address(kctx,
@@ -2513,12 +2488,9 @@ bool kbase_check_alloc_flags(unsigned long flags)
 
 bool kbase_check_import_flags(unsigned long flags)
 {
-/* MALI_SEC_SECURE_RENDERING */
-#ifndef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
 	/* Only known input flags should be set. */
 	if (flags & ~BASE_MEM_FLAGS_INPUT_MASK)
 		return false;
-#endif
 
 	/* At least one flag should be set */
 	if (flags == 0)
@@ -3557,19 +3529,6 @@ static int kbase_jd_umm_map(struct kbase_context *kctx,
 	for_each_sg(sgt->sgl, s, sgt->nents, i) {
 		size_t j, pages = PFN_UP(sg_dma_len(s));
 
-		/* MALI_SEC_INTEGRATION */
-		if (WARN(s == NULL, "s is NULL goto errout\n")) {
-			err = -EINVAL;
-			goto err_unmap_attachment;
-		}
-
-		/* MALI_SEC_INTEGRATION */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-		pages = PFN_UP(sg_dma_len(s));
-#else
-		pages = PFN_UP(s->length);
-#endif
-
 		WARN_ONCE(sg_dma_len(s) & (PAGE_SIZE-1),
 		"sg_dma_len(s)=%u is not a multiple of PAGE_SIZE\n",
 		sg_dma_len(s));
@@ -3631,10 +3590,6 @@ err_teardown_orig_pages:
 err_unmap_attachment:
 	dma_buf_unmap_attachment(alloc->imported.umm.dma_attachment,
 			alloc->imported.umm.sgt, DMA_BIDIRECTIONAL);
-
-	/* MALI_SEC_INTEGRATION */
-	exynos_ion_sync_dmabuf_for_device(kctx->kbdev->dev, alloc->imported.umm.dma_buf, alloc->imported.umm.dma_buf->size, DMA_BIDIRECTIONAL);
-
 	alloc->imported.umm.sgt = NULL;
 
 	return err;

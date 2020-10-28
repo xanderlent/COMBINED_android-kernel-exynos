@@ -67,7 +67,7 @@ config MALI_RT_PM
 config MALI_EXYNOS_TRACE
     bool "Enable EXYNOS kbase tracing"
     depends on MALI_T72X
-    default y
+    default n
     help
       Enables tracing in kbase.  Trace log available through
       the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
@@ -97,7 +97,7 @@ config MALI_SEC_UTILIZATION
 config MALI_PM_QOS
     bool "Enable DVFS with QoS"
     depends on MALI_T72X && MALI_DVFS && PM_DEVFREQ && CPU_FREQ
-    default y
+    default n
     help
       Choose this option to enable PM_QOS in the Mali tMIX DDK.
 
@@ -132,6 +132,6 @@ config MALI_SEC_ASP_SECURE_BUF_CTRL
 config MALI_SEC_JOB_STATUS_CHECK
 	bool "Enable GPU JOB & FENCE STATUS DUMP "
 	depends on MALI_RT_PM && MALI_DVFS && (SYNC || SYNC_FILE)
-	default y
+	default n
 	help
 	  Choose this option to enable job & fence status dump feature in the Mali Midgard DDK.
