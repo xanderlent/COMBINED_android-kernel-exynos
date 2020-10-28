@@ -668,11 +668,21 @@
 		samsung,pin-pud = <1>;
 		samsung,pin-drv = <0>;
 	};
+
 	key_back: key-back {
 		samsung,pins = "gpa0-2";
 		samsung,pin-function = <0xf>;
 		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
+	};
+
+	tsp_int: tsp-int {
+		samsung,pins = "gpa0-1";
+		samsung,pin-function = <0xf>; /* WEINT_GPA0[1] */
+		samsung,pin-pud = <0>; /* Pull-up/down disabled */
+		samsung,pin-drv = <0>; /* 1x */
+		samsung,pin-con-pdn = <3>; /* Previous State */
+		samsung,pin-pud-pdn = <0>; /* Pull-up/down disabled */
 	};
 };
 
@@ -839,8 +849,25 @@
 		 samsung,pin-val = <0>;
 		 samsung,pin-pud = <1>;
 	};
-};
 
+	tsp_reset: tsp-reset {
+		samsung,pins = "gpg4-0";
+		samsung,pin-function = <0x0>; /* Input */
+		samsung,pin-pud = <0>; /* Pull-up/down disabled */
+		samsung,pin-drv = <0>; /* 1x */
+		samsung,pin-con-pdn = <2>; /* Input */
+		samsung,pin-pud-pdn = <0>; /* Pull-up/down disabled */
+	};
+
+	tsp_lpm: tsp-lpm {
+		samsung,pins = "gpg6-1";
+		samsung,pin-function = <0x0>; /* Input */
+		samsung,pin-pud = <1>; /* Enables pull-down */
+		samsung,pin-drv = <0>; /* 1x */
+		samsung,pin-con-pdn = <2>; /* Input */
+		samsung,pin-pud-pdn = <1>; /* Enables pull-down */
+	};
+};
 
 &speedy {
 	#address-cells = <1>;
@@ -1125,4 +1152,23 @@
 			<0 124 IRQ_TYPE_LEVEL_HIGH>, <0 125 IRQ_TYPE_LEVEL_HIGH>,
 			<0 142 IRQ_TYPE_LEVEL_HIGH>, <0 143 IRQ_TYPE_LEVEL_HIGH>,
 			<0 146 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	zxt_tsp@20 {
+		compatible = "Zinitix,ztm620_ts";
+		reg = <0x20>; /*i2c slave address*/
+		pinctrl-names = "wakeup", "off";
+		pinctrl-0 = <&tsp_reset &tsp_int &tsp_lpm>;
+		pinctrl-1 = <&tsp_reset &tsp_int &tsp_lpm>;
+		zinitix,irq-gpio = <&gpa0 1 0xf>;
+		zinitix,reset-gpio = <&gpg4 0 0>;
+		zinitix,x_resolution = <360>;
+		zinitix,y_resolution = <360>;
+		ztw522,fw_name = "ztm630.nobless.small.fw";
+		avdd_regulator = "vdd_ldo25";
+	};
 };
