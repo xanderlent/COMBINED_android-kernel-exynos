@@ -1068,7 +1068,7 @@ static int __init exynos_speedy_init(void)
 {
 	return platform_driver_register(&exynos_speedy_driver);
 }
-subsys_initcall(exynos_speedy_init);
+subsys_initcall_sync(exynos_speedy_init);
 
 static void __exit exynos_speedy_exit(void)
 {
