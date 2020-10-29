@@ -3,6 +3,8 @@
 # kbuild file for firmware/
 #
 
+CONFIG_EXTRA_FIRMWARE_DIR="firmware"
+
 # Create $(fwabs) from $(CONFIG_EXTRA_FIRMWARE_DIR) -- if it doesn't have a
 # leading /, it's relative to $(srctree).
 fwdir := $(subst $(quote),,$(CONFIG_EXTRA_FIRMWARE_DIR))
@@ -10,7 +12,7 @@ fwabs := $(addprefix $(srctree)/,$(filter-out /%,$(fwdir)))$(filter /%,$(fwdir))
 
 fw-external-y := $(subst $(quote),,$(CONFIG_EXTRA_FIRMWARE))
 
-fw-shipped-$(CONFIG_TOUCHSCREEN_ZXT_ZTM620) += tsp_zinitix/ztm630.nobless.small.fw
+fw-external-$(CONFIG_TOUCHSCREEN_ZXT_ZTM620) += tsp_zinitix/ztm630.nobless.small.fw
 
 quiet_cmd_fwbin = MK_FW   $@
       cmd_fwbin = FWNAME="$(patsubst firmware/%.gen.S,%,$@)";		     \
@@ -44,8 +46,7 @@ wordsize_deps := $(wildcard include/config/64bit.h include/config/32bit.h \
 		include/config/x86_32.h include/config/x86_64.h \
 		firmware/Makefile)
 
-$(patsubst %,$(obj)/%.gen.S, $(fw-external-y)): %: $(wordsize_deps) \
-		include/config/extra/firmware/dir.h
+$(patsubst %,$(obj)/%.gen.S, $(fw-external-y)): %: $(wordsize_deps)
 	$(call cmd,fwbin,$(fwabs)/$(patsubst $(obj)/%.gen.S,%,$@))
 
 # The .o files depend on the binaries directly; the .S files don't.
