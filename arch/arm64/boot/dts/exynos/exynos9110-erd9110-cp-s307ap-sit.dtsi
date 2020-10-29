@@ -1,7 +1,7 @@
 /*
- * SAMSUNG UNIVERSAL9810 board device tree source
+ * Samsung CP interface device tree source
  *
- * Copyright (c) 2016 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2020 Samsung Electronics Co., Ltd.
  *             http://www.samsung.com
  *
  * This program is free software; you can redistribute it and/or modify
@@ -32,17 +32,14 @@
 				ap2cp_cfg_addr = <0x14000000>;
 
 				/* common pdata */
-				mif,name = "ss360ap";
+				mif,name = "s307ap";
 				mif,cp_num = <0>;
 				mif,modem_type = <SEC_S5000AP>;
-				mif,protocol = <PROTOCOL_SIPC>;
+				mif,protocol = <PROTOCOL_SIT>;
 				mif,ipc_version = <SIPC_VER_50>;
 				mif,link_type = <LINKDEV_SHMEM>;
 				mif,link_name = "shmem";
-				mif,link_attrs = <(LINK_ATTR_MASK_XMIT_BTDLR |
-							LINK_ATTR_MASK_DUMP_ALIGNED | LINK_ATTR_MASK_BOOT_ALIGNED |
-							LINK_ATTR_MASK_MEM_DUMP | LINK_ATTR_MASK_MEM_BOOT |
-							LINK_ATTR_MASK_DPRAM_MAGIC)>;
+				mif,link_attrs = <(LINK_ATTR_MASK_XMIT_BTDLR | LINK_ATTR_MASK_DUMP_ALIGNED | LINK_ATTR_MASK_BOOT_ALIGNED | LINK_ATTR_MASK_MEM_DUMP | LINK_ATTR_MASK_MEM_BOOT | LINK_ATTR_MASK_DPRAM_MAGIC)>;
 				mif,interrupt_types = <INTERRUPT_MAILBOX>;
 
 			/* Mailbox interrupt number from AP to CP */
@@ -109,8 +106,6 @@
 				/* Status bit info for mbx_cp2ap_united_status */
 				sbi_cp_rat_mode_mask = <0x3f>;
 				sbi_cp_rat_mode_pos = <26>;
-				sbi_cp_evs_mode_mask = <0x1>;
-				sbi_cp_evs_mode_pos = <7>;
 				sbi_cp2ap_wakelock_mask = <0x1>;
 				sbi_cp2ap_wakelock_pos = <6>;
 				sbi_lte_active_mask = <0x1>;
@@ -128,185 +123,191 @@
 				cp_btl_node_name = "ramdump_memshare";
 
 /* IO devices */
-				mif,num_iodevs = <22>;
+				mif,num_iodevs = <23>;
 				iodevs {
 					io_device_0 {
-						iod,name = "umts_cass";
-						iod,ch = <35>;
-						iod,format = <1>;		/* IPC_RAW */
+						iod,name = "umts_ipc0";
+						iod,ch = <245>;
+						iod,format = <0>;		/* IPC_FMT */
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x2002>;		/* ? | ATTR_SBD_IPC | ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_1 {
-						iod,name = "umts_ipc0";
-						iod,ch = <235>;
+						iod,name = "umts_ipc1";
+						iod,ch = <246>;
 						iod,format = <0>;		/* IPC_FMT */
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x2>;		/* ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_2 {
-						iod,name = "umts_ipc1";
-						iod,ch = <236>;
-						iod,format = <0>;		/* IPC_FMT */
+						iod,name = "umts_rfs0";
+						iod,ch = <41>;
+						iod,format = <1>;		/* IPC_RAW?? */
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x02>;		/* ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_3 {
-						iod,name = "umts_rfs0";
-						iod,ch = <245>;
-						iod,format = <2>;		/* IPC_RFS */
+						iod,name = "umts_router";
+						iod,ch = <21>;
+						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x02>;		/* ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_4 {
-						iod,name = "umts_csd";
-						iod,ch = <1>;
+						iod,name = "umts_dm0";
+						iod,ch = <81>;
 						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x02>;		/* ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_5 {
-						iod,name = "umts_router";
-						iod,ch = <25>;
-						iod,format = <1>;		/* IPC_RAW */
+						iod,name = "umts_loopback";
+						iod,ch = <82>;
+						iod,format = <1>;		/* IPC_FMT */
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x02>;		/* ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_6 {
-						iod,name = "umts_dm0";
-						iod,ch = <28>;
+						iod,name = "rmnet0";
+						iod,ch = <1>;
 						iod,format = <1>;		/* IPC_RAW */
-						iod,io_type = <IODEV_IPC>;
+						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x02>;		/* ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_7 {
-						iod,name = "ipc_loopback0";
-						iod,ch = <244>;
-						iod,format = <0>;		/* IPC_FMT */
-						iod,io_type = <IODEV_IPC>;
+						iod,name = "rmnet1";
+						iod,ch = <2>;
+						iod,format = <1>;		/* IPC_RAW */
+						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x02>;		/* ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_8 {
-						iod,name = "rmnet0";
-						iod,ch = <10>;
+						iod,name = "rmnet2";
+						iod,ch = <3>;
 						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
+						iod,attrs = <0x0>;
 					};
 					io_device_9 {
-						iod,name = "rmnet1";
-						iod,ch = <11>;
+						iod,name = "rmnet3";
+						iod,ch = <4>;
 						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
+						iod,attrs = <0x0>;
 					};
 					io_device_10 {
-						iod,name = "rmnet2";
-						iod,ch = <12>;
+						iod,name = "rmnet4";
+						iod,ch = <5>;
 						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
+						iod,attrs = <0x0>;
 					};
 					io_device_11 {
-						iod,name = "rmnet3";
-						iod,ch = <13>;
+						iod,name = "rmnet5";
+						iod,ch = <6>;
 						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
+						iod,attrs = <0x0>;
 					};
 					io_device_12 {
-						iod,name = "rmnet4";
-						iod,ch = <14>;
+						iod,name = "rmnet6";
+						iod,ch = <7>;
 						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
+						iod,attrs = <0x0>;
 					};
 					io_device_13 {
-						iod,name = "rmnet5";
-						iod,ch = <15>;
+						iod,name = "rmnet7";
+						iod,ch = <8>;
 						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
+						iod,attrs = <0x0>;
 					};
 					io_device_14 {
-						iod,name = "rmnet6";
-						iod,ch = <16>;
-						iod,format = <1>;		/* IPC_RAW */
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
-					};
-					io_device_15 {
-						iod,name = "rmnet7";
-						iod,ch = <17>;
-						iod,format = <1>;		/* IPC_RAW */
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
-					};
-					io_device_16 {
-						iod,name = "multipdp_hiprio";
-						iod,ch = <0>;
-						iod,format = <3>;		/* IPC_MULTI_RAW */
-						iod,io_type = <IODEV_DUMMY>;
-						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
-					};
-					io_device_17 {
 						iod,name = "multipdp";
 						iod,ch = <0>;
 						iod,format = <3>;		/* IPC_MULTI_RAW */
 						iod,io_type = <IODEV_DUMMY>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x100>;		/* ATTR_NO_LINK_HDR */
+						iod,attrs = <0x0>;
 					};
-					io_device_18 {
+					io_device_15 {
 						iod,name = "umts_boot0";
-						iod,ch = <215>;
+						iod,ch = <241>;
 						iod,format = <4>;		/* IPC_BOOT */
 						iod,io_type = <IODEV_BOOTDUMP>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x02>;		/* ATTR_SIPC5 */
+						iod,attrs = <0x200>;		/* ATTR_NO_CHECK_MAXQ*/
+					};
+					io_device_16 {
+						iod,name = "umts_rcs0";
+						iod,ch = <91>;
+						iod,format = <0>;		/* IPC_FMT */
+						iod,io_type = <IODEV_IPC>;
+						iod,link_type = <LINKDEV_SHMEM>;
+						iod,attrs = <0x0>;
+					};
+					io_device_17 {
+						iod,name = "umts_rcs1";
+						iod,ch = <92>;
+						iod,format = <1>;		/* IPC_RAW */
+						iod,io_type = <IODEV_IPC>;
+						iod,link_type = <LINKDEV_SHMEM>;
+						iod,attrs = <0x0>;
+					};
+					io_device_18 {
+						iod,name = "umts_wfc0";
+						iod,ch = <93>;
+						iod,format = <0>;		/* IPC_FMT */
+						iod,io_type = <IODEV_IPC>;
+						iod,link_type = <LINKDEV_SHMEM>;
+						iod,attrs = <0x0>;
 					};
 					io_device_19 {
-						iod,name = "umts_ramdump0";
-						iod,ch = <225>;
-						iod,format = <5>;		/* IPC_DUMP */
-						iod,io_type = <IODEV_BOOTDUMP>;
+						iod,name = "umts_wfc1";
+						iod,ch = <94>;
+						iod,format = <1>;		/* IPC_RAW */
+						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x202>;		/* ATTR_NO_CHECK_MAXQ | ATTR_SIPC5 */
+						iod,attrs = <0x0>;
 					};
 					io_device_20 {
-						iod,name = "smd4";
-						iod,ch = <33>;
+						iod,name = "umts_embms0";
+						iod,ch = <30>;
 						iod,format = <1>;		/* IPC_RAW */
-						iod,io_type = <IODEV_IPC>;
+						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x802>;		/* ATTR_OPTION_REGION | ATTR_SIPC5 */
-						iod,option_region = "kor_skt";
+						iod,attrs = <0x0>;
 					};
 					io_device_21 {
-						iod,name = "umts_ciq0";
-						iod,ch = <26>;
+						iod,name = "umts_embms1";
+						iod,ch = <31>;
+						iod,format = <1>;		/* IPC_RAW */
+						iod,io_type = <IODEV_NET>;
+						iod,link_type = <LINKDEV_SHMEM>;
+						iod,attrs = <0x0>;
+					};
+					io_device_22 {
+						iod,name = "umts_atc0";
+						iod,ch = <23>;
 						iod,format = <1>;		/* IPC_RAW */
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_SHMEM>;
-						iod,attrs = <0x802>;		/* ATTR_OPTION_REGION | ATTR_SIPC5 */
-						iod,option_region = "usa_spr";
+						iod,attrs = <0x0>;
 					};
 				}; /* end of iodevs */
 			}; /* end of cpif */
@@ -338,14 +339,14 @@
 						region,index = <SHMEM_CP>;
 						region,rmem = <0>;
 						region,offset = <0x00000000>;
-						region,size = <0x05800000>;
+						region,size = <0x05400000>;
 						region,cached = <0>;
 					};
 					vss {
 						region,name = "VSS";
 						region,index = <SHMEM_VSS>;
 						region,rmem = <0>;
-						region,offset = <0x05800000>;
+						region,offset = <0x05400000>;
 						region,size = <0x00400000>;
 						region,cached = <0>;
 					};
@@ -353,7 +354,7 @@
 						region,name = "IPC";
 						region,index = <SHMEM_IPC>;
 						region,rmem = <0>;
-						region,offset = <0x5C00000>;
+						region,offset = <0x05800000>;
 						region,size = <0x00400000>;
 						region,cached = <0>;
 					};
