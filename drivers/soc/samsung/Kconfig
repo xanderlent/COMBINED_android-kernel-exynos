@@ -92,6 +92,11 @@ config CMUCAL
 	default y
 	help
 	  Support CMUCAL for Exynos SoC.
+config CP_PMUCAL
+	bool "Exynos PMU(for CP) Chip Abstraction Layer"
+	depends on CAL_IF
+	help
+	Support CP_PMUCAL for Exynos SoC.
 
 config CMUCAL_DEBUG
 	bool "CMUCAL Debug Interface"
@@ -108,4 +113,5 @@ config ACPM_DVFS
 	help
 	  Support ACPM DVFS for Exynos SoC.
 
+source "drivers/soc/samsung/cpif/Kconfig"
 endif

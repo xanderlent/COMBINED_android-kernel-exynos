@@ -27,3 +27,10 @@ obj-$(CONFIG_EXYNOS_RGT)        += exynos-rgt.o
 
 # USI_V2
 obj-$(CONFIG_USI_V2) += usi_v2.o
+# CP
+ifneq ($(CONFIG_CP_PMUCAL), y)
+obj-$(CONFIG_EXYNOS_MODEM_IF) += pmu-cp.o
+endif
+#obj-$(CONFIG_SEC_MODEM_IF)  	+= pmu-cp.o
+# CPIF
+obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif/
