@@ -1045,17 +1045,11 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 
 		rate = clk_get_rate(ourport->clk);
 
-		if (ourport->src_clk_rate && rate != ourport->src_clk_rate)
+		if (!rate)
 		{
 			ret = clk_set_rate(ourport->clk, ourport->src_clk_rate);
 			if (ret < 0)
 				dev_err(&ourport->pdev->dev, "UART clk set failed\n");
-
-			rate = clk_get_rate(ourport->clk);
-		} else {
-			ret = clk_set_rate(ourport->clk, ourport->src_clk_rate);
-			if (ret < 0)
-				dev_err(&ourport->pdev->dev, "UART Default clk set failed\n");
 
 			rate = clk_get_rate(ourport->clk);
 		}
