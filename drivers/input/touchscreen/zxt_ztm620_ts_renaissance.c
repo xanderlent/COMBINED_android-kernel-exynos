@@ -270,32 +270,6 @@ static s32 ztm620_read_data_only(struct i2c_client *client, u8 *values, u16 leng
 }
 #endif
 
-static inline s32 ztm620_write_nvm_lpm_off(struct i2c_client *client)
-{
-	struct ztm620_info *info = i2c_get_clientdata(client);
-	struct i2c_adapter *adapter = client->adapter;
-	struct dev_pm_info *i2c_dev_pm = &adapter->dev.power;
-	// CC02 004C 001F 0000 0000
-	const u8 pkt[10] = {0x02, 0xCC, 0x4C, 0x00, 0x1F,
-			 0x00, 0x00, 0x00, 0x00, 0x00} ;
-	s32 ret;
-	int count = 0;
-
-	if (i2c_dev_pm->is_suspended)
-		dev_info(&client->dev, "%s:i2c_adapter is in suspend[%d]\n",
-			__func__, i2c_dev_pm->is_suspended);
-
-	ret = i2c_master_send(client , pkt , 10);
-	if (ret < 0) {
-		info->comm_err_cnt++;
-		dev_err(&client->dev, "%s:failed to send NVM LPM OFF ret:%d, try:%d\n",
-					__func__,ret, count + 1);
-		return ret;
-	}
-
-	return 0;
-}
-
 static inline s32 ztm620_write_data(struct i2c_client *client, u16 reg, u8 *values, u16 length)
 {
 	struct ztm620_info *info = i2c_get_clientdata(client);
@@ -829,13 +803,6 @@ static bool ztm620_power_sequence(struct ztm620_info *info)
 	u16 chip_code;
 
 retry_power_sequence:
-	ret = ztm620_write_nvm_lpm_off(client);
-	if (ret != I2C_SUCCESS) {
-		dev_err(&client->dev, "%s:failed to NVM LPM OFF\n", __func__);
-		goto fail_power_sequence;
-	}
-	ztm620_delay(10);
-
 	ret = ztm620_write_reg(client, 0xc000, 0x0001);
 	if (ret != I2C_SUCCESS) {
 		dev_err(&client->dev, "%s:Failed to send power sequence(vendor cmd enable)\n", __func__);
@@ -1208,7 +1175,7 @@ static bool ztm620_upgrade_firmware(struct ztm620_info *info, const u8 *firmware
 	u32 flash_addr;
 	u8 *verify_data;
 	int i, ret;
-	int page_sz = 64;
+	int page_sz = 128;
 	u16 chip_code;
 	int retry_cnt = 0;
 
@@ -1222,6 +1189,19 @@ static bool ztm620_upgrade_firmware(struct ztm620_info *info, const u8 *firmware
 	if (!verify_data) {
 		dev_err(&client->dev, "%s:cannot alloc verify buffer\n", __func__);
 		return false;
+	}
+
+	ret = ztm620_regulator_off(info);
+	if (ret) {
+		dev_err(&info->client->dev,
+			"%s:Failed to ztm620_regulator_off\n", __func__);
+	}
+
+	msleep(POWER_ON_DELAY);
+	ret = ztm620_regulator_on(info);
+	if (ret) {
+		dev_err(&info->client->dev,
+			"%s:Failed to ztm620_regulator_on\n", __func__);
 	}
 
 retry_upgrade:
@@ -1268,13 +1248,6 @@ retry_upgrade:
 		dev_err(&client->dev, "%s:failed to write nvm vpp on\n", __func__);
 		goto fail_upgrade;
 	}
-
-	ret = ztm620_write_nvm_lpm_off(client);
-	if (ret != I2C_SUCCESS) {
-		dev_err(&client->dev, "%s:failed to NVM LPM OFF\n", __func__);
-		goto fail_upgrade;
-	}
-	ztm620_delay(10);
 
 	ret = ztm620_write_cmd(client, ZTM620_INIT_FLASH);
 	if (ret != I2C_SUCCESS) {
@@ -1350,21 +1323,49 @@ retry_upgrade:
 	if (!ret) {
 		dev_info(&client->dev, "%s:upgrade finished\n", __func__);
 		devm_kfree(&client->dev, verify_data);
-
-		ret = ztm620_write_reg(client, 0xc001, 0x0001);
-		if (ret != I2C_SUCCESS) {
-			dev_err(&client->dev, "%s:failed to write ROM reset \n", __func__);
-			goto fail_upgrade;
+		ret = ztm620_regulator_off(info);
+		if (ret) {
+			dev_err(&info->client->dev,
+				"%s:Failed to ztm620_regulator_off\n", __func__);
 		}
+
+		msleep(POWER_ON_DELAY);
+		ret = ztm620_regulator_on(info);
+		if (ret) {
+			dev_err(&info->client->dev,
+				"%s:Failed to ztm620_regulator_on\n", __func__);
+		}
+
+		ret = ztm620_power_sequence(info);
+		if (!ret) {
+			dev_err(&info->client->dev,
+				"%s:Failed to ztm620_power_sequence\n",
+				__func__);
+		}
+
+		ret = ztm620_mini_init_touch(info);
+		if (!ret) {
+			dev_err(&client->dev,
+				"%s:Failed to mini_init_touch\n", __func__);
+		}
+
 		ztm620_delay(200);
 		return true;
 	} else
 		dev_err(&client->dev, "%s:Failed to verify firmare\n", __func__);
 
 fail_upgrade:
-	ret = ztm620_write_cmd(client, 0x01F8);
-	if (ret != I2C_SUCCESS) {
-		dev_err(&client->dev, "%s:ROM reset\n", __func__);
+	ret = ztm620_regulator_off(info);
+	if (ret) {
+		dev_err(&info->client->dev,
+			"%s:Failed to ztm620_regulator_off\n", __func__);
+	}
+
+	msleep(POWER_ON_DELAY);
+	ret = ztm620_regulator_on(info);
+	if (ret) {
+		dev_err(&info->client->dev,
+			"%s:Failed to ztm620_regulator_on\n", __func__);
 	}
 
 	if (retry_cnt++ < INIT_RETRY_CNT) {
