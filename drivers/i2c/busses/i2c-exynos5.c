@@ -766,6 +766,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	unsigned char byte;
 	int ret = 0;
 	int operation_mode = i2c->operation_mode;
+	struct cpumask cpumask;
 
 	i2c->msg = msgs;
 	i2c->msg_ptr = 0;
@@ -840,11 +841,11 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	writel(i2c_ctl, i2c->regs + HSI2C_CTL);
 
 	if (operation_mode == HSI2C_INTERRUPT) {
-		unsigned int cpu = raw_smp_processor_id();
 		i2c_int_en |= HSI2C_INT_CHK_TRANS_STATE | HSI2C_INT_TRANSFER_DONE;
 		writel(i2c_int_en, i2c->regs + HSI2C_INT_ENABLE);
 
-		irq_force_affinity(i2c->irq, cpumask_of(cpu));
+		cpulist_parse("0-3", &cpumask);
+		irq_set_affinity_hint(i2c->irq, &cpumask);
 		enable_irq(i2c->irq);
 	} else {
 		writel(HSI2C_INT_TRANSFER_DONE, i2c->regs + HSI2C_INT_ENABLE);
