@@ -38,7 +38,8 @@
 #include <linux/firmware.h>
 //#include <linux/input/tsp_ta_callback.h>
 
-#define	ZTM620_IC_CHIP_CODE	0xE628
+#define	ZTM630_IC_CHIP_CODE	0xE630
+#define	ZTM620_IC_CHIP_CODE     0xE628
 #define	ZTW522_IC_CHIP_CODE	0xE532
 #define	ZT7538_IC_CHIP_CODE	0xE538
 

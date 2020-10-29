@@ -1502,7 +1502,7 @@ static int ztm620_get_ic_fw_size(struct ztm620_info *info)
 	struct capa_info *cap = &(info->cap_info);
 	int ret = 0;
 
-	if (info->chip_code == ZTM620_IC_CHIP_CODE)
+	if (info->chip_code == ZTM630_IC_CHIP_CODE)
 		cap->ic_fw_size = ZTM620_IC_FW_SIZE;
 	else {
 		dev_err(&client->dev, "%s:Failed to get ic_fw_size\n", __func__);
@@ -1925,7 +1925,7 @@ fail_init:
 		goto retry_init;
 	} else if (retry_cnt == INIT_RETRY_CNT + 1) {
 		if (!chip_code) {
-			info->chip_code = ZTM620_IC_CHIP_CODE;
+			info->chip_code = ZTM630_IC_CHIP_CODE;
 			ret = ztm620_get_ic_fw_size(info);
 			if (ret) {
 				dev_err(&client->dev, "%s:Failed to get ic_fw_size\n", __func__);
@@ -3531,6 +3531,7 @@ static void get_chip_vendor(void *device_data)
 #define ztm620_CHIP_NAME "ztw522"
 #define ZT7538_CHIP_NAME "ZT7538"
 #define ZTM620_CHIP_NAME "ZTM620"
+#define ZTM630_CHIP_NAME "ZTM630"
 
 static void get_chip_name(void *device_data)
 {
@@ -3540,8 +3541,8 @@ static void get_chip_name(void *device_data)
 
 	set_default_result(finfo);
 
-	if (info->chip_code == ZTM620_IC_CHIP_CODE)
-		snprintf(finfo->cmd_buff, sizeof(finfo->cmd_buff), "%s", ZTM620_CHIP_NAME);
+	if (info->chip_code == ZTM630_IC_CHIP_CODE)
+		snprintf(finfo->cmd_buff, sizeof(finfo->cmd_buff), "%s", ZTM630_CHIP_NAME);
 	else if (info->chip_code == ZTM620_IC_CHIP_CODE)
 		snprintf(finfo->cmd_buff, sizeof(finfo->cmd_buff), "%s", ztm620_CHIP_NAME);
 	else if (info->chip_code == ZT7538_IC_CHIP_CODE)
