@@ -810,25 +810,6 @@
 	regulator_3p3v = "vdd_ldo20";
 };
 
-
-/* USI_01_CMGP */
-&usi_01_cmgp {
-	usi_v2_mode = "i2c";
-	status = "okay";
-};
-
-/* USI_02_CMGP */
-&usi_02_cmgp {
-	usi_v2_mode = "spi";
-	status = "okay";
-};
-
-/* USI_00 */
-&usi_00 {
-	usi_v2_mode = "spi";
-	status = "okay";
-};
-
 &pinctrl_5 {
 	/* Warm reset information from AP */
 	pm_wrsti: pm-wrsti {
