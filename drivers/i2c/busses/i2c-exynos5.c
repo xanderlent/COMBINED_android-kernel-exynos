@@ -1163,12 +1163,12 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_read_u32(np, "samsung,usi-offset", &i2c->usi_offset))
-		dev_warn(dev, "usi offset is not specified\n");
+		dev_warn(dev, "usi offset is not specified. Don't care if it is dedicated mode\n");
 
 	i2c->usi_reg = syscon_regmap_lookup_by_phandle(dev->of_node,
 						"samsung,usi-phandle");
 	if (IS_ERR(i2c->usi_reg)) {
-		dev_info(dev, "no lookup for usi-phandle.\n");
+		dev_info(dev, "no lookup for usi-phandle. Don't care if it is dedicated mode\n");
 	} else {
 		regmap_update_bits(i2c->usi_reg, i2c->usi_offset,
 			USI_SW_CONF_MASK, USI_I2C_SW_CONF);
