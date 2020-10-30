@@ -1,0 +1,26 @@
+#include <dt-bindings/gpio/gpio.h>
+
+&dsim_0 {
+	lcd_info = <&wf012fbm>;
+	/* reset */
+	gpios = <&gpc1 1 GPIO_ACTIVE_LOW>, <&gpm14 0 GPIO_ACTIVE_HIGH>;
+	mux-gpios = <&gpm10 0 GPIO_ACTIVE_HIGH>, <&gpm11 0 GPIO_ACTIVE_LOW>;
+	regulator_1p8v = "vdd_ldo21";
+	regulator_3p3v = "vdd_ldo20";
+
+	wf012fbm: wf012fbm {
+		panel_name = "wf012fbm";
+		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
+		mode = <2>;
+		resolution = <384 384>;
+		size = <30 30>;
+		timing,refresh = <60>;
+		/* TODO: Set below 3 timing parameters to be correct values */
+		timing,dsi-hs-clk = <384>;
+		timing,pmsk = <2 118 2 0>;
+		timing,dsi-escape-clk = <16>;
+		data_lane = <1>;
+		type_of_ddi = <2>;
+	};
+
+};
