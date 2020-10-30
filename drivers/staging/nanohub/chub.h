@@ -60,15 +60,15 @@ extern struct contexthub_ipc_info *chub_info;
 #define nanohub_err(fmt, ...) \
 	        pr_err(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
 #else
-void chub_printf(int level, const char *fmt, ...);
-#define nanohub_debug(fmt, ...)			chub_printf('D', fmt, ##__VA_ARGS__)
-#define nanohub_info(fmt, ...)			chub_printf('I', fmt, ##__VA_ARGS__)
-#define nanohub_warn(fmt, ...)			chub_printf('W', fmt, ##__VA_ARGS__)
-#define nanohub_err(fmt, ...)			chub_printf('E', fmt, ##__VA_ARGS__)
-#define nanohub_dev_debug(dev, fmt, ...)	chub_printf('D', fmt, ##__VA_ARGS__)
-#define nanohub_dev_info(dev, fmt, ...)		chub_printf('I', fmt, ##__VA_ARGS__)
-#define nanohub_dev_warn(dev, fmt, ...)		chub_printf('W', fmt, ##__VA_ARGS__)
-#define nanohub_dev_err(dev, fmt, ...)		chub_printf('E', fmt, ##__VA_ARGS__)
+void chub_printf(int level, int fw_idx, const char *fmt, ...);
+#define nanohub_debug(fmt, ...)			chub_printf('D', 0, fmt, ##__VA_ARGS__)
+#define nanohub_info(fmt, ...)			chub_printf('I', 0, fmt, ##__VA_ARGS__)
+#define nanohub_warn(fmt, ...)			chub_printf('W', 0, fmt, ##__VA_ARGS__)
+#define nanohub_err(fmt, ...)			chub_printf('E', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_debug(dev, fmt, ...)	chub_printf('D', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_info(dev, fmt, ...)		chub_printf('I', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_warn(dev, fmt, ...)		chub_printf('W', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_err(dev, fmt, ...)		chub_printf('E', 0, fmt, ##__VA_ARGS__)
 #endif
 
 /* utils for nanohub main */
@@ -251,7 +251,7 @@ struct contexthub_ipc_info {
 	int usi_cnt;
 	struct contexthub_baaw_info baaw_info;
 	struct ipc_map_area *ipc_map;
-	struct log_buffer_info *fw_log;
+	struct log_buffer_info *log_info;
 	struct log_buffer_info *dd_log;
 	struct LOG_BUFFER *dd_log_buffer;
 	struct runtimelog_buf chub_rt_log;

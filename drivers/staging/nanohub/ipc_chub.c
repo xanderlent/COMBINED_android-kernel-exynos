@@ -183,8 +183,7 @@ void ipc_dump(void)
 }
 
 #ifdef AP_IPC
-#define LOGFILE_NUM_SIZE (32)
-extern struct memlog_obj *memlog_printf_chub;
+#define LOGFILE_NUM_SIZE (26)
 
 u32 ipc_get_chub_mem_size(void)
 {
@@ -239,38 +238,41 @@ bool ipc_logbuf_filled(void)
 	return 0;
 }
 
-int ipc_logbuf_printf(struct logbuf_content *log, u32 len)
+int ipc_logbuf_printf(struct logbuf_output *log, u32 len)
 {
 	u32 lenout = 0;
 	struct runtimelog_buf *rt_buf = &chub_info->chub_rt_log;
 	int dst;
 
-	if (!log || !chub_info || !rt_buf || !rt_buf->buffer) {
-		pr_info("%s nullptr!", __func__);
+	if (!log || !chub_info || !rt_buf || !rt_buf->buffer)
 		return -EINVAL;
-	}
-	if (rt_buf->write_index + len + LOGFILE_NUM_SIZE >= rt_buf->buffer_size)
+
+	if (rt_buf->write_index + len + LOGFILE_NUM_SIZE >= rt_buf->buffer_size) {
+		rt_buf->wrap = true;
 		rt_buf->write_index = 0;
+	}
 	dst = rt_buf->write_index; //for race condition
 	if (dst + len + LOGFILE_NUM_SIZE >= rt_buf->buffer_size) {
 		pr_info("%s index err!", __func__);
 		return -EINVAL;
 	}
 
-	lenout = snprintf(rt_buf->buffer + dst, LOGFILE_NUM_SIZE + len, "%10d:[%c][%6u.%06u]%c %s\n",
-			log->size, log->size ? 'F' : 'K', (log->timestamp) / 1000000,
-			(log->timestamp) % 1000000, log->level, log->buf);
+	lenout = snprintf(rt_buf->buffer + dst, LOGFILE_NUM_SIZE + len,
+			  "%6d:%c[%6u.%06u]%c %s\n",
+			  log->size, log->size ? 'F' : 'K', (log->timestamp) / 1000000,
+			  (log->timestamp) % 1000000, log->level, log->buf);
 	rt_buf->write_index += lenout;
 	if (lenout != (LOGFILE_NUM_SIZE + len))
 		pr_warn("%s: %s: size-n mismatch: %d -> %d\n",
 			NAME_PREFIX, __func__, LOGFILE_NUM_SIZE + len, lenout);
+	rt_buf->updated = true;
+	wake_up_interruptible(&rt_buf->wq);
 	return 0;
 }
 
 int ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop)
 {
 	if (ipc.ipc_map) {
-		u8 level = MEMLOG_LEVEL_DEBUG;
 		struct logbuf_content *log;
 		struct ipc_logbuf *logbuf = &ipc.ipc_map->logbuf;
 		u32 eq;
@@ -306,27 +308,15 @@ retry:
 				char buf[120];
 				memset(buf, 0, 120);
 				if (log->level || log->timestamp) {
-					pr_info("nanohub:FW:[%6llu.%06llu]%c %s",
-						(log->timestamp) / 1000000,
-						(log->timestamp) % 1000000,
-						log->level, (char *)log->buf);
-					if (memlog_printf_chub)
-						memlog_write_printf(memlog_printf_chub, MEMLOG_LEVEL_ERR,
-								    "FW:[%6llu.%06llu]%c %s",
-								    (log->timestamp) / 1000000,
-								    (log->timestamp) % 1000000,
-								    log->level, (char *)log->buf);
+					chub_printf(log->level, log->size,
+						    "[%6llu.%06llu]%c %s",
+						    (log->timestamp) / 1000000,
+						    (log->timestamp) % 1000000,
+						    log->level, (char *)log->buf);
 				} else {
-					pr_info("FW:                  %s", (char *)log->buf);
-					if (memlog_printf_chub)
-						memlog_write_printf(memlog_printf_chub,
-								    MEMLOG_LEVEL_ERR,
-								    "FW:                  %s",
-								    (char *)log->buf);
+					chub_printf('I', log->size, "                 %s",
+						    (char *)log->buf);
 				}
-
-				if (rt_buf)
-					ipc_logbuf_printf(log, len);
 			} else {
 				CSP_PRINTF_ERROR("%s: %s: size err:%d, eq:%d, dq:%d\n",
 				       NAME_PREFIX, __func__, len, eq,

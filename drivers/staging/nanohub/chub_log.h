@@ -13,18 +13,6 @@
 #include <linux/device.h>
 #include "ipc_chub.h"
 
-struct log_kernel_buffer {
-	char *buffer;
-	unsigned int buffer_size;
-	unsigned int index;
-	bool wrap;
-	volatile bool updated;
-	wait_queue_head_t wq;
-	u32 log_file_index;
-	u32 index_writer;
-	u32 index_reader;
-};
-
 struct log_buffer_info {
 	struct list_head list;
 	struct device *dev;
@@ -35,7 +23,7 @@ struct log_buffer_info {
 	ssize_t log_file_index;
 	char save_file_name[64];
 	struct LOG_BUFFER *log_buffer;
-	struct log_kernel_buffer kernel_buffer;
+	struct runtimelog_buf *rt_log;
 	bool sram_log_buffer;
 	bool support_log_save;
 };
@@ -48,11 +36,8 @@ struct LOG_BUFFER {
 	char buffer[0];
 };
 
-void log_flush(struct log_buffer_info *info);
-void log_schedule_flush_all(void);
-void log_flush_all(void);
 struct log_buffer_info *log_register_buffer(struct device *dev, int id,
-					    struct LOG_BUFFER *buffer,
+					    struct runtimelog_buf *rt_log,
 					    char *name, bool sram);
 
 #ifdef CONFIG_CONTEXTHUB_DEBUG

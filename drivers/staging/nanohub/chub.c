@@ -40,6 +40,7 @@
 #include "chub.h"
 #include "ipc_chub.h"
 #include "chub_dbg.h"
+#include "chub_log.h"
 #include "chub_exynos.h"
 
 #include <soc/samsung/cal-if.h>
@@ -77,33 +78,28 @@ static DEFINE_MUTEX(pmu_shutdown_mutex);
 static DEFINE_MUTEX(log_mutex);
 static DEFINE_MUTEX(wt_mutex);
 
-void chub_printf(int level, const char *fmt, ...)
+void chub_printf(int level, int fw_idx, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	struct logbuf_content log;
-	int n, idx;
-	char buf[240];
+	struct logbuf_output log;
+	int n;
 
-	memset(&log, 0, sizeof(struct logbuf_content));
+	memset(&log, 0, sizeof(struct logbuf_output));
 	log.timestamp = ktime_get_boottime_ns() / 1000;
 	log.level = level;
+	log.size = fw_idx;
+	log.buf = kzalloc(240, GFP_KERNEL);
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
 	memlog_write_printf(memlog_printf_chub, MEMLOG_LEVEL_ERR, "%pV", &vaf);
 	pr_info("nanohub: %pV", &vaf);
-	n = snprintf(buf, 240, "%pV", &vaf);
-	idx = 0;
-	while (n > 0) {
-		memset(log.buf, 0, LOGBUF_DATA_SIZE);
-		memcpy(log.buf, buf + idx, LOGBUF_DATA_SIZE - 1);
-		log.buf[LOGBUF_DATA_SIZE - 1] = '\n';
-		ipc_logbuf_printf(&log, strlen(log.buf));
-		n -= (LOGBUF_DATA_SIZE - 1);
-		idx += (LOGBUF_DATA_SIZE - 1);
-	}
+	n = snprintf(log.buf, 239, "%pV", &vaf);
+	log.buf[238] = '\n';
+	ipc_logbuf_printf(&log, strlen(log.buf));
+	kfree(log.buf);
 	va_end(args);
 }
 EXPORT_SYMBOL(chub_printf);
@@ -2211,7 +2207,7 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 		need_to_free = 1;
 	}
 	if (IS_ERR(chub)) {
-		nanohub_dev_err(&pdev->dev, "%s failed to get ipc memory\n", __func__);
+		dev_err(&pdev->dev, "%s failed to get ipc memory\n", __func__);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -2219,6 +2215,9 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 	chub_info = chub;
 	chub->dev = &pdev->dev;
 
+	chub->log_info = log_register_buffer(chub->dev, 0,
+					     &chub->chub_rt_log,
+					     "log", 0);
 	/* parse dt and hw init */
 	ret = contexthub_ipc_hw_init(pdev, chub);
 	if (ret) {
@@ -2288,6 +2287,7 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 	}
 	chub->chub_rt_log.buffer_size = SZ_512K * 4;
 	chub->chub_rt_log.write_index = 0;
+	chub->chub_rt_log.wrap = false;
 
 	chub->ws_reset = chub_wake_lock_init(&pdev->dev, "chub_reboot");
 	nanohub_dev_info(chub->dev, "%s with %s FW and %lu clk is done\n",

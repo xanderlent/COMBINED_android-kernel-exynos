@@ -32,6 +32,7 @@
 #define SUPPORT_LOOPBACKTEST
 #endif
 #elif defined(AP_IPC)
+#include <linux/device.h>
 #include "comms.h"
 #endif
 
@@ -253,6 +254,13 @@ struct logbuf_content {
 	u8 newline;
 };
 
+struct logbuf_output {
+	char *buf;
+	u64 timestamp;
+	u16 size;
+	u8 level;
+};
+
 enum ipc_fw_loglevel {
 	CHUB_RT_LOG_OFF,
 	CHUB_RT_LOG_DUMP,
@@ -264,6 +272,9 @@ struct runtimelog_buf {
 	unsigned int buffer_size;
 	unsigned int write_index;
 	enum ipc_fw_loglevel loglevel;
+	wait_queue_head_t wq;
+	bool wrap;
+	bool updated;
 };
 
 struct ipc_logbuf {
@@ -361,7 +372,7 @@ enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel,
 void *ipc_logbuf_inbase(bool force);
 void ipc_logbuf_flush_on(bool on);
 bool ipc_logbuf_filled(void);
-int ipc_logbuf_printf(struct logbuf_content *log, u32 len);
+int ipc_logbuf_printf(struct logbuf_output *log, u32 len);
 int ipc_logbuf_outprint(struct runtimelog_buf *rt_buf, u32 loop);
 void ipc_logbuf_req_flush(struct logbuf_content *log);
 void ipc_logbuf_set_req_num(struct logbuf_content *log);
