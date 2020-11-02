@@ -374,7 +374,8 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		if (ret) {
 			dev_err(dwc->dev, "%s: failed to reinitialize core\n",
 					__func__);
-			goto err2;
+			return ret;
+			//goto err;
 		}
 
 		dwc3_otg_set_peripheral_mode(dotg);
