@@ -674,4 +674,13 @@ config BATTERY_S2MU00X
 	help
 	  Say Y here to enable support for S2MU00X battery driver.
 
+config S2MPW02_TA_DETECT
+	tristate "Samsung S2MPW02 TA detect feature"
+	default n
+	depends on CHARGER_S2MPW02
+	depends on MFD_S2MPW02
+	help
+	 This feature have TA detected as USB.
+	 USB driver will tell if it's real USB or not.
+
 endif # POWER_SUPPLY
