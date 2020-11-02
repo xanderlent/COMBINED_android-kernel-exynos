@@ -744,6 +744,7 @@ static int otg_accessory_power(bool enable)
 }
 #endif
 
+#if 0
 static int set_online(int event, int state)
 {
 	union power_supply_propval val;
@@ -791,7 +792,7 @@ static int set_online(int event, int state)
 
 	return 0;
 }
-
+#endif
 static int exynos_set_host(bool enable)
 {
 	if (!enable) {
@@ -887,7 +888,9 @@ static struct otg_notify dwc_lsi_notify = {
 #endif
 	.disable_control = 1,
 	.device_check_sec = 3,
+#if 0
 	.set_battcall = set_online,
+#endif
 #if defined(CONFIG_CCIC_NOTIFIER)
 	.set_ldo_onoff = usb_regulator_onoff,
 #endif
@@ -952,8 +955,10 @@ static int usb_notifier_probe(struct platform_device *pdev)
 	manager_notifier_register(&pdata->ccic_usb_nb, ccic_usb_handle_notification,
 					MANAGER_NOTIFY_CCIC_USB);
 #else
+#if defined(CONFIG_CCIC_NOTIFIER)
 	ccic_notifier_register(&pdata->ccic_usb_nb, ccic_usb_handle_notification,
 				   CCIC_NOTIFY_DEV_USB);
+#endif
 #endif
 #if defined(CONFIG_MUIC_NOTIFIER)
 	muic_notifier_register(&pdata->muic_usb_nb, muic_usb_handle_notification,
