@@ -352,6 +352,24 @@ err1:
 	return ret;
 }
 
+#define CABLE_TA 0xff
+static int dwc3_check_cable_type(struct dwc3 *dwc)
+{
+	int		ret;
+
+	dev_info(dwc->dev, ">> DWC3 USB CABLE TYPE CHECK\n");
+	ret = phy_bc_check(dwc->usb3_generic_phy);
+	if (ret)
+		goto TA;
+	ret = phy_bc_check(dwc->usb2_generic_phy);
+	if (ret)
+		goto TA;
+
+	return 0;
+TA:
+	return CABLE_TA;
+}
+
 static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg	*otg = fsm->otg;
@@ -359,6 +377,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 	struct dwc3	*dwc = dotg->dwc;
 	struct device	*dev = dotg->dwc->dev;
 	int ret = 0;
+	static int cable_flag = 0;
 
 	if (!otg->gadget) {
 		dev_err(dev, "%s does not have any gadget\n", __func__);
@@ -378,6 +397,16 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			//goto err;
 		}
 
+		// check whether USB or not (TA)
+		ret = dwc3_check_cable_type(dwc);
+		if (ret == CABLE_TA) {
+			dev_info(dwc->dev, "This is not USB cable, skip the USB initialize ret:0x%x\n ", ret);
+			ret = 0;
+			cable_flag = 1;
+
+			goto err2;
+		}
+
 		dwc3_otg_set_peripheral_mode(dotg);
 		ret = usb_gadget_vbus_connect(otg->gadget);
 		if (ret) {
@@ -387,6 +416,11 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		}
 
 	} else {
+		if (cable_flag == 1) {
+			cable_flag = 0;
+			return 0;
+		}
+
 		if (dwc->is_not_vbus_pad)
 			dwc3_gadget_disconnect_proc(dwc);
 		/* avoid missing disconnect interrupt */
