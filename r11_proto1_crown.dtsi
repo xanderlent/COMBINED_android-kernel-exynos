@@ -1,0 +1,40 @@
+/*
+ * Device Tree config for the PAT9126 chip - optical tracking sensor (RSB)
+ */
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&gpa0 {
+	#interrupt-cells = <2>;
+};
+
+&i2c_3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";
+
+	pixart@75 {
+		compatible="pixart,pat9126";
+		status = "ok";
+		reg = <0x75>;
+		pixart,inverse-x;
+		interrupts-extended = <&gpa0 2 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&ots_int_default>;
+		pinctrl-1 = <&ots_int_default>;
+	};
+};
+
+&pinctrl_0 {
+	/* OTS Interrupt Pinctrl */
+	ots_int_default: ots-int-default {
+		samsung,pins = "gpa0-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+	};
+
+/* TODO: Is there anything we need to change for 'sleep'?
+         If not, do we even need this state? */
+	ots_int_sleep: ots-int-sleep {
+		samsung,pins = "gpa0-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+	};
+};
