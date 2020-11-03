@@ -8,12 +8,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 #
-
 ifeq ($(CONFIG_MALI_T72X),y)
 	ifeq ($(CONFIG_MALI_R21P0),y)
 		obj-y += t72x/r21p0/
 	endif
 	ifeq ($(CONFIG_MALI_R28P0),y)
 		obj-y += t72x/r28p0/
+	endif
+	ifeq ($(CONFIG_MALI_R29P0),y)
+		obj-y += t72x/r29p0/
 	endif
 endif
