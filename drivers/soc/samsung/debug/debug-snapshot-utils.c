@@ -236,21 +236,19 @@ static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_mai
 	 */
 	touch_softlockup_watchdog();
 
+	atomic_notifier_call_chain(&dump_task_notifier_list, 0,	(void *)tsk);
+	pr_info("%8d %16llu %16llu %16llu %c(%4ld) %1d %16zx %16zx %c %16s\n",
+		tsk->pid, tsk->utime, tsk->stime,
+		tsk->se.exec_start, state_array[idx], tsk->state,
+		task_cpu(tsk), pc, (unsigned long)tsk,
+		is_main ? '*' : ' ', tsk->comm);
+
+	if (tsk->on_cpu && tsk->on_rq && tsk->cpu != smp_processor_id())
+		return;
+
 	if (tsk->state == TASK_RUNNING || tsk->state == TASK_WAKING ||
-			task_contributes_to_load(tsk)) {
-		atomic_notifier_call_chain(&dump_task_notifier_list, 0,
-				(void *)tsk);
-		pr_info("%8d %16llu %16llu %16llu %c(%ld) %3d %16zx %16zx %c %16s\n",
-			tsk->pid, tsk->utime, tsk->stime,
-			tsk->se.exec_start, state_array[idx], (tsk->state),
-			task_cpu(tsk), pc, (unsigned long)tsk,
-			is_main ? '*' : ' ', tsk->comm);
-
-		if (tsk->on_cpu && tsk->on_rq && tsk->cpu != smp_processor_id())
-			return;
-
+			task_contributes_to_load(tsk))
 		sched_show_task(tsk);
-	}
 }
 
 static inline struct task_struct *get_next_thread(struct task_struct *tsk)
@@ -268,7 +266,7 @@ static void dbg_snapshot_dump_task_info(void)
 			current->pid, current->comm);
 	pr_info("--------------------------------------------------------"
 			"-------------------------------------------------\n");
-	pr_info("%8s %8s %8s %16s %4s %3s %16s %16s  %16s\n",
+	pr_info("%8s %16s %16s %16s %6s %3s %16s %16s  %16s\n",
 			"pid", "uTime", "sTime", "exec(ns)", "stat", "cpu",
 			"user_pc", "task_struct", "comm");
 	pr_info("--------------------------------------------------------"
@@ -460,10 +458,12 @@ void dbg_snapshot_save_context(struct pt_regs *regs, bool stack_dump)
 		dbg_snapshot_save_system(NULL);
 		dbg_snapshot_save_core(regs);
 		dbg_snapshot_ecc_dump();
-		//dbg_snapshot_qd_dump_stack(regs != NULL ? regs->sp : 0);
 		dev_emerg(dss_desc.dev, "context saved(CPU:%d)\n", cpu);
 	} else
 		dev_emerg(dss_desc.dev, "skip context saved(CPU:%d)\n", cpu);
+
+	if (stack_dump)
+		dump_stack();
 
 	raw_spin_unlock_irqrestore(&dss_desc.ctrl_lock, flags);
 
@@ -525,6 +525,59 @@ static int dbg_snapshot_post_panic_handler(struct notifier_block *nb,
 	return 0;
 }
 
+static void show_data(unsigned long addr, int nbytes, const char *name)
+{
+	int i, j, nlines;
+	u32 *p, data;
+
+	/*
+	 * don't attempt to dump non-kernel addresses or
+	 * values that are probably just small negative numbers
+	 */
+	if (addr < PAGE_OFFSET || addr > -256UL)
+		return;
+
+	pr_info("\n%s: %#lx:\n", name, addr);
+	p = (u32 *)(addr & ~(sizeof(u32) - 1));
+	nbytes += (addr & (sizeof(u32) - 1));
+	nlines = (nbytes + 31) / 32;
+
+	for (i = 0; i < nlines; i++) {
+		pr_cont("%04lx :", (unsigned long)p & 0xffff);
+		for (j = 0; j < 8; j++, p++) {
+			if (probe_kernel_address(p, data))
+				pr_cont(" ********");
+			else
+				pr_cont(" %08X", data);
+		}
+		pr_cont("\n");
+	}
+}
+
+static void show_extra_register_data(struct pt_regs *regs, int nbytes)
+{
+	unsigned int i;
+	unsigned long flags;
+	mm_segment_t fs;
+
+	raw_spin_lock_irqsave(&dss_desc.ctrl_lock, flags);
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	show_data(regs->pc - nbytes, nbytes * 2, "PC");
+	show_data(regs->regs[30] - nbytes, nbytes * 2, "LR");
+	show_data(regs->sp - nbytes, nbytes * 2, "SP");
+	for (i = 0; i < 30; i++) {
+		char name[4];
+
+		snprintf(name, sizeof(name), "X%u", i);
+		show_data(regs->regs[i] - nbytes, nbytes * 2, name);
+	}
+
+	set_fs(fs);
+	raw_spin_unlock_irqrestore(&dss_desc.ctrl_lock, flags);
+}
+
 static int dbg_snapshot_die_handler(struct notifier_block *nb,
 				   unsigned long l, void *buf)
 {
@@ -536,6 +589,7 @@ static int dbg_snapshot_die_handler(struct notifier_block *nb,
 
 	dbg_snapshot_save_context(regs, false);
 	dbg_snapshot_set_item_enable("log_kevents", false);
+	show_extra_register_data(regs, 128);
 
 	return NOTIFY_DONE;
 }
