@@ -196,6 +196,7 @@ struct hl6111_platform_data{
     unsigned int ldop;
     unsigned int vout_range;
     unsigned int trgt_vout;
+    unsigned int temp_limit;
 };
 
 struct hl6111_charger{

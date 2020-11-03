@@ -133,6 +133,14 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
         pdata->trgt_vout = temp;
         LOG_DBG("trgt_vout[%d]\n", pdata->trgt_vout);
     }
+    pdata->temp_limit = of_property_read_u32(np, "halo,temp-limit", &temp);
+    if (rc) {
+        pr_err("Invalid TempLimit\n");
+        pdata->temp_limit = 0x1a; // 46C
+    }else{
+        pdata->temp_limit = temp;
+        LOG_DBG("temp_limit[%d]\n", pdata->temp_limit);
+    }
 
     return rc;
 }
@@ -528,6 +536,8 @@ static void hl6111_device_init(struct hl6111_charger *chg)
     /* Vout == 4.304V 16mV/step*/
     hl6111_target_vout_ctrl(chg, chg->pdata->trgt_vout);
 
+    hl6111_update_reg(chg, REG_TEMP_LIMIT, BITS_MPP_TLIM, chg->pdata->temp_limit);
+
 #if 1
     hl6111_read_reg(chg, REG_VOUT_BYPASS, &rVal);
     LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_VOUT_BYPASS, rVal);
@@ -543,6 +553,8 @@ static void hl6111_device_init(struct hl6111_charger *chg)
 
     hl6111_read_reg(chg, REG_NTC_OTA_CONFIG, &rVal);
     LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_NTC_OTA_CONFIG, rVal);
+    hl6111_read_reg(chg, REG_TEMP_LIMIT, &rVal);
+    LOG_DBG("reg[0x%x]: value:[0x%x]\n", REG_TEMP_LIMIT, rVal);
 #endif
 }
 
