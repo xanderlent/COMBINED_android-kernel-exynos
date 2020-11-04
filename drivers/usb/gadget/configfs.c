@@ -181,7 +181,7 @@ static int set_alt_serialnumber(struct gadget_strings *gs)
 		return ret;
 	}
 
-	//snprintf(str, CHIPID_SIZE + 1, "%016lx", (long)exynos_soc_info.unique_id);
+	snprintf(str, CHIPID_SIZE + 1, "%016lx", (long)exynos_soc_info.unique_id);
 	if (usb_string_copy(str, &gs->serialnumber))
 		pr_err("%s: failed to copy alternative string\n", __func__);
 	else
