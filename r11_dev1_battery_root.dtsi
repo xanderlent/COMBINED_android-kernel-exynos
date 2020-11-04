@@ -1,5 +1,5 @@
 /*
-* Google R11 common root DTSI file
+* Google R11 battery root DTSI file
 *
 * Copyright 2020 Google LLC
 *
@@ -12,14 +12,6 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
 */
-
-#address-cells = <2>;
-#size-cells = <1>;
-model = "Google R11 Proto1";
-
-chosen {
-	bootargs = "console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
-};
 
 google_battery: battery {
 	status = "okay";
@@ -37,11 +29,11 @@ google_battery: battery {
 				<100 0 0 150 150 0 0 0 0 0 0 0 0 0 0 0>;
 	battery,full_check_current_1st = <30 0 0 30 30 0 0 0 0 0 0 0 0 0 0 0>;
 	battery,full_check_current_2nd = <20 0 0 20 20 0 0 0 0 0 0 0 0 0 0 0>;
-	battery,default_input_current = <150>;
-	battery,default_charging_current = <150>;
+	battery,default_input_current = <125>;
+	battery,default_charging_current = <125>;
 	battery,default_full_check_current = <20>;
-	battery,max_input_current = <300>;
-	battery,max_charging_current = <300>;
+	battery,max_input_current = <250>;
+	battery,max_charging_current = <250>;
 	battery,full_check_type = <7>; // seems to be unused
 	battery,full_check_type_2nd = <7>; // seems to be unused
 	battery,full_check_count = <1>;

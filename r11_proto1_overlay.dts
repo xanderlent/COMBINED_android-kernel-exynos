@@ -22,6 +22,7 @@
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 
 #include "r11_proto1_common.dtsi"
+#include "r11_cp.dtsi"
 
 / {
 	compatible = "google,r11";
@@ -31,7 +32,12 @@
 	fragment@common {
 		target-path = "/";
 		__overlay__ {
-			/include/ "r11_proto1_common_root.dtsi"
+			model = "Google R11 Proto1";
+
+			chosen {
+				bootargs = "console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
+			};
+			/include/ "r11_proto1_battery_root.dtsi"
 			/include/ "r11_common_root.dtsi"
 		};
 	};

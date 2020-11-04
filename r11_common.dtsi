@@ -17,6 +17,8 @@
 
 &abox {
 	/* Enable vss again */
+	#address-cells = <2>;
+	#size-cells = <1>;
 	samsung,abox-bootargs = "init=ab0x vss=1";
 	abox_vss@0 {
 		compatible = "samsung,abox-vss";
