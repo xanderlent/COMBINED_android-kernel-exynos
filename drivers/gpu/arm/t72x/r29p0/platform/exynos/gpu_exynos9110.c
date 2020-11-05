@@ -23,10 +23,10 @@
 #include <linux/smc.h>
 #include <linux/regulator/consumer.h>
 
-#include <soc/samsung/asv-exynos.h>
+//#include <soc/samsung/asv-exynos.h>
 #include <soc/samsung/exynos-pd.h>
 #include <soc/samsung/exynos-pmu.h>
-#include <linux/apm-exynos.h>
+//#include <linux/apm-exynos.h>
 #include <soc/samsung/bts.h>
 #include <linux/clk.h>
 

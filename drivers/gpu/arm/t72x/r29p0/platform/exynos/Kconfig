@@ -60,7 +60,7 @@ config MALI_RT_PM
     bool "Enable EXYNOS Runtime power management"
     depends on MALI_T72X
     depends on PM
-    default y
+    default n
     help
       Choose this option to enable runtime power management in the Mali Midgard DDK.
 
@@ -97,7 +97,7 @@ config MALI_SEC_UTILIZATION
 config MALI_PM_QOS
     bool "Enable DVFS with QoS"
     depends on MALI_T72X && MALI_DVFS && PM_DEVFREQ && CPU_FREQ
-    default y
+    default n
     help
       Choose this option to enable PM_QOS in the Mali tMIX DDK.
 

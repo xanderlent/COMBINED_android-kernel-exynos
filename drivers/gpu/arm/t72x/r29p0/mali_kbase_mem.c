@@ -42,9 +42,6 @@
 #include <mali_kbase_hw.h>
 #include <mali_kbase_tlstream.h>
 
-/* MALI_SEC_INTEGRATION */
-#include <linux/exynos_ion.h>
-
 /* Forward declarations */
 static void free_partial_locked(struct kbase_context *kctx,
 		struct kbase_mem_pool *pool, struct tagged_addr tp);
@@ -1253,8 +1250,6 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu,
 			reg->start_pfn, kbase_reg_current_backed_size(reg),
 			kctx->as_nr);
-		/* MALI_SEC_INTEGRATION */
-		if (reg->gpu_alloc)
 			kbase_mem_phy_alloc_gpu_unmapped(reg->gpu_alloc);
 	}
 
@@ -1444,12 +1439,6 @@ static int kbase_do_syncset(struct kbase_context *kctx,
 
 	kbase_os_mem_map_lock(kctx);
 	kbase_gpu_vm_lock(kctx);
-
-	/* MALI_SEC_INTEGRATION */
-	if (sset->size > 8*1024*1024) {
-		flush_all_cpu_caches();
-		goto out_unlock;
-	}
 
 	/* find the region where the virtual address is contained */
 	reg = kbase_region_tracker_find_region_enclosing_address(kctx,
@@ -3560,19 +3549,6 @@ static int kbase_jd_umm_map(struct kbase_context *kctx,
 	for_each_sg(sgt->sgl, s, sgt->nents, i) {
 		size_t j, pages = PFN_UP(sg_dma_len(s));
 
-		/* MALI_SEC_INTEGRATION */
-		if (WARN(s == NULL, "s is NULL goto errout\n")) {
-			err = -EINVAL;
-			goto err_unmap_attachment;
-		}
-
-		/* MALI_SEC_INTEGRATION */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-		pages = PFN_UP(sg_dma_len(s));
-#else
-		pages = PFN_UP(s->length);
-#endif
-
 		WARN_ONCE(sg_dma_len(s) & (PAGE_SIZE-1),
 		"sg_dma_len(s)=%u is not a multiple of PAGE_SIZE\n",
 		sg_dma_len(s));
@@ -3634,10 +3610,6 @@ err_teardown_orig_pages:
 err_unmap_attachment:
 	dma_buf_unmap_attachment(alloc->imported.umm.dma_attachment,
 			alloc->imported.umm.sgt, DMA_BIDIRECTIONAL);
-
-	/* MALI_SEC_INTEGRATION */
-	exynos_ion_sync_dmabuf_for_device(kctx->kbdev->dev, alloc->imported.umm.dma_buf, alloc->imported.umm.dma_buf->size, DMA_BIDIRECTIONAL);
-
 	alloc->imported.umm.sgt = NULL;
 
 	return err;

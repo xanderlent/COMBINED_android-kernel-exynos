@@ -17,15 +17,15 @@
 
 #include <mali_kbase.h>
 #if defined(CONFIG_SOC_EXYNOS9110)
-#include <linux/apm-exynos.h>
+//#include <linux/apm-exynos.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 #include <mach/pm_domains-cal.h>
 #include <../pwrcal/S5E7570/S5E7570-vclk.h>
 #include <mach/asv-exynos.h>
 #else
 #include <soc/samsung/exynos-pd.h>
-#include <S5E7570/S5E7570-vclk.h>
-#include <soc/samsung/asv-exynos.h>
+//#include <S5E7570/S5E7570-vclk.h>
+//#include <soc/samsung/asv-exynos.h>
 #endif
 #else
 #include <mach/apm-exynos.h>
