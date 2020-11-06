@@ -3006,8 +3006,10 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 
 	nancfg->nan_enable = true;
 	WL_INFORM_MEM(("[NAN] Enable successfull \n"));
+#ifdef WLTDLS
 	/* disable TDLS on NAN NMI IF create  */
 	wl_cfg80211_tdls_config(cfg, TDLS_STATE_NMI_CREATE, false);
+#endif /* WLTDLS */
 
 fail:
 	/* reset conditon variable */
@@ -3259,8 +3261,10 @@ wl_cfgnan_stop_handler(struct net_device *ndev,
 			WL_ERR(("nan disable failed ret = %d status = %d\n", ret, status));
 			goto fail;
 		}
+#ifdef WLTDLS
 		/* Enable back TDLS if connected interface is <= 1 */
 		wl_cfg80211_tdls_config(cfg, TDLS_STATE_IF_DELETE, false);
+#endif /* WLTDLS */
 	}
 
 	if (!nancfg->notify_user) {
