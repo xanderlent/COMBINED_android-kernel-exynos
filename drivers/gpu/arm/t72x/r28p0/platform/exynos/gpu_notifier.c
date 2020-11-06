@@ -96,10 +96,14 @@ static int gpu_power_on(struct kbase_device *kbdev)
 
 	GPU_LOG(DVFS_INFO, DUMMY, 0u, 0u, "power on\n");
 
+#ifdef CONFIG_MALI_RT_PM
 	if (!kbdev->is_power_on) {
 		ret = pm_runtime_get_sync(kbdev->dev);
 		kbdev->is_power_on = true;
 	}
+#else
+	ret = 0;
+#endif
 
 	if (ret > 0) {
 		if (platform->early_clk_gating_status) {
@@ -124,14 +128,18 @@ static void gpu_power_off(struct kbase_device *kbdev)
 	GPU_LOG(DVFS_INFO, DUMMY, 0u, 0u, "power off\n");
 	gpu_control_enable_customization(kbdev);
 
+#ifdef CONFIG_MALI_RT_PM
 	if (kbdev->is_power_on) {
 		pm_runtime_mark_last_busy(kbdev->dev);
 		pm_runtime_put_sync_autosuspend(kbdev->dev);
 		kbdev->is_power_on = false;
 	}
 
+#ifdef CONFIG_MALI_DVFS
 	if (platform->early_clk_gating_status)
 		gpu_control_disable_clock(kbdev);
+#endif
+#endif
 }
 
 static void gpu_power_suspend(struct kbase_device *kbdev)
@@ -152,8 +160,10 @@ static void gpu_power_suspend(struct kbase_device *kbdev)
 		gpu_control_disable_customization(kbdev);
 	}
 
+#ifdef CONFIG_MALI_DVFS
 	if (platform->early_clk_gating_status)
 		gpu_control_disable_clock(kbdev);
+#endif
 }
 
 static void gpu_power_resume(struct kbase_device *kbdev)
