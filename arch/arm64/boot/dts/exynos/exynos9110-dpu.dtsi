@@ -36,7 +36,7 @@
 		#pb-id-cells = <3>;
 		/* DMA, DPP, DPU_DMA_COMMON */
 		reg = <0x0 0x14884000 0x1000>, <0x0 0x14894000 0x1000>, <0x0 0x14880000 0x110>;
-		interrupts = <0 57 0>, <0 61 0>;
+		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>, <0 61 IRQ_TYPE_LEVEL_HIGH>;
 		/* IDMA[16]/FLIP[2]/BLOCK[1] */
 		attr = <0x10006>;
 		port = <0>;
@@ -75,7 +75,7 @@
 		#pb-id-cells = <3>;
 		reg = <0x0 0x14881000 0x1000>, <0x0 0x14891000 0x1000>;
 		/* DPU_DMA IRQ, DPP IRQ */
-		interrupts = <0 54 0>, <0 58 0>;
+		interrupts = <0 54 IRQ_TYPE_LEVEL_HIGH>, <0 58 IRQ_TYPE_LEVEL_HIGH>;
 		/* Each bit indicates DPP attribute */
 		/* 0:AFBC 1:BLOCK 2:FLIP 3:ROT 4:CSC 5:SCALE 6:HDR 7:C_HDR 8:C_HDR10 9:WCG 10:SBWC */
 		/* 16:IDMA 17:ODMA 18:DPP */
@@ -96,7 +96,7 @@
 		compatible = "samsung,exynos9-dpp";
 		#pb-id-cells = <3>;
 		reg =  <0x0 0x14882000 0x1000>, <0x0 0x14892000 0x1000>;
-		interrupts = <0 55 0>, <0 59 0>;
+		interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>, <0 59 IRQ_TYPE_LEVEL_HIGH>;
 		/* IDMA[16]/FLIP[2]/BLOCK[1] */
 		attr = <0x10006>;
 		port = <0>;
@@ -124,7 +124,7 @@
 		compatible = "samsung,exynos9-dsim";
 		/* DSIM0, DPHY_M4M0 */
 		reg = <0x0 0x148E0000 0x100>, <0x0 0x14470000 0x4000>;
-		interrupts = <0 53 0>;
+		interrupts = <0 53 IRQ_TYPE_LEVEL_HIGH>;
 		iommus = <&sysmmu_dpu>;
 
 		/* clock */
@@ -149,10 +149,10 @@
 		reg = <0x0 0x148B0000 0x10000>;
 
 		/* interrupt num : FRAME_START, FRMAE_DONE, EXTRA, GPIO_PERIC1(EXT_INT_TE: GPA4[1] EINT33) */
-		interrupts = <0 50 0>,
-         			 <0 51 0>,
-       			   	 <0 52 0>,
-					 <0 256 0>;
+		interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>,
+					<0 51 IRQ_TYPE_LEVEL_HIGH>,
+					<0 52 IRQ_TYPE_LEVEL_HIGH>,
+					<0 256 IRQ_TYPE_LEVEL_HIGH>;
 		/* pinctrl */
 
 		pinctrl-names = "hw_te_on", "hw_te_off";
