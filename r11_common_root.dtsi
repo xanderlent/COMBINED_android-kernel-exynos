@@ -195,7 +195,7 @@ sound {
 	};
 	uaif@1 {
 		dai_link = "UAIF1";
-		format = "dsp_a";
+		format = "i2s";
 		cpu {
 			sound-dai = <&abox_uaif_1>;
 		};
