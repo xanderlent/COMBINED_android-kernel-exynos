@@ -506,7 +506,7 @@ struct decon_reg_data {
 struct decon_win_config_data {
 	int	retire_fence;
 	int	fd_odma;
-	struct decon_win_config config[MAX_DECON_WIN + 2];
+	struct decon_win_config config[MAX_DECON_WIN + 1];
 };
 
 enum lcd_status {
