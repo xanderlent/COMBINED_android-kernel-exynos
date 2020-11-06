@@ -1685,9 +1685,9 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 	 * NOTE: May look into moving the clock source selection and frequency into
 	 *       DTS in the future. */
 	ret = snd_soc_codec_set_sysclk(codec,
-					/* clk_id    = */ CS35L41_PLLSRC_SCLK,
+					/* clk_id    = */ CS35L41_PLLSRC_LRCLK,
 					/* source    = */ 0, /* ignored */
-					/* frequency = */ 3072000,
+					/* frequency = */ 48000,
 					/* dir       = */ 0 /* ignored */);
 	if (ret != 0)
 		dev_err(codec->dev, "Failed to set SYS CLK: %d\n", ret);
