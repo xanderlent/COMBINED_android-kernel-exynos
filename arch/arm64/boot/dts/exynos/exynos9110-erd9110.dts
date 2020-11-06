@@ -12,7 +12,6 @@
 /dts-v1/;
 /plugin/;
 
-#include "exynos9110-display-lcd.dtsi"
 #include "exynos9110-universal9110-cp-s360ap-sipc.dtsi"
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -802,15 +801,6 @@
 	};
 };
 
-
-&dsim_0 {
-	lcd_info = <&s6e3aa2>;
-	/* reset */
-	gpios = <&gpg3 0 1>;
-	regulator_1p8v = "vdd_ldo21";
-	regulator_3p3v = "vdd_ldo20";
-};
-
 &pinctrl_5 {
 	/* Warm reset information from AP */
 	pm_wrsti: pm-wrsti {
@@ -1058,6 +1048,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3375000>;
 				regulator-ramp-delay = <12000>;
+				regulator-always-on;
 				regulator-initial-mode = <3>;
 			};
 
@@ -1086,7 +1077,7 @@
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 			};
-
+*/
 			ldo24_reg: LDO24 {
 				regulator-name = "vdd_ldo24";
 				regulator-min-microvolt = <700000>;
@@ -1095,7 +1086,7 @@
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 			};
-*/
+
 			ldo25_reg: LDO25 {
 				regulator-name = "vdd_ldo25";
 				regulator-min-microvolt = <1800000>;
@@ -1123,6 +1114,11 @@
 			};
 */			};
 	};
+};
+
+&panel_0 {
+    /* reset, power */
+    gpios = <&gpg3 1 0x1>;
 };
 
 &pinctrl_1 {
