@@ -285,27 +285,23 @@ static int read_msg(struct nanohub_data *data, struct nanohub_packet *response,
 	return ret;
 }
 
-#ifdef CONFIG_NANOHUB_MAILBOX /* remove invalid error check */
 static inline void contexthub_update_result(struct nanohub_data *data, int err)
 {
-	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
+	struct contexthub_ipc_info *chub = data->pdata->mailbox_client;
 
 	if (err >= 0)
-		ipc->err_cnt[CHUB_ERR_COMMS] = 0;
+		chub->err_cnt[CHUB_ERR_COMMS] = 0;
 	else {
-		ipc->err_cnt[CHUB_ERR_COMMS]++;
+		chub->err_cnt[CHUB_ERR_COMMS]++;
 
 		if (err == ERROR_NACK)
-			ipc->err_cnt[CHUB_ERR_COMMS_NACK]++;
+			chub->err_cnt[CHUB_ERR_COMMS_NACK]++;
 		else if (err == ERROR_BUSY)
-			ipc->err_cnt[CHUB_ERR_COMMS_BUSY]++;
+			chub->err_cnt[CHUB_ERR_COMMS_BUSY]++;
 		else
-			ipc->err_cnt[CHUB_ERR_COMMS_UNKNOWN]++;
+			chub->err_cnt[CHUB_ERR_COMMS_UNKNOWN]++;
 	}
 }
-#else
-#define contexthub_update_err_cnt(a, b) do { } while (0)
-#endif
 
 static int get_reply(struct nanohub_data *data, struct nanohub_packet *response,
 		     uint32_t seq)

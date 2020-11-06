@@ -13,7 +13,19 @@
 #define __CHUB_LOG_H_
 
 #include <linux/device.h>
-#include "ipc_chub.h"
+#include <soc/samsung/memlogger.h>
+
+struct memlogs {
+	struct memlog *memlog_chub;
+	struct memlog_obj *memlog_file_chub;
+	struct memlog_obj *memlog_obj_chub;
+	struct memlog_obj *memlog_arr_file_chub;
+	struct memlog_obj *memlog_arr_chub;
+	struct memlog_obj *memlog_sram_file_chub;
+	struct memlog_obj *memlog_sram_chub;
+	struct memlog_obj *memlog_printf_file_chub;
+	struct memlog_obj *memlog_printf_chub;
+};
 
 struct log_buffer_info {
 	struct list_head list;
@@ -38,15 +50,30 @@ struct LOG_BUFFER {
 	char buffer[0];
 };
 
-struct log_buffer_info *log_register_buffer(struct device *dev, int id,
-					    struct runtimelog_buf *rt_log,
-					    char *name, bool sram);
+#define MEMLOGGER_KMSG
 
-#ifdef CONFIG_CONTEXTHUB_DEBUG
-void log_dump_all(int err);
+#ifndef MEMLOGGER_KMSG
+#define nanohub_debug(fmt, ...) \
+			pr_debug(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
+#define nanohub_info(fmt, ...) \
+			pr_info(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
+#define nanohub_warn(fmt, ...) \
+			pr_warn(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
+#define nanohub_err(fmt, ...) \
+			pr_err(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
 #else
-#define log_dump_all(err) do {} while (0)
+void chub_printf(int level, int fw_idx, const char *fmt, ...);
+#define nanohub_debug(fmt, ...)			chub_printf('D', 0, fmt, ##__VA_ARGS__)
+#define nanohub_info(fmt, ...)			chub_printf('I', 0, fmt, ##__VA_ARGS__)
+#define nanohub_warn(fmt, ...)			chub_printf('W', 0, fmt, ##__VA_ARGS__)
+#define nanohub_err(fmt, ...)			chub_printf('E', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_debug(dev, fmt, ...)	chub_printf('D', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_info(dev, fmt, ...)		chub_printf('I', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_warn(dev, fmt, ...)		chub_printf('W', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_err(dev, fmt, ...)		chub_printf('E', 0, fmt, ##__VA_ARGS__)
 #endif
 
-void log_printf(const char *format, ...);
+int contexthub_sync_memlogger(void *chub_p);
+void contexthub_log_active_work(void *chub);
+int contexthub_log_init(void *chub_p);
 #endif /* __CHUB_LOG_H_ */

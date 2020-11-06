@@ -410,9 +410,9 @@ static const u32 dump_chub_i2c_registers[] = {
 };
 
 int chub_dbg_init(struct contexthub_ipc_info *chub, void *logbuf, int logbuf_size);
-void *chub_dbg_get_memory(struct device_node *node, enum dbg_dump_area area);
-void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason);
-void chub_dbg_print_hw(struct contexthub_ipc_info *ipc);
-void chub_dbg_dump_on_reset(struct contexthub_ipc_info *ipc);
+void *chub_dbg_get_memory(struct device_node *node);
+void chub_dbg_dump_hw(struct contexthub_ipc_info *chub, enum chub_err_type reason);
+void chub_dbg_print_hw(struct contexthub_ipc_info *chub);
+void chub_dbg_dump_on_reset(struct contexthub_ipc_info *chub);
 void chub_dbg_dump_ram(enum chub_err_type reason);
 #endif /* __CHUB_DEBUG_H */

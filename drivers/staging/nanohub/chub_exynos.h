@@ -12,17 +12,13 @@
 #include <soc/samsung/exynos-itmon.h>
 #endif
 
-#ifdef CONFIG_CHRE_SENSORHUB_HAL
+#ifdef CONFIG_SENSOR_DRV
 #include "main.h"
 #endif
 #include "comms.h"
 #include "chub.h"
 #include "ipc_chub.h"
 #include "chub_dbg.h"
-
-#if defined(CONFIG_SOC_S5E9815)
-#define PHYS_SRAM_BASE 0x11300000
-#endif
 
 /*	PMU CHUB_CPU registers */
 #if defined(CONFIG_SOC_EXYNOS9810)
@@ -70,10 +66,10 @@
 #define REG_GPH2_DAT				(0x4)
 #endif
 
-int contexthub_soc_poweron(struct contexthub_ipc_info *ipc);
-int contexthub_disable_pin(struct contexthub_ipc_info *ipc);
-int contexthub_disable_pin(struct contexthub_ipc_info *ipc);
-int contexthub_get_qch_base(struct contexthub_ipc_info *ipc);
-int contexthub_set_clk(struct contexthub_ipc_info *ipc);
-int contexthub_get_clock_names(struct contexthub_ipc_info *ipc);
-int contexthub_core_reset(struct contexthub_ipc_info *ipc);
+int contexthub_soc_poweron(struct contexthub_ipc_info *chub);
+int contexthub_disable_pin(struct contexthub_ipc_info *chub);
+int contexthub_disable_pin(struct contexthub_ipc_info *chub);
+int contexthub_get_qch_base(struct contexthub_ipc_info *chub);
+int contexthub_set_clk(struct contexthub_ipc_info *chub);
+int contexthub_get_clock_names(struct contexthub_ipc_info *chub);
+int contexthub_core_reset(struct contexthub_ipc_info *chub);

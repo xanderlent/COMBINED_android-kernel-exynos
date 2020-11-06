@@ -178,16 +178,17 @@ int nanohub_reset(struct nanohub_data *data);
 int nanohub_remove(struct iio_dev *iio_dev);
 int nanohub_suspend(struct iio_dev *iio_dev);
 int nanohub_resume(struct iio_dev *iio_dev);
-void nanohub_handle_irq1(struct nanohub_data *data);
 
 int nanohub_init(void);
 void nanohub_cleanup(void);
 
+void nanohub_handle_irq1(struct nanohub_data *data);
+
 static inline int nanohub_irq1_fired(struct nanohub_data *data)
 {
-	struct contexthub_ipc_info *ipc = data->pdata->mailbox_client;
+	struct contexthub_ipc_info *chub = data->pdata->mailbox_client;
 
-	return !atomic_read(&ipc->irq1_apInt);
+	return !atomic_read(&chub->irq1_apInt);
 }
 
 static inline int nanohub_irq2_fired(struct nanohub_data *data)

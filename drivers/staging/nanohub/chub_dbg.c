@@ -16,10 +16,11 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "chub_dbg.h"
 #include "ipc_chub.h"
 #include "chub.h"
-#ifdef CONFIG_CHRE_SENSORHUB_HAL
+#ifdef CONFIG_SENSOR_DRV
 #include "main.h"
 #endif
 
@@ -66,7 +67,7 @@ static struct dbg_dump *p_dbg_dump;
 static struct reserved_mem *chub_rmem;
 
 static void *get_contexthub_info_from_dev(struct device *dev) {
-#ifdef CONFIG_CHRE_SENSORHUB_HAL
+#ifdef CONFIG_SENSOR_DRV
 	struct nanohub_data *data = dev_get_nanohub_data(dev);
 
 	return data->pdata->mailbox_client;
@@ -75,196 +76,180 @@ static void *get_contexthub_info_from_dev(struct device *dev) {
 #endif
 }
 
-static void chub_dbg_dump_gpr(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_gpr(struct contexthub_ipc_info *chub)
 {
 	if (p_dbg_dump) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
-		IPC_HW_WRITE_DUMPGPR_CTRL(ipc->chub_dumpgpr, 0x1);
+		IPC_HW_WRITE_DUMPGPR_CTRL(chub->chub_dumpgpr, 0x1);
 		/* dump GPR */
 		for (i = 0; i <= GPR_PC_INDEX - 1; i++)
 			p_dump->gpr[i] =
-			    readl(ipc->chub_dumpgpr + REG_CHUB_DUMPGPR_GP0R +
+			    readl(chub->chub_dumpgpr + REG_CHUB_DUMPGPR_GP0R +
 				  i * 4);
 		p_dump->gpr[GPR_PC_INDEX] =
-		    readl(ipc->chub_dumpgpr + REG_CHUB_DUMPGPR_PCR);
+		    readl(chub->chub_dumpgpr + REG_CHUB_DUMPGPR_PCR);
 
-		nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
-			 __func__, p_dump->gpr[0],
-			 p_dump->gpr[1], p_dump->gpr[2],
-			 p_dump->gpr[3], p_dump->gpr[4],
-			 p_dump->gpr[5], p_dump->gpr[6],
-			 p_dump->gpr[7]);
+		nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
+				 __func__, p_dump->gpr[0], p_dump->gpr[1], p_dump->gpr[2],
+				 p_dump->gpr[3], p_dump->gpr[4], p_dump->gpr[5], p_dump->gpr[6],
+				 p_dump->gpr[7]);
 
-		nanohub_dev_info(ipc->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, sp:0x%x, lr:0x%x, r15:0x%x, pc:0x%x\n",
-			 __func__, p_dump->gpr[8],
-			 p_dump->gpr[9], p_dump->gpr[10],
-			 p_dump->gpr[11], p_dump->gpr[12],
-			 p_dump->gpr[13], p_dump->gpr[14],
-			 p_dump->gpr[15], p_dump->gpr[16]);
+		nanohub_dev_info(chub->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, sp:0x%x, lr:0x%x, r15:0x%x, pc:0x%x\n",
+				 __func__, p_dump->gpr[8], p_dump->gpr[9], p_dump->gpr[10],
+				 p_dump->gpr[11], p_dump->gpr[12], p_dump->gpr[13], p_dump->gpr[14],
+				 p_dump->gpr[15], p_dump->gpr[16]);
 	}
 }
 
-static void chub_dbg_dump_cmu(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_cmu(struct contexthub_ipc_info *chub)
 {
 	if (p_dbg_dump) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
+
 		/* dump CMU */
 		for (i = 0; i <= CMU_REG_MAX - 1; i++)
 			p_dump->cmu[i] =
-			    readl(ipc->chub_dump_cmu +
+			    readl(chub->chub_dump_cmu +
 			    dump_chub_cmu_registers[i]);
 
-		nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
-			 __func__, p_dump->cmu[0],
-			 p_dump->cmu[1], p_dump->cmu[2],
-			 p_dump->cmu[3], p_dump->cmu[4],
-			 p_dump->cmu[5], p_dump->cmu[6],
-			 p_dump->cmu[7]);
+		nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
+				 __func__, p_dump->cmu[0], p_dump->cmu[1], p_dump->cmu[2],
+				 p_dump->cmu[3], p_dump->cmu[4], p_dump->cmu[5],
+				 p_dump->cmu[6], p_dump->cmu[7]);
 
-		nanohub_dev_info(ipc->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
-			 __func__, p_dump->cmu[8],
-			 p_dump->cmu[9], p_dump->cmu[10],
-			 p_dump->cmu[11], p_dump->cmu[12],
-			 p_dump->cmu[13], p_dump->cmu[14],
-			 p_dump->cmu[15]);
+		nanohub_dev_info(chub->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
+				 __func__, p_dump->cmu[8], p_dump->cmu[9], p_dump->cmu[10],
+				 p_dump->cmu[11], p_dump->cmu[12], p_dump->cmu[13],
+				 p_dump->cmu[14], p_dump->cmu[15]);
 
-		nanohub_dev_info(ipc->dev, "%s: r16:0x%x\n",
-			 __func__, p_dump->cmu[16]);
+		nanohub_dev_info(chub->dev, "%s: r16:0x%x\n", __func__, p_dump->cmu[16]);
 	}
 }
 
-static void chub_dbg_dump_sys(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_sys(struct contexthub_ipc_info *chub)
 {
 	if (p_dbg_dump) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
+
 		/* dump SYS */
 		for (i = 0; i <= SYS_REG_MAX - 1; i++)
 			p_dump->sys[i] =
-			    readl(ipc->chub_dump_sys +
+			    readl(chub->chub_dump_sys +
 			    dump_chub_sys_registers[i]);
 
-		nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
-			 __func__, p_dump->sys[0],
-			 p_dump->sys[1], p_dump->sys[2],
-			 p_dump->sys[3], p_dump->sys[4],
-			 p_dump->sys[5], p_dump->sys[6],
-			 p_dump->sys[7]);
+		nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
+				 __func__, p_dump->sys[0], p_dump->sys[1], p_dump->sys[2],
+				 p_dump->sys[3], p_dump->sys[4], p_dump->sys[5],
+				 p_dump->sys[6], p_dump->sys[7]);
 
-		nanohub_dev_info(ipc->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
-			 __func__, p_dump->sys[8],
-			 p_dump->sys[9], p_dump->sys[10],
-			 p_dump->sys[11], p_dump->sys[12],
-			 p_dump->sys[13], p_dump->sys[14],
-			 p_dump->sys[15]);
+		nanohub_dev_info(chub->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
+				 __func__, p_dump->sys[8], p_dump->sys[9],
+				 p_dump->sys[10], p_dump->sys[11], p_dump->sys[12],
+				 p_dump->sys[13], p_dump->sys[14], p_dump->sys[15]);
 
-		nanohub_dev_info(ipc->dev, "%s: r16:0x%x, r17:0x%x, r18:0x%x, r19:0x%x, r20:0x%x\n",
-			 __func__, p_dump->sys[16],
-			 p_dump->sys[17], p_dump->sys[18],
-			 p_dump->sys[19], p_dump->sys[20]);
+		nanohub_dev_info(chub->dev, "%s: r16:0x%x, r17:0x%x, r18:0x%x, r19:0x%x, r20:0x%x\n",
+				 __func__, p_dump->sys[16], p_dump->sys[17], p_dump->sys[18],
+				 p_dump->sys[19], p_dump->sys[20]);
 
 	}
 }
 
-static void chub_dbg_dump_wdt(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_wdt(struct contexthub_ipc_info *chub)
 {
 	if (p_dbg_dump) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
+
 		/* dump wdt */
 		for (i = 0; i <= WDT_REG_MAX - 1; i++)
 			p_dump->wdt[i] =
-			    readl(ipc->chub_dump_wdt +
-			    dump_chub_wdt_registers[i]);
+			    readl(chub->chub_dump_wdt + dump_chub_wdt_registers[i]);
 
-		nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x\n",
-			 __func__, p_dump->wdt[0],
-			 p_dump->wdt[1]);
+		nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x\n",
+				 __func__, p_dump->wdt[0], p_dump->wdt[1]);
 	}
 }
 
-static void chub_dbg_dump_timer(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_timer(struct contexthub_ipc_info *chub)
 {
 	if (p_dbg_dump) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
+
 		/* dump timer */
 		for (i = 0; i <= TIMER_REG_MAX - 1; i++)
 			p_dump->timer[i] =
-			    readl(ipc->chub_dump_timer +
+			    readl(chub->chub_dump_timer +
 			    dump_chub_timer_registers[i]);
 
-		nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x\n",
-			 __func__, p_dump->timer[0],
-			 p_dump->timer[1], p_dump->timer[2]);
+		nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x\n",
+				 __func__, p_dump->timer[0], p_dump->timer[1], p_dump->timer[2]);
 	}
 }
 
-static void chub_dbg_dump_pwm(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_pwm(struct contexthub_ipc_info *chub)
 {
 	if (p_dbg_dump) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
+
 		/* dump pwm */
 		for (i = 0; i <= PWM_REG_MAX - 1; i++)
 			p_dump->pwm[i] =
-				readl(ipc->chub_dump_pwm +
-				dump_chub_pwm_registers[i]);
+				readl(chub->chub_dump_pwm + dump_chub_pwm_registers[i]);
 
-		nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
-			 __func__, p_dump->pwm[0],
-			 p_dump->pwm[1], p_dump->pwm[2],
-			 p_dump->pwm[3], p_dump->pwm[4],
-			 p_dump->pwm[5], p_dump->pwm[6],
-			 p_dump->pwm[7]);
+		nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
+				 __func__, p_dump->pwm[0],
+				 p_dump->pwm[1], p_dump->pwm[2],
+				 p_dump->pwm[3], p_dump->pwm[4],
+				 p_dump->pwm[5], p_dump->pwm[6], p_dump->pwm[7]);
 
-		nanohub_dev_info(ipc->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
-			 __func__, p_dump->pwm[8],
-			 p_dump->pwm[9], p_dump->pwm[10],
-			 p_dump->pwm[11], p_dump->pwm[12],
-			 p_dump->pwm[13], p_dump->pwm[14],
-			 p_dump->pwm[15]);
+		nanohub_dev_info(chub->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
+				 __func__, p_dump->pwm[8],
+				 p_dump->pwm[9], p_dump->pwm[10],
+				 p_dump->pwm[11], p_dump->pwm[12],
+				 p_dump->pwm[13], p_dump->pwm[14], p_dump->pwm[15]);
 
 	}
 }
 
-static void chub_dbg_dump_rtc(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_rtc(struct contexthub_ipc_info *chub)
 {
 	if (p_dbg_dump) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
+
 		/* dump rtc */
 		for (i = 0; i <= RTC_REG_MAX - 1; i++)
 			p_dump->rtc[i] =
-				readl(ipc->chub_dump_rtc +
+				readl(chub->chub_dump_rtc +
 				dump_chub_rtc_registers[i]);
 
-		nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
-			 __func__, p_dump->rtc[0],
-			 p_dump->rtc[1], p_dump->rtc[2],
-			 p_dump->rtc[3], p_dump->rtc[4],
-			 p_dump->rtc[5], p_dump->rtc[6],
-			 p_dump->rtc[7]);
+		nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
+				 __func__, p_dump->rtc[0], p_dump->rtc[1], p_dump->rtc[2],
+				 p_dump->rtc[3], p_dump->rtc[4], p_dump->rtc[5], p_dump->rtc[6],
+				 p_dump->rtc[7]);
 
-		nanohub_dev_info(ipc->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
-			 __func__, p_dump->rtc[8],
-			 p_dump->rtc[9], p_dump->rtc[10],
-			 p_dump->rtc[11], p_dump->rtc[12],
-			 p_dump->rtc[13], p_dump->rtc[14],
-			 p_dump->rtc[15]);
+		nanohub_dev_info(chub->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
+				 __func__, p_dump->rtc[8],
+				 p_dump->rtc[9], p_dump->rtc[10],
+				 p_dump->rtc[11], p_dump->rtc[12],
+				 p_dump->rtc[13], p_dump->rtc[14],
+				 p_dump->rtc[15]);
 
-		nanohub_dev_info(ipc->dev, "%s: r16:0x%x, r17:0x%x, r18:0x%x, r19:0x%x, r20:0x%x, r21:0x%x, r22:0x%x\n",
-			 __func__, p_dump->rtc[16],
-			 p_dump->rtc[17], p_dump->rtc[18],
-			 p_dump->rtc[19], p_dump->rtc[20],
-			 p_dump->rtc[21], p_dump->rtc[22]);
+		nanohub_dev_info(chub->dev, "%s: r16:0x%x, r17:0x%x, r18:0x%x, r19:0x%x, r20:0x%x, r21:0x%x, r22:0x%x\n",
+				 __func__, p_dump->rtc[16],
+				 p_dump->rtc[17], p_dump->rtc[18],
+				 p_dump->rtc[19], p_dump->rtc[20],
+				 p_dump->rtc[21], p_dump->rtc[22]);
 	}
 }
 
-static void chub_dbg_dump_usi(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_usi(struct contexthub_ipc_info *chub)
 {
 	if (p_dbg_dump) {
 		int i;
@@ -274,111 +259,106 @@ static void chub_dbg_dump_usi(struct contexthub_ipc_info *ipc)
 		u32 usi_protocol;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
-		for (j = 0; j < ipc->usi_cnt; j++) {
+		for (j = 0; j < chub->usi_cnt; j++) {
 			/* dump usi */
 			usi_protocol =
-			    READ_CHUB_USI_CONF(ipc->usi_array[j]);
+			    READ_CHUB_USI_CONF(chub->usi_array[j]);
 			switch (usi_protocol) {
 			case USI_PROTOCOL_UART:
-				nanohub_dev_info(ipc->dev,
-					 "%s: chub_usi %d config as UART\n",
-					 __func__, j);
+				nanohub_dev_info(chub->dev, "%s: chub_usi %d config as UART\n",
+						 __func__, j);
 				index_tmp = index;
 				for (i = 0; i <= UART_REG_MAX - 1; i++) {
 					p_dump->usi[index++] =
-					   readl(ipc->usi_array[j]
+					   readl(chub->usi_array[j]
 						 + dump_chub_uart_registers[i]);
 				}
 
-				nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
-					 __func__,
-					 p_dump->usi[index_tmp],
-					 p_dump->usi[index_tmp + 1],
-					 p_dump->usi[index_tmp + 2],
-					 p_dump->usi[index_tmp + 3],
-					 p_dump->usi[index_tmp + 4],
-					 p_dump->usi[index_tmp + 5],
-					 p_dump->usi[index_tmp + 6],
-					 p_dump->usi[index_tmp + 7]);
+				nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
+						 __func__,
+						 p_dump->usi[index_tmp],
+						 p_dump->usi[index_tmp + 1],
+						 p_dump->usi[index_tmp + 2],
+						 p_dump->usi[index_tmp + 3],
+						 p_dump->usi[index_tmp + 4],
+						 p_dump->usi[index_tmp + 5],
+						 p_dump->usi[index_tmp + 6],
+						 p_dump->usi[index_tmp + 7]);
 
-				nanohub_dev_info(ipc->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
-					 __func__,
-					 p_dump->usi[index_tmp + 8],
-					 p_dump->usi[index_tmp + 9],
-					 p_dump->usi[index_tmp + 10],
-					 p_dump->usi[index_tmp + 11],
-					 p_dump->usi[index_tmp + 12],
-					 p_dump->usi[index_tmp + 13],
-					 p_dump->usi[index_tmp + 14],
-					 p_dump->usi[index_tmp + 15]);
+				nanohub_dev_info(chub->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
+						 __func__,
+						 p_dump->usi[index_tmp + 8],
+						 p_dump->usi[index_tmp + 9],
+						 p_dump->usi[index_tmp + 10],
+						 p_dump->usi[index_tmp + 11],
+						 p_dump->usi[index_tmp + 12],
+						 p_dump->usi[index_tmp + 13],
+						 p_dump->usi[index_tmp + 14],
+						 p_dump->usi[index_tmp + 15]);
 				break;
 			case USI_PROTOCOL_SPI:
-				nanohub_dev_info(ipc->dev,
-					 "%s: chub_usi %d config as SPI\n",
-					 __func__, j);
+				nanohub_dev_info(chub->dev, "%s: chub_usi %d config as SPI\n",
+						 __func__, j);
 				index_tmp = index;
 				for (i = 0; i <= SPI_REG_MAX - 1; i++) {
 					p_dump->usi[index++] =
-					    readl(ipc->usi_array[j]
+					    readl(chub->usi_array[j]
 						  + dump_chub_spi_registers[i]);
 				}
 
-				nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
-					 __func__,
-					 p_dump->usi[index_tmp],
-					 p_dump->usi[index_tmp + 1],
-					 p_dump->usi[index_tmp + 2],
-					 p_dump->usi[index_tmp + 3],
-					 p_dump->usi[index_tmp + 4],
-					 p_dump->usi[index_tmp + 5],
-					 p_dump->usi[index_tmp + 6],
-					 p_dump->usi[index_tmp + 7]);
+				nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
+						 __func__,
+						 p_dump->usi[index_tmp],
+						 p_dump->usi[index_tmp + 1],
+						 p_dump->usi[index_tmp + 2],
+						 p_dump->usi[index_tmp + 3],
+						 p_dump->usi[index_tmp + 4],
+						 p_dump->usi[index_tmp + 5],
+						 p_dump->usi[index_tmp + 6],
+						 p_dump->usi[index_tmp + 7]);
 
-				nanohub_dev_info(ipc->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x\n",
-					 __func__,
-					 p_dump->usi[index_tmp + 8],
-					 p_dump->usi[index_tmp + 9],
-					 p_dump->usi[index_tmp + 10]);
+				nanohub_dev_info(chub->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x\n",
+						 __func__,
+						 p_dump->usi[index_tmp + 8],
+						 p_dump->usi[index_tmp + 9],
+						 p_dump->usi[index_tmp + 10]);
 				break;
 			case USI_PROTOCOL_I2C:
-				nanohub_dev_info(ipc->dev,
-					 "%s: chub_usi %d config as I2C\n",
-					 __func__, j);
+				nanohub_dev_info(chub->dev,
+						 "%s: chub_usi %d config as I2C\n", __func__, j);
 				index_tmp = index;
-				for (i = 0; i <= I2C_REG_MAX - 1; i++) {
+				for (i = 0; i <= I2C_REG_MAX - 1; i++)
 					p_dump->usi[index++] =
-					   readl(ipc->usi_array[j]
-						 + dump_chub_i2c_registers[i]);
-				}
+					   readl(chub->usi_array[j] + dump_chub_i2c_registers[i]);
 
-				nanohub_dev_info(ipc->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
-					 __func__,
-					 p_dump->usi[index_tmp],
-					 p_dump->usi[index_tmp + 1],
-					 p_dump->usi[index_tmp + 2],
-					 p_dump->usi[index_tmp + 3],
-					 p_dump->usi[index_tmp + 4],
-					 p_dump->usi[index_tmp + 5],
-					 p_dump->usi[index_tmp + 6],
-					 p_dump->usi[index_tmp + 7]);
+				nanohub_dev_info(chub->dev, "%s: r0:0x%x, r1:0x%x, r2:0x%x, r3:0x%x, r4:0x%x, r5:0x%x, r6:0x%x, r7:0x%x\n",
+						 __func__,
+						 p_dump->usi[index_tmp],
+						 p_dump->usi[index_tmp + 1],
+						 p_dump->usi[index_tmp + 2],
+						 p_dump->usi[index_tmp + 3],
+						 p_dump->usi[index_tmp + 4],
+						 p_dump->usi[index_tmp + 5],
+						 p_dump->usi[index_tmp + 6],
+						 p_dump->usi[index_tmp + 7]);
 
-				nanohub_dev_info(ipc->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
-					 __func__,
-					 p_dump->usi[index_tmp + 8],
-					 p_dump->usi[index_tmp + 9],
-					 p_dump->usi[index_tmp + 10],
-					 p_dump->usi[index_tmp + 11],
-					 p_dump->usi[index_tmp + 12],
-					 p_dump->usi[index_tmp + 13],
-					 p_dump->usi[index_tmp + 14],
-					 p_dump->usi[index_tmp + 15]);
+				nanohub_dev_info(chub->dev, "%s: r8:0x%x, r9:0x%x, r10:0x%x, r11:0x%x, r12:0x%x, r13:0x%x, r14:0x%x, r15:0x%x\n",
+						 __func__,
+						 p_dump->usi[index_tmp + 8],
+						 p_dump->usi[index_tmp + 9],
+						 p_dump->usi[index_tmp + 10],
+						 p_dump->usi[index_tmp + 11],
+						 p_dump->usi[index_tmp + 12],
+						 p_dump->usi[index_tmp + 13],
+						 p_dump->usi[index_tmp + 14],
+						 p_dump->usi[index_tmp + 15]);
 
-				nanohub_dev_info(ipc->dev, "%s: r16:0x%x, r17:0x%x, r18:0x%x, r19:0x%x\n",
-					 __func__,
-					 p_dump->usi[index_tmp + 16],
-					 p_dump->usi[index_tmp + 17],
-					 p_dump->usi[index_tmp + 18],
-					 p_dump->usi[index_tmp + 19]);
+				nanohub_dev_info(chub->dev, "%s: r16:0x%x, r17:0x%x, r18:0x%x, r19:0x%x\n",
+						 __func__,
+						 p_dump->usi[index_tmp + 16],
+						 p_dump->usi[index_tmp + 17],
+						 p_dump->usi[index_tmp + 18],
+						 p_dump->usi[index_tmp + 19]);
 				break;
 			default:
 				break;
@@ -394,12 +374,8 @@ static u32 get_dbg_dump_size(void)
 
 static u32 get_chub_dumped_registers(int cnt)
 {
-	return sizeof(u32) *
-		(NUM_OF_GPR + CMU_REG_MAX +
-		 SYS_REG_MAX + WDT_REG_MAX +
-		 TIMER_REG_MAX + PWM_REG_MAX +
-		 RTC_REG_MAX + USI_REG_MAX * cnt
-		);
+	return sizeof(u32) * (NUM_OF_GPR + CMU_REG_MAX + SYS_REG_MAX + WDT_REG_MAX +
+		 TIMER_REG_MAX + PWM_REG_MAX + RTC_REG_MAX + USI_REG_MAX * cnt);
 };
 
 /* dump hw into dram (chub reserved mem) */
@@ -414,42 +390,42 @@ void chub_dbg_dump_ram(enum chub_err_type reason)
 			      ipc_get_base(IPC_REG_DUMP),
 			      ipc_get_chub_mem_size());
 		if (reason == CHUB_ERR_KERNEL_PANIC)
-			        chub_dbg_dump_gpr(&p_dbg_dump->chub);
+			chub_dbg_dump_gpr(&p_dbg_dump->chub);
 	}
 }
 
-static void chub_dbg_dump_status(struct contexthub_ipc_info *ipc)
+static void chub_dbg_dump_status(struct contexthub_ipc_info *chub)
 {
 	int i;
 
-#ifdef CONFIG_CHRE_SENSORHUB_HAL
-	struct nanohub_data *data = ipc->data;
+#ifdef CONFIG_SENSOR_DRV
+	struct nanohub_data *data = chub->data;
 
-	nanohub_dev_info(ipc->dev,
-		"%s: nanohub driver status\nwu:%d wu_l:%d acq:%d irq1_apInt:%d fired:%d\n",
-		__func__,
-		atomic_read(&data->wakeup_cnt),
-		atomic_read(&data->wakeup_lock_cnt),
-		atomic_read(&data->wakeup_acquired),
-		atomic_read(&ipc->irq1_apInt), nanohub_irq1_fired(data));
+	nanohub_dev_info(chub->dev,
+			 "%s: nanohub driver status\nwu:%d wu_l:%d acq:%d irq1_apInt:%d fired:%d\n",
+			 __func__, atomic_read(&data->wakeup_cnt),
+			 atomic_read(&data->wakeup_lock_cnt),
+			 atomic_read(&data->wakeup_acquired),
+			 atomic_read(&chub->irq1_apInt), nanohub_irq1_fired(data));
 	print_chub_user(data);
 #endif
 
-	nanohub_dev_info(ipc->dev, "%s: status:%d, reset_cnt:%d, wakeup_by_chub_cnt:%d\n", __func__,
-		atomic_read(&ipc->chub_status), ipc->err_cnt[CHUB_ERR_RESET_CNT], ipc->wakeup_by_chub_cnt);
+	nanohub_dev_info(chub->dev, "%s: status:%d, reset_cnt:%d, wakeup_by_chub_cnt:%d\n",
+			 __func__, atomic_read(&chub->chub_status),
+			 chub->err_cnt[CHUB_ERR_RESET_CNT], chub->wakeup_by_chub_cnt);
 	/* print error status */
 	for (i = 0; i < CHUB_ERR_MAX; i++) {
-		if (ipc->err_cnt[i])
-			nanohub_dev_info(ipc->dev, "%s: err(%d) : err_cnt:%d times\n",
-				__func__, i, ipc->err_cnt[i]);
+		if (chub->err_cnt[i])
+			nanohub_dev_info(chub->dev, "%s: err(%d) : err_cnt:%d times\n",
+					 __func__, i, chub->err_cnt[i]);
 	}
 #ifdef USE_FW_DUMP
-	contexthub_ipc_write_event(ipc, MAILBOX_EVT_DUMP_STATUS);
+	contexthub_ipc_write_event(chub, MAILBOX_EVT_DUMP_STATUS);
 #endif
 	ipc_dump();
 }
 
-void chub_dbg_print_funcname(struct contexthub_ipc_info *ipc, u32 lr)
+void chub_dbg_print_funcname(struct contexthub_ipc_info *chub, u32 lr)
 {
 	u32 index;
 	u32 offset;
@@ -468,29 +444,28 @@ void chub_dbg_print_funcname(struct contexthub_ipc_info *ipc, u32 lr)
                      DUMP_PREFIX_OFFSET, 16, 1, ipc->symbol_table, 32, false);
 */
 
-	funcname_table = (char *)(ipc->symbol_table) + ipc->symbol_table->size;
+	funcname_table = (char *)(chub->symbol_table) + chub->symbol_table->size;
 
-	for (index = 0 ; index < ipc->symbol_table->count ; index++) {
-		if (ipc->symbol_table->symbol[index].base <= lr &&
-			(lr - ipc->symbol_table->symbol[index].base < ipc->symbol_table->symbol[index].size)) {
+	for (index = 0 ; index < chub->symbol_table->count ; index++) {
+		if ((chub->symbol_table->symbol[index].base <= lr) &&
+		    ((lr - chub->symbol_table->symbol[index].base) <
+		    chub->symbol_table->symbol[index].size))
 			break;
-		}
 	}
 
-	if (index >= ipc->symbol_table->count)
+	if (index >= chub->symbol_table->count)
 		return;
 
-	offset = lr - ipc->symbol_table->symbol[index].base;
+	offset = lr - chub->symbol_table->symbol[index].base;
 
-	for (i = 0 ; i < ipc->symbol_table->symbol[index].length ; i++) {
-		funcname[i] = funcname_table[ipc->symbol_table->symbol[index].offset + i];
-	}
+	for (i = 0 ; i < chub->symbol_table->symbol[index].length ; i++)
+		funcname[i] = funcname_table[chub->symbol_table->symbol[index].offset + i];
 	funcname[i] = '\0';
 
-	nanohub_dev_info(ipc->dev, "[ %08x ] %s + 0x%x\n", lr, funcname, offset);
+	nanohub_dev_info(chub->dev, "[ %08x ] %s + 0x%x\n", lr, funcname, offset);
 }
 
-void chub_dbg_call_trace(struct contexthub_ipc_info *ipc)
+void chub_dbg_call_trace(struct contexthub_ipc_info *chub)
 {
 	struct RamPersistedDataAndDropbox *dbx;
 	void __iomem *sp, *stack_top;
@@ -499,29 +474,26 @@ void chub_dbg_call_trace(struct contexthub_ipc_info *ipc)
 	u32 count = 0;
 	u16 opcode1, opcode2;
 
-	nanohub_dev_info(ipc->dev, "%s - Dump CHUB call stack\n", __func__);
-	if (ipc->symbol_table == NULL) {
-		nanohub_dev_info(ipc->dev, "%s - there is no symbol_table\n", __func__);
+	nanohub_dev_info(chub->dev, "%s - Dump CHUB call stack\n", __func__);
+	if (!chub->symbol_table) {
+		nanohub_dev_info(chub->dev, "%s - there is no symbol_table\n", __func__);
 		return;
 	}
 
 	dbx = (struct RamPersistedDataAndDropbox *)ipc_get_base(IPC_REG_PERSISTBUF);
-	/*
-	print_hex_dump(KERN_CONT, "nanohub :",
-                     DUMP_PREFIX_OFFSET, 16, 1, dbx, sizeof(struct RamPersistedDataAndDropbox), false);
-	*/
-
 
 	if (dbx->magic == 0x31416200) {
 		sp = ipc_get_base(IPC_REG_BL) + dbx->r[13];
 		pc = dbx->r[15];
 		lr = dbx->r[14];
-		nanohub_dev_info(ipc->dev, "%s : Get PC/LR from Dropbox : %llx %llx\n", __func__, pc, lr);
+		nanohub_dev_info(chub->dev,
+				 "%s : Get PC/LR from Dropbox : %llx %llx\n", __func__, pc, lr);
 	} else {
 		sp = ipc_get_base(IPC_REG_BL) + p_dbg_dump->gpr[13];
 		pc = p_dbg_dump->gpr[16];
 		lr = p_dbg_dump->gpr[14];
-		nanohub_dev_info(ipc->dev, "%s : Get PC/LR from GPR : %llx %llx\n", __func__, pc, lr);
+		nanohub_dev_info(chub->dev,
+				 "%s : Get PC/LR from GPR : %llx %llx\n", __func__, pc, lr);
 	}
 
 	stack_top = ipc_get_base(IPC_REG_BL) + (u32)__raw_readl(ipc_get_base(IPC_REG_OS));
@@ -529,7 +501,7 @@ void chub_dbg_call_trace(struct contexthub_ipc_info *ipc)
 	if (sp >= stack_top)
 		return;
 
-	chub_dbg_print_funcname(ipc, pc);
+	chub_dbg_print_funcname(chub, pc);
 
 	code_start = (u32)ipc_get_base(IPC_REG_OS) - (u32)ipc_get_base(IPC_REG_BL);
 	code_end = code_start + (u32)ipc_get_size(IPC_REG_OS);
@@ -560,30 +532,30 @@ void chub_dbg_call_trace(struct contexthub_ipc_info *ipc)
 			continue;
 		}
 
-		chub_dbg_print_funcname(ipc, lr);
+		chub_dbg_print_funcname(chub, lr);
 		count++;
 	}
-	nanohub_dev_info(ipc->dev, "%s : SP : %llx\n", __func__, sp);
+	nanohub_dev_info(chub->dev, "%s : SP : %llx\n", __func__, sp);
 }
 
-void chub_dbg_dump_hw(struct contexthub_ipc_info *ipc, enum chub_err_type reason)
+void chub_dbg_dump_hw(struct contexthub_ipc_info *chub, enum chub_err_type reason)
 {
-	nanohub_dev_info(ipc->dev, "%s: reason:%d\n", __func__, reason);
+	nanohub_dev_info(chub->dev, "%s: reason:%d\n", __func__, reason);
 
-	chub_dbg_dump_gpr(ipc);
+	chub_dbg_dump_gpr(chub);
 	chub_dbg_dump_ram(reason);
-	chub_dbg_call_trace(ipc);
-	chub_dbg_dump_cmu(ipc);
-	chub_dbg_dump_sys(ipc);
-	chub_dbg_dump_wdt(ipc);
-	chub_dbg_dump_timer(ipc);
-	chub_dbg_dump_pwm(ipc);
-	chub_dbg_dump_rtc(ipc);
-	chub_dbg_dump_usi(ipc);
+	chub_dbg_call_trace(chub);
+	chub_dbg_dump_cmu(chub);
+	chub_dbg_dump_sys(chub);
+	chub_dbg_dump_wdt(chub);
+	chub_dbg_dump_timer(chub);
+	chub_dbg_dump_pwm(chub);
+	chub_dbg_dump_rtc(chub);
+	chub_dbg_dump_usi(chub);
 
-#ifdef CONFIG_CHRE_SENSORHUB_HAL
-	nanohub_dev_info(ipc->dev, "%s: notice to dump chub registers\n", __func__);
-	nanohub_add_dump_request(ipc->data);
+#ifdef CONFIG_SENSOR_DRV
+	nanohub_dev_info(chub->dev, "%s: notice to dump chub registers\n", __func__);
+	nanohub_add_dump_request(chub->data);
 #endif
 }
 
@@ -591,7 +563,7 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
 	char *pbuf = buf;
 	int i;
 	u32 usi_protocol;
@@ -599,7 +571,7 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 	int index = 0;
 
 	if (p_dbg_dump) {
-		chub_dbg_dump_cmu(ipc);
+		chub_dbg_dump_cmu(chub);
 		pbuf += sprintf(pbuf, "===================\n");
 		pbuf += sprintf(pbuf, "CHUB CMU register\n");
 
@@ -608,7 +580,7 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 			    sprintf(pbuf, "R%02d : %08x\n", i,
 				    p_dbg_dump->cmu[i]);
 
-		chub_dbg_dump_sys(ipc);
+		chub_dbg_dump_sys(chub);
 		pbuf += sprintf(pbuf, "===================\n");
 		pbuf += sprintf(pbuf, "CHUB SYS register\n");
 
@@ -617,7 +589,7 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 			    sprintf(pbuf, "R%02d : %08x\n", i,
 				    p_dbg_dump->sys[i]);
 
-		chub_dbg_dump_wdt(ipc);
+		chub_dbg_dump_wdt(chub);
 		pbuf += sprintf(pbuf, "===================\n");
 		pbuf += sprintf(pbuf, "CHUB WDT register\n");
 
@@ -626,7 +598,7 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 			    sprintf(pbuf, "R%02d : %08x\n", i,
 				    p_dbg_dump->wdt[i]);
 
-		chub_dbg_dump_timer(ipc);
+		chub_dbg_dump_timer(chub);
 		pbuf += sprintf(pbuf, "===================\n");
 		pbuf += sprintf(pbuf, "CHUB TIMER register\n");
 
@@ -635,7 +607,7 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 			    sprintf(pbuf, "R%02d : %08x\n", i,
 				    p_dbg_dump->timer[i]);
 
-		chub_dbg_dump_pwm(ipc);
+		chub_dbg_dump_pwm(chub);
 		pbuf += sprintf(pbuf, "====================\n");
 		pbuf += sprintf(pbuf, "CHUB PWM register\n");
 
@@ -644,7 +616,7 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 			    sprintf(pbuf, "R%02d : %08x\n", i,
 				    p_dbg_dump->pwm[i]);
 
-		chub_dbg_dump_rtc(ipc);
+		chub_dbg_dump_rtc(chub);
 		pbuf +=	sprintf(pbuf, "===================\n");
 		pbuf += sprintf(pbuf, "CHUB RTC register\n");
 
@@ -653,10 +625,10 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 			    sprintf(pbuf, "R%02d : %08x\n", i,
 				    p_dbg_dump->rtc[i]);
 
-		chub_dbg_dump_usi(ipc);
+		chub_dbg_dump_usi(chub);
 
-		for (j = 0; j < ipc->usi_cnt; j++) {
-			usi_protocol = READ_CHUB_USI_CONF(ipc->usi_array[j]);
+		for (j = 0; j < chub->usi_cnt; j++) {
+			usi_protocol = READ_CHUB_USI_CONF(chub->usi_array[j]);
 			switch (usi_protocol) {
 			case USI_PROTOCOL_UART:
 				pbuf +=
@@ -713,12 +685,12 @@ static ssize_t chub_get_chub_register_show(struct device *dev,
 static ssize_t chub_get_gpr_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
 	char *pbuf = buf;
 	int i;
 
 	if (p_dbg_dump) {
-		chub_dbg_dump_gpr(ipc);
+		chub_dbg_dump_gpr(chub);
 
 		pbuf +=
 		    sprintf(pbuf, "========================================\n");
@@ -788,13 +760,12 @@ static ssize_t chub_bin_dfs_read(struct file *file, struct kobject *kobj,
 	return size;
 }
 
-static BIN_ATTR_RO(chub_bin_sram, 0);
 static BIN_ATTR_RO(chub_bin_dram, 0);
 static BIN_ATTR_RO(chub_bin_dumped_sram, 0);
 static BIN_ATTR_RO(chub_bin_logbuf_dram, 0);
 static BIN_ATTR_RO(chub_bin_dfs, 0);
+static BIN_ATTR_RO(chub_bin_sram, 0);
 static BIN_ATTR_RO(chub_bin_dump_registers, 0);
-
 
 static struct bin_attribute *chub_bin_attrs[] = {
 	&bin_attr_chub_bin_sram,
@@ -854,28 +825,13 @@ static ssize_t chub_alive_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	int index = 0;
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
-	int ret = contexthub_ipc_write_event(ipc, MAILBOX_EVT_CHUB_ALIVE);
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
+	int ret = contexthub_ipc_write_event(chub, MAILBOX_EVT_CHUB_ALIVE);
 
 	if (!ret)
 		index += sprintf(buf, "chub alive\n");
 	else
 		index += sprintf(buf, "chub isn't alive\n");
-
-	return index;
-}
-
-static ssize_t chub_dfs_gov_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	int i;
-	int index = 0;
-
-	for (i = 0; i < sizeof(chub_dfs_name) / SIZE_DFS_NAME; i++)
-		if (chub_dfs_name[i][0])
-			index +=
-			    sprintf(buf + index, "%d %s\n", i,
-				    chub_dfs_name[i]);
 
 	return index;
 }
@@ -895,11 +851,48 @@ static ssize_t chub_utc_show(struct device *dev,
 	return index;
 }
 
+static ssize_t chub_utc_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
+	long event;
+	int err;
+
+	err = kstrtol(&buf[0], 10, &event);
+	nanohub_dev_info(chub->dev, "%s: event:%d\n", __func__, event);
+
+	if (!err) {
+		contexthub_ipc_write_event(chub, event);
+
+		if (event >= IPC_DEBUG_UTC_HANG_IPC_C2A_FULL)
+			ipc_dump();
+		return count;
+	} else {
+		return 0;
+	}
+}
+
+static ssize_t chub_dfs_gov_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	int i;
+	int index = 0;
+
+	for (i = 0; i < sizeof(chub_dfs_name) / SIZE_DFS_NAME; i++)
+		if (chub_dfs_name[i][0])
+			index +=
+			    sprintf(buf + index, "%d %s\n", i,
+				    chub_dfs_name[i]);
+
+	return index;
+}
+
 static ssize_t chub_dfs_gov_store(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
 	long event;
 	int ret;
 
@@ -908,32 +901,11 @@ static ssize_t chub_dfs_gov_store(struct device *dev,
 		return ret;
 
 	ipc_write_value(IPC_VAL_A2C_DFS, event);
-	nanohub_dev_info(ipc->dev, "%s: event: %d, %d\n", __func__, event, ipc_read_value(IPC_VAL_A2C_DFS));
-	contexthub_ipc_write_event(ipc, MAILBOX_EVT_DFS_GOVERNOR);
+	nanohub_dev_info(chub->dev, "%s: event: %d, %d\n",
+			 __func__, event, ipc_read_value(IPC_VAL_A2C_DFS));
+	contexthub_ipc_write_event(chub, MAILBOX_EVT_DFS_GOVERNOR);
 
 	return ret ? ret : count;
-}
-
-static ssize_t chub_utc_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
-	long event;
-	int err;
-
-	err = kstrtol(&buf[0], 10, &event);
-	nanohub_dev_info(ipc->dev, "%s: event:%d\n", __func__, event);
-
-	if (!err) {
-		contexthub_ipc_write_event(ipc, event);
-
-		if (event >= IPC_DEBUG_UTC_HANG_IPC_C2A_FULL)
-			ipc_dump();
-		return count;
-	} else {
-		return 0;
-	}
 }
 
 struct chub_ipc_utc {
@@ -957,8 +929,7 @@ static ssize_t chub_ipc_show(struct device *dev,
 
 	for (i = 0; i < sizeof(ipc_utc) / sizeof(struct chub_ipc_utc); i++)
 		index +=
-		    sprintf(buf + index, "%d %s\n", i,
-			    ipc_utc[i].name);
+		    sprintf(buf + index, "%d %s\n", i, ipc_utc[i].name);
 
 	return index;
 }
@@ -968,7 +939,7 @@ static ssize_t chub_ipc_store(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
 	char input[CIPC_TEST_SIZE];
 	char output[CIPC_TEST_SIZE];
 	int ret;
@@ -977,10 +948,10 @@ static ssize_t chub_ipc_store(struct device *dev,
 	int i;
 
 	err = kstrtol(&buf[0], 10, &event);
-	nanohub_dev_info(ipc->dev, "%s: event:%d\n", __func__, event);
+	nanohub_dev_info(chub->dev, "%s: event:%d\n", __func__, event);
 
 	if (!ipc_utc[event].reg) {
-		nanohub_dev_info(ipc->dev, "%s: cipc reset\n", __func__);
+		nanohub_dev_info(chub->dev, "%s: cipc reset\n", __func__);
 		cipc_reset_map();
 		return count;
 	}
@@ -993,53 +964,58 @@ static ssize_t chub_ipc_store(struct device *dev,
 		for (i = 0; i < CIPC_TEST_SIZE; i++)
 			output[i] = i;
 	} else {
-		nanohub_dev_err(ipc->dev, "%s: ipc size(%d) is bigger than max(%d)\n",
-			__func__, (int)count, (int)CIPC_TEST_SIZE);
+		nanohub_dev_err(chub->dev, "%s: ipc size(%d) is bigger than max(%d)\n",
+				__func__, (int)count, (int)CIPC_TEST_SIZE);
 		return -EINVAL;
 	}
 
-	nanohub_dev_err(ipc->dev, "%s: event:%d, reg:%d\n", __func__, event, ipc_utc[event].reg);
+	nanohub_dev_err(chub->dev, "%s: event:%d, reg:%d\n", __func__, event, ipc_utc[event].reg);
 
 	ipc_write_value(IPC_VAL_A2C_DEBUG2, ipc_utc[event].reg);
 
-	ret = contexthub_ipc_write_event(ipc, (u32)IPC_DEBUG_UTC_IPC_TEST_START);
+	ret = contexthub_ipc_write_event(chub, (u32)IPC_DEBUG_UTC_IPC_TEST_START);
 	if (ret) {
-		nanohub_dev_err(ipc->dev, "%s: fails to set start test event. ret:%d\n", __func__, ret);
+		nanohub_dev_err(chub->dev,
+				"%s: fails to set start test event. ret:%d\n", __func__, ret);
 		count = ret;
 		goto out;
 	}
 
 	if (event == IPC_DEBUG_UTC_IPC_AP) {
-		ret = contexthub_ipc_write(ipc, input, count, IPC_MAX_TIMEOUT);
+		ret = contexthub_ipc_write(chub, input, count, IPC_MAX_TIMEOUT);
 		if (ret != count) {
-			nanohub_dev_info(ipc->dev, "%s: fail to write\n", __func__);
+			nanohub_dev_info(chub->dev, "%s: fail to write\n", __func__);
 			goto out;
 		}
 
-		ret = contexthub_ipc_read(ipc, output, 0, IPC_MAX_TIMEOUT);
+		ret = contexthub_ipc_read(chub, output, 0, IPC_MAX_TIMEOUT);
 		if (count != ret) {
-			nanohub_dev_info(ipc->dev, "%s: fail to read ret:%d\n", __func__, ret);
+			nanohub_dev_info(chub->dev, "%s: fail to read ret:%d\n", __func__, ret);
 		}
 
 		if (strncmp(input, output, count)) {
-			nanohub_dev_info(ipc->dev, "%s: fail to compare input/output\n", __func__);
+			nanohub_dev_info(chub->dev, "%s: fail to compare input/output\n", __func__);
 			print_hex_dump(KERN_CONT, "chub input:",
-					       DUMP_PREFIX_OFFSET, 16, 1, input,
-					       count, false);
+				       DUMP_PREFIX_OFFSET, 16, 1, input,
+				       count, false);
 			print_hex_dump(KERN_CONT, "chub output:",
-					       DUMP_PREFIX_OFFSET, 16, 1, output,
-					       count, false);
+				       DUMP_PREFIX_OFFSET, 16, 1, output,
+				       count, false);
 		} else
-			nanohub_dev_info(ipc->dev, "[%s pass] len:%d, str: %s\n", __func__, (int)count, output);
+			nanohub_dev_info(chub->dev,
+					 "[%s pass] len:%d, str: %s\n", __func__,
+					 (int)count, output);
 	} else {
-		nanohub_dev_err(ipc->dev, "%s: %d: %s. reg:%d\n", __func__, event, ipc_utc[event].name, ipc_utc[event].reg);
+		nanohub_dev_err(chub->dev, "%s: %d: %s. reg:%d\n",
+				__func__, event, ipc_utc[event].name, ipc_utc[event].reg);
 		msleep(1000); /* wait util chub recived it */
 	}
 
 	out:
-		ret = contexthub_ipc_write_event(ipc, (u32)IPC_DEBUG_UTC_IPC_TEST_END);
+		ret = contexthub_ipc_write_event(chub, (u32)IPC_DEBUG_UTC_IPC_TEST_END);
 		if (ret) {
-			nanohub_dev_err(ipc->dev, "%s: fails to set end test event. ret:%d\n", __func__, ret);
+			nanohub_dev_err(chub->dev, "%s: fails to set end test event. ret:%d\n",
+					__func__, ret);
 			count = ret;
 		}
 	return count;
@@ -1049,9 +1025,9 @@ static ssize_t chub_get_dump_status_store(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
 
-	chub_dbg_dump_status(ipc);
+	chub_dbg_dump_status(chub);
 	return count;
 }
 
@@ -1059,17 +1035,17 @@ static ssize_t chub_set_dump_hw_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
 
-	chub_dbg_dump_hw(ipc, 0);
+	chub_dbg_dump_hw(chub, 0);
 	return count;
 }
 
 static ssize_t chub_loglevel_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
-	enum ipc_fw_loglevel loglevel = ipc->chub_rt_log.loglevel;
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
+	enum ipc_fw_loglevel loglevel = chub->chub_rt_log.loglevel;
 	int index = 0;
 
 	nanohub_dev_info(dev, "%s: %d\n", __func__, loglevel);
@@ -1086,7 +1062,7 @@ static ssize_t chub_loglevel_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	struct contexthub_ipc_info *ipc = get_contexthub_info_from_dev(dev);
+	struct contexthub_ipc_info *chub = get_contexthub_info_from_dev(dev);
 	long event;
 	int ret;
 
@@ -1094,13 +1070,12 @@ static ssize_t chub_loglevel_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ipc->chub_rt_log.loglevel = (enum ipc_fw_loglevel)event;
-	nanohub_dev_info(dev, "%s: %d->%d\n", __func__, event, ipc->chub_rt_log.loglevel);
-	contexthub_ipc_write_event(ipc, MAILBOX_EVT_RT_LOGLEVEL);
+	chub->chub_rt_log.loglevel = (enum ipc_fw_loglevel)event;
+	nanohub_dev_info(dev, "%s: %d->%d\n", __func__, event, chub->chub_rt_log.loglevel);
+	contexthub_ipc_write_event(chub, MAILBOX_EVT_RT_LOGLEVEL);
 
 	return ret ? ret : count;
 }
-
 static struct device_attribute attributes[] = {
 	__ATTR(get_gpr, 0440, chub_get_gpr_show, NULL),
 	__ATTR(get_chub_register, 0440, chub_get_chub_register_show, NULL),
@@ -1113,7 +1088,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(loglevel, 0664, chub_loglevel_show, chub_loglevel_store),
 };
 
-void *chub_dbg_get_memory(struct device_node *node, enum dbg_dump_area area)
+void *chub_dbg_get_memory(struct device_node *node)
 {
 	void *addr;
 	int size;
@@ -1133,12 +1108,9 @@ void *chub_dbg_get_memory(struct device_node *node, enum dbg_dump_area area)
 	} else
 		p_dbg_dump = phys_to_virt(chub_rmem->base);
 
-	if (area == DBG_NANOHUB_DD_AREA) {
-		addr = &p_dbg_dump->chub;
-		size = sizeof(p_dbg_dump->chub);
-	} else {
-		return NULL;
-	}
+	addr = &p_dbg_dump->chub;
+	size = sizeof(p_dbg_dump->chub);
+
 	memset(addr, 0, size);
 
 	return addr;
@@ -1156,7 +1128,7 @@ int chub_dbg_init(struct contexthub_ipc_info *chub, void *kernel_logbuf, int ker
 		return -EINVAL;
 
 	sensor_dev = dev = chub->dev;
-#ifdef CONFIG_CHRE_SENSORHUB_HAL
+#ifdef CONFIG_SENSOR_DRV
 	if (chub->data)
 		sensor_dev = chub->data->io[ID_NANOHUB_SENSOR].dev;
 #endif

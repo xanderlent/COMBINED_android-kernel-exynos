@@ -80,8 +80,10 @@ void ipc_set_sensor_info(u8 type, const char *name, const char *vendor,
 
 void *ipc_logbuf_inbase(bool force)
 {
-	if (ipc.ipc_map) {
-		struct ipc_logbuf *logbuf = &ipc.ipc_map->logbuf;
+	struct ipc_info *ipc = ipc_get_info();
+
+	if (ipc->ipc_map) {
+		struct ipc_logbuf *logbuf = &ipc->ipc_map->logbuf;
 
 		if (logbuf->eq >= LOGBUF_NUM || logbuf->dq >= LOGBUF_NUM)
 			return NULL;
@@ -130,7 +132,8 @@ struct logbuf_content *ipc_logbuf_get_curlogbuf(struct logbuf_content *log)
 
 void ipc_logbuf_set_req_num(struct logbuf_content *log)
 {
-	struct ipc_logbuf *logbuf = &ipc.ipc_map->logbuf;
+	struct ipc_info *ipc = ipc_get_info();
+	struct ipc_logbuf *logbuf = &ipc->ipc_map->logbuf;
 
 	log->size = logbuf->fw_num++;
 }
@@ -138,21 +141,23 @@ void ipc_logbuf_set_req_num(struct logbuf_content *log)
 void ipc_logbuf_req_flush(struct logbuf_content *log)
 {
 	if (log) {
-		struct ipc_logbuf *logbuf = &ipc.ipc_map->logbuf;
+		struct ipc_info *ipc = ipc_get_info();
+		struct ipc_logbuf *logbuf = &ipc->ipc_map->logbuf;
 
 		if (logbuf->eq >= LOGBUF_NUM || logbuf->dq >= LOGBUF_NUM)
 			return;
 
 		/* debug check overwrite */
 		if (log->nextaddr && log->newline) {
-			struct logbuf_content *nextlog = ipc_logbuf_get_curlogbuf(log);
+			struct logbuf_content *nextlog =
+			    ipc_logbuf_get_curlogbuf(log);
 
 			nextlog->size = logbuf->fw_num++;
 		} else {
 			log->size = logbuf->fw_num++;
 		}
 
-		if (ipc.ipc_map) {
+		if (ipc->ipc_map) {
 			if (!logbuf->flush_req && !logbuf->flush_active) {
 #ifdef USE_LOG_FLUSH_TRSHOLD
 				u32 eq = logbuf->eq;
@@ -164,8 +169,8 @@ void ipc_logbuf_req_flush(struct logbuf_content *log)
 				    (logcnt > LOGBUF_FLUSH_THRESHOLD)) || log->error) {
 					if (!logbuf->flush_req) {
 						logbuf->flush_req = 1;
-						ipc_hw_gen_interrupt(ipc.mb_base,
-								     ipc.opp_mb_id,
+						ipc_hw_gen_interrupt(ipc->mb_base,
+								     ipc->opp_mb_id,
 								     IRQ_NUM_CHUB_LOG);
 					}
 				}
@@ -174,8 +179,8 @@ void ipc_logbuf_req_flush(struct logbuf_content *log)
 					if (!logbuf->flush_req) {
 						logbuf->flush_req = 1;
 						logbuf->reqcnt++;
-						ipc_hw_gen_interrupt(ipc.mb_base,
-								     ipc.opp_mb_id,
+						ipc_hw_gen_interrupt(ipc->mb_base,
+								     ipc->opp_mb_id,
 								     IRQ_NUM_CHUB_LOG);
 					}
 				}
@@ -185,7 +190,7 @@ void ipc_logbuf_req_flush(struct logbuf_content *log)
 	}
 }
 
-#if defined(LOCAL_POWERGATE)
+/* LOCAL_POWERGATE */
 u32 *ipc_get_chub_psp(void)
 {
 	struct chub_bootargs *map = ipc_get_base(IPC_REG_BL_MAP);
@@ -199,5 +204,3 @@ u32 *ipc_get_chub_msp(void)
 
 	return &map->msp;
 }
-#endif
-

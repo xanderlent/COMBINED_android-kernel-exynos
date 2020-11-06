@@ -19,16 +19,15 @@
 #include <linux/poll.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "chub_log.h"
 #include "chub_dbg.h"
+#include "chub_exynos.h"
 #include "ipc_chub.h"
 
-#ifdef CONFIG_CONTEXTHUB_DEBUG
+/* cat /d/nanohub/log */
 #define SIZE_OF_BUFFER (SZ_1M)
-#else
-#define SIZE_OF_BUFFER (SZ_128K)
-#endif
 
 #define S_IRWUG (0660)
 #define DEFAULT_FLUSH_MS (1000)
@@ -37,6 +36,89 @@ static struct dentry *dbg_root_dir __read_mostly;
 static LIST_HEAD(log_list_head);
 static struct log_buffer_info *print_info;
 u32 auto_log_flush_ms;
+
+static DEFINE_MUTEX(log_mutex);
+
+static void handle_log_work_func(struct work_struct *work)
+{
+	struct contexthub_ipc_info *chub =
+	    container_of(work, struct contexthub_ipc_info, log_work);
+	int retrycnt = 0;
+
+retry:
+	if (contexthub_get_token(chub)) {
+		chub_wait_event(&chub->reset_lock, WAIT_TIMEOUT_MS * 2);
+		if (!retrycnt) {
+			retrycnt++;
+			goto retry;
+		}
+		atomic_set(&chub->log_work_active, 0);
+		return;
+	}
+	ipc_logbuf_flush_on(1);
+	mutex_lock(&log_mutex);
+	if (ipc_logbuf_outprint())
+		chub->err_cnt[CHUB_ERR_NANOHUB_LOG]++;
+	mutex_unlock(&log_mutex);
+	ipc_logbuf_flush_on(0);
+	contexthub_put_token(chub);
+	atomic_set(&chub->log_work_active, 0);
+}
+
+static int contexthub_memlog_init(struct contexthub_ipc_info *chub)
+{
+	int ret;
+
+	ret = memlog_register("CHB", chub->dev, &chub->mlog.memlog_chub);
+	if (!chub->mlog.memlog_chub) {
+		dev_err(chub->dev, "memlog chub desc registration fail ret:%d\n", ret);
+		return -1;
+	}
+
+	chub->mlog.memlog_printf_file_chub = memlog_alloc_file(chub->mlog.memlog_chub,
+							       "log-fil", SZ_512K, SZ_1M, 1000, 3);
+	dev_info(chub->dev, "memlog printf file chub %s\n",
+		 chub->mlog.memlog_printf_file_chub ? "pass" : "fail");
+	if (chub->mlog.memlog_printf_file_chub) {
+		memlog_obj_set_sysfs_mode(chub->mlog.memlog_printf_file_chub, true);
+		chub->mlog.memlog_printf_chub =
+		    memlog_alloc_printf(chub->mlog.memlog_chub, SZ_512K,
+					chub->mlog.memlog_printf_file_chub, "log-mem", 0);
+	}
+	dev_info(chub->dev, "memlog printf chub %s\n",
+		 chub->mlog.memlog_printf_chub ? "pass" : "fail");
+
+	chub->mlog.memlog_sram_file_chub =
+		memlog_alloc_file(chub->mlog.memlog_chub,
+				  "srm-fil", SZ_1M, SZ_1M, 1000, 3);
+	if (chub->mlog.memlog_sram_file_chub)
+		chub->mlog.memlog_sram_chub =
+		    memlog_alloc_dump(chub->mlog.memlog_chub, SZ_1M, chub->sram_phys, false,
+				      chub->mlog.memlog_sram_file_chub, "srm-dmp");
+	return 0;
+}
+
+int contexthub_sync_memlogger(void *chub_p)
+{
+	int ret = 0;
+	struct contexthub_ipc_info *chub = chub_p;
+
+	if (chub->mlog.memlog_printf_chub)
+		ret |= memlog_sync_to_file(chub->mlog.memlog_printf_chub);
+
+	return ret;
+}
+
+void contexthub_log_active_work(void *chub_p)
+{
+	struct contexthub_ipc_info *chub = chub_p;
+
+	if (ipc_logbuf_filled() && !atomic_read(&chub->log_work_active)) {
+		chub->log_work_reqcnt++;	/* debug */
+		atomic_set(&chub->log_work_active, 1);
+		schedule_work(&chub->log_work);
+	}
+}
 
 static int log_file_open(struct inode *inode, struct file *file)
 {
@@ -62,7 +144,6 @@ static ssize_t log_file_read(struct file *file, char __user *buf, size_t count,
 	dev_dbg(info->dev, "%s(%zu, %lld)\n", __func__, count, *ppos);
 
 	mutex_lock(&info->lock);
-
 	if (info->log_file_index < 0) {
 		info->log_file_index =
 		    likely(rt_buf->wrap) ? rt_buf->write_index : 0;
@@ -70,8 +151,8 @@ static ssize_t log_file_read(struct file *file, char __user *buf, size_t count,
 
 	do {
 		end = ((info->log_file_index < rt_buf->write_index) ||
-		       ((info->log_file_index == rt_buf->write_index) &&
-			!first)) ? rt_buf->write_index : rt_buf->buffer_size;
+		       ((info->log_file_index == rt_buf->write_index) && !first)) ?
+			rt_buf->write_index : rt_buf->buffer_size;
 		size = min(end - info->log_file_index, count);
 		if (size == 0) {
 			mutex_unlock(&info->lock);
@@ -81,8 +162,7 @@ static ssize_t log_file_read(struct file *file, char __user *buf, size_t count,
 			}
 			rt_buf->updated = false;
 
-			result = wait_event_interruptible(rt_buf->wq,
-							  rt_buf->updated);
+			result = wait_event_interruptible(rt_buf->wq, rt_buf->updated);
 			if (result != 0) {
 				dev_dbg(info->dev, "interrupted\n");
 				return result;
@@ -104,7 +184,6 @@ static ssize_t log_file_read(struct file *file, char __user *buf, size_t count,
 		info->log_file_index = 0;
 
 	mutex_unlock(&info->lock);
-
 	dev_dbg(info->dev, "%s: size = %zd\n", __func__, size);
 
 	return size;
@@ -136,9 +215,8 @@ static struct dentry *chub_dbg_get_root_dir(void)
 	return dbg_root_dir;
 }
 
-struct log_buffer_info *log_register_buffer(struct device *dev, int id,
-					    struct runtimelog_buf *rt_log,
-					    char *name, bool sram)
+static struct log_buffer_info *log_register_buffer
+	(struct device *dev, int id, struct runtimelog_buf *rt_log, char *name, bool sram)
 {
 	struct log_buffer_info *info = vmalloc(sizeof(*info));
 
@@ -174,4 +252,69 @@ struct log_buffer_info *log_register_buffer(struct device *dev, int id,
 	info->support_log_save = false;
 
 	return info;
+}
+
+static struct contexthub_ipc_info *chub_info;
+
+void chub_printf(int level, int fw_idx, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	struct logbuf_output log;
+	int n;
+	struct contexthub_ipc_info *chub = chub_info;
+
+	if (chub) {
+		if (!chub->mlog.memlog_printf_chub)
+			return;
+
+		memset(&log, 0, sizeof(struct logbuf_output));
+		log.timestamp = ktime_get_boottime_ns() / 1000;
+		log.level = level;
+		log.size = fw_idx;
+		log.buf = kzalloc(240, GFP_KERNEL);
+		va_start(args, fmt);
+		vaf.fmt = fmt;
+		vaf.va = &args;
+
+		memlog_write_printf(chub->mlog.memlog_printf_chub, MEMLOG_LEVEL_ERR, "%pV", &vaf);
+		pr_info("nanohub: %pV", &vaf);
+		n = snprintf(log.buf, 239, "%pV", &vaf);
+		log.buf[238] = '\n';
+		ipc_logbuf_printf(chub, &log, strlen(log.buf));
+		kfree(log.buf);
+		va_end(args);
+	}
+}
+
+int contexthub_log_init(void *chub_p)
+{
+	int ret;
+	struct contexthub_ipc_info *chub = chub_p;
+
+	/* register memlog at 1st to log chub */
+	ret = contexthub_memlog_init(chub);
+	if (ret) {
+		dev_err(chub->dev, "memlog not registered...\n");
+		return ret;
+	}
+
+	chub->log_info = log_register_buffer(chub->dev, 0,
+					     &chub->chub_rt_log,
+					     "log", 0);
+	chub->chub_rt_log.loglevel = 0;
+	INIT_WORK(&chub->log_work, handle_log_work_func);
+	chub->log_work_reqcnt = 0;
+
+	/* init fw runtime log */
+	chub->chub_rt_log.buffer = vzalloc(SZ_512K * 4);
+	if (!chub->chub_rt_log.buffer)
+		return -ENOMEM;
+
+	chub->chub_rt_log.buffer_size = SZ_512K * 4;
+	chub->chub_rt_log.write_index = 0;
+	chub->chub_rt_log.wrap = false;
+	chub_info = chub;
+
+	return ret;
 }

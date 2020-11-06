@@ -2,6 +2,7 @@ config NANOHUB
 	tristate "Nanohub"
 	default N
 	select IIO
+	select CONTEXTHUB_DRV
 	help
 	  Enable support for the nanohub sensorhub driver.
 
@@ -41,22 +42,22 @@ config NANOHUB_MAILBOX
 
 	  If in doubt, say N here.
 
-config CHRE_SENSORHUB_HAL
-	bool "CHRE sensor Hal support"
+config CONTEXTHUB_DRV
+	bool "Contexthub driver"
 	default Y
 	help
-	  Enable chre sensorhub hal support.
+	  Enable contexthub driver
+
+config SENSOR_DRV
+	bool "Sensor driver to support exynos sensor Hal"
+	default N
+	help
+	  Enable sensorhub hal support.
 
 config CONTEXTHUB_DEBUG
 	bool "Nanohub debug"
 	default N
 	help
 	  Eanble nanohub device debug message
-
-config CONTEXTHUB_DEBUG_MODE
-	bool "Contexthub reset brings kernel panic"
-	default N
-	help
-	  Eanble kernel panic with contexthub FW error
 
 endif # NANOHUB

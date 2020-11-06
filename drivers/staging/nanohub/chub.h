@@ -25,48 +25,27 @@
 #include <linux/platform_data/nanohub.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/signal.h>
-#include "ipc_chub.h"
-#include "chub_log.h"
-
+#include <linux/delay.h>
 #include <soc/samsung/exynos-s2mpu.h>
 #include <soc/samsung/sysevent.h>
-#include <soc/samsung/memlogger.h>
 #include <soc/samsung/imgloader.h>
+#include "ipc_chub.h"
+#include "chub_log.h"
 
 #define WAIT_TRY_CNT (3)
 #define RESET_WAIT_TRY_CNT (10)
 #define WAIT_CHUB_MS (100)
 #define WAIT_CHUB_DFS_SCAN_MS_MAX (120000)
 #define WAIT_CHUB_DFS_SCAN_MS (2000)
-
+#define WAIT_TIMEOUT_MS (1000)
 #define MAX_USI_CNT (15)
+
+enum { CHUB_ON, CHUB_OFF };
+enum { C2A_ON, C2A_OFF };
 
 #ifndef EXUNOS_SET_CONN_TZPC
 #define EXYNOS_CHUB 2ull
 #define EXYNOS_SET_CONN_TZPC 0
-#endif
-
-#define MEMLOGGER_KMSG
-
-#ifndef MEMLOGGER_KMSG
-#define nanohub_debug(fmt, ...) \
-	        pr_debug(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
-#define nanohub_info(fmt, ...) \
-	        pr_info(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
-#define nanohub_warn(fmt, ...) \
-	        pr_warn(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
-#define nanohub_err(fmt, ...) \
-	        pr_err(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
-#else
-void chub_printf(int level, int fw_idx, const char *fmt, ...);
-#define nanohub_debug(fmt, ...)			chub_printf('D', 0, fmt, ##__VA_ARGS__)
-#define nanohub_info(fmt, ...)			chub_printf('I', 0, fmt, ##__VA_ARGS__)
-#define nanohub_warn(fmt, ...)			chub_printf('W', 0, fmt, ##__VA_ARGS__)
-#define nanohub_err(fmt, ...)			chub_printf('E', 0, fmt, ##__VA_ARGS__)
-#define nanohub_dev_debug(dev, fmt, ...)	chub_printf('D', 0, fmt, ##__VA_ARGS__)
-#define nanohub_dev_info(dev, fmt, ...)		chub_printf('I', 0, fmt, ##__VA_ARGS__)
-#define nanohub_dev_warn(dev, fmt, ...)		chub_printf('W', 0, fmt, ##__VA_ARGS__)
-#define nanohub_dev_err(dev, fmt, ...)		chub_printf('E', 0, fmt, ##__VA_ARGS__)
 #endif
 
 /* utils for nanohub main */
@@ -144,7 +123,7 @@ struct read_wait {
 	wait_queue_head_t event;
 };
 
-struct chub_alive {
+struct chub_evt {
 	atomic_t flag;
 	wait_queue_head_t event;
 };
@@ -216,18 +195,6 @@ struct contexthub_symbol_table {
 	struct contexthub_symbol_addr symbol[0];
 };
 
-struct memlogs {
-	struct memlog *memlog_chub;
-	struct memlog_obj *memlog_file_chub;
-	struct memlog_obj *memlog_obj_chub;
-	struct memlog_obj *memlog_arr_file_chub;
-	struct memlog_obj *memlog_arr_chub;
-	struct memlog_obj *memlog_sram_file_chub;
-	struct memlog_obj *memlog_sram_chub;
-	struct memlog_obj *memlog_printf_file_chub;
-	struct memlog_obj *memlog_printf_chub;
-};
-
 struct contexthub_notifi_info {
 	char name[IPC_NAME_MAX];
 	enum ipc_owner id;
@@ -248,11 +215,12 @@ struct contexthub_ipc_info {
 	int log_work_reqcnt;
 	spinlock_t logout_lock;
 	struct read_wait read_lock;
-	struct chub_alive chub_alive_lock;
-	struct chub_alive poweron_lock;
-	struct chub_alive reset_lock;
-	void __iomem *sram;
+	struct chub_evt chub_alive_lock;
+	struct chub_evt poweron_lock;
+	struct chub_evt reset_lock;
 	u32 sram_size;
+	void __iomem *sram;
+	phys_addr_t sram_phys;
 	void __iomem *mailbox;
 	void __iomem *chub_dumpgpr;
 	void __iomem *chub_baaw;
@@ -291,9 +259,6 @@ struct contexthub_ipc_info {
 	bool os_load;
 	u8 num_os;
 	char os_name[MAX_FILE_LEN];
-#ifdef CONFIG_CONTEXTHUB_DEBUG
-	struct work_struct utc_work;
-#endif
 	u32 chub_dfs_gov;
 	/* wakeup control */
 	struct wakeup_source *ws;
@@ -410,21 +375,79 @@ static inline int chub_wake_lock_active(struct wakeup_source *ws)
 	return ws->active;
 }
 
-struct clk *contexthub_devm_clk_prepare(struct device *dev, const char *name);
-int contexthub_ipc_write_event(struct contexthub_ipc_info *data,
-				enum mailbox_event event);
-int contexthub_ipc_read(struct contexthub_ipc_info *ipc,
-				uint8_t *rx, int max_length, int timeout);
-int contexthub_ipc_write(struct contexthub_ipc_info *ipc,
-				uint8_t *tx, int length, int timeout);
-int contexthub_poweron(struct contexthub_ipc_info *data);
-int contexthub_download_image(struct contexthub_ipc_info *data, enum ipc_region reg);
-int contexthub_reset(struct contexthub_ipc_info *ipc, bool force_load, enum chub_err_type err);
-int contexthub_wakeup(struct contexthub_ipc_info *data, int evt);
-void chub_wake_event(struct chub_alive *event);
-int contexthub_get_sensortype(struct contexthub_ipc_info *ipc, char *buf);
-void contexthub_handle_debug(struct contexthub_ipc_info *ipc, enum chub_err_type err);
-int contexthub_sync_memlogger(struct contexthub_ipc_info *ipc);
-int contexthub_get_token(struct contexthub_ipc_info *ipc);
-void contexthub_put_token(struct contexthub_ipc_info *ipc);
+static inline int contexthub_read_in_reset(struct contexthub_ipc_info *chub)
+{
+	return atomic_read(&chub->in_reset);
+}
+
+static inline void chub_wake_event(struct chub_evt *event)
+{
+	atomic_set(&event->flag, 1);
+	wake_up_interruptible_sync(&event->event);
+}
+
+static inline int chub_wait_event(struct chub_evt *event, int timeout)
+{
+	atomic_set(&event->flag, 0);
+	return wait_event_interruptible_timeout(event->event,
+						 atomic_read(&event->flag),
+						 msecs_to_jiffies(timeout));
+}
+
+static inline int contexthub_read_token(struct contexthub_ipc_info *chub)
+{
+	if (contexthub_read_in_reset(chub))
+		return -EINVAL;
+
+	return atomic_read(&chub->in_use_ipc);
+}
+
+static inline int contexthub_get_token(struct contexthub_ipc_info *chub)
+{
+	if (contexthub_read_in_reset(chub))
+		return -EINVAL;
+
+	atomic_inc(&chub->in_use_ipc);
+	return 0;
+}
+
+static inline void contexthub_put_token(struct contexthub_ipc_info *chub)
+{
+	atomic_dec(&chub->in_use_ipc);
+}
+
+static inline void contexthub_status_reset(struct contexthub_ipc_info *chub)
+{
+	/* clear ipc value */
+	atomic_set(&chub->wakeup_chub, CHUB_OFF);
+	atomic_set(&chub->irq1_apInt, C2A_OFF);
+	atomic_set(&chub->read_lock.cnt, 0);
+	atomic_set(&chub->read_lock.flag, 0);
+	atomic_set(&chub->log_work_active, 0);
+}
+
+static inline void clear_err_cnt(struct contexthub_ipc_info *chub,
+				 enum chub_err_type err)
+{
+	if (chub->err_cnt[err])
+		chub->err_cnt[err] = 0;
+}
+
+/* CHUB Driver */
+void contexthub_check_time(void);
+int contexthub_notifier_call(struct contexthub_ipc_info *chub, enum CHUB_STATE state);
+
+/* IPC IFs */
+int contexthub_get_sensortype(struct contexthub_ipc_info *chub, char *buf);
+int contexthub_ipc_if_init(struct contexthub_ipc_info *chub);
+int contexthub_chub_ipc_init(struct contexthub_ipc_info *chub);
+int contexthub_ipc_write_event(struct contexthub_ipc_info *chub, enum mailbox_event event);
+int contexthub_ipc_read(struct contexthub_ipc_info *chub, uint8_t *rx, int max_length, int timeout);
+int contexthub_ipc_write(struct contexthub_ipc_info *chub, uint8_t *tx, int length, int timeout);
+
+/* Bootup */
+void contexthub_handle_debug(struct contexthub_ipc_info *chub, enum chub_err_type err);
+int contexthub_bootup_init(struct contexthub_ipc_info *chub);
+int contexthub_poweron(struct contexthub_ipc_info *chub);
+int contexthub_reset(struct contexthub_ipc_info *chub, bool force_load, enum chub_err_type err);
 #endif
