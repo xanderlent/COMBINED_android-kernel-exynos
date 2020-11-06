@@ -2631,9 +2631,9 @@ static int cs35l41_component_probe(struct snd_soc_component *component)
 		* NOTE: May look into moving the clock source selection and frequency into
 		*	DTS in the future. */
 		ret = snd_soc_component_set_sysclk(component,
-					/* clk_id    = */ CS35L41_PLLSRC_SCLK,
+					/* clk_id    = */ CS35L41_PLLSRC_LRCLK,
 					/* source    = */ 0, /* ignored */
-					/* frequency = */ 3072000,
+					/* frequency = */ 48000,
 					/* dir       = */ 0 /* ignored */);
 		if (ret != 0)
 			dev_err(cs35l41->dev, "Failed to set SYS CLK: %d\n", ret);
