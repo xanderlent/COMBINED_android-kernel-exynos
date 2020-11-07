@@ -38,7 +38,7 @@
 		reg = <0x0 0x14884000 0x1000>, <0x0 0x14894000 0x1000>, <0x0 0x14880000 0x110>;
 		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>, <0 61 IRQ_TYPE_LEVEL_HIGH>;
 		/* IDMA[16]/FLIP[2]/BLOCK[1] */
-		attr = <0x10006>;
+		attr = <0x50006>;
 		port = <0>;
 		/* HW restriction */
 		src_f_w = <16 65534 1>;
@@ -160,8 +160,8 @@
 		pinctrl-1 = <&decon_f_te_off>;
 
 		max_win = <3>;
-		default_win = <2>;
-		default_ch = <2>;
+		default_win = <0>;
+		default_ch = <0>;
 		psr_mode = <2>;         /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 		trig_mode = <0>;        /* 0: hw trigger, 1: sw trigger */
 		dsi_mode = <0>;         /* 0: single dsi, 1: dual dsi */

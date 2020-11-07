@@ -151,26 +151,27 @@ static void decon_reg_set_sram_share(u32 id)
 
 static void decon_reg_set_frame_fifo_size(u32 id, u32 width, u32 height)
 {
-	u32 val, cnt;
-	u32 th;
+	u32 val;
+	u32 th, mask;
 
-	val = FRAME_FIFO_HEIGHT_F(height) | FRAME_FIFO_WIDTH_F(width);
-	cnt = height * width;
+	/* OUTFIFO_0 */
+	val = OUTFIFO_HEIGHT_F(height) | OUTFIFO_WIDTH_F(width);
+	mask = OUTFIFO_HEIGHT_MASK | OUTFIFO_WIDTH_MASK;
+	decon_write(id, OUTFIFO_SIZE_CONTROL_0, val);
 
-	decon_write(id, FRAME_FIFO_0_SIZE_CONTROL_0, val);
-	decon_write(id, FRAME_FIFO_0_SIZE_CONTROL_1, cnt);
-
-	th = FRAME_FIFO_0_TH_F(width);
-	decon_write(id, FRAME_FIFO_TH_CONTROL_0, th);
+	/* may be implemented later by considering 1/2H transfer */
+	th = OUTFIFO_TH_1H_F; /* 1H transfer */
+	mask = OUTFIFO_TH_MASK;
+	decon_write_mask(id, OUTFIFO_TH_CONTROL_0, th, mask);
 }
 
 static void decon_reg_set_rgb_order(u32 id, enum decon_rgb_order order)
 {
 	u32 val, mask;
 
-	val = FORMATTER_OUT_RGB_ORDER_F(order);
-	mask = FORMATTER_OUT_RGB_ORDER_MASK;
-	decon_write_mask(id, FORMATTER_CONTROL, val, mask);
+	val = OUTFIFO_PIXEL_ORDER_SWAP_F(order);
+	mask = OUTFIFO_PIXEL_ORDER_SWAP_MASK;
+	decon_write_mask(id, OUTFIFO_DATA_ORDER_CONTROL, val, mask);
 }
 
 static void decon_reg_set_blender_bg_image_size(u32 id, struct exynos_panel_info *lcd_info)
@@ -180,18 +181,19 @@ static void decon_reg_set_blender_bg_image_size(u32 id, struct exynos_panel_info
 	val = BLENDER_BG_HEIGHT_F(lcd_info->yres) | BLENDER_BG_WIDTH_F(lcd_info->xres);
 	decon_write(id, BLENDER_BG_IMAGE_SIZE_0, val);
 
-    val = (lcd_info->yres) * (lcd_info->xres);
-    decon_write(id, BLENDER_BG_IMAGE_SIZE_1, val);
+
 
 }
 
 static void decon_reg_set_data_path(u32 id, enum decon_data_path d_path,
 		enum decon_enhance_path e_path)
 {
-	u32 val;
+	u32 val, mask;
 
-	val = ENHANCE_LOGIC_PATH_F(e_path) | COMP_LINKIF_WB_PATH_F(d_path);
-	decon_write(id, DATA_PATH_CONTROL_2, val);
+	val = COMP_OUTIF_PATH_F(d_path);
+	mask = COMP_OUTIF_PATH_MASK;
+	decon_write_mask(id, DATA_PATH_CONTROL_2, val, mask);
+
 }
 
 static void decon_reg_config_win_channel(u32 id, u32 win_idx, int ch)
@@ -210,10 +212,6 @@ static void decon_reg_clear_int_all(u32 id)
 	mask = (DPU_FRAME_DONE_INT_EN
 			| DPU_FRAME_START_INT_EN);
 	decon_write_mask(id, INTERRUPT_PENDING, ~0, mask);
-
-	mask = (DPU_RESOURCE_CONFLICT_INT_EN
-		| DPU_TIME_OUT_INT_EN);
-	decon_write_mask(id, EXTRA_INTERRUPT_PENDING, ~0, mask);
 }
 
 static void decon_reg_configure_lcd(u32 id, struct decon_param *p)
@@ -266,9 +264,6 @@ static void decon_reg_set_blender_bg_size(u32 id, u32 bg_w, u32 bg_h)
 
 	val = BLENDER_BG_HEIGHT_F(bg_h) | BLENDER_BG_WIDTH_F(bg_w);
 	decon_write(id, BLENDER_BG_IMAGE_SIZE_0, val);
-
-	val = bg_w * bg_h;
-	decon_write(id, BLENDER_BG_IMAGE_SIZE_1, val);
 }
 
 static int decon_reg_stop_perframe(u32 id, struct decon_mode_info *psr, u32 fps)
@@ -847,7 +842,6 @@ void decon_reg_get_crc_data(u32 id, u32 *w0_data, u32 *w1_data)
 
 	val = decon_read(id, CRC_DATA_0);
 	*w0_data = CRC_DATA_DSIMIF0_GET(val);
-	*w1_data = CRC_DATA_DSIMIF1_GET(val);
 }
 
 u32 DPU_DMA2CH(u32 dma)

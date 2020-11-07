@@ -32,11 +32,6 @@ static irqreturn_t decon_wb_irq_handler(int irq, void *dev_data)
 	if (irq_sts_reg & DPU_FRAME_START_INT_PEND)
 		decon_dbg("%s: decon%d framestart irq\n", __func__, decon->id);
 
-	if (ext_irq & DPU_RESOURCE_CONFLICT_INT_PEND) {
-		DPU_EVENT_LOG(DPU_EVT_RSC_CONFLICT, &decon->sd, ktime_set(0, 0));
-		decon_err("DECON%d Resource Conflict(ext_irq=0x%x, irq_sts=0x%x)\n",
-				decon->id, ext_irq, irq_sts_reg);
-	}
 irq_end:
 	spin_unlock(&decon->slock);
 	return IRQ_HANDLED;

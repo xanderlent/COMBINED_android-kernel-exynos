@@ -92,11 +92,7 @@
 #define INTERRUPT_ENABLE_MASK			0x3011
 
 #define EXTRA_INTERRUPT_ENABLE			0x0044
-/* These are dummny to prevent compile error */
-#define DPU_RESOURCE_CONFLICT_INT_EN        (1 << 8)
-/* These are dummny to prevent compile error */
-#define DPU_TIME_OUT_INT_EN         (1 << 4)
-#define DPU_ERROR_INT_EN            (1 << 0)
+#define DPU_TIME_OUT_INT_EN				(1 << 4)
 
 #define TIME_OUT_VALUE					0x0048
 
@@ -106,11 +102,7 @@
 #define DPU_EXTRA_INT_PEND			(1 << 4)
 
 #define EXTRA_INTERRUPT_PENDING			0x0050
-/* These are dummny to prevent compile error */
-#define DPU_RESOURCE_CONFLICT_INT_PEND      (1 << 8)
-/* These are dummny to prevent compile error */
-#define DPU_TIME_OUT_INT_PEND           (1 << 4)
-#define DPU_ERROR_INT_PEND              (1 << 0)
+#define DPU_TIME_OUT_INT_PEND			(1 << 4)
 
 #define SHADOW_REG_UPDATE_REQ				0x0060
 #define SHADOW_REG_UPDATE_REQ_GLOBAL		(1 << 31)
@@ -161,15 +153,13 @@
 #define CLOCK_CONTROL_0_QACTIVE_MASK	((0x1 << 24) | (0x1 << 28))
 #define CLOCK_CONTROL_0_TE_QACTIVE_PLL_ON (0x1 << 28)
 
-#define FRAME_FIFO_0_SIZE_CONTROL_0         0x0120
-#define FRAME_FIFO_HEIGHT_F(_v)         ((_v) << 16)
-#define FRAME_FIFO_HEIGHT_MASK          (0x3fff << 16)
-#define FRAME_FIFO_HEIGHT_GET(_v)           (((_v) >> 16) & 0x3fff
-#define FRAME_FIFO_WIDTH_F(_v)          ((_v) << 0)
-#define FRAME_FIFO_WIDTH_MASK           (0x3fff << 0)
-#define FRAME_FIFO_WIDTH_GET(_v)            (((_v) >> 0) & 0x3fff)
-
-#define FRAME_FIFO_0_SIZE_CONTROL_1         0x0124
+#define OUTFIFO_SIZE_CONTROL_0			0x0120
+#define OUTFIFO_HEIGHT_F(_v)			((_v) << 16)
+#define OUTFIFO_HEIGHT_MASK				(0x3fff << 16)
+#define OUTFIFO_HEIGHT_GET(_v)			(((_v) >> 16) & 0x3fff)
+#define OUTFIFO_WIDTH_F(_v)				((_v) << 0)
+#define OUTFIFO_WIDTH_MASK				(0x3fff << 0)
+#define OUTFIFO_WIDTH_GET(_v)			(((_v) >> 0) & 0x3fff)
 
 #define OUTFIFO_TH_CONTROL_0			0x012C
 #define OUTFIFO_TH_1H_F					(0x5 << 0)
@@ -178,21 +168,10 @@
 #define OUTFIFO_TH_MASK					(0x7 << 0)
 #define OUTFIFO_TH_GET(_v)				((_v) >> 0 & 0x7)
 
-#define FRAME_FIFO_TH_CONTROL_0         0x0130
-#define FRAME_FIFO_0_TH_F(_v)           ((_v) << 0)
-#define FRAME_FIFO_0_TH_MASK            (0xffff << 0)
-#define FRAME_FIFO_0_TH_GET(_v)     (((_v) >> 0) & 0xffff)
-
-#define FRAME_FIFO_0_LEVEL              0x0134
-
-#define FORMATTER_CONTROL               0x0190
-#define FORMATTER_PIXEL0123_ORDER_SWAP_F    (1 << 16)
-#define FORMATTER_PIXEL23_ORDER_SWAP_F  (1 << 12)
-#define FORMATTER_PIXEL01_ORDER_SWAP_F  (1 << 8)
-#define FORMATTER_PIXEL_ORDER_SWAP(_a, _b, _c)  (_a << 16) | (_b << 12) | (_c << 8)
-#define FORMATTER_PIXEL_ORDER_SWAP_MASK ((1 << 16) | (1 << 12) | (1 << 8))
-#define FORMATTER_OUT_RGB_ORDER_F(_v)   ((_v) << 4)
-#define FORMATTER_OUT_RGB_ORDER_MASK        (0x7 << 4)
+#define OUTFIFO_DATA_ORDER_CONTROL		0x0130
+#define OUTFIFO_PIXEL_ORDER_SWAP_F(_v)		((_v) << 4)
+#define OUTFIFO_PIXEL_ORDER_SWAP_MASK	(0x7 << 4)
+#define OUTFIFO_PIXEL_ORDER_SWAP_GET(_v)	(((_v) >> 4) & 0x7)
 
 #define BLENDER_BG_IMAGE_SIZE_0			0x0200
 #define BLENDER_BG_HEIGHT_F(_v)			((_v) << 16)
@@ -201,8 +180,6 @@
 #define BLENDER_BG_WIDTH_F(_v)			((_v) << 0)
 #define BLENDER_BG_WIDTH_MASK			(0x3fff << 0)
 #define BLENDER_BG_WIDTH_GET(_v)		(((_v) >> 0) & 0x3fff)
-
-#define BLENDER_BG_IMAGE_SIZE_1         0x0204
 
 #define BLENDER_BG_IMAGE_COLOR_0			0x0208
 #define BLENDER_BG_A_F(_v)			((_v) << 16)
@@ -235,12 +212,9 @@
 #define WIN_CHMAP_MASK(_win)			(0x7 << (4*_win))
 
 #define DATA_PATH_CONTROL_2				0x0230
-#define ENHANCE_LOGIC_PATH_F(_v)        ((_v) << 12)
-#define ENHANCE_LOGIC_PATH_MASK     (0x1 << 12)
-#define ENHANCE_LOGIC_PATH_GET(_v)      (((_v) >> 12) & 0x1)
-#define COMP_LINKIF_WB_PATH_F(_v)       ((_v) << 0)
-#define COMP_LINKIF_WB_PATH_MASK        (0x1ff << 0)
-#define COMP_LINKIF_WB_PATH_GET(_v)     (((_v) >> 0) & 0x1ff)
+#define COMP_OUTIF_PATH_F(_v)			((_v) << 0)
+#define COMP_OUTIF_PATH_MASK			(0xff << 0)
+#define COMP_OUTIF_PATH_GET(_v)			(((_v) >> 0) & 0xff)
 
 #define DSIM0_TE_TIMEOUT_CONTROL		0x0254
 #define DSIM0_TE_TIMEOUT_CNT(_v)		((_v) << 0)
@@ -257,7 +231,6 @@
 
 /* DECON CRC for ASB */
 #define CRC_DATA_0				0x0280
-#define CRC_DATA_DSIMIF1_GET(_v)        (((_v) >> 16) & 0xffff)
 #define CRC_DATA_DSIMIF0_GET(_v)		(((_v) >> 0) & 0xffff)
 
 #define CRC_CONTROL				0x028C

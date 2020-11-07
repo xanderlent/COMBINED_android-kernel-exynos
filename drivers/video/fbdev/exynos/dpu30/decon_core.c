@@ -65,7 +65,7 @@
 
 #undef CONFIG_EXYNOS_PD
 
-int decon_log_level = 7;
+int decon_log_level = 6;
 module_param(decon_log_level, int, 0644);
 int dpu_bts_log_level = 6;
 module_param(dpu_bts_log_level, int, 0644);
@@ -3471,6 +3471,16 @@ static int decon_fb_alloc_memory(struct decon_device *decon, struct decon_win *w
 	vaddr = dma_buf_vmap(buf);
 
 	memset(vaddr, 0xff, size);
+
+	{
+		int i;
+		for (i = 0; i < size; i+=4) {
+			memset(vaddr + i + 0, 0xff, 1);
+			memset(vaddr + i + 1, 0, 1);
+			memset(vaddr + i + 2, 0, 1);
+			memset(vaddr + i + 3, 0, 1);
+		}
+	}
 
 	fbi->screen_base = vaddr;
 
