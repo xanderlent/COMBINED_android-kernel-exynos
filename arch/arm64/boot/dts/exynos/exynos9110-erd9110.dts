@@ -12,7 +12,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "exynos9110-universal9110-cp-s360ap-sipc.dtsi"
+#include "exynos9110-erd9110-cp-s307ap-sit.dtsi"
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/exynos9110.h>
