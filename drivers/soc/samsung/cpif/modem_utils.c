@@ -39,7 +39,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
-#include <linux/wakelock.h>
+//#include <linux/wakelock.h>
 #if !defined(CONFIG_SOC_EXYNOS9110)
 #include <linux/debug-snapshot.h>
 #endif

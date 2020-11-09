@@ -285,7 +285,7 @@ struct mem_link_device {
 	unsigned int irq_cp2ap_status;	/* INTR# for TX FLOWCTL */
 	unsigned int tx_flowctrl_cmd;
 
-	struct wake_lock cp_wakelock;	/* Requested by CP */
+//	struct wake_lock cp_wakelock;	/* Requested by CP */
 
 	/**
 	 * Member variables for TX & RX

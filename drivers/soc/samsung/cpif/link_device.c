@@ -16,7 +16,7 @@
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
-#include <linux/wakelock.h>
+//#include <linux/wakelock.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -2906,7 +2906,7 @@ static irqreturn_t shmem_irq_handler(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
-
+/*
 #ifdef CONFIG_MCU_IPC
 static irqreturn_t shmem_cp2ap_wakelock_handler(int irq, void *data)
 {
@@ -2938,7 +2938,7 @@ static irqreturn_t shmem_cp2ap_wakelock_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 #endif
-
+*/
 #if defined(CONFIG_MCU_IPC) && defined(CONFIG_PCI_EXYNOS)
 static irqreturn_t shmem_cp2ap_rat_mode_handler(int irq, void *data)
 {
@@ -4048,6 +4048,7 @@ struct link_device *create_link_device(struct platform_device *pdev, enum modem_
 	/**
 	 * Retrieve SHMEM MBOX# and IRQ# for wakelock
 	 */
+/*
 	mld->irq_cp2ap_wakelock = modem->mbx->irq_cp2ap_wakelock;
 
 	wake_lock_init(&mld->cp_wakelock, WAKE_LOCK_SUSPEND, ld->name);
@@ -4062,7 +4063,7 @@ struct link_device *create_link_device(struct platform_device *pdev, enum modem_
 		}
 	}
 #endif
-
+*/
 	/**
 	 * Retrieve SHMEM MBOX# and IRQ# for RAT_MODE
 	 */

@@ -32,7 +32,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
-#include <linux/wakelock.h>
+//#include <linux/wakelock.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>

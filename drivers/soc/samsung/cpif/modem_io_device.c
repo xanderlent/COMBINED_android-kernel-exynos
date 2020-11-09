@@ -178,8 +178,8 @@ static struct device_attribute attr_txlink =
 
 static inline void iodev_lock_wlock(struct io_device *iod)
 {
-	wake_lock_timeout(&iod->wakelock,
-		iod->waketime ?: msecs_to_jiffies(200));
+//	wake_lock_timeout(&iod->wakelock,
+//		iod->waketime ?: msecs_to_jiffies(200));
 }
 
 static int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)
@@ -935,7 +935,7 @@ void sipc5_deinit_io_device(struct io_device *iod)
 {
 	mif_err("%s: io_typ=%d\n", iod->name, iod->io_typ);
 
-	wake_lock_destroy(&iod->wakelock);
+	//wake_lock_destroy(&iod->wakelock);
 
 	/* De-register misc or net device */
 	switch (iod->io_typ) {
