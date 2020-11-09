@@ -98,6 +98,15 @@ enum exynos_ch_id {
 	EXYNOS_CH_ID_WFS_0 = 93,    /* umts_wfc0 */
 	EXYNOS_CH_ID_WFS_1 = 94,    /* umts_wfc1 */
 
+	EXYNOS_CH_ID_OEM_0 = 129,   /* oem_ipc0 */
+	EXYNOS_CH_ID_OEM_1,         /* oem_ipc1 */
+	EXYNOS_CH_ID_OEM_2,         /* oem_ipc2 */
+	EXYNOS_CH_ID_OEM_3,         /* oem_ipc3 */
+	EXYNOS_CH_ID_OEM_4,         /* oem_ipc4 */
+	EXYNOS_CH_ID_OEM_5,         /* oem_ipc5 */
+	EXYNOS_CH_ID_OEM_6,         /* oem_ipc6 */
+	EXYNOS_CH_ID_OEM_7,         /* oem_ipc7 */
+
 	EXYNOS_CH_ID_BOOT = 241,
 	EXYNOS_CH_ID_DUMP = 242,
 
@@ -285,6 +294,12 @@ static inline bool exynos_wfs0_ch(u8 ch)
 static inline bool exynos_wfs1_ch(u8 ch)
 {
 	return (ch == EXYNOS_CH_ID_WFS_1) ? true : false;
+}
+
+static inline bool exynos_oem_ch(u8 ch)
+{
+	return (ch >= EXYNOS_CH_ID_OEM_0 && ch <= EXYNOS_CH_ID_OEM_7) ?
+		true : false;
 }
 
 static inline unsigned int exynos_get_total_len(u8 *frm)

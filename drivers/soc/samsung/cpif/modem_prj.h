@@ -508,6 +508,7 @@ struct link_device {
 	bool (*is_uts_ch)(u8 ch);
 	bool (*is_wfs0_ch)(u8 ch);
 	bool (*is_wfs1_ch)(u8 ch);
+	bool (*is_oem_ch)(u8 ch);
 	u8 (*get_rmnet_type)(u8 ch);
 	u8 (*get_ch_from_cid)(u8 cid);
 

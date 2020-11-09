@@ -3798,6 +3798,7 @@ struct link_device *create_link_device(struct platform_device *pdev, enum modem_
 		ld->is_uts_ch = exynos_uts_ch;
 		ld->is_wfs0_ch = exynos_wfs0_ch;
 		ld->is_wfs1_ch = exynos_wfs1_ch;
+		ld->is_oem_ch = exynos_oem_ch;
 		ld->get_rmnet_type = exynos_get_rmnet_type;
 		ld->get_ch_from_cid = exynos_get_ch_from_cid;
 		break;
