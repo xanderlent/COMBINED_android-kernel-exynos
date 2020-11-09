@@ -31,7 +31,9 @@
 #include <linux/netdevice.h>
 #include <linux/pm_runtime.h>
 #include <linux/version.h>
+#if defined(CONFIG_EXYNOS_ITMON)
 #include <soc/samsung/exynos-itmon.h>
+#endif
 #ifdef CONFIG_LINK_DEVICE_PCIE
 #include <linux/pci.h>
 #endif
