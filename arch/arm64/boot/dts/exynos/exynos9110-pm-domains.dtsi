@@ -53,7 +53,7 @@
 		reg = <0x0 0x11864020 0x20>;
 		cal_id = <0xB1380004>;
 		need_smc = <0x11010204>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	dbgdev-pd-dispaud {
