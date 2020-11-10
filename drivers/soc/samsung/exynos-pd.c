@@ -249,17 +249,24 @@ static void of_get_power_down_ok(struct exynos_pm_domain *pd)
 	}
 }
 
-static void exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
+static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 {
 	pd->genpd.name = pd->name;
 	pd->genpd.power_off = exynos_pd_power_off;
 	pd->genpd.power_on = exynos_pd_power_on;
 
 	/* pd power on/off latency is less than 1ms */
+	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
+
+	pd->genpd.states = kzalloc(sizeof(struct genpd_power_state), GFP_KERNEL);
+
+	if (!pd->genpd.states)
+		return -ENOMEM;
+
 	pd->genpd.states[0].power_on_latency_ns = 1000000;
 	pd->genpd.states[0].power_off_latency_ns = 1000000;
 
-	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
+	return 0;
 }
 
 /* exynos_pd_show_power_domain - show current power domain status.
@@ -317,8 +324,7 @@ static __init int exynos_pd_dt_parse(void)
 		if (ret) {
 			pr_err(EXYNOS_PD_PREFIX "%s: failed to get cal_pdid  from of %s\n",
 					__func__, pd->name);
-			ret= -ENODEV;
-			goto err;
+			return -ENODEV;
 		}
 		pd->of_node = np;
 		pd->pd_control = cal_pd_control;
@@ -339,8 +345,7 @@ static __init int exynos_pd_dt_parse(void)
 		if (initial_state == -1) {
 			pr_err(EXYNOS_PD_PREFIX "%s: %s is in unknown state\n",
 					__func__, pd->name);
-			ret = -EINVAL;
-			goto err;
+			return -EINVAL;
 		}
 
 //		pd->idle_ip_index = exynos_get_idle_ip_index(pd->name);
@@ -348,7 +353,13 @@ static __init int exynos_pd_dt_parse(void)
 		mutex_init(&pd->access_lock);
 		platform_set_drvdata(pdev, pd);
 
-		exynos_pd_genpd_init(pd, initial_state);
+		ret = exynos_pd_genpd_init(pd, initial_state);
+		if (ret) {
+			pr_err(EXYNOS_PD_PREFIX "%s: exynos_pd_genpd_init fail: %s, ret:%d\n",
+					__func__, pd->name, ret);
+			return ret;
+		}
+
 		of_genpd_add_provider_simple(np, &pd->genpd);
 
 		/* add LOGICAL sub-domain
@@ -386,7 +397,13 @@ static __init int exynos_pd_dt_parse(void)
 			mutex_init(&sub_pd->access_lock);
 			platform_set_drvdata(sub_pdev, sub_pd);
 
-			exynos_pd_genpd_init(sub_pd, initial_state);
+			ret = exynos_pd_genpd_init(sub_pd, initial_state);
+			if (ret) {
+				pr_err(EXYNOS_PD_PREFIX "%s: exynos_pd_genpd_init fail: %s, ret:%d\n",
+						__func__, pd->name, ret);
+				return ret;
+			}
+
 			of_genpd_add_provider_simple(children, &sub_pd->genpd);
 
 			if (pm_genpd_add_subdomain(&pd->genpd, &sub_pd->genpd))
@@ -396,11 +413,6 @@ static __init int exynos_pd_dt_parse(void)
 				pr_info(EXYNOS_PD_PREFIX "%s has a new logical child %s.\n",
 						pd->genpd.name, sub_pd->genpd.name);
 		}
-		continue;
-err:
-		kfree(pd->name);
-		kfree(pd);
-		return ret;
 	}
 
 	/* EXCEPTION: add physical sub-pd to master pd using device tree */
@@ -445,7 +457,6 @@ err:
 	}
 
 	return 0;
-
 }
 #endif /* CONFIG_OF */
 
@@ -463,7 +474,6 @@ static int __init exynos_pd_init(void)
 		pr_info("%s PM Domain Initialize\n", EXYNOS_PD_PREFIX);
 		/* show information of power domain registration */
 		exynos_pd_show_power_domain();
-
 		return 0;
 	}
 #endif
