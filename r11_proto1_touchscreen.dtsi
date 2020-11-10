@@ -3,6 +3,8 @@
 
 &hsi2c_4 {
 	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
 
 	novatek@62 {
 		compatible = "novatek,NVT-ts";
