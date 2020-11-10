@@ -21,6 +21,7 @@ obj-$(CONFIG_EXYNOS_BCM)	+= exynos-bcm.o
 #PM
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-powermode.o
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-pm.o
+obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-smc.o
 obj-$(CONFIG_EXYNOS_PM_DVS)        += exynos-pm-dvs.o
 obj-$(CONFIG_EXYNOS_RGT)        += exynos-rgt.o
 
