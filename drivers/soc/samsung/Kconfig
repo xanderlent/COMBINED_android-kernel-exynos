@@ -72,6 +72,13 @@ config PMUCAL
 	help
 	 Support PMUCAL for Exynos SoC.
 
+config CHUB_PMUCAL
+        bool "Exynos PMU(for SHUB) Chip Abstraction Layer"
+        default n
+        depends on CAL_IF
+        help
+        Support CHUB_PMUCAL for Exynos SoC.
+
 config FLEXPMU
 	bool "Exynos FLEXPMU"
 	depends on PMUCAL

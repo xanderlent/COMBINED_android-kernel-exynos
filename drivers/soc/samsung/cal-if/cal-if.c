@@ -411,30 +411,30 @@ void cal_gnss_active_clear(void)
 }
 #endif
 
-#ifdef CONFIG_SHUB_PMUCAL
-void cal_shub_init(void)
+#if IS_ENABLED(CONFIG_CHUB_PMUCAL)
+void cal_chub_init(void)
 {
 	pmucal_shub_init();
 }
 
-int cal_shub_status(void)
+int cal_chub_status(void)
 {
 	return pmucal_shub_status();
 }
 
-void cal_shub_reset_assert(void)
+int cal_chub_reset_assert(void)
 {
-	pmucal_shub_reset_assert();
+	return pmucal_shub_reset_assert();
 }
 
-void cal_shub_reset_release_config(void)
+int cal_chub_reset_release_config(void)
 {
-	pmucal_shub_reset_release_config();
+	return pmucal_shub_reset_release_config();
 }
 
-void cal_shub_reset_release(void)
+int cal_chub_reset_release(void)
 {
-	pmucal_shub_reset_release();
+	return pmucal_shub_reset_release();
 }
 #endif
 
@@ -484,7 +484,7 @@ int __init cal_if_init(void *dev)
 	if (ret < 0)
 		return ret;
 #endif
-#ifdef CONFIG_SHUB_PMUCAL
+#ifdef CONFIG_CHUB_PMUCAL
 	ret = pmucal_shub_initialize();
 	if (ret < 0)
 		return ret;
