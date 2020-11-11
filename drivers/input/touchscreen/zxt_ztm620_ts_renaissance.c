@@ -2421,6 +2421,7 @@ static irqreturn_t ztm620_touch_work(int irq, void *data)
 				info->max_z_value = z;
 			input_report_abs(info->input_dev, ABS_MT_POSITION_X, x);
 			input_report_abs(info->input_dev, ABS_MT_POSITION_Y, y);
+			input_report_key(info->input_dev, BTN_TOUCH, 1);
 		} else if (zinitix_bit_test(sub_status, SUB_BIT_UP) ||
 			zinitix_bit_test(prev_sub_status, SUB_BIT_EXIST)) {
 			hold_time = ktime_to_ms(ktime_get())-info->event[i].time;
@@ -2460,6 +2461,7 @@ static irqreturn_t ztm620_touch_work(int irq, void *data)
 			memset(&info->touch_info.coord[i], 0x0, sizeof(struct coord));
 			input_mt_slot(info->input_dev, i);
 			input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER, 0);
+			input_report_key(info->input_dev, BTN_TOUCH, 0);
 			info->holding_time += hold_time;
 		} else
 			memset(&info->touch_info.coord[i], 0x0, sizeof(struct coord));
