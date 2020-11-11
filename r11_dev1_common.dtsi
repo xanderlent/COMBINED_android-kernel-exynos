@@ -19,11 +19,9 @@
 #include "r11_bcm430132_wifi.dtsi"
 #include "r11_bcm47765_gnss.dtsi"
 #include "r11_dev1_audio_haptics.dtsi"
-#include "r11_dev1_display_lcd.dtsi"
 #include "r11_dev1_wlc.dtsi"
 #include "r11_nanohub.dtsi"
 #include "r11_dev1_crown.dtsi"
-#include "r11_dev1_touchscreen.dtsi"
 #include "r11_adc.dtsi"
 
 &regulators {
