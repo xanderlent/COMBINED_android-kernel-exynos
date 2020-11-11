@@ -177,10 +177,13 @@ int s6e36w4x01_read_state(struct exynos_panel_device *panel)
 
 static int s6e36w4x01_set_light(struct exynos_panel_device *panel, u32 br_val)
 {
+#if 1
 	u8 data = 0;
 	struct dsim_device *dsim = get_dsim_drvdata(panel->id);
 
 	DPU_DEBUG_PANEL("%s +\n", __func__);
+
+	DPU_DEBUG_PANEL("power.usage_count = [%d] \n", dsim->dev->power.usage_count);
 
 	mutex_lock(&panel->ops_lock);
 
@@ -191,6 +194,7 @@ static int s6e36w4x01_set_light(struct exynos_panel_device *panel, u32 br_val)
 	mutex_unlock(&panel->ops_lock);
 
 	DPU_DEBUG_PANEL("%s -\n", __func__);
+#endif
 	return 0;
 }
 

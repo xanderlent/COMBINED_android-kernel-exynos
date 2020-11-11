@@ -237,6 +237,10 @@ struct dsim_device {
 	int total_underrun_cnt;
 	int idle_ip_index;
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+	struct platform_device *dphy_apb_pdev;
+#endif
+
 	int pl_cnt;
 	int line_cnt;
 

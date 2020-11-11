@@ -71,6 +71,27 @@ static char *dsim_state_names[] = {
 static int dsim_runtime_suspend(struct device *dev);
 static int dsim_runtime_resume(struct device *dev);
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+static int dsim_dphy_apb_enable(struct dsim_device *dsim, u32 en)
+{
+/* cam power control
+ * dphy apb is located in IS BLK
+ * so IS BLK power should be turned on in order to access dphy apb SFR
+ */
+#ifdef CONFIG_EXYNOS_PD
+	if (en) {
+		pm_runtime_get_sync(&dsim->dphy_apb_pdev->dev);
+		dsim_dbg("dphy apb enable\n");
+	} else {
+		pm_runtime_put_sync(&dsim->dphy_apb_pdev->dev);
+		dsim_dbg("dphy apb disable\n");
+	}
+#endif
+
+	return 0;
+}
+#endif
+
 int dsim_call_panel_ops(struct dsim_device *dsim, u32 cmd, void *arg)
 {
 	struct v4l2_subdev *sd;
@@ -956,6 +977,10 @@ static int _dsim_enable(struct dsim_device *dsim, enum dsim_state state)
 
 	pm_runtime_get_sync(dsim->dev);
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 1);
+#endif
+
 	/* DPHY power on : iso release */
 	dsim_phy_power_on(dsim);
 
@@ -965,6 +990,10 @@ static int _dsim_enable(struct dsim_device *dsim, enum dsim_state state)
 
 	dsim->state = state;
 	enable_irq(dsim->res.irq);
+
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 0);
+#endif
 
 	return 0;
 }
@@ -1045,6 +1074,10 @@ static int _dsim_disable(struct dsim_device *dsim, enum dsim_state state)
 
 	dsim_dbg("%s %s +\n", __func__, dsim_state_names[dsim->state]);
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 1);
+#endif
+
 	/* Wait for current read & write CMDs. */
 	mutex_lock(&dsim->cmd_lock);
 	del_timer(&dsim->cmd_timer);
@@ -1064,6 +1097,10 @@ static int _dsim_disable(struct dsim_device *dsim, enum dsim_state state)
 		dsim_set_panel_power(dsim, 0);
 
 	pm_runtime_put_sync(dsim->dev);
+
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 0);
+#endif
 
 	dsim_dbg("%s %s -\n", __func__, dsim_state_names[dsim->state]);
 #if defined(CONFIG_CPU_IDLE)
@@ -1141,6 +1178,10 @@ static int dsim_enter_ulps(struct dsim_device *dsim)
 		goto err;
 	}
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 1);
+#endif
+
 	/* Wait for current read & write CMDs. */
 	mutex_lock(&dsim->cmd_lock);
 	dsim->state = DSIM_STATE_ULPS;
@@ -1158,6 +1199,11 @@ static int dsim_enter_ulps(struct dsim_device *dsim)
 #endif
 
 	DPU_EVENT_LOG(DPU_EVT_ENTER_ULPS, &dsim->sd, start);
+
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 0);
+#endif
+
 err:
 	dsim_dbg("%s -\n", __func__);
 	return ret;
@@ -1180,6 +1226,10 @@ static int dsim_exit_ulps(struct dsim_device *dsim)
 
 	pm_runtime_get_sync(dsim->dev);
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 1);
+#endif
+
 	/* DPHY power on : iso release */
 	dsim_phy_power_on(dsim);
 
@@ -1193,6 +1243,11 @@ static int dsim_exit_ulps(struct dsim_device *dsim)
 
 	dsim->state = DSIM_STATE_ON;
 	DPU_EVENT_LOG(DPU_EVT_EXIT_ULPS, &dsim->sd, start);
+
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 0);
+#endif
+
 err:
 	dsim_dbg("%s -\n", __func__);
 
@@ -1730,6 +1785,10 @@ static int dsim_parse_dt(struct dsim_device *dsim, struct device *dev)
 	}
 
 	dsim->dev = dev;
+
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim->dphy_apb_pdev = of_find_device_by_node(of_find_node_by_name(NULL, "dsim_dphy_apb"));
+#endif
 
 	return 0;
 }

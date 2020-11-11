@@ -2602,6 +2602,10 @@ void __dsim_dump(u32 id, struct dsim_regs *regs)
 	dsim_reg_enable_shadow_read(id, 0);
 	dsim_print_hex_dump(regs->regs, regs->regs + 0x0000, 0x114);
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 1);
+#endif
+
 	dsim_info("=== DSIM %d DPHY SFR DUMP ===\n", id);
 
 	/* DPHY dump */
@@ -2643,6 +2647,10 @@ void __dsim_dump(u32 id, struct dsim_regs *regs)
 
 	dsim_info("-[DPHY_DCTRL_MD3 : offset + 0x2080]-\n");
 	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x2080, 0x30);
+
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 0);
+#endif
 
 	/* restore to avoid size mismatch (possible config error at DECON) */
 	dsim_reg_enable_shadow_read(id, 1);
