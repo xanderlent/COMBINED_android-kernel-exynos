@@ -1153,7 +1153,7 @@ static bool ztm620_check_need_upgrade(struct ztm620_info *info,
 		return true;
 	if (cur_version > 0xFF)
 		return true;
-	if (cur_version < new_version)
+	if (cur_version > new_version)
 		return true;
 	else if (cur_version > new_version)
 		return false;
