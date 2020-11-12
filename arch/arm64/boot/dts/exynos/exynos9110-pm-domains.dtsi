@@ -22,6 +22,8 @@
 		need_smc = <0x14810204>;
 		status = "disabled";
 		power-down-ok = <PD_OK_AUD>;
+		#power-domain-cells = <0>;
+		skip-idle-ip;
 	};
 
 	pd_g3d: pd-g3d@11864008 {
@@ -30,6 +32,8 @@
 		cal_id = <0xB1380001>;
 		need_smc = <0x11410204>;
 		status = "okay";
+		#power-domain-cells = <0>;
+		skip-idle-ip;
 	};
 
 	pd_is: pd-is@11864010 {
@@ -38,6 +42,8 @@
 		cal_id = <0xB1380002>;
 		need_smc = <0x14510204>;
 		status = "okay";
+		#power-domain-cells = <0>;
+		skip-idle-ip;
 	};
 
 	pd_mfcmscl: pd-mfcmscl@11864018 {
@@ -46,6 +52,8 @@
 		cal_id = <0xB1380003>;
 		need_smc = <0x12C20204>;
 		status = "okay";
+		#power-domain-cells = <0>;
+		skip-idle-ip;
 	};
 
 	pd_vts: pd-vts@11864020 {
@@ -54,31 +62,33 @@
 		cal_id = <0xB1380004>;
 		need_smc = <0x11010204>;
 		status = "disabled";
+		#power-domain-cells = <0>;
+		skip-idle-ip;
 	};
 
 	dbgdev-pd-dispaud {
 		compatible = "samsung,exynos-pd-dbg";
-		samsung,power-domain = <&pd_dispaud>;
+		power-domains = <&pd_dispaud>;
 	};
 
 	dbgdev-pd-g3d {
 		compatible = "samsung,exynos-pd-dbg";
-		samsung,power-domain = <&pd_g3d>;
+		power-domains = <&pd_g3d>;
 	};
 
 	dbgdev-pd-is {
 		compatible = "samsung,exynos-pd-dbg";
-		samsung,power-domain = <&pd_is>;
+		power-domains = <&pd_is>;
 	};
 
 	dbgdev-pd-mfcmscl {
 		compatible = "samsung,exynos-pd-dbg";
-		samsung,power-domain = <&pd_mfcmscl>;
+		power-domains = <&pd_mfcmscl>;
 	};
 
 	dbgdev-pd-vts {
 		compatible = "samsung,exynos-pd-dbg";
-		samsung,power-domain = <&pd_vts>;
+		power-domains = <&pd_vts>;
 	};
 
 };
