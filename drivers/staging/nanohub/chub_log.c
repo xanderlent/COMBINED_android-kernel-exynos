@@ -67,6 +67,7 @@ retry:
 
 static int contexthub_memlog_init(struct contexthub_ipc_info *chub)
 {
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
 	int ret;
 
 	ret = memlog_register("CHB", chub->dev, &chub->mlog.memlog_chub);
@@ -95,17 +96,19 @@ static int contexthub_memlog_init(struct contexthub_ipc_info *chub)
 		chub->mlog.memlog_sram_chub =
 		    memlog_alloc_dump(chub->mlog.memlog_chub, SZ_1M, chub->sram_phys, false,
 				      chub->mlog.memlog_sram_file_chub, "srm-dmp");
+#endif
 	return 0;
 }
 
 int contexthub_sync_memlogger(void *chub_p)
 {
 	int ret = 0;
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
 	struct contexthub_ipc_info *chub = chub_p;
 
 	if (chub->mlog.memlog_printf_chub)
 		ret |= memlog_sync_to_file(chub->mlog.memlog_printf_chub);
-
+#endif
 	return ret;
 }
 
@@ -263,26 +266,26 @@ void chub_printf(int level, int fw_idx, const char *fmt, ...)
 	struct logbuf_output log;
 	int n;
 	struct contexthub_ipc_info *chub = chub_info;
+	char buf[240];
 
 	if (chub) {
-		if (!chub->mlog.memlog_printf_chub)
-			return;
-
 		memset(&log, 0, sizeof(struct logbuf_output));
 		log.timestamp = ktime_get_boot_ns() / 1000;
 		log.level = level;
 		log.size = fw_idx;
-		log.buf = kzalloc(240, GFP_KERNEL);
+		log.buf = buf;
 		va_start(args, fmt);
 		vaf.fmt = fmt;
 		vaf.va = &args;
-
-		memlog_write_printf(chub->mlog.memlog_printf_chub, MEMLOG_LEVEL_ERR, "%pV", &vaf);
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
+		if (chub->mlog.memlog_printf_chub)
+			memlog_write_printf(chub->mlog.memlog_printf_chub,
+					    MEMLOG_LEVEL_ERR, "%pV", &vaf);
+#endif
 		pr_info("nanohub: %pV", &vaf);
 		n = snprintf(log.buf, 239, "%pV", &vaf);
 		log.buf[238] = '\n';
 		ipc_logbuf_printf(chub, &log, strlen(log.buf));
-		kfree(log.buf);
 		va_end(args);
 	}
 }

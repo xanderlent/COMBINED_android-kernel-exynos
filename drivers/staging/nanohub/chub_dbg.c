@@ -105,7 +105,7 @@ static void chub_dbg_dump_gpr(struct contexthub_ipc_info *chub)
 
 static void chub_dbg_dump_cmu(struct contexthub_ipc_info *chub)
 {
-	if (p_dbg_dump) {
+	if (p_dbg_dump && !IS_ERR_OR_NULL(chub->chub_dump_cmu)) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
@@ -131,7 +131,7 @@ static void chub_dbg_dump_cmu(struct contexthub_ipc_info *chub)
 
 static void chub_dbg_dump_sys(struct contexthub_ipc_info *chub)
 {
-	if (p_dbg_dump) {
+	if (p_dbg_dump && !IS_ERR_OR_NULL(chub->chub_dump_sys)) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
@@ -160,7 +160,7 @@ static void chub_dbg_dump_sys(struct contexthub_ipc_info *chub)
 
 static void chub_dbg_dump_wdt(struct contexthub_ipc_info *chub)
 {
-	if (p_dbg_dump) {
+	if (p_dbg_dump && !IS_ERR_OR_NULL(chub->chub_dump_wdt)) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
@@ -176,7 +176,7 @@ static void chub_dbg_dump_wdt(struct contexthub_ipc_info *chub)
 
 static void chub_dbg_dump_timer(struct contexthub_ipc_info *chub)
 {
-	if (p_dbg_dump) {
+	if (p_dbg_dump && !IS_ERR_OR_NULL(chub->chub_dump_wdt)) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
@@ -193,7 +193,7 @@ static void chub_dbg_dump_timer(struct contexthub_ipc_info *chub)
 
 static void chub_dbg_dump_pwm(struct contexthub_ipc_info *chub)
 {
-	if (p_dbg_dump) {
+	if (p_dbg_dump && !IS_ERR_OR_NULL(chub->chub_dump_pwm)) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
@@ -219,7 +219,7 @@ static void chub_dbg_dump_pwm(struct contexthub_ipc_info *chub)
 
 static void chub_dbg_dump_rtc(struct contexthub_ipc_info *chub)
 {
-	if (p_dbg_dump) {
+	if (p_dbg_dump && !IS_ERR_OR_NULL(chub->chub_dump_rtc)) {
 		int i;
 		struct dbg_dump *p_dump = p_dbg_dump;
 
@@ -251,7 +251,7 @@ static void chub_dbg_dump_rtc(struct contexthub_ipc_info *chub)
 
 static void chub_dbg_dump_usi(struct contexthub_ipc_info *chub)
 {
-	if (p_dbg_dump) {
+	if (p_dbg_dump && chub->usi_cnt) {
 		int i;
 		int j;
 		int index = 0;
@@ -1098,12 +1098,12 @@ void *chub_dbg_get_memory(struct device_node *node)
 
 	np = of_parse_phandle(node, "memory-region", 0);
 	if (!np)
-		nanohub_err("%s memory region not parsed!!");
+		pr_err("%s memory region not parsed!!");
 	else
 		chub_rmem = of_reserved_mem_lookup(np);
 
 	if (!chub_rmem) {
-		nanohub_err("%s: rmem not available, kmalloc instead", __func__);
+		pr_err("%s: rmem not available, kmalloc instead", __func__);
 		p_dbg_dump = kmalloc(SZ_2M, GFP_KERNEL);
 	} else
 		p_dbg_dump = phys_to_virt(chub_rmem->base);

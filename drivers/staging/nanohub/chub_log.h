@@ -13,6 +13,8 @@
 #define __CHUB_LOG_H_
 
 #include <linux/device.h>
+
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
 #include <soc/samsung/memlogger.h>
 
 struct memlogs {
@@ -26,6 +28,7 @@ struct memlogs {
 	struct memlog_obj *memlog_printf_file_chub;
 	struct memlog_obj *memlog_printf_chub;
 };
+#endif
 
 struct log_buffer_info {
 	struct list_head list;
@@ -50,18 +53,6 @@ struct LOG_BUFFER {
 	char buffer[0];
 };
 
-#define MEMLOGGER_KMSG
-
-#ifndef MEMLOGGER_KMSG
-#define nanohub_debug(fmt, ...) \
-			pr_debug(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
-#define nanohub_info(fmt, ...) \
-			pr_info(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
-#define nanohub_warn(fmt, ...) \
-			pr_warn(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
-#define nanohub_err(fmt, ...) \
-			pr_err(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
-#else
 void chub_printf(int level, int fw_idx, const char *fmt, ...);
 #define nanohub_debug(fmt, ...)			chub_printf('D', 0, fmt, ##__VA_ARGS__)
 #define nanohub_info(fmt, ...)			chub_printf('I', 0, fmt, ##__VA_ARGS__)
@@ -71,8 +62,8 @@ void chub_printf(int level, int fw_idx, const char *fmt, ...);
 #define nanohub_dev_info(dev, fmt, ...)		chub_printf('I', 0, fmt, ##__VA_ARGS__)
 #define nanohub_dev_warn(dev, fmt, ...)		chub_printf('W', 0, fmt, ##__VA_ARGS__)
 #define nanohub_dev_err(dev, fmt, ...)		chub_printf('E', 0, fmt, ##__VA_ARGS__)
-#endif
 
+void chub_printf(int level, int fw_idx, const char *fmt, ...);
 int contexthub_sync_memlogger(void *chub_p);
 void contexthub_log_active_work(void *chub);
 int contexthub_log_init(void *chub_p);

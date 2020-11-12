@@ -479,7 +479,7 @@ int request_wakeup_ex(struct nanohub_data *data, long timeout_ms,
 			print_chub_user(data);
 			if (!data->wakeup_err_cnt)
 				data->wakeup_err_ktime = wakeup_ktime;
-			ktime_delta = ktime_sub(ktime_get_boot(),
+			ktime_delta = ktime_sub(ktime_get_boottime(),
 						data->wakeup_err_ktime);
 			data->wakeup_err_cnt++;
 			if (ktime_to_ns(ktime_delta) > WAKEUP_ERR_TIME_NS

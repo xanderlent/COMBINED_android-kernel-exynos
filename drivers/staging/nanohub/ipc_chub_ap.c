@@ -13,7 +13,7 @@
 
 #include "chub.h"
 #include "ipc_chub.h"
-
+#include "chub_log.h"
 #define NAME_PREFIX "nanohub-ipc"
 
 #define LOGFILE_NUM_SIZE (26)

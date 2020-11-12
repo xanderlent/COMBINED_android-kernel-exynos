@@ -26,9 +26,15 @@
 #include <linux/sched/clock.h>
 #include <linux/sched/signal.h>
 #include <linux/delay.h>
+#ifdef CONFIG_EXYNOS_S2MPU
 #include <soc/samsung/exynos-s2mpu.h>
+#endif
+#ifdef CONFIG_EXYNOS_SYSTEM_EVENT
 #include <soc/samsung/sysevent.h>
+#endif
+#ifdef CONFIG_EXYNOS_IMGLOADER
 #include <soc/samsung/imgloader.h>
+#endif
 #include "ipc_chub.h"
 #include "chub_log.h"
 
@@ -267,19 +273,33 @@ struct contexthub_ipc_info {
 	struct contexthub_symbol_table *symbol_table;
 
 	/* communicate with others */
-	/* image loader */
-	struct imgloader_desc chub_img_desc[3];
 	/* chub notifiers */
 	struct contexthub_notifier_block chub_cipc_nb;
 	struct contexthub_notifi_info cipc_noti[IPC_OWN_MAX];
 	struct notifier_block itmon_nb;
-	struct s2mpufd_notifier_block s2mpu_nb;
 	struct notifier_block panic_nb;
+#ifdef CONFIG_EXYNOS_IMGLOADER
+	/* image loader */
+	struct imgloader_desc chub_img_desc[3];
+#endif
+#ifdef CONFIG_EXYNOS_S2MPU
+	struct s2mpufd_notifier_block s2mpu_nb;
+#endif
+#ifdef CONFIG_EXYNOS_SYSTEM_EVENT
 	/* sysevent */
 	struct sysevent_desc sysevent_desc;
 	struct sysevent_device *sysevent_dev;
+#endif
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
 	/* memlogger */
 	struct memlogs mlog;
+#endif
+	void __iomem *pmu_chub_reset;
+	void __iomem *pmu_osc_rco;
+	void __iomem *pmu_rtc_ctrl;
+	void __iomem *pmu_chub_ctrl;
+	void __iomem *pmu_chub_reset_stat;
+	void __iomem *pmu_chub_cpu;
 };
 
 #define SENSOR_VARIATION 10

@@ -10,13 +10,19 @@
  */
 
 #include <soc/samsung/cal-if.h>
-#include <soc/samsung/exynos-smc.h>
+#include <linux/smc.h>
+#ifdef CONFIG_EXYNOS_PD_EL3
 #include <soc/samsung/exynos-el3_mon.h>
+#endif
+#ifdef CONFIG_EXYNOS_S2MPU
 #include <soc/samsung/exynos-s2mpu.h>
+#endif
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include "chub.h"
 #include "chub_exynos.h"
+
+#define CHUB_ONE_BINARY
 
 const char *os_image[SENSOR_VARIATION] = {
 	"os.checked_0.bin",
@@ -44,7 +50,7 @@ static void contexthub_reset_token(struct contexthub_ipc_info *chub)
 static inline void contexthub_set_in_reset(struct contexthub_ipc_info *chub,
 					   bool i)
 {
-	return atomic_set(&chub->in_reset, i);
+	atomic_set(&chub->in_reset, i);
 }
 
 static ssize_t chub_reset(struct device *dev, struct device_attribute *attr,
@@ -157,6 +163,11 @@ static int contexthub_download_image(struct contexthub_ipc_info *chub,
 	int ret = 0;
 	void *chub_addr = NULL;
 
+#ifdef CHUB_ONE_BINARY
+	nanohub_dev_info(chub->dev, "%s: download one binary\n", __func__);
+	ret = request_firmware(&entry, "os.checked_1.bin", chub->dev);
+	chub_addr = chub->sram;
+#else
 	if (reg == IPC_REG_BL) {
 		nanohub_dev_info(chub->dev, "%s: download bl\n", __func__);
 		ret = request_firmware(&entry, "bl.unchecked.bin", chub->dev);
@@ -171,7 +182,7 @@ static int contexthub_download_image(struct contexthub_ipc_info *chub,
 				reg);
 		return -EINVAL;
 	}
-
+#endif
 	if (ret) {
 		nanohub_dev_err(chub->dev,
 				"%s, bl(%d) request_firmware failed\n",
@@ -183,7 +194,7 @@ static int contexthub_download_image(struct contexthub_ipc_info *chub,
 	nanohub_dev_info(chub->dev, "%s: bl:%d, bin(size:%d) on %lx\n",
 			 __func__, reg == IPC_REG_BL, (int)entry->size,
 			 (unsigned long)ipc_get_base(reg));
-
+#ifdef CONFIG_EXYNOS_S2MPU
 	if (reg == IPC_REG_BL)
 		ret = exynos_verify_subsystem_fw("CHUB", 0,
 						 chub->sram_phys, entry->size, SZ_4K);
@@ -200,7 +211,7 @@ static int contexthub_download_image(struct contexthub_ipc_info *chub,
 				ret);
 		return -1;
 	}
-
+#endif
 	if (reg == IPC_REG_OS) {
 		contexthub_verify_symtable(chub, (void *)entry->data,
 					   entry->size);
@@ -261,13 +272,26 @@ out:
 
 static void contexthub_set_baaw(struct contexthub_ipc_info *chub)
 {
+	/* BAAW-P-APM-CHUB for CHUB to access APM. 1 window is used */
+	if (!IS_ERR_OR_NULL(chub->chub_baaw)) {
+		nanohub_info("%s BAAW_P_APM_CHUB start 0x%lx end 0x%lx remap 0x%lx\n", __func__,
+			     chub->baaw_info.baaw_p_apm_chub_start,
+			     chub->baaw_info.baaw_p_apm_chub_end,
+			     chub->baaw_info.baaw_p_apm_chub_remap);
+		IPC_HW_WRITE_BAAW_CHUB0(chub->chub_baaw,
+					chub->baaw_info.baaw_p_apm_chub_start);
+		IPC_HW_WRITE_BAAW_CHUB1(chub->chub_baaw,
+					chub->baaw_info.baaw_p_apm_chub_end);
+		IPC_HW_WRITE_BAAW_CHUB2(chub->chub_baaw,
+					chub->baaw_info.baaw_p_apm_chub_remap);
+		IPC_HW_WRITE_BAAW_CHUB3(chub->chub_baaw, BAAW_RW_ACCESS_ENABLE);
+	}
 	/* BAAW-D-CHUB for CHUB to access CHIP ID. 1 window is used */
-	if (chub->chub_baaw_d) {
-		nanohub_info
-		    ("%s BAAW_D_CHUB start 0x%lx end 0x%lx remap 0x%lx\n",
-		     __func__, chub->baaw_info.baaw_d_chub_start,
-		     chub->baaw_info.baaw_d_chub_end,
-		     chub->baaw_info.baaw_d_chub_remap);
+	if (!IS_ERR_OR_NULL(chub->chub_baaw_d)) {
+		nanohub_info("%s BAAW_D_CHUB start 0x%lx end 0x%lx remap 0x%lx\n", __func__,
+			     chub->baaw_info.baaw_d_chub_start,
+			     chub->baaw_info.baaw_d_chub_end,
+			     chub->baaw_info.baaw_d_chub_remap);
 		IPC_HW_WRITE_BAAW_CHUB0(chub->chub_baaw_d,
 					chub->baaw_info.baaw_d_chub_start);
 		IPC_HW_WRITE_BAAW_CHUB1(chub->chub_baaw_d,
@@ -288,6 +312,7 @@ static int contexthub_reset_prepare(struct contexthub_ipc_info *chub)
 		nanohub_err("%s: reset release cfg fail\n", __func__);
 		return ret;
 	}
+
 	/* tzpc setting */
 	ret = exynos_smc(SMC_CMD_CONN_IF,
 			 (EXYNOS_CHUB << 32) | EXYNOS_SET_CONN_TZPC, 0, 0);
@@ -295,10 +320,11 @@ static int contexthub_reset_prepare(struct contexthub_ipc_info *chub)
 		nanohub_err("%s: TZPC setting fail\n", __func__);
 		return -EINVAL;
 	}
+
+	/* baaw config */
 	nanohub_dev_info(chub->dev, "%s: tzpc and baaw set\n", __func__);
 	contexthub_set_baaw(chub);
 
-	/* baaw config */
 	contexthub_chub_ipc_init(chub);
 
 	return ret;
@@ -381,12 +407,14 @@ static int contexthub_hw_reset(struct contexthub_ipc_info *chub,
 	default:
 		break;
 	}
+#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
 	if (!IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)) {
 		i = exynos_request_fw_stage2_ap("CHUB");
 		if (i)
 			nanohub_dev_err(chub->dev, "%s fw stage2 fail %d\n",
 					__func__, i);
 	}
+#endif
 	/* don't send alive with first poweron of multi-os */
 	if (first_poweron) {
 		nanohub_dev_info(chub->dev, "%s -> os select\n", __func__);
@@ -407,19 +435,20 @@ int contexthub_reset(struct contexthub_ipc_info *chub, bool force_load,
 	int ret = 0;
 	int trycnt = 0;
 	bool irq_disabled;
-
+#ifdef CONFIG_EXYNOS_SYSTEM_EVENT
 	if (chub->sysevent_dev)
 		sysevent_put((void *)chub->sysevent_dev);
-
+#endif
 	mutex_lock(&reset_mutex);
 	nanohub_dev_info(chub->dev,
 			 "%s: force:%d, status:%d, in-reset:%d, err:%d, user:%d\n",
 			 __func__, force_load, atomic_read(&chub->chub_status),
 			 contexthub_read_in_reset(chub), err,
 			 contexthub_read_token(chub));
-
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
 	/* debug dump */
 	memlog_do_dump(chub->mlog.memlog_sram_chub, MEMLOG_LEVEL_EMERG);
+#endif
 	chub_dbg_dump_hw(chub, err);
 
 	if (!force_load && (atomic_read(&chub->chub_status) == CHUB_ST_RUN)) {
@@ -482,10 +511,11 @@ int contexthub_reset(struct contexthub_ipc_info *chub, bool force_load,
 
 	/* image download */
 	if (chub->block_reset || force_load) {
-		if (IS_ENABLED(CONFIG_EXYNOS_IMGLOADER))
-			ret = imgloader_boot(&chub->chub_img_desc[0]);
-		else
-			ret = contexthub_download_image(chub, IPC_REG_BL);
+#ifdef CONFIG_EXYNOS_IMGLOADER
+		ret = imgloader_boot(&chub->chub_img_desc[0]);
+#else
+		ret = contexthub_download_image(chub, IPC_REG_BL);
+#endif
 		if (ret) {
 			nanohub_dev_err(chub->dev, "%s: download bl fails\n",
 					__func__);
@@ -493,14 +523,14 @@ int contexthub_reset(struct contexthub_ipc_info *chub, bool force_load,
 			goto out;
 		}
 
-		if (force_load) { /* can use new binary */
-			if (IS_ENABLED(CONFIG_EXYNOS_IMGLOADER))
-				ret = imgloader_boot(&chub->chub_img_desc[chub->num_os + 1]);
-			else
-				ret = contexthub_download_image(chub, IPC_REG_OS);
+		if (!IS_ENABLED(CHUB_ONE_BINARY) && force_load) { /* can use new binary */
+#ifdef CONFIG_EXYNOS_IMGLOADER
+			ret = imgloader_boot(&chub->chub_img_desc[chub->num_os + 1]);
+#else
+			ret = contexthub_download_image(chub, IPC_REG_OS);
+#endif
 		} else { /* use previous binary */
-			ret =
-			    contexthub_download_and_check_image(chub, IPC_REG_OS);
+			ret = contexthub_download_and_check_image(chub, IPC_REG_OS);
 		}
 		if (ret) {
 			nanohub_dev_err(chub->dev, "%s: download os fails\n", __func__);
@@ -548,13 +578,14 @@ out:
 	contexthub_notifier_call(chub, CHUB_FW_ST_ON);
 	enable_irq(chub->irq_wdt);
 	mutex_unlock(&reset_mutex);
-
+#ifdef CONFIG_EXYNOS_SYSTEM_EVENT
 	if (chub->sysevent_dev && sysevent_get("CHB") == PTR_ERR)
 		nanohub_warn("%s sysevent_get fail!", __func__);
-
+#endif
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
 	if (chub->mlog.memlog_printf_chub)
 		memlog_sync_to_file(chub->mlog.memlog_printf_chub);
-
+#endif
 #ifdef CONFIG_CONTEXTHUB_DEBUG
 	if (err)
 		panic("contexthub crash");
@@ -568,11 +599,17 @@ int contexthub_poweron(struct contexthub_ipc_info *chub)
 	struct device *dev = chub->dev;
 
 	if (!atomic_read(&chub->chub_status)) {
+		if (!chub->sram || !chub->sram_size) {
+			nanohub_dev_err(dev, "%s sram information is not available!\n", __func__);
+			return -1;
+		} else
+			nanohub_dev_info(dev, "%s 0x%lx, 0x%lx\n", __func__, chub->sram, chub->sram_size);
 		memset_io(chub->sram, 0, chub->sram_size);
-		if (IS_ENABLED(CONFIG_EXYNOS_IMGLOADER))
-			ret = imgloader_boot(&chub->chub_img_desc[0]);
-		else
-			ret = contexthub_download_image(chub, IPC_REG_BL);
+#ifdef CONFIG_EXYNOS_IMGLOADER
+		ret = imgloader_boot(&chub->chub_img_desc[0]);
+#else
+		ret = contexthub_download_image(chub, IPC_REG_BL);
+#endif
 
 		if (ret) {
 			nanohub_dev_warn(dev, "fails to download bootloader\n");
@@ -594,17 +631,20 @@ int contexthub_poweron(struct contexthub_ipc_info *chub)
 					 chub->os_name);
 			chub->sel_os = true;
 		}
-
-		if (IS_ENABLED(CONFIG_EXYNOS_IMGLOADER))
-			imgloader_boot(&chub->chub_img_desc[chub->num_os + 1]);
-		else
-			ret = contexthub_download_image(chub, IPC_REG_OS);
+#ifndef CHUB_ONE_BINARY
+#ifdef CONFIG_EXYNOS_IMGLOADER
+		ret = imgloader_boot(&chub->chub_img_desc[chub->num_os + 1]);
+#else
+		ret = contexthub_download_image(chub, IPC_REG_OS);
+#endif
 
 		if (ret) {
 			nanohub_dev_warn(dev, "fails to download kernel\n");
 			return ret;
 		}
-
+#else
+		chub->sel_os = true;
+#endif
 		if (chub->chub_dfs_gov) {
 			nanohub_dev_info(dev, "%s: set dfs gov:%d\n", __func__,
 					 chub->chub_dfs_gov);
@@ -643,10 +683,10 @@ int contexthub_poweron(struct contexthub_ipc_info *chub)
 		/* CHUB already went through poweron sequence */
 		return -EINVAL;
 	}
-
+#ifdef CONFIG_EXYNOS_SYSTEM_EVENT
 	if (chub->sysevent_dev && sysevent_get("CHB") == PTR_ERR)
 		nanohub_warn("%s sysevent_get fail!", __func__);
-
+#endif
 	contexthub_notifier_call(chub, CHUB_FW_ST_POWERON);
 #ifdef IPC_DEBUG
 	ipc_test(chub);
@@ -673,11 +713,13 @@ static void contexthub_select_os(struct contexthub_ipc_info *chub)
 	nanohub_dev_info(chub->dev, "%s selected os_name = %s\n", __func__,
 			 chub->os_name);
 
-	if (IS_ENABLED(CONFIG_EXYNOS_IMGLOADER))
-		ret = imgloader_boot(&chub->chub_img_desc[val + 1]);
-	else
-		contexthub_download_image(chub, IPC_REG_OS);
-
+#ifdef CONFIG_EXYNOS_IMGLOADER
+	ret = imgloader_boot(&chub->chub_img_desc[val + 1]);
+#else
+	ret = contexthub_download_image(chub, IPC_REG_OS);
+#endif
+	if (ret)
+		nanohub_warn("%s: os download fail!");
 	ipc_write_hw_value(IPC_VAL_HW_BOOTMODE, chub->os_load);
 	ipc_write_hw_value(IPC_VAL_HW_DEBUG, READY_TO_GO);
 	contexthub_alive_check(chub);
@@ -755,6 +797,7 @@ static struct device_attribute attributes[] = {
 };
 
 #define MAX_FIRMWARE_NUM 3
+#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
 static int contexthub_imgloader_mem_setup(struct imgloader_desc *desc,
 					  const u8 *metadata, size_t size,
 					  phys_addr_t *fw_phys_base,
@@ -791,6 +834,7 @@ static int contexthub_imgloader_verify_fw(struct imgloader_desc *desc,
 					  size_t fw_bin_size,
 					  size_t fw_mem_size)
 {
+#ifdef CONFIG_EXYNOS_S2MPU
 	u64 ret64 = exynos_verify_subsystem_fw(desc->name, desc->fw_id,
 					   fw_phys_base, fw_bin_size,
 					   ALIGN(fw_mem_size, SZ_4K));
@@ -807,7 +851,7 @@ static int contexthub_imgloader_verify_fw(struct imgloader_desc *desc,
 				 ret64);
 		return -EIO;
 	}
-
+#endif
 	return 0;
 }
 
@@ -815,6 +859,7 @@ struct imgloader_ops contexthub_imgloader_ops = {
 	.mem_setup = contexthub_imgloader_mem_setup,
 	.verify_fw = contexthub_imgloader_verify_fw
 };
+#endif
 
 static int contexthub_imgloader_init(struct contexthub_ipc_info *chub)
 {
@@ -839,6 +884,7 @@ static int contexthub_imgloader_init(struct contexthub_ipc_info *chub)
 	return ret;
 }
 
+#ifdef CONFIG_EXYNOS_S2MPU
 static int contexthub_s2mpu_notifier(struct s2mpufd_notifier_block *nb,
 				     struct s2mpufd_notifier_info *nb_data)
 {
@@ -853,6 +899,7 @@ static int contexthub_s2mpu_notifier(struct s2mpufd_notifier_block *nb,
 	contexthub_handle_debug(data, CHUB_ERR_S2MPU);
 	return S2MPUFD_NOTIFY_OK;
 }
+#endif
 
 int contexthub_bootup_init(struct contexthub_ipc_info *chub)
 {
@@ -860,11 +907,11 @@ int contexthub_bootup_init(struct contexthub_ipc_info *chub)
 	int ret = 0;
 
 	contexthub_set_baaw(chub);
-
+#ifdef CONFIG_EXYNOS_S2MPU
 	chub->s2mpu_nb.notifier_call = contexthub_s2mpu_notifier;
 	chub->s2mpu_nb.subsystem = "CHUB";
 	s2mpufd_notifier_call_register(&chub->s2mpu_nb);
-
+#endif
 	chub->ws_reset = chub_wake_lock_init(chub->dev, "chub_reboot");
 	nanohub_dev_info(chub->dev, "%s with %s FW and %lu clk is done\n",
 			 __func__, chub->os_name, chub->clkrate);
@@ -875,7 +922,6 @@ int contexthub_bootup_init(struct contexthub_ipc_info *chub)
 	atomic_set(&chub->chub_alive_lock.flag, 0);
 	contexthub_reset_token(chub);
 	contexthub_set_in_reset(chub, 0);
-
 	contexthub_imgloader_init(chub);
 	INIT_WORK(&chub->debug_work, handle_debug_work_func);
 

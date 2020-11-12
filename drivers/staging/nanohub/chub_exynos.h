@@ -45,6 +45,11 @@
 #define REG_CHUB_CPU_OPTION			(0xc)
 #define ENABLE_SYSRESETREQ			BIT(9)
 #define CHUB_RESET_RELEASE_VALUE		(0x1)
+#elif defined(CONFIG_SOC_EXYNOS9110)
+#define REG_CHUB_RESET_CHUB_CONFIGURATION	(0x0)
+#define REG_CHUB_RESET_CHUB_STATUS		(0x4)
+#define REG_CHUB_RESET_CHUB_OPTION		(0x8)
+#define CHUB_RESET_RELEASE_VALUE		(0x20008000)
 #else
 #define REG_CHUB_CPU_STATUS			(0x0)
 #define REG_CHUB_CPU_OPTION			(0x0)
@@ -66,6 +71,16 @@
 #define REG_GPH2_DAT				(0x4)
 #endif
 
+#if defined(CONFIG_SOC_EXYNOS9110)
+#define REG_PMU_OSC_RCO			(0xb1c)
+#define REG_PMU_RTC_CTRL		(0x73c)
+#define REG_PMU_CHUB_CTRL		(0x7c)
+#define REG_PMU_CHUB_RESET_STATUS	(0x504)
+#define REG_CTRL_REFCLK_PMU		(0x0)
+#define REG_CTRL_REFCLK_CHUB_VTS	(0x8)
+#endif
+
+int contexthub_blk_poweron(struct contexthub_ipc_info *chub);
 int contexthub_soc_poweron(struct contexthub_ipc_info *chub);
 int contexthub_disable_pin(struct contexthub_ipc_info *chub);
 int contexthub_disable_pin(struct contexthub_ipc_info *chub);

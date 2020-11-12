@@ -24,12 +24,17 @@
 #include <linux/of_gpio.h>
 #include <linux/fcntl.h>
 #include <uapi/linux/sched/types.h>
+#ifdef CONFIG_EXYNOS_SYSTEM_EVENT
 #include <soc/samsung/sysevent.h>
+#endif
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
 #include <soc/samsung/memlogger.h>
-
+#endif
 #ifdef CONFIG_EXYNOS_ITMON
 #include <soc/samsung/exynos-itmon.h>
 #endif
+
+#include <soc/samsung/exynos-pmu.h>
 
 #include "chub.h"
 #include "ipc_chub.h"
@@ -152,8 +157,8 @@ static void __iomem *get_iomem(struct platform_device *pdev,
 
 	if (size)
 		*size = resource_size(res);
-	nanohub_dev_info(&pdev->dev, "%s: %s is mapped on with size of %zu\n",
-		__func__, name, (size_t)resource_size(res));
+	nanohub_dev_info(&pdev->dev, "%s: %s is mapped on 0x%lx with size of %zu\n",
+			 __func__, name, ret, (size_t)resource_size(res));
 
 	return ret;
 }
@@ -251,41 +256,45 @@ static int contexthub_dt_init(struct platform_device *pdev,
 	if (IS_ERR(chub->chub_dumpgpr))
 		return PTR_ERR(chub->chub_dumpgpr);
 
+	chub->chub_baaw = get_iomem(pdev, "chub_baaw_p_apm", NULL);
+	if (IS_ERR(chub->chub_baaw))
+		nanohub_dev_warn(&pdev->dev, "%s not available", "chub_baaw_p_apm");
+
 	chub->chub_baaw_d = get_iomem(pdev, "chub_baaw_d", NULL);
 	if (IS_ERR(chub->chub_baaw_d))
-		return PTR_ERR(chub->chub_baaw_d);
+		nanohub_dev_warn(&pdev->dev, "%s not available", "chub_baaw_d");
 
 	contexthub_get_qch_base(chub);
 
 	/* get chub cmu base */
 	chub->chub_dump_cmu = get_iomem(pdev, "chub_dump_cmu", NULL);
 	if (IS_ERR(chub->chub_dump_cmu))
-		return PTR_ERR(chub->chub_dump_cmu);
+		nanohub_dev_warn(&pdev->dev, "%s not available", "chub_dump_cmu");
 
 	/* get chub sys base */
 	chub->chub_dump_sys = get_iomem(pdev, "chub_dump_sys", NULL);
 	if (IS_ERR(chub->chub_dump_sys))
-		return PTR_ERR(chub->chub_dump_sys);
+		nanohub_dev_warn(&pdev->dev, "%s not available", "chub_dump_sys");
 
 	/* get chub wdt base */
 	chub->chub_dump_wdt = get_iomem(pdev, "chub_dump_wdt", NULL);
 	if (IS_ERR(chub->chub_dump_wdt))
-		return PTR_ERR(chub->chub_dump_wdt);
+		nanohub_dev_warn(&pdev->dev, "%s not available", "chub_dump_wdt");
 
 	/* get chub timer base */
 	chub->chub_dump_timer = get_iomem(pdev, "chub_dump_timer", NULL);
 	if (IS_ERR(chub->chub_dump_timer))
-		return PTR_ERR(chub->chub_dump_timer);
+		nanohub_dev_warn(&pdev->dev, "%s not available", "chub_dump_timer");
 
 	/* get chub pwm base */
 	chub->chub_dump_pwm = get_iomem(pdev, "chub_dump_pwm", NULL);
 	if (IS_ERR(chub->chub_dump_pwm))
-		return PTR_ERR(chub->chub_dump_pwm);
+		nanohub_dev_warn(&pdev->dev, "%s not available", "chub_dump_pwm");
 
 	/* get chub rtc base */
 	chub->chub_dump_rtc = get_iomem(pdev, "chub_dump_rtc", NULL);
 	if (IS_ERR(chub->chub_dump_rtc))
-		return PTR_ERR(chub->chub_dump_rtc);
+		nanohub_dev_warn(&pdev->dev, "%s not available", "chub_dump_rtc");
 
 	/*get usi_array*/
 	chub->usi_cnt = 0;
@@ -316,6 +325,27 @@ static int contexthub_dt_init(struct platform_device *pdev,
 			}
 		}
 	}
+
+	/* get pmu osc rco */
+	chub->pmu_osc_rco = get_iomem(pdev, "osc_rco", NULL);
+	if (IS_ERR(chub->pmu_osc_rco))
+		nanohub_dev_warn(dev, "fails to get pmu_osc_rco\n");
+
+	/* get pmu rtc control */
+	chub->pmu_rtc_ctrl = get_iomem(pdev, "rtc_ctrl", NULL);
+	if (IS_ERR(chub->pmu_rtc_ctrl))
+		nanohub_dev_warn(dev, "fails to get pmu_rtc_ctrl\n");
+
+	/* get pmu chub control base */
+	chub->pmu_chub_ctrl = get_iomem(pdev, "chub_ctrl", NULL);
+	if (IS_ERR(chub->pmu_chub_ctrl))
+		nanohub_dev_warn(dev, "fails to get pmu_chub_ctrl\n");
+
+	/* get pmu chub reset release status */
+	chub->pmu_chub_reset_stat = get_iomem(pdev, "chub_reset_status", NULL);
+	if (IS_ERR(chub->pmu_chub_reset_stat))
+		nanohub_dev_warn(dev, "fails to get pmu_chub_reset_stat\n");
+
 	/* get addresses information to set BAAW */
 	if (of_property_read_u32_index
 		(node, "baaw,baaw-p-apm-chub", 0,
@@ -346,24 +376,21 @@ static int contexthub_dt_init(struct platform_device *pdev,
 		(node, "baaw,baaw-p-cmgp-chub", 0,
 		 &chub->baaw_info.baaw_p_cmgp_chub_start)) {
 		nanohub_dev_err(&pdev->dev,
-			"driver failed to get baaw-p-apm-chub, start\n");
-		return -ENODEV;
+			"driver failed to get baaw-p-cmgp-chub, start\n");
 	}
 
 	if (of_property_read_u32_index
 		(node, "baaw,baaw-p-cmgp-chub", 1,
 		 &chub->baaw_info.baaw_p_cmgp_chub_end)) {
 		nanohub_dev_err(&pdev->dev,
-			"driver failed to get baaw-p-apm-chub, end\n");
-		return -ENODEV;
+			"driver failed to get baaw-p-cmgp-chub, end\n");
 	}
 
 	if (of_property_read_u32_index
 		(node, "baaw,baaw-p-cmgp-chub", 2,
 		 &chub->baaw_info.baaw_p_cmgp_chub_remap)) {
 		nanohub_dev_err(&pdev->dev,
-			"driver failed to get baaw-p-apm-chub, remap\n");
-		return -ENODEV;
+			"driver failed to get baaw-p-cmgp-chub, remap\n");
 	}
 
 	/* get addresses information to set BAAW D */
@@ -372,7 +399,6 @@ static int contexthub_dt_init(struct platform_device *pdev,
 		 &chub->baaw_info.baaw_d_chub_start)) {
 		nanohub_dev_err(&pdev->dev,
 			"driver failed to get baaw-d-chub, start\n");
-		return -ENODEV;
 	}
 
 	if (of_property_read_u32_index
@@ -380,7 +406,6 @@ static int contexthub_dt_init(struct platform_device *pdev,
 		 &chub->baaw_info.baaw_d_chub_end)) {
 		nanohub_dev_err(&pdev->dev,
 			"driver failed to get baaw-d-chub, end\n");
-		return -ENODEV;
 	}
 
 	if (of_property_read_u32_index
@@ -388,11 +413,10 @@ static int contexthub_dt_init(struct platform_device *pdev,
 		 &chub->baaw_info.baaw_d_chub_remap)) {
 		nanohub_dev_err(&pdev->dev,
 			"driver failed to get baaw-d-chub, remap\n");
-		return -ENODEV;
 	}
 
 	contexthub_disable_pin(chub);
-	contexthub_set_clk(chub);
+	//contexthub_set_clk(chub);
 	contexthub_get_clock_names(chub);
 
 	return 0;
@@ -426,13 +450,16 @@ static int chub_itmon_notifier(struct notifier_block *nb,
 static int contexthub_panic_handler(struct notifier_block *nb,
 				    unsigned long action, void *data)
 {
+#ifdef CONFIG_EXYNOS_MEMORY_LOGGER
 	struct contexthub_ipc_info *chub = container_of(nb, struct contexthub_ipc_info, panic_nb);
 
 	memlog_do_dump(chub->mlog.memlog_sram_chub, MEMLOG_LEVEL_EMERG);
+#endif
 	chub_dbg_dump_ram(CHUB_ERR_KERNEL_PANIC);
 	return NOTIFY_OK;
 }
 
+#ifdef CONFIG_EXYNOS_SYSTEM_EVENT
 static int contexthub_sysevent_shutdown(const struct sysevent_desc *desc, bool force_stop)
 {
 	(void) desc;
@@ -461,11 +488,11 @@ static void contexthub_sysevent_crash_shutdown(const struct sysevent_desc *desc)
 	(void) desc;
 	nanohub_info("%s\n", __func__);
 }
-
+#endif
 /* CIPC Notification */
 static int contexthub_notifier(struct contexthub_notifier_block *nb)
 {
-	nanohub_dev_info("%s called!: subsys:%s, start_off:%x, end_off:%x",
+	nanohub_info("%s called!: subsys:%s, start_off:%x, end_off:%x",
 			 __func__, nb->subsystem, nb->start_off, nb->end_off);
 	return 0;
 }
@@ -650,12 +677,18 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 	}
 
 	chub->dev = &pdev->dev;
-
+	dev_info(chub->dev, "%s chub probe", __func__);
 	/* parse dt and hw init */
 	ret = contexthub_dt_init(pdev, chub);
 	if (ret) {
 		nanohub_dev_err(&pdev->dev, "%s failed to get init hw with ret %d\n",
 			__func__, ret);
+		goto err;
+	}
+
+	ret = contexthub_blk_poweron(chub);
+	if (ret) {
+		nanohub_dev_err(&pdev->dev, "%s block poweron failed\n", __func__);
 		goto err;
 	}
 
@@ -666,7 +699,6 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 	for (i = 0; i < CHUB_ERR_MAX; i++)
 		chub->err_cnt[i] = 0;
 	platform_set_drvdata(pdev, chub);
-
 #ifdef CONFIG_EXYNOS_ITMON
 	/* itmon notifier */
 	chub->itmon_nb.notifier_call = contexthub_itmon_notifier;
@@ -681,26 +713,25 @@ static int contexthub_ipc_probe(struct platform_device *pdev)
 	chub->chub_cipc_nb.notifier_call = contexthub_notifier;
 	contexthub_notifier_register(&chub->chub_cipc_nb);
 
-	if (IS_ENABLED(CONFIG_EXYNOS_SYSTEM_EVENT)) {
-		/* sysevent register */
-		chub->sysevent_desc.name = "CHB";
-		strcpy(chub->sysevent_desc.fw_name, "os.checked_1.bin");
-		chub->sysevent_desc.owner = THIS_MODULE;
-		chub->sysevent_desc.shutdown = contexthub_sysevent_shutdown;
-		chub->sysevent_desc.powerup = contexthub_sysevent_powerup;
-		chub->sysevent_desc.ramdump = contexthub_sysevent_ramdump;
-		chub->sysevent_desc.crash_shutdown = contexthub_sysevent_crash_shutdown;
-		chub->sysevent_desc.dev = &pdev->dev;
-		chub->sysevent_dev = sysevent_register(&chub->sysevent_desc);
+#ifdef CONFIG_EXYNOS_SYSTEM_EVENT
+	/* sysevent register */
+	chub->sysevent_desc.name = "CHB";
+	strcpy(chub->sysevent_desc.fw_name, "os.checked_1.bin");
+	chub->sysevent_desc.owner = THIS_MODULE;
+	chub->sysevent_desc.shutdown = contexthub_sysevent_shutdown;
+	chub->sysevent_desc.powerup = contexthub_sysevent_powerup;
+	chub->sysevent_desc.ramdump = contexthub_sysevent_ramdump;
+	chub->sysevent_desc.crash_shutdown = contexthub_sysevent_crash_shutdown;
+	chub->sysevent_desc.dev = &pdev->dev;
+	chub->sysevent_dev = sysevent_register(&chub->sysevent_desc);
 
-		if (IS_ERR(chub->sysevent_dev)) {
-			ret = PTR_ERR(chub->sysevent_dev);
-			nanohub_dev_err(&pdev->dev, "%s: failed to register sysevent:%d\n",
-					__func__, ret);
-			goto err;
-		}
+	if (IS_ERR(chub->sysevent_dev)) {
+		ret = PTR_ERR(chub->sysevent_dev);
+		nanohub_dev_err(&pdev->dev, "%s: failed to register sysevent:%d\n",
+				__func__, ret);
+		goto err;
 	}
-
+#endif
 	ret = contexthub_log_init(chub);
 	if (ret) {
 		nanohub_dev_err(&pdev->dev, "%s log init is fail with ret %d\n", __func__, ret);
