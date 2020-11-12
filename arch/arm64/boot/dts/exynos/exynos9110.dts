@@ -485,7 +485,7 @@
 		interrupts = <0 70 IRQ_TYPE_LEVEL_HIGH>, <0 71 IRQ_TYPE_LEVEL_HIGH>, <0 69 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "JOB", "MMU", "GPU";
 		g3d_cmu_cal_id = <ACPM_DVFS_G3D>;
-		samsung,power-domain = <&pd_g3d>;
+		power-domains = <&pd_g3d>;
 		#cooling-cells = <2>; /* min followed by max */
 	};
 
