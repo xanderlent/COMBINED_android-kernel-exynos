@@ -318,7 +318,14 @@
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 			};
-				ldo18_reg: LDO18 {
+			ldo16_reg: LDO16 {
+				regulator-name = "vdd_ldo16";
+				regulator-min-microvolt = <2450000>;
+				regulator-max-microvolt = <2450000>;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <3>;
+			};
+			ldo18_reg: LDO18 {
 				regulator-name = "vemmc";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1950000>;
