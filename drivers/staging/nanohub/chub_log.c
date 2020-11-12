@@ -269,7 +269,7 @@ void chub_printf(int level, int fw_idx, const char *fmt, ...)
 			return;
 
 		memset(&log, 0, sizeof(struct logbuf_output));
-		log.timestamp = ktime_get_boottime_ns() / 1000;
+		log.timestamp = ktime_get_boot_ns() / 1000;
 		log.level = level;
 		log.size = fw_idx;
 		log.buf = kzalloc(240, GFP_KERNEL);

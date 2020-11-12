@@ -294,7 +294,7 @@ static void set_chub_user_info(struct chub_user *user, long ret, u32 lock)
 	}
 	user->pid = current->pid;
 	snprintf(user->name, CHUB_COMMS_SIZE, current->comm);
-	user->lastTime = ktime_get_boottime_ns();
+	user->lastTime = ktime_get_boot_ns();
 	user->ret = ret;
 	user->lock_mode = lock;
 }
@@ -310,7 +310,7 @@ static void set_chub_user(struct nanohub_data *data, bool in, long time, u32 loc
 		/* set current user */
 		user = &data->chub_user.user_cur;
 		user->pid = current->pid;
-		user->lastTime = ktime_get_boottime_ns();
+		user->lastTime = ktime_get_boot_ns();
 		user->lock_mode = lock;
 
 		/* put user into lock-queue */
@@ -479,7 +479,7 @@ int request_wakeup_ex(struct nanohub_data *data, long timeout_ms,
 			print_chub_user(data);
 			if (!data->wakeup_err_cnt)
 				data->wakeup_err_ktime = wakeup_ktime;
-			ktime_delta = ktime_sub(ktime_get_boottime(),
+			ktime_delta = ktime_sub(ktime_get_boot(),
 						data->wakeup_err_ktime);
 			data->wakeup_err_cnt++;
 			if (ktime_to_ns(ktime_delta) > WAKEUP_ERR_TIME_NS
@@ -1434,11 +1434,11 @@ static void nanohub_process_buffer(struct nanohub_data *data,
 	/* (for wakeup interrupts): hold a wake lock for 250ms so the sensor hal
 	 * has time to grab its own wake lock */
 	if (wakeup) {
-		u64 diff_time = ktime_get_boottime_ns() - data->wakelock_req_time;
+		u64 diff_time = ktime_get_boot_ns() - data->wakelock_req_time;
 
 		if ((diff_time / 1000000) > 1) {
 			nanohub_dev_info(io->dev, "%s: prev:%lld, diff:%lld\n", __func__, data->wakelock_req_time, diff_time);
-			data->wakelock_req_time = ktime_get_boottime_ns();
+			data->wakelock_req_time = ktime_get_boot_ns();
 			chub_wake_lock_timeout(data->ws, msecs_to_jiffies(250));
 		} else
 			nanohub_dev_warn(io->dev, "%s: skip wakelock: prev:%lld, diff:%lld\n", __func__, data->wakelock_req_time, diff_time);
