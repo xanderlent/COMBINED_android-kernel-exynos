@@ -16,10 +16,12 @@
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
+#include <linux/sched/clock.h>
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT_LOGGING_SMC_CALL
+#include <asm/smp.h>
 
-#define EXYNOS_SMC_LOG_SIZE	1024
+#ifdef CONFIG_DEBUG_SNAPSHOT_LOGGING_SMC
+#define EXYNOS_SMC_LOG_SIZE	(1024)
 
 static DEFINE_SPINLOCK(smc_log_lock);
 
@@ -29,11 +31,11 @@ static struct bus_type esmc_subsys = {
 };
 
 struct esmc_log {
-	unsigned long cpu_clk;			// cpu clock
-	unsigned long long time;		// start time
-	unsigned long sp;			// call stack
-	unsigned long long end_time;		// end time
-	unsigned long long latency;		// latency
+	unsigned long cpu_clk;		/* cpu clock */
+	unsigned long long start_time;	/* start time */
+	unsigned long sp;		/* call stack */
+	unsigned long long end_time;	/* end time */
+	unsigned long long latency;	/* latency */
 	unsigned long cmd;
 	unsigned long arg1;
 	unsigned long arg2;
@@ -52,6 +54,7 @@ static ssize_t esmc_log_threshold_show(struct kobject *kobj,
 	ssize_t n;
 
 	n = scnprintf(buf, 46, "threshold : %12u us\n", esmc_log_threshold);
+
 	return n;
 }
 
@@ -64,9 +67,9 @@ static ssize_t esmc_log_threshold_store(struct kobject *kobj,
 
 	err = kstrtoul(buf, 0, &val);
 
-	if (err != 0)
+	if (err != 0) {
 		pr_err("can't read threshold value with err 0x%x\n", err);
-	else {
+	} else {
 		esmc_log_threshold = val;
 		pr_info("threshold value : %lu\n", val);
 	}
@@ -108,35 +111,40 @@ late_initcall(esmc_sysfs_init);
 int exynos_smc(unsigned long cmd, unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
 	int32_t ret;
-#ifdef CONFIG_EXYNOS_SNAPSHOT_LOGGING_SMC_CALL
-	unsigned long flags;
-	uint32_t cpu;
-	uint64_t time, end_time, latency;
+#ifdef CONFIG_DEBUG_SNAPSHOT_LOGGING_SMC
+	unsigned long flags, stime, etime, latency;
+	unsigned int cpu, idx;
+
+	cpu = raw_smp_processor_id();
+	stime = cpu_clock(cpu);
+#endif
+
+	ret = __exynos_smc(cmd, arg1, arg2, arg3);
+
+#ifdef CONFIG_DEBUG_SNAPSHOT_LOGGING_SMC
+	etime = cpu_clock(cpu);
+	latency = etime - stime;
 
 	spin_lock_irqsave(&smc_log_lock, flags);
-	cpu = get_current_cpunum();
-	time = cpu_clock(cpu);
-#endif
-	ret = __exynos_smc(cmd, arg1, arg2, arg3);
-#ifdef CONFIG_EXYNOS_SNAPSHOT_LOGGING_SMC_CALL
-	end_time = cpu_clock(cpu);
-	latency = end_time - time;
 
 	if (latency > (esmc_log_threshold * 1000)) {
-		smc_log[cpu][smc_log_idx[cpu]].cpu_clk = local_clock();
-		smc_log[cpu][smc_log_idx[cpu]].latency = latency;
-		smc_log[cpu][smc_log_idx[cpu]].time = time;
-		smc_log[cpu][smc_log_idx[cpu]].end_time = end_time;
-		smc_log[cpu][smc_log_idx[cpu]].sp =
-			(uint64_t)current_stack_pointer;
-		smc_log[cpu][smc_log_idx[cpu]].cmd = cmd;
-		smc_log[cpu][smc_log_idx[cpu]].arg1 = arg1;
-		smc_log[cpu][smc_log_idx[cpu]].arg2 = arg2;
-		smc_log[cpu][smc_log_idx[cpu]].arg3 = arg3;
+		idx = smc_log_idx[cpu];
+
+		smc_log[cpu][idx].cpu_clk = local_clock();
+		smc_log[cpu][idx].latency = latency;
+		smc_log[cpu][idx].start_time = stime;
+		smc_log[cpu][idx].end_time = etime;
+		smc_log[cpu][idx].sp = (uint64_t)current_stack_pointer;
+		smc_log[cpu][idx].cmd = cmd;
+		smc_log[cpu][idx].arg1 = arg1;
+		smc_log[cpu][idx].arg2 = arg2;
+		smc_log[cpu][idx].arg3 = arg3;
+
 		smc_log_idx[cpu]++;
 		if (smc_log_idx[cpu] == EXYNOS_SMC_LOG_SIZE)
 			smc_log_idx[cpu] = 0;
 	}
+
 	spin_unlock_irqrestore(&smc_log_lock, flags);
 #endif
 	return ret;
