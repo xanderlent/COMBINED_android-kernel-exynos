@@ -38,6 +38,7 @@
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_READ(0x1) | SYSMMU_BL1) SYSMMU_ID(0x8)>;
 		#iommu-cells = <0>;
 		power-domains = <&pd_dispaud>;
+		sysmmu,hold-rpm-on-boot;
 	};
 
 	sysmmu_abox: sysmmu@14920000 {
