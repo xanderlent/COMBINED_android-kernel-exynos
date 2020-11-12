@@ -218,7 +218,7 @@ int gpu_control_disable_clock(struct kbase_device *kbdev)
 	dvfs_hwcnt_clear_tripipe(kbdev);
 #endif
 	gpu_dvfs_update_time_in_state(platform->cur_clock);
-#ifdef CONFIG_MALI_DVFS
+#ifdef CONFIG_MALI_PM_QOS
 	gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_RESET);
 #endif /* CONFIG_MALI_DVFS */
 

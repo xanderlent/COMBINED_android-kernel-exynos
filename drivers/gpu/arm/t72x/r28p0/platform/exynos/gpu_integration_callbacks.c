@@ -237,6 +237,7 @@ int gpu_vendor_dispatch(struct kbase_context *kctx, u32 flags)
 #endif  /* MUST BE CHECK for each feature */
 	case KBASE_FUNC_SET_MIN_LOCK :
 		{
+#if defined(CONFIG_MALI_PM_QOS)
 #if defined(CONFIG_MALI_DVFS) || defined(CONFIG_SCHED_HMP)
 			struct exynos_context *platform;
 #endif
@@ -267,11 +268,13 @@ int gpu_vendor_dispatch(struct kbase_context *kctx, u32 flags)
 			platform = (struct exynos_context *) kbdev->platform_context;
 			gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_EGL_SET);
 #endif /* CONFIG_MALI_DVFS */
+#endif /* CONFIG_MALI_PM_QOS */
 			break;
 		}
 
 	case KBASE_FUNC_UNSET_MIN_LOCK :
 		{
+#if defined(CONFIG_MALI_PM_QOS)
 #if defined(CONFIG_MALI_DVFS) || defined(CONFIG_SCHED_HMP)
 			struct exynos_context *platform;
 #endif
@@ -304,6 +307,7 @@ int gpu_vendor_dispatch(struct kbase_context *kctx, u32 flags)
 				gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_EGL_RESET);
 #endif /* CONFIG_MALI_DVFS */
 			}
+#endif
 			break;
 		}
 	default:

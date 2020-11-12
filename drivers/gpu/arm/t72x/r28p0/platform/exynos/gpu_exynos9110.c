@@ -42,7 +42,7 @@
 extern struct kbase_device *pkbdev;
 
 #ifdef CONFIG_MALI_DVFS
-#define CPU_MAX PM_QOS_CLUSTER1_FREQ_MAX_DEFAULT_VALUE
+#define CPU_MAX 0
 #else
 #define CPU_MAX -1
 #endif
