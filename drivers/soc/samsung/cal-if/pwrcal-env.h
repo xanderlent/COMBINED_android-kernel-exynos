@@ -9,7 +9,7 @@
 #include <linux/math64.h>
 #include <linux/smc.h>
 #include <linux/delay.h>
-//#include <soc/samsung/exynos-el3_mon.h>
+#include <soc/samsung/exynos-el3_mon.h>
 
 #else
 
