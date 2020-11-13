@@ -34,7 +34,6 @@ static struct acpm_info *exynos_acpm;
 static int acpm_send_data(struct device_node *node, unsigned int check_id,
 		struct ipc_config *config);
 
-#if 0
 static void firmware_load(void *base, const char *firmware, int size)
 {
 	memcpy(base, firmware, size);
@@ -60,13 +59,16 @@ static int firmware_update(struct device *dev, void *fw_base, const char *fw_nam
 
 	return 0;
 }
-#endif
+
 static int plugins_init(void)
 {
 	struct plugin *plugins;
 	int i, len, ret = 0;
+	unsigned int plugin_id;
+	char name[50];
 	const char *fw_name = NULL;
 	void __iomem *fw_base_addr;
+	struct device_node *node, *child;
 	const __be32 *prop;
 	unsigned int offset;
 
