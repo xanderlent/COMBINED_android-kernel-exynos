@@ -13,12 +13,12 @@
 
 /* NUMBER FOR DVFS MANAGER */
 #define DM_CPU_CL0	0
-#define DM_MIF		2
-#define DM_INT		3
-#define DM_CAM		6
-#define DM_DISP		7
-#define DM_AUD		8
-#define DM_GPU		11
+#define DM_MIF		1
+#define DM_INT		2
+#define DM_CAM		3
+#define DM_DISP		4
+#define DM_AUD		5
+#define DM_GPU		6
 
 /* CONSTRAINT TYPE */
 #define CONSTRAINT_MIN	0
