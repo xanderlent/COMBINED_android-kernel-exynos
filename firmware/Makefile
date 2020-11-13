@@ -13,6 +13,8 @@ fwabs := $(addprefix $(srctree)/,$(filter-out /%,$(fwdir)))$(filter /%,$(fwdir))
 fw-external-y := $(subst $(quote),,$(CONFIG_EXTRA_FIRMWARE))
 
 fw-external-$(CONFIG_TOUCHSCREEN_ZXT_ZTM620) += tsp_zinitix/ztm630.nobless.small.fw
+fw-external-$(CONFIG_SOC_EXYNOS9110) += exynos9110_acpm_fvp.fw
+fw-external-$(CONFIG_SOC_EXYNOS9110) += exynos9110_acpm_tmu.fw
 
 quiet_cmd_fwbin = MK_FW   $@
       cmd_fwbin = FWNAME="$(patsubst firmware/%.gen.S,%,$@)";		     \
