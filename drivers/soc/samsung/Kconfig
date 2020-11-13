@@ -121,4 +121,13 @@ config ACPM_DVFS
 
 source "drivers/soc/samsung/cpif/Kconfig"
 source "drivers/soc/samsung/gnssif/Kconfig"
+
+config EXYNOS_DVFS_MANAGER
+	bool "Exynos DVFS Manager"
+	default n
+	depends on ARCH_EXYNOS
+	help
+	  Enable DVFS Manager for Exynos SoC.
+	  This module controls constraint between each DVFS domains.
+
 endif
