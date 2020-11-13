@@ -16,7 +16,6 @@
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/exynos9110.h>
-#include <dt-bindings/soc/samsung/exynos9110.h>
 
 / {
 	compatible = "samsung,exynos9110", "samsung,ERD9110";
