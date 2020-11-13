@@ -221,7 +221,7 @@
 			bst1_reg: BST1 {
 				regulator-name = "vdd_hrm";
 				regulator-min-microvolt = <4900000>;
-				regulator-max-microvolt = <5100000>;
+				regulator-max-microvolt = <4900000>;
 			};
 			bst2_reg: BST2 {
 				regulator-name = "vdd_codec";
