@@ -19,9 +19,9 @@
 #if defined(CONFIG_CAL_IF)
 #include <soc/samsung/cal-if.h>
 #endif
-#if defined(CONFIG_SOC_EXYNOS3830) && defined(CONFIG_ARM_EXYNOS_DEVFREQ)
-#include <dt-bindings/soc/samsung/exynos3830-devfreq.h>
-#include <dt-bindings/clock/exynos3830.h>
+#if defined(CONFIG_SOC_EXYNOS9110) && defined(CONFIG_ARM_EXYNOS_DEVFREQ)
+#include <dt-bindings/soc/samsung/exynos9110-devfreq.h>
+#include <dt-bindings/clock/exynos9110.h>
 #endif
 #include <soc/samsung/exynos-devfreq.h>
 
