@@ -78,10 +78,10 @@ static irqreturn_t kepler_active_isr(int irq, void *arg)
 	struct io_device *iod = gc->iod;
 
 	gif_err_limited("ACTIVE Interrupt occurred!\n");
-
+/*
 	if (!wake_lock_active(&gc->gc_fault_wake_lock))
 		wake_lock_timeout(&gc->gc_fault_wake_lock, HZ);
-
+*/
 	gnss_state_changed(gc, STATE_FAULT);
 	wake_up(&iod->wq);
 
@@ -96,10 +96,10 @@ static irqreturn_t kepler_wdt_isr(int irq, void *arg)
 	struct io_device *iod = gc->iod;
 
 	gif_err_limited("WDT Interrupt occurred!\n");
-
+/*
 	if (!wake_lock_active(&gc->gc_fault_wake_lock))
 		wake_lock_timeout(&gc->gc_fault_wake_lock, HZ);
-
+*/
 	gnss_state_changed(gc, STATE_FAULT);
 	wake_up(&iod->wq);
 
@@ -415,7 +415,7 @@ static int kepler_req_fault_info(struct gnss_ctl *gc)
 	}
 
 req_fault_exit:
-	wake_unlock(&gc->gc_fault_wake_lock);
+	//wake_unlock(&gc->gc_fault_wake_lock);
 	mutex_unlock(&reset_lock);
 
 	return ret;
@@ -571,10 +571,10 @@ int init_gnssctl_device(struct gnss_ctl *gc, struct gnss_pdata *pdata)
 #endif
 
 	dev_set_drvdata(gc->dev, gc);
-
+/*
 	wake_lock_init(&gc->gc_fault_wake_lock,
 				WAKE_LOCK_SUSPEND, "gnss_fault_wake_lock");
-
+*/
 	init_completion(&gc->fault_cmpl);
 	init_completion(&gc->bcmd_cmpl);
 	init_completion(&gc->sw_init_cmpl);

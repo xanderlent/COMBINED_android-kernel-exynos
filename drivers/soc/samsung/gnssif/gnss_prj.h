@@ -20,7 +20,7 @@
 #include <linux/skbuff.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
-#include <linux/wakelock.h>
+//#include <linux/wakelock.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/cdev.h>
@@ -225,7 +225,7 @@ struct io_device {
 
 	struct gnss_ctl *gc;
 
-	struct wake_lock wakelock;
+	//struct wake_lock wakelock;
 	long waketime;
 
 	struct exynos_seq_num seq_num;
@@ -353,7 +353,7 @@ struct gnss_ctl {
 	struct io_device *iod;
 
 	/* Wakelock for gnss_ctl */
-	struct wake_lock gc_fault_wake_lock;
+	//struct wake_lock gc_fault_wake_lock;
 
 	struct completion fault_cmpl;
 	struct completion bcmd_cmpl;
