@@ -27,6 +27,7 @@
 #include "exynos9110-pm-domains.dtsi"
 #include "exynos9110-audio.dtsi"
 #include "exynos9110-erd9110-cp-s307ap-sit.dtsi"
+#include "exynos9110-debug.dtsi"
 
 / {
 	compatible = "samsung,armv8", "samsung,exynos9110";
@@ -780,7 +781,7 @@
 			devfreq_domain_name = "dvfs_mif";
 			pm_qos_class = <15>; /* PM_QOS_BUS_THROUGHPUT */
 			pm_qos_class_max = <16>; /* PM_QOS_BUS_THROUGHPUT_MAX */
-			ess_flag = <ESS_FLAG_MIF>;
+			ess_flag = <DSS_FLAG_MIF>;
 			dm-index = <DM_MIF>;
 
 			/* Delay time */
@@ -809,7 +810,7 @@
 			devfreq_domain_name = "dvfs_int";
 			pm_qos_class = <11>; /* PM_QOS_DEVICE_THROUGHPUT */
 			pm_qos_class_max = <13>; /* PM_QOS_DEVICE_THROUGHPUT_MAX */
-			ess_flag = <ESS_FLAG_INT>;
+			ess_flag = <DSS_FLAG_INT>;
 			dm-index = <DM_INT>;
 
 			/* Delay time */
@@ -838,7 +839,7 @@
 			devfreq_domain_name = "dvfs_disp";
 			pm_qos_class = <19>; /* PM_QOS_DISPLAY_THROUGHPUT */
 			pm_qos_class_max = <20>; /* PM_QOS_DISPLAY_THROUGHPUT_MAX */
-			ess_flag = <ESS_FLAG_DISP>;
+			ess_flag = <DSS_FLAG_DISP>;
 			dm-index = <DM_DISP>;
 
 			/* Delay time */
@@ -865,7 +866,7 @@
 			devfreq_domain_name = "dvfs_cam";
 			pm_qos_class = <21>; /* PM_QOS_CAM_THROUGHPUT */
 			pm_qos_class_max = <26>; /* PM_QOS_CAM_THROUGHPUT_MAX */
-			ess_flag = <ESS_FLAG_ISP>;
+			ess_flag = <DSS_FLAG_ISP>;
 			dm-index = <DM_CAM>;
 
 			/* Delay time */
@@ -893,7 +894,7 @@
 			devfreq_domain_name = "dvfs_aud";
 			pm_qos_class = <22>; /* PM_QOS_AUD_THROUGHPUT */
 			pm_qos_class_max = <27>; /* PM_QOS_AUD_THROUGHPUT_MAX */
-			ess_flag = <ESS_FLAG_AUD>;
+			ess_flag = <DSS_FLAG_AUD>;
 			dm-index = <DM_AUD>;
 
 			/* Delay time */

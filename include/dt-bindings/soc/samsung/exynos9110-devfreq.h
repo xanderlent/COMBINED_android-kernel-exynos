@@ -19,17 +19,17 @@
 #define DEVFREQ_TYPE_END		5
 
 /* ESS FLAG LIST */
-#define ESS_FLAG_INT	3
-#define ESS_FLAG_MIF	4
-#define ESS_FLAG_ISP	5
-#define ESS_FLAG_DISP	6
-#define ESS_FLAG_INTCAM	7
-#define ESS_FLAG_AUD	8
-#define ESS_FLAG_DSP	9
-#define ESS_FLAG_DNC	10
-#define ESS_FLAG_MFC	11
-#define ESS_FLAG_NPU	12
-#define ESS_FLAG_TNR	13
+#define DSS_FLAG_INT	3
+#define DSS_FLAG_MIF	4
+#define DSS_FLAG_ISP	5
+#define DSS_FLAG_DISP	6
+#define DSS_FLAG_INTCAM	7
+#define DSS_FLAG_AUD	8
+#define DSS_FLAG_DSP	9
+#define DSS_FLAG_DNC	10
+#define DSS_FLAG_MFC	11
+#define DSS_FLAG_NPU	12
+#define DSS_FLAG_TNR	13
 
 /* DEVFREQ GOV TYPE */
 #define SIMPLE_INTERACTIVE 0
