@@ -446,7 +446,7 @@ int __init cal_if_init(void *dev)
 	if (cal_initialized == 1)
 		return 0;
 
-//	ect_parse_binary_header();
+	ect_parse_binary_header();
 
 	vclk_initialize();
 
