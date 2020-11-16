@@ -98,6 +98,12 @@ config CP_PMUCAL
 	help
 	Support CP_PMUCAL for Exynos SoC.
 
+config GNSS_PMUCAL
+	bool "Exynos PMU(for GNSS) Chip Abstraction Layer"
+	depends on CAL_IF
+	help
+	  Support GNSS_PMUCAL for Exynos SoC.
+
 config CMUCAL_DEBUG
 	bool "CMUCAL Debug Interface"
 	depends on CMUCAL
