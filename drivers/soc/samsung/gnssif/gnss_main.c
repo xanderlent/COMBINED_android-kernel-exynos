@@ -130,39 +130,27 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 }
 
 #ifdef CONFIG_OF_RESERVED_MEM
-static int gnss_dma_device_init(struct reserved_mem *rmem, struct device *dev)
+static int gnss_rmem_setup_latecall(struct platform_device *pdev)
 {
-	struct gnss_pdata *pdata;
-	if (!dev && !dev->platform_data)
-		return -ENODEV;
+	struct device_node *np;
+	struct reserved_mem *rmem;
+	struct gnss_pdata *pdata = (struct gnss_pdata *)pdev->dev.platform_data;
+	np = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
+	if (!np)
+		return -EINVAL;
 
-	// Save reserved memory information.
-	pdata = (struct gnss_pdata *)dev->platform_data;
+	rmem = of_reserved_mem_lookup(np);
+	if (!rmem) {
+		gif_err("of_reserved_mem_lookup() failed\n");
+		return -EINVAL;
+	}
 	pdata->shmem_base = rmem->base;
 	pdata->shmem_size = rmem->size;
-
+	gif_info("rmem 0x%08lx 0x%08x\n",
+			pdata->shmem_base,
+			pdata->shmem_size);
 	return 0;
 }
-
-static void gnss_dma_device_release(struct reserved_mem *rmem, struct device *dev)
-{
-	return;
-}
-
-static const struct reserved_mem_ops gnss_dma_ops = {
-	.device_init	= gnss_dma_device_init,
-	.device_release	= gnss_dma_device_release,
-};
-
-static int __init gnss_if_reserved_mem_setup(struct reserved_mem *remem)
-{
-	gif_info("%s: memory reserved: paddr=%#lx, t_size=%zd\n",
-		__func__, (unsigned long)remem->base, (size_t)remem->size);
-	remem->ops = &gnss_dma_ops;
-
-	return 0;
-}
-RESERVEDMEM_OF_DECLARE(gnss_rmem, "samsung,exynos-gnss", gnss_if_reserved_mem_setup);
 #endif
 
 #ifdef CONFIG_OF
@@ -306,12 +294,6 @@ static struct gnss_pdata *gnss_if_parse_dt_pdata(struct device *dev)
 	}
 	dev->platform_data = pdata;
 
-	ret = of_reserved_mem_device_init(dev);
-	if (ret != 0) {
-		gif_err("Failed to parse reserved memory\n");
-		goto parse_dt_pdata_err;
-	}
-
 	ret = parse_dt_common_pdata(dev->of_node, pdata);
 	if (ret != 0) {
 		gif_err("Failed to parse common pdata.\n");
@@ -414,6 +396,12 @@ static int gnss_probe(struct platform_device *pdev)
 	if (IS_ERR(pdata)) {
 		gif_err("DT parse error!\n");
 		return PTR_ERR(pdata);
+	}
+
+	ret = gnss_rmem_setup_latecall(pdev);
+	if (ret != 0) {
+		gif_err("gnss_rmem_setup_latecall() error:%d\n", ret);
+		return ret;
 	}
 
 	/* allocate iodev */
