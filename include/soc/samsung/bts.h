@@ -105,6 +105,13 @@ void bts_update_scen(enum bts_scen_type type, unsigned int val);
 void bts_update_bw(enum bts_bw_type type, struct bts_bw bw);
 unsigned int bts_calc_bw(enum bts_bw_type type, void *data);
 
+/* [START] interface for new BTS api */
+int bts_get_bwindex(const char *name);
+unsigned int bts_get_scenindex(const char *name);
+int bts_add_scenario(unsigned int index);
+int bts_del_scenario(unsigned int index);
+/* [END] interface for new BTS api */
+
 #elif defined(CONFIG_EXYNOS9810_BTS)
 #define BUS_WIDTH		16
 #define DISP_UTIL		75

@@ -1021,6 +1021,73 @@ static struct syscore_ops exynos_bts_syscore_ops = {
 	.resume		= exynos_bts_syscore_resume,
 };
 
+int mstrcmp(const char *s1, const char *s2)
+{
+	while (*s1 && *s2) {
+		if(*s1 != *s2) break;
+		s1++; s2++;
+	}
+	return *s1 - *s2;
+}
+
+/* [START] interface for new BTS api */
+int bts_get_bwindex(const char *name)
+{
+	if (mstrcmp(name, "DECON0")) {
+		return BTS_BW_DECON0;
+	}
+	else if (mstrcmp(name, "DECON1")) {
+		return BTS_BW_DECON1;
+	}
+	else if (mstrcmp(name, "DECON2")) {
+		return BTS_BW_DECON2;
+	}
+	else {
+		pr_err("BTS: unexpected bts name %s\n", name);
+		return -1;
+	}
+}
+
+unsigned int bts_get_scenindex(const char *name)
+{
+	if (mstrcmp(name, "default")) {
+		return BS_DEFAULT;
+	}
+	else if (mstrcmp(name, "mfc_uhd")) {
+		return BS_MFC_UHD;
+	}
+	else if (mstrcmp(name, "mfc_uhd_10bit")) {
+		return BS_MFC_UHD_10BIT;
+	}
+	else {
+		pr_err("BTS: unexpected scen name %s\n", name);
+		return 0;
+	}
+}
+
+int bts_add_scenario(unsigned int index)
+{
+	if (index <= BS_DEFAULT || index >= BS_MAX)
+		return 1;
+
+	spin_lock(&bts_lock);
+	bts_add_scen(index);
+	spin_unlock(&bts_lock);
+	return 0;
+}
+
+int bts_del_scenario(unsigned int index)
+{
+	if (index <= BS_DEFAULT || index >= BS_MAX)
+		return 1;
+
+	spin_lock(&bts_lock);
+	bts_del_scen(index);
+	spin_unlock(&bts_lock);
+	return 0;
+}
+/* [END] interface of new BTS api */
+
 #if defined(CONFIG_DEBUG_FS)
 static int exynos_qos_status_open_show(struct seq_file *buf, void *d)
 {
