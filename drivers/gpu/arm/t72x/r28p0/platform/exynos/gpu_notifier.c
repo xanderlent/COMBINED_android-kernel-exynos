@@ -68,10 +68,12 @@ static int gpu_tmu_notifier(struct notifier_block *notifier,
 		platform->voltage_margin = platform->gpu_default_vol_margin;
 	} else if (event == GPU_NORMAL) {
 		gpu_tmu_normal_work(pkbdev);
+#ifdef CONFIG_MALI_DVFS
 	} else if (event == GPU_THROTTLING || event == GPU_TRIPPING) {
 		gpu_dvfs_clock_lock(GPU_DVFS_MAX_LOCK, TMU_LOCK, frequency);
 #ifdef CONFIG_EXYNOS_SNAPSHOT_THERMAL
 		exynos_ss_thermal(NULL, 0, cooling_device_name, frequency);
+#endif
 #endif
 	}
 
