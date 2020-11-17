@@ -38,7 +38,6 @@
 #include <linux/of_gpio.h>
 #endif
 #include <linux/delay.h>
-#include <linux/wakelock.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/dma-contiguous.h>
@@ -237,7 +236,7 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	return iod;
 }
 
-static int attach_devices(struct io_device *iod)
+static int attach_devices(struct io_device *iod, struct device *dev)
 {
 	struct modem_shared *msd = iod->msd;
 	struct link_device *ld;
@@ -255,7 +254,11 @@ static int attach_devices(struct io_device *iod)
 		BUG();
 	}
 
-	wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
+	iod->ws = cpif_wake_lock_register(dev, iod->name);
+	if (iod->ws == NULL) {
+		mif_err("%s: wakeup_source_register fail\n", iod->name);
+		return -EINVAL;
+	}
 
 	switch (iod->ch) {
 	case SIPC5_CH_ID_FMT_0 ... SIPC5_CH_ID_FMT_9:
@@ -1045,7 +1048,7 @@ static int cpif_probe(struct platform_device *pdev)
 			list_add_tail(&iod[i]->list,
 					&modemctl->modem_state_notify_list);
 
-		attach_devices(iod[i]);
+		attach_devices(iod[i], dev);
 	}
 
 	cp_btl_create(&pdata->btl, dev);

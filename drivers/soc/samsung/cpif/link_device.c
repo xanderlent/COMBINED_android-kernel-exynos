@@ -16,7 +16,6 @@
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
-#include <linux/wakelock.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -2918,17 +2917,17 @@ static irqreturn_t shmem_cp2ap_wakelock_handler(int irq, void *data)
 			mld->sbi_cp2ap_wakelock_pos);
 
 	if (req == 0) {
-		if (wake_lock_active(&mld->cp_wakelock)) {
-			wake_unlock(&mld->cp_wakelock);
+		if (cpif_wake_lock_active(mld->ws)) {
+			cpif_wake_unlock(mld->ws);
 			mif_err("cp_wakelock unlocked\n");
 		} else {
 			mif_err("cp_wakelock already unlocked\n");
 		}
 	} else if (req == 1) {
-		if (wake_lock_active(&mld->cp_wakelock)) {
+		if (cpif_wake_lock_active(mld->ws)) {
 			mif_err("cp_wakelock already unlocked\n");
 		} else {
-			wake_lock(&mld->cp_wakelock);
+			cpif_wake_lock(mld->ws);
 			mif_err("cp_wakelock locked\n");
 		}
 	} else {
@@ -4050,7 +4049,11 @@ struct link_device *create_link_device(struct platform_device *pdev, enum modem_
 	 */
 	mld->irq_cp2ap_wakelock = modem->mbx->irq_cp2ap_wakelock;
 
-	wake_lock_init(&mld->cp_wakelock, WAKE_LOCK_SUSPEND, ld->name);
+	mld->ws = cpif_wake_lock_register(ld->dev, ld->name);
+	if (mld->ws == NULL) {
+		mif_err("%s: wakeup_source_register fail\n", ld->name);
+		goto error;
+	}
 
 #ifdef CONFIG_MCU_IPC
 	if (ld->interrupt_types == INTERRUPT_MAILBOX) {

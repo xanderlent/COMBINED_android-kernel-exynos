@@ -22,7 +22,6 @@
 #include <linux/skbuff.h>
 #include <linux/wait.h>
 #include <linux/completion.h>
-#include <linux/wakelock.h>
 #include <linux/spinlock.h>
 #include <linux/cdev.h>
 #include <linux/gpio.h>
@@ -437,7 +436,7 @@ struct io_device {
 	struct modem_ctl *mc;
 	struct modem_shared *msd;
 
-	struct wake_lock wakelock;
+	struct wakeup_source *ws;
 	long waketime;
 
 	/* DO NOT use __current_link directly
@@ -762,7 +761,7 @@ struct modem_ctl {
 	struct workqueue_struct *crash_wq;
 	struct work_struct crash_work;
 
-	struct wake_lock mc_wake_lock;
+	struct wakeup_source *ws;
 	struct mutex pcie_onoff_lock;
 	struct mutex pcie_check_lock;
 	spinlock_t pcie_tx_lock;

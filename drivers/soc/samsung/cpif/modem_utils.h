@@ -633,6 +633,69 @@ void reset_cp_upload_cnt(void);
 bool check_cp_upload_cnt(void);
 #endif
 
+static inline struct wakeup_source *cpif_wake_lock_register(struct device *dev, const char *name)
+{
+	struct wakeup_source *ws = NULL;
+
+	ws = wakeup_source_register(dev, name);
+	if (ws == NULL) {
+		mif_err("%s: wakelock register fail\n", name);
+		return NULL;
+	}
+
+	return ws;
+}
+
+static inline void cpif_wake_lock_unregister(struct wakeup_source *ws)
+{
+	if (ws == NULL) {
+		mif_err("wakelock unregister fail\n");
+		return;
+	}
+
+	wakeup_source_unregister(ws);
+}
+
+static inline void cpif_wake_lock(struct wakeup_source *ws)
+{
+	if (ws == NULL) {
+		mif_err("wakelock fail\n");
+		return;
+	}
+
+	__pm_stay_awake(ws);
+}
+
+static inline void cpif_wake_lock_timeout(struct wakeup_source *ws, long timeout)
+{
+	if (ws == NULL) {
+		mif_err("wakelock timeout fail\n");
+		return;
+	}
+
+	__pm_wakeup_event(ws, jiffies_to_msecs(timeout));
+}
+
+static inline void cpif_wake_unlock(struct wakeup_source *ws)
+{
+	if (ws == NULL) {
+		mif_err("wake unlock fail\n");
+		return;
+	}
+
+	__pm_relax(ws);
+}
+
+static inline int cpif_wake_lock_active(struct wakeup_source *ws)
+{
+	if (ws == NULL) {
+		mif_err("wake unlock fail\n");
+		return 0;
+	}
+
+	return ws->active;
+}
+
 #ifdef CONFIG_USB_CONFIGFS_F_MBIM
 void mif_queue_skb(struct sk_buff *skb, int dir);
 #endif

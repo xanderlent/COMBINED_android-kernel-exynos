@@ -133,18 +133,18 @@ static void pcie_clean_dislink(struct modem_ctl *mc)
 		mif_err("Link is disconnected!!!\n");
 }
 
-static void cp2ap_wakeup_work(struct work_struct *ws)
+static void cp2ap_wakeup_work(struct work_struct *work)
 {
-	struct modem_ctl *mc = container_of(ws, struct modem_ctl, wakeup_work);
+	struct modem_ctl *mc = container_of(work, struct modem_ctl, wakeup_work);
 	if (mc->phone_state == STATE_CRASH_EXIT)
 		return;
 
 	s5100_poweron_pcie(mc);
 }
 
-static void cp2ap_suspend_work(struct work_struct *ws)
+static void cp2ap_suspend_work(struct work_struct *work)
 {
-	struct modem_ctl *mc = container_of(ws, struct modem_ctl, suspend_work);
+	struct modem_ctl *mc = container_of(work, struct modem_ctl, suspend_work);
 	if (mc->phone_state == STATE_CRASH_EXIT)
 		return;
 
@@ -152,9 +152,9 @@ static void cp2ap_suspend_work(struct work_struct *ws)
 }
 
 #if defined(CONFIG_SUSPEND_DURING_VOICE_CALL)
-static void voice_call_on_work(struct work_struct *ws)
+static void voice_call_on_work(struct work_struct *work)
 {
-	struct modem_ctl *mc = container_of(ws, struct modem_ctl, call_on_work);
+	struct modem_ctl *mc = container_of(work, struct modem_ctl, call_on_work);
 
 	mutex_lock(&mc->pcie_check_lock);
 	if (!mc->pcie_voice_call_on)
@@ -162,21 +162,21 @@ static void voice_call_on_work(struct work_struct *ws)
 
 	if (mc->pcie_powered_on &&
 			(s51xx_check_pcie_link_status(mc->pcie_ch_num) != 0)) {
-		if (wake_lock_active(&mc->mc_wake_lock))
-			wake_unlock(&mc->mc_wake_lock);
+		if (cpif_wake_lock_active(mc->ws))
+			cpif_wake_unlock(mc->ws);
 	}
 
 	modem_voice_call_notify_event(MODEM_VOICE_CALL_ON, NULL);
 
 exit:
 	mif_info("wakelock active = %d, voice status = %d\n",
-		wake_lock_active(&mc->mc_wake_lock), mc->pcie_voice_call_on);
+		cpif_wake_lock_active(mc->ws), mc->pcie_voice_call_on);
 	mutex_unlock(&mc->pcie_check_lock);
 }
 
-static void voice_call_off_work(struct work_struct *ws)
+static void voice_call_off_work(struct work_struct *work)
 {
-	struct modem_ctl *mc = container_of(ws, struct modem_ctl, call_off_work);
+	struct modem_ctl *mc = container_of(work, struct modem_ctl, call_off_work);
 
 	mutex_lock(&mc->pcie_check_lock);
 	if (mc->pcie_voice_call_on)
@@ -184,15 +184,15 @@ static void voice_call_off_work(struct work_struct *ws)
 
 	if (mc->pcie_powered_on &&
 			(s51xx_check_pcie_link_status(mc->pcie_ch_num) != 0)) {
-		if (!wake_lock_active(&mc->mc_wake_lock))
-			wake_lock(&mc->mc_wake_lock);
+		if (!cpif_wake_lock_active(mc->ws))
+			cpif_cpif_wake_lock(mc->ws);
 	}
 
 	modem_voice_call_notify_event(MODEM_VOICE_CALL_OFF, NULL);
 
 exit:
 	mif_info("wakelock active = %d, voice status = %d\n",
-		wake_lock_active(&mc->mc_wake_lock), mc->pcie_voice_call_on);
+		cpif_wake_lock_active(mc->ws), mc->pcie_voice_call_on);
 	mutex_unlock(&mc->pcie_check_lock);
 }
 #endif
@@ -220,8 +220,8 @@ static irqreturn_t ap_wakeup_handler(int irq, void *data)
 	if (mc->pcie_pm_suspended) {
 		if (gpio_val == 1) {
 			/* try to block system suspend */
-			if (!wake_lock_active(&mc->mc_wake_lock))
-				wake_lock(&mc->mc_wake_lock);
+			if (!cpif_wake_lock_active(mc->ws))
+				cpif_cpif_wake_lock(mc->ws);
 		}
 
 		mif_err("cp2ap_wakeup work pending. gpio_val : %d\n", gpio_val);
@@ -457,8 +457,8 @@ static int power_on_cp(struct modem_ctl *mc)
 
 	print_mc_state(mc);
 
-	if (!wake_lock_active(&mc->mc_wake_lock))
-		wake_lock(&mc->mc_wake_lock);
+	if (!cpif_wake_lock_active(mc->ws))
+		cpif_cpif_wake_lock(mc->ws);
 
 	mc->phone_state = STATE_OFFLINE;
 	pcie_clean_dislink(mc);
@@ -832,9 +832,9 @@ exit:
 	return 0;
 }
 
-static void trigger_cp_crash_work(struct work_struct *ws)
+static void trigger_cp_crash_work(struct work_struct *work)
 {
-	struct modem_ctl *mc = container_of(ws, struct modem_ctl, crash_work);
+	struct modem_ctl *mc = container_of(work, struct modem_ctl, crash_work);
 	trigger_cp_crash_internal(mc);
 }
 
@@ -990,8 +990,8 @@ int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 
 	exynos_pcie_host_v1_poweroff(mc->pcie_ch_num);
 
-	if (wake_lock_active(&mc->mc_wake_lock))
-		wake_unlock(&mc->mc_wake_lock);
+	if (cpif_wake_lock_active(mc->ws))
+		cpif_wake_unlock(mc->ws);
 
 exit:
 	mif_info("---\n");
@@ -1063,8 +1063,8 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 		goto exit;
 	}
 
-	if (!wake_lock_active(&mc->mc_wake_lock))
-		wake_lock(&mc->mc_wake_lock);
+	if (!cpif_wake_lock_active(mc->ws))
+		cpif_cpif_wake_lock(mc->ws);
 
 	mif_gpio_set_value(mc->s5100_gpio_cp_wakeup, 1, 5);
 	print_mc_state(mc);
@@ -1129,11 +1129,11 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 
 #if defined(CONFIG_SUSPEND_DURING_VOICE_CALL)
 	if (mc->pcie_voice_call_on && (mc->phone_state != STATE_CRASH_EXIT)) {
-		if (wake_lock_active(&mc->mc_wake_lock))
-			wake_unlock(&mc->mc_wake_lock);
+		if (cpif_wake_lock_active(mc->ws))
+			cpif_wake_unlock(mc->ws);
 
 		mif_info("wakelock active = %d, voice status = %d\n",
-			wake_lock_active(&mc->mc_wake_lock), mc->pcie_voice_call_on);
+			cpif_wake_lock_active(mc->ws), mc->pcie_voice_call_on);
 	}
 #endif
 
@@ -1521,7 +1521,12 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	s5100_get_pdata(mc, pdata);
 	dev_set_drvdata(mc->dev, mc);
 
-	wake_lock_init(&mc->mc_wake_lock, WAKE_LOCK_SUSPEND, "s5100_wake_lock");
+	mc->ws = cpif_cpif_wake_lock_register(pdev->dev, "s5100_cpif_wake_lock");
+	if (mc->ws == NULL) {
+		mif_err("s5100_cpif_wake_lock: wakeup_source_register fail\n");
+		return -EINVAL;
+	}
+	
 	mutex_init(&mc->pcie_onoff_lock);
 	mutex_init(&mc->pcie_check_lock);
 	spin_lock_init(&mc->pcie_tx_lock);

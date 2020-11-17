@@ -176,12 +176,6 @@ static ssize_t store_txlink(struct device *dev,
 static struct device_attribute attr_txlink =
 	__ATTR(txlink, S_IRUGO | S_IWUSR, show_txlink, store_txlink);
 
-static inline void iodev_lock_wlock(struct io_device *iod)
-{
-	wake_lock_timeout(&iod->wakelock,
-		iod->waketime ?: msecs_to_jiffies(200));
-}
-
 static int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)
 {
 	struct sk_buff_head *rxq = &iod->sk_rx_q;
@@ -579,7 +573,7 @@ static int io_dev_recv_skb_single_from_link_dev(struct io_device *iod,
 {
 	int err;
 
-	iodev_lock_wlock(iod);
+	cpif_wake_lock_timeout(iod->ws, iod->waketime ?: msecs_to_jiffies(200));
 
 	if (skbpriv(skb)->lnk_hdr && ld->aligned) {
 		/* Cut off the padding in the current SIPC5 frame */
@@ -616,7 +610,7 @@ static int io_dev_recv_net_skb_from_link_dev(struct io_device *iod,
 		return -ENODEV;
 	}
 
-	iodev_lock_wlock(iod);
+	cpif_wake_lock_timeout(iod->ws, iod->waketime ?: msecs_to_jiffies(200));
 
 	return rx_multi_pdp(skb);
 }
@@ -935,7 +929,7 @@ void sipc5_deinit_io_device(struct io_device *iod)
 {
 	mif_err("%s: io_typ=%d\n", iod->name, iod->io_typ);
 
-	wake_lock_destroy(&iod->wakelock);
+	cpif_wake_lock_unregister(iod->ws);
 
 	/* De-register misc or net device */
 	switch (iod->io_typ) {
