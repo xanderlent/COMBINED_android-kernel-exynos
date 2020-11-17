@@ -34,7 +34,7 @@
 #include "gnss_utils.h"
 
 #define WAKE_TIME   (HZ/2) /* 500 msec */
-/*
+
 static inline void iodev_lock_wlock(struct io_device *iod)
 {
 	if (iod->waketime > 0 && !wake_lock_active(&iod->wakelock)) {
@@ -42,7 +42,7 @@ static inline void iodev_lock_wlock(struct io_device *iod)
 		wake_lock_timeout(&iod->wakelock, iod->waketime);
 	}
 }
-*/
+
 static inline int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)
 {
 	struct sk_buff_head *rxq = &iod->sk_rx_q;
@@ -232,7 +232,7 @@ static int io_dev_recv_skb_from_link_dev(struct io_device *iod,
 {
 	int err;
 
-	//iodev_lock_wlock(iod);
+	iodev_lock_wlock(iod);
 
 	err = recv_frame_from_skb(iod, ld, skb);
 	if (err < 0) {
@@ -255,7 +255,7 @@ static int io_dev_recv_skb_single_from_link_dev(struct io_device *iod,
 		return -ENODEV;
 	}
 
-	//iodev_lock_wlock(iod);
+	iodev_lock_wlock(iod);
 
 	if (skbpriv(skb)->lnk_hdr)
 		skb_trim(skb, exynos_get_frame_len(skb->data));
@@ -899,7 +899,7 @@ int exynos_init_gnss_io_device(struct io_device *iod)
 	iod->miscdev.name = iod->name;
 	iod->miscdev.fops = &misc_io_fops;
 	iod->waketime = WAKE_TIME;
-//	wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
+	wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
 
 	ret = misc_register(&iod->miscdev);
 	if (ret)

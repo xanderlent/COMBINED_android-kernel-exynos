@@ -31,7 +31,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
-//#include <linux/wakelock.h>
+#include <linux/wakelock.h>
 #include <linux/mfd/syscon.h>
 #include <linux/clk.h>
 #ifdef CONFIG_OF
