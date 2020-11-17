@@ -42,8 +42,8 @@
 #include <linux/isp_cooling.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
-#include <linux/exynos-ss.h>
 #include <linux/soc/samsung/exynos-soc.h>
+#include <soc/samsung/debug-snapshot.h>
 #include <soc/samsung/tmu.h>
 #include <soc/samsung/ect_parser.h>
 #ifdef CONFIG_EXYNOS_MCINFO
@@ -655,7 +655,7 @@ static int exynos_get_temp(void *p, int *temp)
 	mutex_unlock(&thermal_suspend_lock);
 #endif
 
-	exynos_ss_thermal(data->pdata, *temp / 1000, data->tmu_name, 0);
+	dbg_snapshot_thermal(data->pdata, *temp / 1000, data->tmu_name, 0);
 #ifdef CONFIG_EXYNOS_MCINFO
 	if (data->id == 0) {
 		mcinfo_count = get_mcinfo_base_count();
@@ -669,7 +669,7 @@ static int exynos_get_temp(void *p, int *temp)
 		}
 
 		if (mcinfo_logging == 1)
-			exynos_ss_thermal(NULL, mcinfo_temp, "MCINFO", 0);
+			dbg_snapshot_thermal(NULL, mcinfo_temp, "MCINFO", 0);
 	}
 #endif
 	return 0;

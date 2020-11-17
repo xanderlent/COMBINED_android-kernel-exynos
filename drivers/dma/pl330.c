@@ -279,7 +279,7 @@ static unsigned cmd_line;
 #endif
 
 #ifdef CONFIG_DMADEVICES_DEBUG
-#define DBG_PRINT(x...)		exynos_ss_printk(x);
+#define DBG_PRINT(x...)		dbg_snapshot_printk(x);
 #else
 #define DBG_PRINT(x...)		do {} while (0)
 #endif

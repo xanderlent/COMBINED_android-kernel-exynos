@@ -26,14 +26,10 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-#if defined(CONFIG_SOC_EXYNOS9110)
-#include <linux/exynos-ss.h>
-#else
-#include <soc/samsung/exynos-debug.h>
-#endif
 #if defined(CONFIG_DEBUG_SNAPSHOT)
 #include <soc/samsung/debug-snapshot.h>
 #endif
+
 #include "gnss_prj.h"
 #include "gnss_utils.h"
 

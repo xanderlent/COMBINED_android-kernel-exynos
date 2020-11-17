@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
-#include <linux/exynos-ss.h>
+#include <soc/samsung/debug-snapshot.h>
 #include <linux/delay.h>
 #endif
 

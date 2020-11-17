@@ -14,8 +14,8 @@
 
 #include <asm/assembler.h>
 
-#define ESS_FLAG_IN	(1)
-#define ESS_FLAG_OUT	(3)
+#define DSS_FLAG_IN	(1)
+#define DSS_FLAG_OUT	(3)
 
 /*
  * Function signature:
@@ -31,7 +31,7 @@ ENTRY(__exynos_smc)
 	stp	x2, x3, [sp, #32]
 	ldr	x3, =save_smc_id
 	str	x0, [x3]
-	mov	x3, #ESS_FLAG_IN
+	mov	x3, #DSS_FLAG_IN
 	bl	dbg_snapshot_irq
 	ldp	x0, x1, [sp, #16]
 	ldp	x2, x3, [sp, #32]
@@ -43,7 +43,7 @@ ENTRY(__exynos_smc)
 	stp	x2, x3, [sp, #32]
 	ldr	x3, =save_smc_id
 	ldr	x0, [x3]
-	mov	x3, #ESS_FLAG_OUT
+	mov	x3, #DSS_FLAG_OUT
 	bl	dbg_snapshot_irq
 	ldp	x0, x1, [sp, #16]
 	ldp	x2, x3, [sp, #32]
