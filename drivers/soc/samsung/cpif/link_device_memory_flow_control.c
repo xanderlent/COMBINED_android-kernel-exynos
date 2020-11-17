@@ -21,7 +21,7 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
-//#include <linux/wakelock.h>
+#include <linux/wakelock.h>
 #include <linux/vmalloc.h>
 #include <linux/netdevice.h>
 

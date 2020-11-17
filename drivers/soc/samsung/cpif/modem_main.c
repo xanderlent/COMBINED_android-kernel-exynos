@@ -38,7 +38,7 @@
 #include <linux/of_gpio.h>
 #endif
 #include <linux/delay.h>
-//#include <linux/wakelock.h>
+#include <linux/wakelock.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/dma-contiguous.h>
@@ -255,7 +255,7 @@ static int attach_devices(struct io_device *iod)
 		BUG();
 	}
 
-	//wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
+	wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
 
 	switch (iod->ch) {
 	case SIPC5_CH_ID_FMT_0 ... SIPC5_CH_ID_FMT_9:
