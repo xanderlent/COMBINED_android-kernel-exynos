@@ -206,7 +206,7 @@
 
 /* 8K resoluition */
 #define MFC_8K_RES		(7680 * 4320)
-#define IS_8K_RES(ctx)		(((ctx)->crop_width * (ctx)->crop_height) >= MFC_8K_RES)
+#define IS_8K_RES(ctx)		(((ctx)->crop_width * (ctx)->crop_height) >= (MFC_8K_RES / 2))
 
 /* 4K resoluition */
 #define MFC_4K_RES		(4096 * 2176)
@@ -214,7 +214,7 @@
 
 /* UHD resolution */
 #define MFC_UHD_RES		(3840 * 2160)
-#define OVER_UHD_RES(ctx)	(((ctx)->crop_width * (ctx)->crop_height) >= MFC_UHD_RES)
+#define OVER_UHD_RES(ctx)	(((ctx)->crop_width * (ctx)->crop_height) >= (MFC_UHD_RES / 2))
 
 /* FHD resoluition */
 #define MFC_FHD_RES		(1920 * 1088)
