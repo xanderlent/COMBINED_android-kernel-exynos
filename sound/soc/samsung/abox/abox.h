@@ -592,9 +592,9 @@ struct abox_data {
 	struct abox_extra_firmware firmware_extra[8];
 	struct device *dev_gic;
 	struct device *dev_bt;
-	struct platform_device *pdev_if[8];
-	struct platform_device *pdev_rdma[8];
-	struct platform_device *pdev_wdma[5];
+	struct device *dev_if[8];
+	struct device *dev_rdma[8];
+	struct device *dev_wdma[5];
 	struct platform_device *pdev_vts;
 	struct workqueue_struct *gear_workqueue;
 	struct workqueue_struct *ipc_workqueue;
@@ -676,6 +676,7 @@ struct abox_data {
 	struct notifier_block itmon_nb;
 	int pm_qos_int[5];
 	int pm_qos_aud[5];
+	int pm_qos_mif[5];
 	struct work_struct boot_done_work;
 	struct delayed_work tickle_work;
 	enum audio_mode audio_mode;
@@ -684,9 +685,9 @@ struct abox_data {
 	const char *bootargs;
 	atomic_t suspend_state;
 };
-
+/*
 struct abox_compr_data {
-	/* compress offload */
+	// compress offload 
 	struct snd_compr_stream *cstream;
 
 	void *dma_area;
@@ -723,44 +724,13 @@ struct abox_compr_data {
 
 	struct snd_compr_params codec_param;
 
-	/* effect offload */
+	// effect offload 
 	unsigned int out_sample_rate;
 };
-
-enum abox_platform_type {
-	PLATFORM_NORMAL,
-	PLATFORM_CALL,
-	PLATFORM_COMPRESS,
-	PLATFORM_REALTIME,
-	PLATFORM_VI_SENSING,
-	PLATFORM_SYNC,
-};
-
-enum abox_rate {
-	RATE_SUHQA,
-	RATE_UHQA,
-	RATE_NORMAL,
-	RATE_COUNT,
-};
-
+*/
 static inline bool abox_test_quirk(struct abox_data *data, unsigned long quirk)
 {
 	return !!(data->quirks & quirk);
-}
-
-/**
- * Get sampling rate type
- * @param[in]	rate		sampling rate in Hz
- * @return	rate type in enum abox_rate
- */
-static inline enum abox_rate abox_get_rate_type(unsigned int rate)
-{
-	if (rate < 176400)
-		return RATE_NORMAL;
-	else if (rate >= 176400 && rate <= 192000)
-		return RATE_UHQA;
-	else
-		return RATE_SUHQA;
 }
 
 /**
@@ -821,7 +791,7 @@ static inline int abox_ipcid_to_stream(enum IPC_ID ipcid)
 	else
 		return -EINVAL;
 }
-
+/*
 struct abox_platform_data {
 	void __iomem *sfr_base;
 	void __iomem *mailbox_base;
@@ -839,7 +809,7 @@ struct abox_platform_data {
 	struct regmap *mailbox;
 	bool scsc_bt;
 };
-
+*/
 /**
  * get pointer to abox_data (internal use only)
  * @return	pointer to abox_data
@@ -966,7 +936,7 @@ extern int abox_request_int_freq(struct device *dev, struct abox_data *data,
  * @return	error code if any
  */
 extern int abox_register_if(struct platform_device *pdev_abox,
-		struct platform_device *pdev_if, unsigned int id,
+		struct device *dev_if, unsigned int id,
 		struct snd_soc_dapm_context *dapm, const char *name,
 		bool playback, bool capture);
 
@@ -989,7 +959,7 @@ extern int abox_try_to_asrc_off(struct device *dev, struct abox_data *data,
  * @return	error code if any
  */
 extern int abox_register_rdma(struct platform_device *pdev_abox,
-		struct platform_device *pdev_rdma, unsigned int id);
+		struct device *dev_rdma, unsigned int id);
 
 /**
  * Register wdma to abox
@@ -1000,7 +970,7 @@ extern int abox_register_rdma(struct platform_device *pdev_abox,
  * @return	error code if any
  */
 extern int abox_register_wdma(struct platform_device *pdev_abox,
-		struct platform_device *pdev_wdma, unsigned int id);
+		struct device *dev_wdma, unsigned int id);
 
 /**
  * Register uaif to abox
@@ -1044,7 +1014,7 @@ extern int abox_request_l2c_sync(struct device *dev, struct abox_data *data,
  * @param[in]	id		key which is used as unique handle
  * @param[in]	on		true for requesting, false on otherwise
  */
-extern void abox_request_dram_on(struct platform_device *pdev_abox, void *id,
+extern void abox_request_dram_on(struct device *dev_abox, void *id,
 		bool on);
 
 /**

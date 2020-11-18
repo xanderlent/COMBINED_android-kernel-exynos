@@ -20,6 +20,7 @@
 #include "abox.h"
 #include "abox_dbg.h"
 #include "abox_log.h"
+#include "abox_dma.h"
 
 #define BUFFER_MAX (SZ_32)
 #define NAME_LENGTH (SZ_32)
@@ -145,11 +146,11 @@ static ssize_t abox_dump_auto_write(struct file *file, const char __user *data,
 
 			pdev_abox = to_platform_device(abox_dump_dev_abox);
 			if (enable) {
-				abox_request_dram_on(pdev_abox, dev, true);
+				abox_request_dram_on(abox_dump_dev_abox, dev, true);
 				pm_runtime_get(dev);
 			} else {
 				pm_runtime_put(dev);
-				abox_request_dram_on(pdev_abox, dev, false);
+				abox_request_dram_on(abox_dump_dev_abox, dev, false);
 			}
 		}
 
@@ -362,13 +363,12 @@ static struct snd_pcm_hardware abox_dump_hardware = {
 	.periods_max	= 32,
 };
 
-static int abox_dump_platform_open(struct snd_pcm_substream *substream)
+static int abox_dump_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = rtd->dai_link->id;
 	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 	struct snd_dma_buffer *dmab = &substream->dma_buffer;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
@@ -386,13 +386,12 @@ static int abox_dump_platform_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int abox_dump_platform_close(struct snd_pcm_substream *substream)
+static int abox_dump_close(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = rtd->dai_link->id;
 	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
@@ -401,38 +400,37 @@ static int abox_dump_platform_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int abox_dump_platform_hw_params(struct snd_pcm_substream *substream,
+static int abox_dump_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = rtd->dai_link->id;
+	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 }
 
-static int abox_dump_platform_hw_free(struct snd_pcm_substream *substream)
+static int abox_dump_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = rtd->dai_link->id;
+	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static int abox_dump_platform_prepare(struct snd_pcm_substream *substream)
+static int abox_dump_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = rtd->dai_link->id;
 	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
@@ -441,14 +439,13 @@ static int abox_dump_platform_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int abox_dump_platform_trigger(struct snd_pcm_substream *substream,
+static int abox_dump_trigger(struct snd_pcm_substream *substream,
 		int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = rtd->dai_link->id;
 	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 
 	dev_dbg(dev, "%s[%d](%d)\n", __func__, id, cmd);
 
@@ -486,29 +483,28 @@ void abox_dump_period_elapsed(int id, size_t pointer)
 }
 EXPORT_SYMBOL(abox_dump_period_elapsed);
 
-static snd_pcm_uframes_t abox_dump_platform_pointer(
+static snd_pcm_uframes_t abox_dump_pointer(
 		struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = rtd->dai_link->id;
 	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	return bytes_to_frames(substream->runtime, info->pointer);
 }
 
-static struct snd_pcm_ops abox_dump_platform_ops = {
-	.open		= abox_dump_platform_open,
-	.close		= abox_dump_platform_close,
+static struct snd_pcm_ops abox_dump_ops = {
+	.open		= abox_dump_open,
+	.close		= abox_dump_close,
 	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= abox_dump_platform_hw_params,
-	.hw_free	= abox_dump_platform_hw_free,
-	.prepare	= abox_dump_platform_prepare,
-	.trigger	= abox_dump_platform_trigger,
-	.pointer	= abox_dump_platform_pointer,
+	.hw_params	= abox_dump_hw_params,
+	.hw_free	= abox_dump_hw_free,
+	.prepare	= abox_dump_prepare,
+	.trigger	= abox_dump_trigger,
+	.pointer	= abox_dump_pointer,
 };
 
 static void abox_dump_register_card_work_func(struct work_struct *work)
@@ -574,9 +570,9 @@ static void abox_dump_add_dai_link(struct device *dev)
 	schedule_delayed_work(&abox_dump_register_card_work, HZ);
 }
 
-static int abox_dump_platform_probe(struct snd_soc_platform *platform)
+static int abox_dump_probe(struct snd_soc_component *component)
 {
-	struct device *dev = platform->dev;
+	struct device *dev = component->dev;
 	int id = to_platform_device(dev)->id;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
@@ -584,15 +580,15 @@ static int abox_dump_platform_probe(struct snd_soc_platform *platform)
 	return 0;
 }
 
-static int abox_dump_platform_new(struct snd_soc_pcm_runtime *runtime)
+static int abox_dump_new(struct snd_soc_pcm_runtime *runtime)
 {
-	struct device *dev = runtime->platform->dev;
+	int id = runtime->dai_link->id;
+	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 	struct snd_pcm *pcm = runtime->pcm;
 	struct snd_pcm_str *stream = &pcm->streams[SNDRV_PCM_STREAM_CAPTURE];
 	struct snd_pcm_substream *substream = stream->substream;
 	struct snd_dma_buffer *dmab = &substream->dma_buffer;
-	int id = to_platform_device(dev)->id;
-	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
@@ -605,20 +601,26 @@ static int abox_dump_platform_new(struct snd_soc_pcm_runtime *runtime)
 	return 0;
 }
 
-static void abox_dump_platform_free(struct snd_pcm *pcm)
+static void abox_dump_free(struct snd_pcm *pcm)
 {
-	struct snd_soc_pcm_runtime *runtime = pcm->private_data;
-	struct device *dev = runtime->platform->dev;
-	int id = to_platform_device(dev)->id;
+	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+	struct snd_pcm_str *stream = &pcm->streams[SNDRV_PCM_STREAM_CAPTURE];
+	struct snd_pcm_substream *substream = stream->substream;
+	int id = rtd->dai_link->id;
+	struct abox_dump_buffer_info *info = abox_dump_get_buffer_info(id);
+	struct device *dev = info->dev;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
+
+	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_CONTINUOUS)
+		snd_pcm_lib_free_pages(substream);
 }
 
-struct snd_soc_platform_driver abox_dump_platform = {
-	.probe		= abox_dump_platform_probe,
-	.ops		= &abox_dump_platform_ops,
-	.pcm_new	= abox_dump_platform_new,
-	.pcm_free	= abox_dump_platform_free,
+struct snd_soc_component_driver abox_dump_component = {
+	.probe		= abox_dump_probe,
+	.ops		= &abox_dump_ops,
+	.pcm_new	= abox_dump_new,
+	.pcm_free	= abox_dump_free,
 };
 
 static int samsung_abox_dump_probe(struct platform_device *pdev)
@@ -632,7 +634,8 @@ static int samsung_abox_dump_probe(struct platform_device *pdev)
 		pm_runtime_no_callbacks(dev);
 		pm_runtime_enable(dev);
 
-		devm_snd_soc_register_platform(dev, &abox_dump_platform);
+		devm_snd_soc_register_component(dev, &abox_dump_component,
+				NULL, 0);
 		abox_dump_add_dai_link(dev);
 	} else {
 		abox_dump_card.dev = &pdev->dev;

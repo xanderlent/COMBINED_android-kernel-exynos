@@ -109,11 +109,11 @@ int abox_vdma_period_elapsed(struct abox_vdma_info *info,
 static int abox_vdma_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_platform *platform = soc_rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
-	struct abox_vdma_info *info = snd_soc_platform_get_drvdata(platform);
-	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info, substream->stream);
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info,
+			substream->stream);
+	struct device *dev = info->dev;
 	ABOX_IPC_MSG msg;
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg.msg.pcmtask;
 
@@ -131,9 +131,9 @@ static int abox_vdma_open(struct snd_pcm_substream *substream)
 static int abox_vdma_close(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_platform *platform = soc_rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct device *dev = info->dev;
 	ABOX_IPC_MSG msg;
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg.msg.pcmtask;
 
@@ -149,11 +149,11 @@ static int abox_vdma_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_platform *platform = soc_rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
-	struct abox_vdma_info *info = snd_soc_platform_get_drvdata(platform);
-	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info, substream->stream);
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info,
+			substream->stream);
+	struct device *dev = info->dev;
 	ABOX_IPC_MSG msg;
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg.msg.pcmtask;
 	int ret;
@@ -189,9 +189,9 @@ static int abox_vdma_hw_params(struct snd_pcm_substream *substream,
 static int abox_vdma_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_platform *platform = soc_rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct device *dev = info->dev;
 	ABOX_IPC_MSG msg;
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg.msg.pcmtask;
 
@@ -208,11 +208,11 @@ static int abox_vdma_hw_free(struct snd_pcm_substream *substream)
 static int abox_vdma_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_platform *platform = soc_rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
-	struct abox_vdma_info *info = snd_soc_platform_get_drvdata(platform);
-	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info, substream->stream);
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info,
+			substream->stream);
+	struct device *dev = info->dev;
 	ABOX_IPC_MSG msg;
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg.msg.pcmtask;
 
@@ -229,18 +229,16 @@ static int abox_vdma_prepare(struct snd_pcm_substream *substream)
 static int abox_vdma_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_platform *platform = soc_rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct device *dev = info->dev;
+	struct device *dev_abox = abox_vdma_dev_abox;
 	ABOX_IPC_MSG msg;
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg.msg.pcmtask;
-	struct platform_device *pdev_abox;
 	int ret;
 
 	dev_info(dev, "%s[%d:%c](%d)\n", __func__, id,
 			substream_to_char(substream), cmd);
-
-	pdev_abox = to_platform_device(abox_vdma_dev_abox);
 
 	msg.ipcid = abox_stream_to_ipcid(substream->stream);
 	msg.task_id = pcmtask_msg->channel_id = id;
@@ -251,7 +249,7 @@ static int abox_vdma_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (memblock_is_memory(substream->runtime->dma_addr))
-			abox_request_dram_on(pdev_abox, dev, true);
+			abox_request_dram_on(dev_abox, dev, true);
 		pcmtask_msg->param.trigger = 1;
 		ret = abox_vdma_request_ipc(&msg, 1, 0);
 		break;
@@ -261,7 +259,7 @@ static int abox_vdma_trigger(struct snd_pcm_substream *substream, int cmd)
 		pcmtask_msg->param.trigger = 0;
 		ret = abox_vdma_request_ipc(&msg, 1, 0);
 		if (memblock_is_memory(substream->runtime->dma_addr))
-			abox_request_dram_on(pdev_abox, dev, false);
+			abox_request_dram_on(dev_abox, dev, false);
 		break;
 	default:
 		dev_err(dev, "invalid command: %d\n", cmd);
@@ -274,11 +272,11 @@ static int abox_vdma_trigger(struct snd_pcm_substream *substream, int cmd)
 static snd_pcm_uframes_t abox_vdma_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_platform *platform = soc_rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
-	struct abox_vdma_info *info = snd_soc_platform_get_drvdata(platform);
-	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info, substream->stream);
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info,
+			substream->stream);
+	struct device *dev = info->dev;
 
 	dev_dbg(dev, "%s[%d:%c]\n", __func__, id, substream_to_char(substream));
 
@@ -289,11 +287,11 @@ static int abox_vdma_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *pcm_rtd = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_platform *platform = soc_rtd->platform;
-	struct device *dev = platform->dev;
-	int id = to_platform_device(dev)->id;
-	struct abox_vdma_info *info = snd_soc_platform_get_drvdata(platform);
-	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info, substream->stream);
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct abox_vdma_rtd *rtd = abox_vdma_get_rtd(info,
+			substream->stream);
+	struct device *dev = info->dev;
 	snd_pcm_uframes_t appl_ptr = pcm_rtd->control->appl_ptr;
 	snd_pcm_uframes_t appl_ofs = appl_ptr % pcm_rtd->buffer_size;
 	ssize_t appl_bytes = frames_to_bytes(pcm_rtd, appl_ofs);
@@ -314,7 +312,7 @@ static int abox_vdma_ack(struct snd_pcm_substream *substream)
 	return abox_vdma_request_ipc(&msg, 0, 0);
 }
 
-static struct snd_pcm_ops abox_vdma_platform_ops = {
+static struct snd_pcm_ops abox_vdma_ops = {
 	.open		= abox_vdma_open,
 	.close		= abox_vdma_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -326,24 +324,24 @@ static struct snd_pcm_ops abox_vdma_platform_ops = {
 	.ack		= abox_vdma_ack,
 };
 
-static int abox_vdma_platform_probe(struct snd_soc_platform *platform)
+static int abox_vdma_probe(struct snd_soc_component *component)
 {
-	struct device *dev = platform->dev;
+	struct device *dev = component->dev;
 	int id = to_platform_device(dev)->id;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
-	snd_soc_platform_set_drvdata(platform, abox_vdma_get_info(id));
+	snd_soc_component_set_drvdata(component, abox_vdma_get_info(id));
 	return 0;
 }
 
-static int abox_vdma_platform_new(struct snd_soc_pcm_runtime *soc_rtd)
+static int abox_vdma_pcm_new(struct snd_soc_pcm_runtime *soc_rtd)
 {
-	struct device *dev = soc_rtd->platform->dev;
+	int id = soc_rtd->dai_link->id;
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct device *dev = info->dev;
 	struct device *dev_abox = abox_vdma_dev_abox;
 	struct snd_pcm *pcm = soc_rtd->pcm;
-	int id = to_platform_device(dev)->id;
-	struct abox_vdma_info *info = abox_vdma_get_info(id);
 	int i, ret;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
@@ -388,13 +386,13 @@ static int abox_vdma_platform_new(struct snd_soc_pcm_runtime *soc_rtd)
 	return 0;
 }
 
-static void abox_vdma_platform_free(struct snd_pcm *pcm)
+static void abox_vdma_pcm_free(struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = pcm->private_data;
-	struct device *dev = soc_rtd->platform->dev;
-	struct device *dev_abox = abox_vdma_dev_abox;
-	int id = to_platform_device(dev)->id;
+	int id = soc_rtd->dai_link->id;
 	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct device *dev = info->dev;
+	struct device *dev_abox = abox_vdma_dev_abox;
 	int i;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
@@ -422,11 +420,11 @@ static void abox_vdma_platform_free(struct snd_pcm *pcm)
 	}
 }
 
-struct snd_soc_platform_driver abox_vdma_platform = {
-	.probe		= abox_vdma_platform_probe,
-	.ops		= &abox_vdma_platform_ops,
-	.pcm_new	= abox_vdma_platform_new,
-	.pcm_free	= abox_vdma_platform_free,
+struct snd_soc_component_driver abox_vdma_component = {
+	.probe		= abox_vdma_probe,
+	.ops		= &abox_vdma_ops,
+	.pcm_new	= abox_vdma_pcm_new,
+	.pcm_free	= abox_vdma_pcm_free,
 };
 
 static irqreturn_t abox_vdma_irq_handler(int ipc_id, void *dev_id,
@@ -588,10 +586,10 @@ DECLARE_DELAYED_WORK(abox_vdma_register_card_work,
 
 static int abox_vdma_add_dai_link(struct device *dev)
 {
-	struct abox_vdma_info *info = NULL;
-	struct snd_soc_dai_link *link = NULL;
 	int id = to_platform_device(dev)->id;
 	int idx = abox_vdma_get_idx(id);
+	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	struct snd_soc_dai_link *link = &abox_vdma_dai_links[idx];
 	struct abox_vdma_rtd *playback, *capture;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
@@ -600,9 +598,6 @@ static int abox_vdma_add_dai_link(struct device *dev)
 		dev_err(dev, "Too many request\n");
 		return -ENOMEM;
 	}
-
-	info = abox_vdma_get_info(id);
-	link = &abox_vdma_dai_links[idx];
 
 	cancel_delayed_work_sync(&abox_vdma_register_card_work);
 
@@ -632,19 +627,31 @@ static int abox_vdma_add_dai_link(struct device *dev)
 static int samsung_abox_vdma_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	int id = to_platform_device(dev)->id;
-	struct abox_vdma_info *info = abox_vdma_get_info(id);
+	int id = pdev->id;
+	struct abox_vdma_info *info;
 	int ret = 0;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	if (id <= 0) {
 		abox_vdma_card.dev = &pdev->dev;
+		schedule_delayed_work(&abox_vdma_register_card_work, 0);
 	} else {
+		info = abox_vdma_get_info(id);
+		if (!info) {
+			dev_err(dev, "invalid id: %d\n", id);
+			return -EINVAL;
+		}
+
 		info->dev = dev;
 		pm_runtime_no_callbacks(dev);
 		pm_runtime_enable(dev);
-		devm_snd_soc_register_platform(dev, &abox_vdma_platform);
+
+		ret = devm_snd_soc_register_component(dev,
+				&abox_vdma_component, NULL, 0);
+		if (ret < 0)
+			dev_err(dev, "register component failed: %d\n", ret);
+
 		ret = abox_vdma_add_dai_link(dev);
 	}
 
@@ -654,7 +661,7 @@ static int samsung_abox_vdma_probe(struct platform_device *pdev)
 static int samsung_abox_vdma_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	int id = to_platform_device(dev)->id;
+	int id = pdev->id;
 
 	dev_dbg(dev, "%s[%d]\n", __func__, id);
 

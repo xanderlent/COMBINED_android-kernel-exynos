@@ -26,6 +26,7 @@
 #include <linux/suspend.h>
 #include <linux/shm_ipc.h>
 #include <linux/modem_notifier.h>
+#include <linux/sched/clock.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -49,6 +50,7 @@
 #include "abox_effect.h"
 #include "abox_bt.h"
 #include "abox.h"
+#include "abox_dma.h"
 
 /* debug features */
 /* #define ABOX_DUMMY_VSS_ALLOC */
@@ -3445,6 +3447,26 @@ unsigned int abox_get_requiring_int_freq_in_khz(void)
 }
 EXPORT_SYMBOL(abox_get_requiring_int_freq_in_khz);
 
+unsigned int abox_get_requiring_mif_freq_in_khz(void)
+{
+	struct abox_data *data = p_abox_data;
+	unsigned int gear;
+	unsigned int int_freq;
+
+	if (data == NULL)
+		return 0;
+
+	gear = data->cpu_gear;
+
+	if (gear <= ARRAY_SIZE(data->pm_qos_mif))
+		int_freq = data->pm_qos_mif[gear - 1];
+	else
+		int_freq = 0;
+
+	return int_freq;
+}
+EXPORT_SYMBOL(abox_get_requiring_mif_freq_in_khz);
+
 unsigned int abox_get_requiring_aud_freq_in_khz(void)
 {
 	struct abox_data *data = p_abox_data;
@@ -3499,7 +3521,6 @@ static void abox_check_cpu_gear(struct device *dev,
 		const void *id, unsigned int gear)
 {
 	struct device *dev_abox = &data->pdev->dev;
-	struct platform_device *pdev = to_platform_device(dev);
 
 	if (id != (void *)ABOX_CPU_GEAR_BOOT)
 		return;
@@ -3512,7 +3533,7 @@ static void abox_check_cpu_gear(struct device *dev,
 			/* new */
 			dev_dbg(dev, "%s(%p): new\n", __func__, id);
 			pm_wakeup_event(dev_abox, BOOT_DONE_TIMEOUT_MS);
-			abox_request_dram_on(pdev, (void *)BOOT_CPU_GEAR_ID, true);
+			abox_request_dram_on(dev, (void *)BOOT_CPU_GEAR_ID, true);
 		}
 	} else {
 		if ((old_gear >= ABOX_CPU_GEAR_MIN) &&
@@ -3520,13 +3541,13 @@ static void abox_check_cpu_gear(struct device *dev,
 			/* on */
 			dev_dbg(dev, "%s(%p): on\n", __func__, id);
 			pm_wakeup_event(dev_abox, BOOT_DONE_TIMEOUT_MS);
-			abox_request_dram_on(pdev, (void *)BOOT_CPU_GEAR_ID, true);
+			abox_request_dram_on(dev, (void *)BOOT_CPU_GEAR_ID, true);
 		} else if ((old_gear < ABOX_CPU_GEAR_MIN) &&
 				(gear >= ABOX_CPU_GEAR_MIN)) {
 			/* off */
 			dev_dbg(dev, "%s(%p): off\n", __func__, id);
 			pm_relax(dev_abox);
-			abox_request_dram_on(pdev, (void *)BOOT_CPU_GEAR_ID, false);
+			abox_request_dram_on(dev, (void *)BOOT_CPU_GEAR_ID, false);
 		}
 	}
 }
@@ -4080,14 +4101,13 @@ int abox_request_hmp_boost(struct device *dev, struct abox_data *data,
 	return 0;
 }
 
-void abox_request_dram_on(struct platform_device *pdev_abox, void *id, bool on)
+void abox_request_dram_on(struct device *dev_abox, void *id, bool on)
 {
-	struct device *dev = &pdev_abox->dev;
-	struct abox_data *data = platform_get_drvdata(pdev_abox);
+	struct abox_data *data = dev_get_drvdata(dev_abox);
 	struct abox_dram_request *request;
 	unsigned int val = 0x0;
 
-	dev_dbg(dev, "%s(%d)\n", __func__, on);
+	dev_dbg(dev_abox, "%s(%d)\n", __func__, on);
 
 	for (request = data->dram_requests; request - data->dram_requests <
 			ARRAY_SIZE(data->dram_requests) && request->id &&
@@ -4108,7 +4128,7 @@ void abox_request_dram_on(struct platform_device *pdev_abox, void *id, bool on)
 	}
 
 	regmap_write(data->regmap, ABOX_SYSPOWER_CTRL, val);
-	dev_dbg(dev, "%s: SYSPOWER_CTRL=%08x\n", __func__,
+	dev_dbg(dev_abox, "%s: SYSPOWER_CTRL=%08x\n", __func__,
 			({regmap_read(data->regmap, ABOX_SYSPOWER_CTRL, &val);
 			val; }));
 }
@@ -4310,11 +4330,11 @@ static int abox_register_if_routes(struct device *dev,
 }
 
 int abox_register_if(struct platform_device *pdev_abox,
-		struct platform_device *pdev_if, unsigned int id,
+		struct device *dev_if, unsigned int id,
 		struct snd_soc_dapm_context *dapm, const char *name,
 		bool playback, bool capture)
 {
-	struct device *dev = &pdev_if->dev;
+	struct device *dev = &pdev_abox->dev;
 	struct abox_data *data = platform_get_drvdata(pdev_abox);
 	int ret;
 
@@ -4332,7 +4352,7 @@ int abox_register_if(struct platform_device *pdev_abox,
 		{"NSRC3", "%s", "%s Capture"},
 	};
 
-	if (id >= ARRAY_SIZE(data->pdev_if)) {
+	if (id >= ARRAY_SIZE(data->dev_if)) {
 		dev_err(dev, "%s: invalid id(%u)\n", __func__, id);
 		return -EINVAL;
 	}
@@ -4346,7 +4366,7 @@ int abox_register_if(struct platform_device *pdev_abox,
 		return -EINVAL;
 	}
 
-	data->pdev_if[id] = pdev_if;
+	data->dev_if[id] = dev_if;
 	if (id > data->if_count)
 		data->if_count = id + 1;
 
@@ -4368,12 +4388,12 @@ int abox_register_if(struct platform_device *pdev_abox,
 }
 
 int abox_register_rdma(struct platform_device *pdev_abox,
-		struct platform_device *pdev_rdma, unsigned int id)
+		struct device *dev_rdma, unsigned int id)
 {
 	struct abox_data *data = platform_get_drvdata(pdev_abox);
 
-	if (id < ARRAY_SIZE(data->pdev_rdma)) {
-		data->pdev_rdma[id] = pdev_rdma;
+	if (id < ARRAY_SIZE(data->dev_rdma)) {
+		data->dev_rdma[id] = dev_rdma;
 		if (id > data->rdma_count)
 			data->rdma_count = id + 1;
 	} else {
@@ -4385,12 +4405,12 @@ int abox_register_rdma(struct platform_device *pdev_abox,
 }
 
 int abox_register_wdma(struct platform_device *pdev_abox,
-		struct platform_device *pdev_wdma, unsigned int id)
+		struct device *dev_wdma, unsigned int id)
 {
 	struct abox_data *data = platform_get_drvdata(pdev_abox);
 
-	if (id < ARRAY_SIZE(data->pdev_wdma)) {
-		data->pdev_wdma[id] = pdev_wdma;
+	if (id < ARRAY_SIZE(data->dev_wdma)) {
+		data->dev_wdma[id] = dev_wdma;
 		if (id > data->wdma_count)
 			data->wdma_count = id + 1;
 	} else {
@@ -4714,7 +4734,7 @@ static void abox_boot_done_work_func(struct work_struct *work)
 	abox_restore_data(dev);
 	abox_request_cpu_gear(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
 			ABOX_CPU_GEAR_MIN);
-	abox_request_dram_on(pdev, dev, false);
+	abox_request_dram_on(dev, dev, false);
 }
 
 static void abox_boot_done(struct device *dev, unsigned int version)
@@ -4738,53 +4758,53 @@ static irqreturn_t abox_dma_irq_handler(int irq, struct abox_data *data)
 {
 	struct device *dev = &data->pdev->dev;
 	int id;
-	struct platform_device **pdev_dma;
-	struct abox_platform_data *platform_data;
+	struct device **dev_dma;
+	struct abox_dma_data *dma_data;
 
 	dev_dbg(dev, "%s(%d)\n", __func__, irq);
 
 	switch (irq) {
 	case RDMA0_BUF_EMPTY:
 		id = 0;
-		pdev_dma = data->pdev_rdma;
+		dev_dma = data->dev_rdma;
 		break;
 	case RDMA1_BUF_EMPTY:
 		id = 1;
-		pdev_dma = data->pdev_rdma;
+		dev_dma = data->dev_rdma;
 		break;
 	case RDMA2_BUF_EMPTY:
 		id = 2;
-		pdev_dma = data->pdev_rdma;
+		dev_dma = data->dev_rdma;
 		break;
 	case RDMA3_BUF_EMPTY:
 		id = 3;
-		pdev_dma = data->pdev_rdma;
+		dev_dma = data->dev_rdma;
 		break;
 	case WDMA0_BUF_FULL:
 		id = 0;
-		pdev_dma = data->pdev_wdma;
+		dev_dma = data->dev_wdma;
 		break;
 	case WDMA1_BUF_FULL:
 		id = 1;
-		pdev_dma = data->pdev_wdma;
+		dev_dma = data->dev_wdma;
 		break;
 	default:
 		return IRQ_NONE;
 	}
 
-	if (unlikely(!pdev_dma[id])) {
+	if (unlikely(!dev_dma[id])) {
 		dev_err(dev, "spurious dma irq: irq=%d id=%d\n", irq, id);
 		return IRQ_HANDLED;
 	}
 
-	platform_data = platform_get_drvdata(pdev_dma[id]);
-	if (unlikely(!platform_data)) {
+	dma_data = dev_get_drvdata(dev_dma[id]);
+	if (unlikely(!dma_data)) {
 		dev_err(dev, "dma irq with null data: irq=%d id=%d\n", irq, id);
 		return IRQ_HANDLED;
 	}
 
-	platform_data->pointer = 0;
-	snd_pcm_period_elapsed(platform_data->substream);
+	dma_data->pointer = 0;
+	snd_pcm_period_elapsed(dma_data->substream);
 
 	return IRQ_HANDLED;
 }
@@ -4958,12 +4978,12 @@ static void abox_playback_ipc_handler(struct device *dev,
 		struct abox_data *data, ABOX_IPC_MSG *msg)
 {
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg->msg.pcmtask;
-	struct abox_platform_data *platform_data;
+	struct abox_dma_data *dma_data;
 	int id = pcmtask_msg->channel_id;
 
 	dev_dbg(dev, "msgtype=%d\n", pcmtask_msg->msgtype);
 
-	if ((id >= ARRAY_SIZE(data->pdev_rdma)) || !data->pdev_rdma[id]) {
+	if ((id >= ARRAY_SIZE(data->dev_rdma)) || !data->dev_rdma[id]) {
 		irqreturn_t ret;
 
 		ret = abox_registered_ipc_handler(dev, data, msg, false);
@@ -4972,15 +4992,15 @@ static void abox_playback_ipc_handler(struct device *dev,
 		return;
 	}
 
-	platform_data = platform_get_drvdata(data->pdev_rdma[id]);
+	dma_data = dev_get_drvdata(data->dev_rdma[id]);
 
 	switch (pcmtask_msg->msgtype) {
 	case PCM_PLTDAI_POINTER:
-		platform_data->pointer = pcmtask_msg->param.pointer;
-		snd_pcm_period_elapsed(platform_data->substream);
+		dma_data->pointer = pcmtask_msg->param.pointer;
+		snd_pcm_period_elapsed(dma_data->substream);
 		break;
 	case PCM_PLTDAI_ACK:
-		platform_data->ack_enabled = !!pcmtask_msg->param.trigger;
+		dma_data->ack_enabled = !!pcmtask_msg->param.trigger;
 		break;
 	default:
 		dev_warn(dev, "Redundant pcmtask message: %d\n",
@@ -4993,12 +5013,12 @@ static void abox_capture_ipc_handler(struct device *dev,
 		struct abox_data *data, ABOX_IPC_MSG *msg)
 {
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg->msg.pcmtask;
-	struct abox_platform_data *platform_data;
+	struct abox_dma_data *dma_data;
 	int id = pcmtask_msg->channel_id;
 
 	dev_dbg(dev, "msgtype=%d\n", pcmtask_msg->msgtype);
 
-	if ((id >= ARRAY_SIZE(data->pdev_wdma)) || (!data->pdev_wdma[id])) {
+	if ((id >= ARRAY_SIZE(data->dev_wdma)) || (!data->dev_wdma[id])) {
 		irqreturn_t ret;
 
 		ret = abox_registered_ipc_handler(dev, data, msg, false);
@@ -5007,15 +5027,15 @@ static void abox_capture_ipc_handler(struct device *dev,
 		return;
 	}
 
-	platform_data = platform_get_drvdata(data->pdev_wdma[id]);
+	dma_data = dev_get_drvdata(data->dev_wdma[id]);
 
 	switch (pcmtask_msg->msgtype) {
 	case PCM_PLTDAI_POINTER:
-		platform_data->pointer = pcmtask_msg->param.pointer;
-		snd_pcm_period_elapsed(platform_data->substream);
+		dma_data->pointer = pcmtask_msg->param.pointer;
+		snd_pcm_period_elapsed(dma_data->substream);
 		break;
 	case PCM_PLTDAI_ACK:
-		platform_data->ack_enabled = !!pcmtask_msg->param.trigger;
+		dma_data->ack_enabled = !!pcmtask_msg->param.trigger;
 		break;
 	default:
 		dev_warn(dev, "Redundant pcmtask message: %d\n",
@@ -5029,16 +5049,16 @@ static void abox_offload_ipc_handler(struct device *dev,
 {
 	struct IPC_OFFLOADTASK_MSG *offloadtask_msg = &msg->msg.offload;
 	int id = offloadtask_msg->channel_id;
-	struct abox_platform_data *platform_data;
+	struct abox_dma_data *dma_data;
 
 	if (id != 5) {
 		dev_warn(dev, "%s: unknown channel id(%d)\n", __func__, id);
 		id = 5;
 	}
-	platform_data = platform_get_drvdata(data->pdev_rdma[id]);
+	dma_data = dev_get_drvdata(data->dev_rdma[id]);
 
-	if (platform_data->compr_data.isr_handler)
-		platform_data->compr_data.isr_handler(data->pdev_rdma[id]);
+	if (dma_data->compr_data.isr_handler)
+		dma_data->compr_data.isr_handler(data->dev_rdma[id]);
 	else
 		dev_warn(dev, "Redundant offload message on rdma[%d]", id);
 }
@@ -5672,7 +5692,7 @@ static int abox_enable(struct device *dev)
 		}
 	}
 
-	abox_request_dram_on(pdev, dev, true);
+	abox_request_dram_on(dev, dev, true);
 	if (has_reset) {
 		abox_cpu_power(true);
 		abox_cpu_enable(true);
