@@ -110,7 +110,7 @@
 	cp_btl_node_name = "ramdump_memshare";
 
 	/* IO devices */
-	mif,num_iodevs = <23>;
+	mif,num_iodevs = <31>;
 	iodevs {
 		io_device_0 {
 			iod,name = "umts_ipc0";
@@ -292,6 +292,70 @@
 			iod,name = "umts_atc0";
 			iod,ch = <23>;
 			iod,format = <1>;		/* IPC_RAW */
+			iod,io_type = <IODEV_IPC>;
+			iod,link_type = <LINKDEV_SHMEM>;
+			iod,attrs = <0x0>;
+		};
+		io_device_23 {
+			iod,name = "oem_ipc0";
+			iod,ch = <129>;
+			iod,format = <0>;		/* IPC_FMT */
+			iod,io_type = <IODEV_IPC>;
+			iod,link_type = <LINKDEV_SHMEM>;
+			iod,attrs = <0x0>;
+		};
+		io_device_24 {
+			iod,name = "oem_ipc1";
+			iod,ch = <130>;
+			iod,format = <0>;		/* IPC_FMT */
+			iod,io_type = <IODEV_IPC>;
+			iod,link_type = <LINKDEV_SHMEM>;
+			iod,attrs = <0x0>;
+		};
+		io_device_25 {
+			iod,name = "oem_ipc2";
+			iod,ch = <131>;
+			iod,format = <0>;		/* IPC_FMT */
+			iod,io_type = <IODEV_IPC>;
+			iod,link_type = <LINKDEV_SHMEM>;
+			iod,attrs = <0x0>;
+		};
+		io_device_26 {
+			iod,name = "oem_ipc3";
+			iod,ch = <132>;
+			iod,format = <0>;		/* IPC_FMT */
+			iod,io_type = <IODEV_IPC>;
+			iod,link_type = <LINKDEV_SHMEM>;
+			iod,attrs = <0x0>;
+		};
+		io_device_27 {
+			iod,name = "oem_ipc4";
+			iod,ch = <133>;
+			iod,format = <0>;		/* IPC_FMT */
+			iod,io_type = <IODEV_IPC>;
+			iod,link_type = <LINKDEV_SHMEM>;
+			iod,attrs = <0x0>;
+		};
+		io_device_28 {
+			iod,name = "oem_ipc5";
+			iod,ch = <134>;
+			iod,format = <0>;		/* IPC_FMT */
+			iod,io_type = <IODEV_IPC>;
+			iod,link_type = <LINKDEV_SHMEM>;
+			iod,attrs = <0x0>;
+		};
+		io_device_29 {
+			iod,name = "oem_ipc6";
+			iod,ch = <135>;
+			iod,format = <0>;		/* IPC_FMT */
+			iod,io_type = <IODEV_IPC>;
+			iod,link_type = <LINKDEV_SHMEM>;
+			iod,attrs = <0x0>;
+		};
+		io_device_30 {
+			iod,name = "oem_ipc7";
+			iod,ch = <136>;
+			iod,format = <0>;		/* IPC_FMT */
 			iod,io_type = <IODEV_IPC>;
 			iod,link_type = <LINKDEV_SHMEM>;
 			iod,attrs = <0x0>;
