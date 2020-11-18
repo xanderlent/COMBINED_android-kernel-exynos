@@ -27,6 +27,7 @@
 #include <soc/samsung/exynos-pm.h>
 #include <soc/samsung/exynos-pmu.h>
 #include <soc/samsung/exynos-powermode.h>
+#include <soc/samsung/exynos-cpupm.h>
 
 #ifdef CONFIG_EXYNOS_REBOOT
 extern void big_reset_control(int en);
@@ -249,6 +250,7 @@ static void exynos_create_idle_ip_mask(int ip_index)
 	}
 }
 
+#ifdef CONFIG_EXYNOS_CPUPM
 int exynos_get_idle_ip_index(const char *ip_name)
 {
 	struct device_node *np = of_find_node_by_name(NULL, "exynos-powermode");
@@ -291,8 +293,7 @@ void exynos_update_ip_idle_status(int ip_index, int idle)
 	reg_index = convert_idle_ip_index(&ip_index);
 
 	spin_lock_irqsave(&ip_idle_lock, flags);
-	exynos_pmu_update(PMU_IDLE_IP(reg_index),
-				1 << ip_index, idle << ip_index);
+	exynos_pmu_update(PMU_IDLE_IP(reg_index), 1 << ip_index, idle << ip_index);
 	spin_unlock_irqrestore(&ip_idle_lock, flags);
 
 	return;
@@ -327,6 +328,7 @@ void exynos_get_idle_ip_list(char *(*idle_ip_list)[IDLE_IP_REG_SIZE])
 		}
 	}
 }
+#endif
 
 static void __init init_idle_ip(void)
 {
@@ -387,7 +389,7 @@ static void update_c2_state(bool down, unsigned int cpu)
 
 static s64 get_next_event_time_us(unsigned int cpu)
 {
-	return ktime_to_us(tick_nohz_get_sleep_length());
+	return ktime_to_us(ktime_sub(*(get_next_event_cpu(cpu)), ktime_get()));
 }
 
 static int is_cpus_busy(unsigned int target_residency,
