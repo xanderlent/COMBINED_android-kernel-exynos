@@ -31,7 +31,6 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
-#include <linux/wakelock.h>
 #include <linux/mfd/syscon.h>
 #include <linux/clk.h>
 #ifdef CONFIG_OF
@@ -118,7 +117,7 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	ld->iod = iod;
 
 	/* register misc device */
-	ret = exynos_init_gnss_io_device(iod);
+	ret = exynos_init_gnss_io_device(iod, dev);
 	if (ret) {
 		devm_kfree(dev, iod);
 		gif_err("exynos_init_gnss_io_device fail (%d)\n", ret);

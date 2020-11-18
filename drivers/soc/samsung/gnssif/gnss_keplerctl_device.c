@@ -79,8 +79,8 @@ static irqreturn_t kepler_active_isr(int irq, void *arg)
 
 	gif_err_limited("ACTIVE Interrupt occurred!\n");
 
-	if (!wake_lock_active(&gc->gc_fault_wake_lock))
-		wake_lock_timeout(&gc->gc_fault_wake_lock, HZ);
+	if (!gnssif_wake_lock_active(gc->gc_fault_ws))
+		gnssif_wake_lock_timeout(gc->gc_fault_ws, HZ);
 
 	gnss_state_changed(gc, STATE_FAULT);
 	wake_up(&iod->wq);
@@ -97,8 +97,8 @@ static irqreturn_t kepler_wdt_isr(int irq, void *arg)
 
 	gif_err_limited("WDT Interrupt occurred!\n");
 
-	if (!wake_lock_active(&gc->gc_fault_wake_lock))
-		wake_lock_timeout(&gc->gc_fault_wake_lock, HZ);
+	if (!gnssif_wake_lock_active(gc->gc_fault_ws))
+		gnssif_wake_lock_timeout(gc->gc_fault_ws, HZ);
 
 	gnss_state_changed(gc, STATE_FAULT);
 	wake_up(&iod->wq);
@@ -415,7 +415,7 @@ static int kepler_req_fault_info(struct gnss_ctl *gc)
 	}
 
 req_fault_exit:
-	wake_unlock(&gc->gc_fault_wake_lock);
+	gnssif_wake_unlock(gc->gc_fault_ws);
 	mutex_unlock(&reset_lock);
 
 	return ret;
@@ -572,14 +572,16 @@ int init_gnssctl_device(struct gnss_ctl *gc, struct gnss_pdata *pdata)
 
 	dev_set_drvdata(gc->dev, gc);
 
-	wake_lock_init(&gc->gc_fault_wake_lock,
-				WAKE_LOCK_SUSPEND, "gnss_fault_wake_lock");
-
-	init_completion(&gc->fault_cmpl);
 	init_completion(&gc->bcmd_cmpl);
 	init_completion(&gc->sw_init_cmpl);
 
 	pdev = to_platform_device(gc->dev);
+
+	gc->gc_fault_ws = gnssif_wake_lock_register(&pdev->dev, "gnss_fault_wake_lock");
+	if (gc->gc_fault_ws == NULL) {
+		gif_err("gnss_fault_wake_lock: wakeup_source_register fail\n");
+		return -EINVAL;
+	}
 
 #ifdef CONFIG_USB_CONFIGFS_F_MBIM
 	gif_err("Register GPIO interrupts\n");

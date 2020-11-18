@@ -37,9 +37,9 @@
 
 static inline void iodev_lock_wlock(struct io_device *iod)
 {
-	if (iod->waketime > 0 && !wake_lock_active(&iod->wakelock)) {
-		wake_unlock(&iod->wakelock);
-		wake_lock_timeout(&iod->wakelock, iod->waketime);
+	if (iod->waketime > 0 && !gnssif_wake_lock_active(iod->ws)) {
+		gnssif_wake_unlock(iod->ws);
+		gnssif_wake_lock_timeout(iod->ws, iod->waketime);
 	}
 }
 
@@ -879,7 +879,7 @@ static const struct file_operations misc_io_fops = {
 	.read = misc_read,
 };
 
-int exynos_init_gnss_io_device(struct io_device *iod)
+int exynos_init_gnss_io_device(struct io_device *iod, struct device *dev)
 {
 	int ret = 0;
 
@@ -899,7 +899,11 @@ int exynos_init_gnss_io_device(struct io_device *iod)
 	iod->miscdev.name = iod->name;
 	iod->miscdev.fops = &misc_io_fops;
 	iod->waketime = WAKE_TIME;
-	wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
+	iod->ws = gnssif_wake_lock_register(dev, iod->name);
+	if (iod->ws == NULL) {
+		gif_err("%s: wakeup_source_register fail\n", iod->name);
+		return -EINVAL;
+	}
 
 	ret = misc_register(&iod->miscdev);
 	if (ret)

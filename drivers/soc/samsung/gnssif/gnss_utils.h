@@ -45,6 +45,70 @@ static const inline char *dir_str(enum direction dir)
 		return direction_string[dir];
 }
 
+/* gnss wake lock */
+static inline struct wakeup_source *gnssif_wake_lock_register(struct device *dev, const char *name)
+{
+	struct wakeup_source *ws = NULL;
+
+	ws = wakeup_source_register(dev, name);
+	if (ws == NULL) {
+		gif_err("%s: wakelock register fail\n", name);
+		return NULL;
+	}
+
+	return ws;
+}
+
+static inline void gnssif_wake_lock_unregister(struct wakeup_source *ws)
+{
+	if (ws == NULL) {
+		gif_err("wakelock unregister fail\n");
+		return;
+	}
+
+	wakeup_source_unregister(ws);
+}
+
+static inline void gnssif_wake_lock(struct wakeup_source *ws)
+{
+	if (ws == NULL) {
+		gif_err("wakelock fail\n");
+		return;
+	}
+
+	__pm_stay_awake(ws);
+}
+
+static inline void gnssif_wake_lock_timeout(struct wakeup_source *ws, long timeout)
+{
+	if (ws == NULL) {
+		gif_err("wakelock timeout fail\n");
+		return;
+	}
+
+	__pm_wakeup_event(ws, jiffies_to_msecs(timeout));
+}
+
+static inline void gnssif_wake_unlock(struct wakeup_source *ws)
+{
+	if (ws == NULL) {
+		gif_err("wake unlock fail\n");
+		return;
+	}
+
+	__pm_relax(ws);
+}
+
+static inline int gnssif_wake_lock_active(struct wakeup_source *ws)
+{
+	if (ws == NULL) {
+		gif_err("wakelock active fail\n");
+		return 0;
+	}
+
+	return ws->active;
+}
+
 /* print IPC message packet */
 void gnss_log_ipc_pkt(struct sk_buff *skb, enum direction dir);
 

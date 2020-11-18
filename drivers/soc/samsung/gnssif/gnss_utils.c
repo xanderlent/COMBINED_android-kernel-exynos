@@ -36,7 +36,6 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
-#include <linux/wakelock.h>
 
 #include "gnss_prj.h"
 #include "gnss_utils.h"
