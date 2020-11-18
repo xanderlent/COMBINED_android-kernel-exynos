@@ -146,8 +146,10 @@
 	};
 
 	exynos-powermode {
+		cpd_residency = <3000>;
+		cpd_enabled = <0>;
 		sicd_residency = <3000>;
-		sicd_enabled = <1>;
+		sicd_enabled = <0>;
 
 		idle-ip = "13970000.pwm",		/* [ 0] pwm		*/
 			  "11c40000.adc",		/* [ 1] adc		*/
