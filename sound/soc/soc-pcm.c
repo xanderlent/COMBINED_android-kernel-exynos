@@ -894,7 +894,8 @@ int soc_dai_hw_params(struct snd_pcm_substream *substream,
 
 	/* perform any topology hw_params fixups before DAI  */
 	if (rtd->dai_link->be_hw_params_fixup) {
-		ret = rtd->dai_link->be_hw_params_fixup(rtd, params);
+		ret = rtd->dai_link->be_hw_params_fixup(rtd, params,
+				substream->stream);
 		if (ret < 0) {
 			dev_err(rtd->dev,
 				"ASoC: hw_params topology fixup failed %d\n",
@@ -958,7 +959,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if ((rtd->dai_link->no_host_mode == SND_SOC_DAI_LINK_NO_HOST) &&
 				rtd->dai_link->be_hw_params_fixup) {
 		ret = rtd->dai_link->be_hw_params_fixup(rtd,
-				params);
+				params, substream->stream);
 		if (ret < 0)
 			dev_err(rtd->card->dev, "ASoC: fixup failed for %s\n",
 				rtd->dai_link->name);
@@ -1053,6 +1054,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	 * FIXME: rework with alsa-lib changes so that this malloc is
 	 * not required.
 	 */
+	/*
 	if (rtd->dai_link->no_host_mode == SND_SOC_DAI_LINK_NO_HOST) {
 		substream->dma_buffer.dev.type = SNDRV_DMA_TYPE_DEV;
 		substream->dma_buffer.dev.dev = rtd->dev;
@@ -1066,6 +1068,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		if (ret < 0)
 			goto component_err;
 	}
+	*/
 out:
 	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
@@ -2200,7 +2203,7 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 		/* perform any hw_params fixups */
 		if (be->dai_link->be_hw_params_fixup) {
 			ret = be->dai_link->be_hw_params_fixup(be,
-					&dpcm->hw_params);
+					&dpcm->hw_params, stream);
 			if (ret < 0) {
 				dev_err(be->dev,
 					"ASoC: hw_params BE fixup failed %d\n",
