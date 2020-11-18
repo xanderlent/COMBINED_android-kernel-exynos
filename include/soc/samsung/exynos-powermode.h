@@ -45,44 +45,6 @@ static inline char* get_sys_powerdown_str(int mode)
 extern int exynos_cpu_pm_enter(unsigned int cpu, int index);
 extern void exynos_cpu_pm_exit(unsigned int cpu, int enter_failed);
 
-/**
-  IDLE_IP control
- */
-#define IDLE_IP_REG_SIZE		32
-#define IDLE_IP_MAX_INDEX		127
-#define IDLE_IP_FIX_INDEX_COUNT		2
-#define IDLE_IP_MAX_CONFIGURABLE_INDEX	(IDLE_IP_MAX_INDEX - IDLE_IP_FIX_INDEX_COUNT)
-
-
-#ifdef CONFIG_CPU_IDLE
-void exynos_update_ip_idle_status(int index, int idle);
-int exynos_get_idle_ip_index(const char *name);
-void exynos_get_idle_ip_list(char *(*idle_ip_list)[IDLE_IP_REG_SIZE]);
-#else
-static inline void exynos_update_ip_idle_status(int index, int idle)
-{
-	return;
-}
-
-static inline int exynos_get_idle_ip_index(const char *name)
-{
-	return 0;
-}
-
-static inline void exynos_get_idle_ip_list(char *(*idle_ip_list)[IDLE_IP_REG_SIZE])
-{
-	return;
-}
-#endif
-
-enum exynos_idle_ip {
-	IDLE_IP0,
-	IDLE_IP1,
-	IDLE_IP2,
-	IDLE_IP3,
-	NUM_IDLE_IP,
-};
-
 #define MAX_CLUSTER		2
 
 /**
