@@ -44,9 +44,9 @@
 	ssp_host_req: ssp-host-req {
 		samsung,pins ="gpm25-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
-		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
 	};
 };
 
