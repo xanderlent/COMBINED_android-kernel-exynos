@@ -204,19 +204,21 @@
 #define IS_LV51_MB(mb)		(((mb) > LV51_MB_MIN) && ((mb) <= LV51_MB_MAX))
 #define IS_LV60_MB(mb)		(((mb) > LV51_MB_MAX) && ((mb) <= LV60_MB_MAX))
 
-/* 8K resoluition */
-#define MFC_8K_RES		(7680 * 4320)
-#define IS_8K_RES(ctx)		(((ctx)->crop_width * (ctx)->crop_height) >= (MFC_8K_RES / 2))
+/* 8K resolution (include 21:9 7680 x 3296) */
+#define MFC_8K_RES		(7680 * 3200)
+#define IS_8K_RES(ctx)		(((ctx)->crop_width * (ctx)->crop_height) >= MFC_8K_RES)
+/* For max h/w performance */
+#define IS_8K_PERF(ctx)		(((ctx)->crop_width * (ctx)->crop_height) >= (MFC_8K_RES / 2))
 
-/* 4K resoluition */
+/* 4K resolution */
 #define MFC_4K_RES		(4096 * 2176)
 #define UNDER_4K_RES(ctx)	(((ctx)->crop_width * (ctx)->crop_height) < MFC_4K_RES)
 
-/* UHD resolution */
-#define MFC_UHD_RES		(3840 * 2160)
-#define OVER_UHD_RES(ctx)	(((ctx)->crop_width * (ctx)->crop_height) >= (MFC_UHD_RES / 2))
+/* UHD resolution (include 21:9 3840 x 1644) */
+#define MFC_UHD_RES		(3840 * 1600)
+#define OVER_UHD_RES(ctx)	(((ctx)->crop_width * (ctx)->crop_height) >= MFC_UHD_RES)
 
-/* FHD resoluition */
+/* FHD resolution */
 #define MFC_FHD_RES		(1920 * 1088)
 #define UNDER_FHD_RES(ctx)	(((ctx)->crop_width * (ctx)->crop_height) <= MFC_FHD_RES)
 

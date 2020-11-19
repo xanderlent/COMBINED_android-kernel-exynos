@@ -517,7 +517,7 @@ static void __mfc_set_enc_params_h264(struct mfc_core *core,
 
 	mfc_debug_enter();
 
-	if (IS_8K_RES(ctx) || (OVER_UHD_RES(ctx) && p->rc_framerate > 45)) {
+	if (IS_8K_PERF(ctx) || (OVER_UHD_RES(ctx) && p->rc_framerate > 45)) {
 		p->num_refs_for_p = 1;
 		mfc_debug(2, "forcely use 1-ref frame for 8K or 4K %d fps\n", p->rc_framerate);
 	}
@@ -1183,7 +1183,7 @@ static void __mfc_set_enc_params_hevc(struct mfc_core *core,
 
 	mfc_debug_enter();
 
-	if (IS_8K_RES(ctx) || (OVER_UHD_RES(ctx) && p->rc_framerate > 45)) {
+	if (IS_8K_PERF(ctx) || (OVER_UHD_RES(ctx) && p->rc_framerate > 45)) {
 		p->num_refs_for_p = 1;
 		mfc_debug(2, "forcely use 1-ref frame for 8K or 4K %d fps\n", p->rc_framerate);
 	}
