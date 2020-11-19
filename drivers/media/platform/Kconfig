@@ -10,6 +10,7 @@ menuconfig V4L_PLATFORM_DRIVERS
 	  Say Y here to enable support for platform-specific V4L drivers.
 
 if V4L_PLATFORM_DRIVERS
+source "drivers/media/platform/exynos/Kconfig"
 
 source "drivers/media/platform/marvell-ccic/Kconfig"
 
@@ -31,6 +32,8 @@ source "drivers/media/platform/cadence/Kconfig"
 source "drivers/media/platform/davinci/Kconfig"
 
 source "drivers/media/platform/omap/Kconfig"
+
+source "drivers/media/platform/exynos/Kconfig"
 
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
