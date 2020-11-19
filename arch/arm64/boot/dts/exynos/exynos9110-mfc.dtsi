@@ -13,8 +13,8 @@
  * published by the Free Software Foundation.
  */
 
-#include <dt-bindings/clock/exynos2100.h>
-#include <dt-bindings/interrupt-controller/exynos2100.h>
+#include <dt-bindings/clock/exynos9110.h>
+#include <dt-bindings/interrupt-controller/exynos9110.h>
 
 / {
 	mfc: mfc {
