@@ -674,7 +674,6 @@ void exynos_wakeup_sys_powerdown(enum sys_powerdown mode, bool early_wakeup)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 /******************************************************************************
  *                            HOTPLUG FUNCTION                                *
  ******************************************************************************/
@@ -708,78 +707,25 @@ int exynos_hotplug_out_callback(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(exynos_hotplug_out_callback);
 
-#if 0
-static int exynos_cpu_callback(struct notifier_block *nfb,
-				 unsigned long action, void *hcpu)
+int exynos_enable_idle_callback(unsigned int cpu)
 {
-#ifdef CONFIG_EXYNOS_PMU
-	unsigned int cpu = (unsigned long)hcpu;
-	unsigned long timeout = jiffies + msecs_to_jiffies(2000);
-#endif
+	struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
 
-	switch (action) {
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-#ifdef CONFIG_EXYNOS_PMU
-		while (exynos_cpu.power_state(cpu)) {
-			if (time_before(jiffies, timeout)) {
-				udelay(10);
-				continue;
-			} else {
-				BUG();
-			}
-		}
-#endif
-		break;
-	}
+	cpuidle_enable_device(dev);
 
-	return NOTIFY_OK;
+	return 0;
 }
-#endif
-#endif
-/**
- * powermode_cpufreq_transition() blocks to power down the cluster
- * before frequency changing. And it release the blocking after
- * completion of frequency changing.
- */
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
-static void nop_func(void *info) {}
-#endif
-static int exynos_powermode_cpufreq_transition(struct notifier_block *nb,
-				unsigned long val, void *data)
+EXPORT_SYMBOL_GPL(exynos_enable_idle_callback);
+
+int exynos_disable_idle_callback(unsigned int cpu)
 {
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
-	struct cpufreq_freqs *freq = data;
-	int cpu = freq->cpu;
+	struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
 
-	/*
-	 * Boot cluster does not support cluster power down.
-	 * Do nothing in this notify call.
-	 */
-	if (is_cpu_boot_cluster(cpu))
-		return NOTIFY_OK;
+	cpuidle_disable_device(dev);
 
-	if (!pm_info->cpd_enabled)
-		return NOTIFY_OK;;
-
-	switch (val) {
-	case CPUFREQ_PRECHANGE:
-		pm_info->cpd_block_cpufreq = true;
-		if (check_cluster_idle_state(cpu))
-			smp_call_function_single(cpu, nop_func, NULL, 0);
-		break;
-	case CPUFREQ_POSTCHANGE:
-		pm_info->cpd_block_cpufreq = false;
-		break;
-	}
-#endif
-
-	return NOTIFY_OK;
+	return 0;
 }
-
-static struct notifier_block exynos_powermode_cpufreq_notifier = {
-	.notifier_call = exynos_powermode_cpufreq_transition,
-};
+EXPORT_SYMBOL_GPL(exynos_disable_idle_callback);
 
 /******************************************************************************
  *                               Extern function                              *
@@ -905,18 +851,16 @@ static int __init exynos_powermode_init(void)
 		pr_err("%s: failed to create sysfs to control SICD\n", __func__);
 #endif
 
-
-	cpufreq_register_notifier(&exynos_powermode_cpufreq_notifier,
-					CPUFREQ_TRANSITION_NOTIFIER);
-
-//	__hotcpu_notifier(exynos_cpu_callback, INT_MAX);
-
 	return 0;
 }
 arch_initcall(exynos_powermode_init);
 
 static int __init exynos_powermode_cpu_hotplug_init(void)
 {
+	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+				"AP_EXYNOS_IDLE_CTROL",
+				exynos_enable_idle_callback,
+				exynos_disable_idle_callback);
 	cpuhp_setup_state(CPUHP_AP_EXYNOS_CPU_UP_POWER_CONTROL,
 				"AP_EXYNOS_CPU_UP_POWER_CONTROL",
 				exynos_hotplug_in_callback,
