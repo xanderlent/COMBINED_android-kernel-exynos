@@ -109,10 +109,12 @@ static inline enum cipc_region user_to_reg(enum cipc_user_id id)
 		return CIPC_REG_AP2CHUB;
 	case CIPC_USER_CHUB2AP:
 		return CIPC_REG_CHUB2AP;
+#ifdef CIPC_DEF_USER_ABOX
 	case CIPC_USER_ABOX2CHUB:
 		return CIPC_REG_ABOX2CHUB;
 	case CIPC_USER_CHUB2ABOX:
 		return CIPC_REG_CHUB2ABOX;
+#endif
 	default:
 		CIPC_PRINT("%s: invalid id:%d\n", __func__, id);
 		break;
@@ -128,11 +130,13 @@ static inline enum cipc_region data_to_evt(enum cipc_region reg)
 		return CIPC_REG_EVT_CHUB2AP;
 	case CIPC_REG_DATA_AP2CHUB:
 		return CIPC_REG_EVT_AP2CHUB;
+#ifdef CIPC_DEF_USER_ABOX
 	case CIPC_REG_DATA_CHUB2ABOX:
 		return CIPC_REG_EVT_CHUB2ABOX;
 	case CIPC_REG_DATA_ABOX2CHUB_AUD:
 	case CIPC_REG_DATA_ABOX2CHUB:
 		return CIPC_REG_EVT_ABOX2CHUB;
+#endif
 	default:
 		CIPC_PRINT("%s: invalid data reg:%d\n", __func__, reg);
 		break;
@@ -152,6 +156,7 @@ static inline enum cipc_user_id reg_to_user(enum cipc_region reg)
 	case CIPC_REG_DATA_CHUB2AP:
 	case CIPC_REG_DATA_CHUB2AP_BATCH:
 		return CIPC_USER_CHUB2AP;
+#ifdef CIPC_DEF_USER_ABOX
 	case CIPC_REG_ABOX2CHUB:
 	case CIPC_REG_EVT_ABOX2CHUB:
 	case CIPC_REG_DATA_ABOX2CHUB:
@@ -162,6 +167,7 @@ static inline enum cipc_user_id reg_to_user(enum cipc_region reg)
 	case CIPC_REG_DATA_CHUB2ABOX:
 		return CIPC_USER_CHUB2ABOX;
 		break;
+#endif
 	default:
 		CIPC_PRINT("%s: invalid reg id:%d\n", __func__, reg);
 		break;
@@ -195,14 +201,17 @@ static inline int is_evt(enum cipc_region reg)
 	if (is_valid_cipc_map(reg)) {
 		if ((reg == CIPC_REG_EVT_AP2CHUB)
 		    || (reg == CIPC_REG_EVT_CHUB2AP)
+#ifdef CIPC_DEF_USER_ABOX
 		    || (reg == CIPC_REG_EVT_ABOX2CHUB)
-		    || (reg == CIPC_REG_EVT_CHUB2ABOX))
+		    || (reg == CIPC_REG_EVT_CHUB2ABOX)
+#endif
+        )
 			return CIPC_TRUE;
 		else
 			return CIPC_FALSE;
 	} else {
-		CIPC_PRINT("%s: worng is_valid_cipc_map, reg:%d\n",
-			   __func__, reg);
+		CIPC_PRINT("%s: worng is_valid_cipc_map, reg:%d\n", __func__,
+			   reg);
 	}
 	return CIPC_FALSE;
 }
@@ -259,10 +268,13 @@ static inline int is_data(enum cipc_region reg)
 	if (is_valid_cipc_map(reg)) {
 		if ((reg == CIPC_REG_DATA_AP2CHUB) ||
 		    (reg == CIPC_REG_DATA_CHUB2AP) ||
-		    (reg == CIPC_REG_DATA_CHUB2AP_BATCH) ||
-		    (reg == CIPC_REG_DATA_ABOX2CHUB) ||
+		    (reg == CIPC_REG_DATA_CHUB2AP_BATCH)
+#ifdef CIPC_DEF_USER_ABOX
+		    || (reg == CIPC_REG_DATA_ABOX2CHUB) ||
 		    (reg == CIPC_REG_DATA_ABOX2CHUB_AUD) ||
-		    (reg == CIPC_REG_DATA_CHUB2ABOX))
+		    (reg == CIPC_REG_DATA_CHUB2ABOX)
+#endif
+        )
 			return CIPC_TRUE;
 		else
 			return CIPC_FALSE;
@@ -303,8 +315,10 @@ static inline int is_user(enum cipc_region reg)
 {
 	if (is_valid_cipc_map(reg)) {
 		if ((reg == CIPC_REG_AP2CHUB) || (reg == CIPC_REG_CHUB2AP)
-		    || (reg == CIPC_REG_ABOX2CHUB)
-		    || (reg == CIPC_REG_CHUB2ABOX))
+#ifdef CIPC_DEF_USER_ABOX
+		    || (reg == CIPC_REG_ABOX2CHUB) || (reg == CIPC_REG_CHUB2ABOX)
+#endif
+        )
 			return CIPC_TRUE;
 		else
 			return CIPC_FALSE;
@@ -1551,12 +1565,14 @@ if (reg == CIPC_REG_DATA_ABOX2CHUB) {
 			if (buf->start == 1) {
 				user_id = reg_to_user(reg);
 				switch (user_id) {
+#ifdef CIPC_DEF_USER_ABOX
 				case CIPC_USER_ABOX2CHUB:
 					reg_reply = CIPC_REG_DATA_CHUB2ABOX;
 					break;
 				case CIPC_USER_CHUB2ABOX:
 					reg_reply = CIPC_REG_DATA_ABOX2CHUB;
 					break;
+#endif
 				case CIPC_USER_AP2CHUB:
 					reg_reply = CIPC_REG_DATA_CHUB2AP_BATCH;
 					break;

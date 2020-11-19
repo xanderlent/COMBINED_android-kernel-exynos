@@ -26,7 +26,7 @@ struct ipc_area {
 	unsigned int size;
 };
 
-#define CIPC_DEF_USER_ABOX
+#undef CIPC_DEF_USER_ABOX
 #undef CIPC_DEF_IPC_TEST_CHUB_ONLY_ABOX_TEST
 #undef CIPC_DEF_USER_GNSS
 #define CIPC_DEF_SUPPORT_BAAW_ALIGN
