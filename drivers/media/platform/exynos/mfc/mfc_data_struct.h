@@ -666,6 +666,7 @@ struct mfc_special_buf {
 	phys_addr_t			paddr;
 	void				*vaddr;
 	size_t				size;
+	struct iommu_domain		*domain;
 	size_t				map_size;
 	unsigned int			heapmask;
 };
@@ -1143,7 +1144,6 @@ struct mfc_dev {
 	struct mfc_core	*core[MFC_NUM_CORE];
 	int num_core;
 	int fw_date;
-	size_t fw_base_offset;
 
 	struct device		*device;
 	struct v4l2_device	v4l2_dev;
@@ -1251,7 +1251,6 @@ struct mfc_core_ops {
 
 struct mfc_core {
 	struct device		*device;
-	struct iommu_domain	*domain;
 
 	const struct mfc_core_ops *core_ops;
 
