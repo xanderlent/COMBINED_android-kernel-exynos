@@ -819,6 +819,7 @@
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
+			pd_name = "pd-dispaud";
 
 			bts_update = "false";
 			dfs_id = <ACPM_DVFS_DISP>;
@@ -874,6 +875,7 @@
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
+			pd_name = "pd-dispaud";
 
 			bts_update = "false";
 			dfs_id = <ACPM_DVFS_AUD>;
