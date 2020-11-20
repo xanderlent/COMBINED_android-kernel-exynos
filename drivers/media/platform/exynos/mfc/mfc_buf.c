@@ -690,6 +690,9 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	struct mfc_dev *dev = core->dev;
 	struct mfc_ctx_buf_size *buf_size;
 	struct mfc_special_buf *fw_buf;
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	struct mfc_special_buf *drm_fw_buf;
+#endif
 
 	mfc_core_debug_enter();
 
@@ -724,6 +727,10 @@ int mfc_alloc_firmware(struct mfc_core *core)
 		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
 		goto err_daddr;
 	}
+
+	drm_fw_buf = &core->drm_fw_buf;
+	if (__mfc_remap_firmware(core, drm_fw_buf))
+		goto err_daddr;
 
 	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
 			core->id,
