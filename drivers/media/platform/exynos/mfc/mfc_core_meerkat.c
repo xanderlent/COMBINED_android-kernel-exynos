@@ -345,7 +345,11 @@ void mfc_dump_state(struct mfc_dev *dev)
 
 	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
 		if (dev->ctx[i]) {
+#if IS_ENABLED(CONFIG_EXYNOS_THERMAL_V2)
 			mfc_dev_err("- ctx[%d] %s %s, %s, %s, size: %dx%d@%ldfps(tmu: %dfps, op: %ldfps), crop: %d %d %d %d\n",
+#else
+			mfc_dev_err("- ctx[%d] %s %s, %s, %s, size: %dx%d@%ldfps(op: %ldfps), crop: %d %d %d %d\n",
+#endif
 				dev->ctx[i]->num,
 				dev->ctx[i]->type == MFCINST_DECODER ? "DEC" : "ENC",
 				dev->ctx[i]->is_drm ? "Secure" : "Normal",
@@ -353,7 +357,9 @@ void mfc_dump_state(struct mfc_dev *dev)
 				dev->ctx[i]->dst_fmt->name,
 				dev->ctx[i]->img_width, dev->ctx[i]->img_height,
 				dev->ctx[i]->last_framerate / 1000,
+#if IS_ENABLED(CONFIG_EXYNOS_THERMAL_V2)
 				dev->tmu_fps,
+#endif
 				dev->ctx[i]->operating_framerate,
 				dev->ctx[i]->crop_width, dev->ctx[i]->crop_height,
 				dev->ctx[i]->crop_left, dev->ctx[i]->crop_top);

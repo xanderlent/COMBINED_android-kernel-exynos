@@ -106,14 +106,20 @@ static int __mfc_info_show(struct seq_file *s, void *unused)
 			else
 				codec_name = ctx->dst_fmt->name;
 
+#if IS_ENABLED(CONFIG_EXYNOS_THERMAL_V2)
 			seq_printf(s, "  [CTX:%d] %s %s, %s, %s, size: %dx%d@%ldfps(tmu: %dfps, op: %ldfps), crop: %d %d %d %d\n",
+#else
+			seq_printf(s, "  [CTX:%d] %s %s, %s, %s, size: %dx%d@%ldfps(op: %ldfps), crop: %d %d %d %d\n",
+#endif
 				ctx->num,
 				ctx->type == MFCINST_DECODER ? "DEC" : "ENC",
 				ctx->is_drm ? "Secure" : "Normal",
 				ctx->src_fmt->name, ctx->dst_fmt->name,
 				ctx->img_width, ctx->img_height,
 				ctx->last_framerate / 1000,
+#if IS_ENABLED(CONFIG_EXYNOS_THERMAL_V2)
 				ctx->dev->tmu_fps,
+#endif
 				ctx->operating_framerate,
 				ctx->crop_width, ctx->crop_height,
 				ctx->crop_left, ctx->crop_top);
