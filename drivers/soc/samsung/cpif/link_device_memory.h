@@ -390,6 +390,10 @@ struct mem_link_device {
 	u32 srinfo_size;
 	u32 __iomem *clk_table;
 
+	/* Location for handover block info in shared memory */
+	u32 __iomem *handover_block_info_offset;
+	u32 __iomem *handover_block_info_base;
+
 	int (*pass_skb_to_net)(struct mem_link_device *mld, struct sk_buff *skb);
 
 	struct pktproc_adaptor pktproc;

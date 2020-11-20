@@ -408,6 +408,9 @@ static int parse_dt_ipc_region_pdata(struct device *dev, struct device_node *np,
 	/* offset setting for new SIT buffer descriptors (optional) */
 	mif_dt_read_u32_noerr(np, "buff_desc_offset", pdata->buff_desc_offset);
 
+	mif_dt_read_u32(np, "handover_block_info_offset",
+		pdata->handover_block_info_offset);
+
 	of_property_read_u32_array(np, "ap2cp_msg", pdata->ap2cp_msg, 2);
 	of_property_read_u32_array(np, "cp2ap_msg", pdata->cp2ap_msg, 2);
 	of_property_read_u32_array(np, "cp2ap_united_status", pdata->cp2ap_united_status, 2);

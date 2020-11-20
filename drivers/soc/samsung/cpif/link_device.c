@@ -1903,6 +1903,29 @@ static int shmem_disable_rx_int(struct link_device *ld)
 	return 0;
 }
 
+static int update_handover_block_info(struct link_device *ld, unsigned long arg)
+{
+	struct mem_link_device *mld = ld_to_mem_link_device(ld);
+	struct t_handover_block_info info;
+	int err = 0;
+
+	err = copy_from_user(&info, (const void __user *)arg,
+			sizeof(struct t_handover_block_info));
+	if (err) {
+		mif_err("%s: ERR! handover_block_info copy_from_user fail\n",
+				ld->name);
+		return -EFAULT;
+	}
+
+	mif_info("%s: update block info (sku: %d, rev: %d)\n",
+		ld->name, info.modem_sku, info.minor_id);
+
+	memcpy(mld->handover_block_info_base, &info,
+			sizeof(struct t_handover_block_info));
+
+	return 0;
+}
+
 static int bootdump_rx_func(struct mem_link_device *mld)
 {
 	int ret = 0;
@@ -3810,6 +3833,8 @@ struct link_device *create_link_device(struct platform_device *pdev, enum modem_
 	ld->enable_rx_int = shmem_enable_rx_int;
 	ld->disable_rx_int = shmem_disable_rx_int;
 
+	ld->handover_block_info = update_handover_block_info;
+
 	init_dummy_netdev(&mld->dummy_net);
 	netif_napi_add(&mld->dummy_net, &mld->mld_napi, mld_rx_int_poll, 64);
 	napi_enable(&mld->mld_napi);
@@ -3994,6 +4019,10 @@ struct link_device *create_link_device(struct platform_device *pdev, enum modem_
 	mld->srinfo_base = (u32 __iomem *)(mld->base + modem->srinfo_offset);
 	mld->srinfo_size = modem->srinfo_size;
 	mld->clk_table = (u32 __iomem *)(mld->base + modem->clk_table_offset);
+
+	mld->handover_block_info_base = (u32 __iomem *)
+		(mld->base + modem->handover_block_info_offset);
+
 
 	if (ld->sbd_ipc) {
 		hrtimer_init(&mld->sbd_tx_timer,

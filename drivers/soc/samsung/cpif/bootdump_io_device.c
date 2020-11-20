@@ -422,6 +422,14 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 
 		return 0;
 
+	case IOCTL_HANDOVER_BLOCK_INFO:
+		if (!ld->handover_block_info) {
+			mif_err("%s: handover_block_info is null\n", iod->name);
+			return -EINVAL;
+		}
+		mif_info("%s: IOCTL_HANDOVER_BLOCK_INFO\n", iod->name);
+		return ld->handover_block_info(ld, arg);
+
 	default:
 		 /* If you need to handle the ioctl for specific link device,
 		  * then assign the link ioctl handler to ld->ioctl

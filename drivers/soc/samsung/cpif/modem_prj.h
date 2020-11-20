@@ -161,6 +161,28 @@ struct cpif_version {
 } __packed;
 #define IOCTL_GET_CPIF_VERSION		_IOR('o', 0x56, struct cpif_version)
 
+#define CPID_LEN		15
+#define CPSIG_LEN		64
+
+struct t_handover_block_info {
+	u32 version; /* version */
+	u32 project_id; /* project id */
+	u32 revision; /* revision */
+	u32 major_id; /* major_id */
+	u32 minor_id; /* minor_id */
+	u32 modem_sku; /* modem sku */
+	u32 modem_hw; /* modem hw */
+	u32 cpinfo0;
+	u32 cpinfo1;
+	u32 cpinfo2;
+	u32 rf_sub;
+	u32 rf_config; /* rf config */
+	u32 reserved[4];
+	char cpid[2][CPID_LEN + 1];
+	char cpsig[CPSIG_LEN + 1];
+} __packed;
+#define IOCTL_HANDOVER_BLOCK_INFO	_IO('o', 0x57)
+
 #define IOCTL_SET_INTERNET_PDN_CID	_IO(IOCTL_MAGIC, 0x60)
 
 #define RMNET_COUNT 8
@@ -594,6 +616,8 @@ struct link_device {
 	int (*disable_rx_int)(struct link_device *ld);
 
 	void (*gro_flush)(struct link_device *ld);
+
+	int (*handover_block_info)(struct link_device *ld, unsigned long arg);
 
 #ifdef CONFIG_LINK_DEVICE_PCIE
 	int (*register_pcie)(struct link_device *ld);

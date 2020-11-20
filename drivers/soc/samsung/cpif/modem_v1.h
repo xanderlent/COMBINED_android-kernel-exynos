@@ -444,6 +444,9 @@ struct modem_data {
 	/* new SIT buffer descriptor offset */
 	u32 buff_desc_offset;
 
+	/* Handover block info */
+	u32 handover_block_info_offset;
+
 #ifdef CONFIG_MODEM_IF_LEGACY_QOS
 	/* SIT priority queue info */
 	u32 legacy_raw_qos_head_tail_offset;
