@@ -23,7 +23,6 @@
 #include <linux/log2.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
-#include <linux/pm_wakeup.h>
 #include <linux/suspend.h>
 #include <linux/fault-inject.h>
 #include <linux/random.h>
@@ -1806,7 +1805,7 @@ int mmc_resume_bus(struct mmc_host *host)
 		return -EINVAL;
 
 	pr_info("%s: Starting deferred resume\n", mmc_hostname(host));
-//	wake_lock(&host->detect_wake_lock);
+	__pm_stay_awake(&host->detect_wake_lock);
 	spin_lock_irqsave(&host->lock, flags);
 	host->bus_resume_flags &= ~MMC_BUSRESUME_NEEDS_RESUME;
 	host->rescan_disable = 0;
@@ -1828,7 +1827,7 @@ int mmc_resume_bus(struct mmc_host *host)
 	host->bus_resume_flags &=
 		~(MMC_BUSRESUME_ENTER_IO | MMC_BUSRESUME_ENTER_CMD);
 	spin_unlock_irqrestore(&host->lock, flags);
-//	wake_unlock(&host->detect_wake_lock);
+	__pm_relax(&host->detect_wake_lock);
 	pr_info("%s: Deferred resume completed, err : %d\n", mmc_hostname(host), err);
 	return 0;
 }
@@ -1889,8 +1888,8 @@ static void _mmc_detect_change(struct mmc_host *host, unsigned long delay,
 
 	host->detect_change = 1;
 	/* wake lock: 500ms */
-//	if (!(host->caps & MMC_CAP_NONREMOVABLE))
-//		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
+	if (!(host->caps & MMC_CAP_NONREMOVABLE))
+		__pm_wakeup_event(&host->detect_wake_lock, HZ / 2 );
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -2775,8 +2774,8 @@ void mmc_rescan(struct work_struct *work)
 	/* runtime_pm disable */
 	host->ops->runtime_pm_control(host, 0);
  out:
-//	if (!host->rescan_disable)
-//		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
+	if (!host->rescan_disable)
+		__pm_wakeup_event(&host->detect_wake_lock, HZ / 2);
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }
@@ -2873,8 +2872,8 @@ static int mmc_pm_notify(struct notifier_block *notify_block,
 		/*
 	         * It is possible that the wake-lock has been acquired, since
 		 */
-//		if (wake_lock_active(&host->detect_wake_lock))
-//			wake_unlock(&host->detect_wake_lock);
+		if (host->detect_wake_lock.active)
+			__pm_relax(&host->detect_wake_lock);
 
 		/* Validate prerequisites for suspend */
 		if (host->bus_ops->pre_suspend)

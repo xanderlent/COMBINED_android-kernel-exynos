@@ -435,7 +435,7 @@ struct mmc_host {
 	struct mmc_ctx		default_ctx;	/* default context */
 
 	struct delayed_work	detect;
-//	struct wake_lock        detect_wake_lock;
+	struct wakeup_source 	detect_wake_lock;
 	const char              *wlock_name;
 	int			detect_change;	/* card detect flag */
 	struct mmc_slot		slot;
