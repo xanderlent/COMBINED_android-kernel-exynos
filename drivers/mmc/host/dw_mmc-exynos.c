@@ -237,8 +237,8 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 	if (priv->runtime_pm_flag & DW_MMC_EXYNOS_ENABLE_RUNTIME_PM) {
 		pm_runtime_enable(host->dev);
 		pm_runtime_get_sync(host->dev);
-//		if (priv->runtime_pm_flag & DW_MMC_EXYNOS_ENABLE_RUNTIME_PM_PAD)
-//			exynos_pmu_update(priv->pmu.offset, priv->pmu.mask, priv->pmu.val);
+		if (priv->runtime_pm_flag & DW_MMC_EXYNOS_ENABLE_RUNTIME_PM_PAD)
+			exynos_pmu_update(priv->pmu.offset, priv->pmu.mask, priv->pmu.val);
 	}
 
 	priv->saved_strobe_ctrl = mci_readl(host, HS400_DLINE_CTRL);
@@ -341,8 +341,8 @@ static int dw_mci_exynos_runtime_resume(struct device *dev)
 
 	if (priv->pinctrl && priv->clk_drive_base)
 		pinctrl_select_state(priv->pinctrl, priv->clk_drive_base);
-//	if (priv->runtime_pm_flag & DW_MMC_EXYNOS_ENABLE_RUNTIME_PM_PAD)
-//		exynos_pmu_update(priv->pmu.offset, priv->pmu.mask, priv->pmu.val);
+	if (priv->runtime_pm_flag & DW_MMC_EXYNOS_ENABLE_RUNTIME_PM_PAD)
+		exynos_pmu_update(priv->pmu.offset, priv->pmu.mask, priv->pmu.val);
 
 	return dw_mci_runtime_resume(dev);
 }

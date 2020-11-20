@@ -42,9 +42,9 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/smc.h>
 
-//#include <soc/samsung/exynos-pm.h>
-//#include <soc/samsung/exynos-powermode.h>
-//#include <soc/samsung/exynos-cpupm.h>
+#include <soc/samsung/exynos-pm.h>
+#include <soc/samsung/exynos-powermode.h>
+#include <soc/samsung/exynos-cpupm.h>
 
 #include "dw_mmc.h"
 #include "dw_mmc-exynos.h"
@@ -286,8 +286,9 @@ static inline int dw_mci_debug_init(struct dw_mci *host)
 
 static void dw_mci_qos_work(struct work_struct *work)
 {
-//	struct dw_mci *host = container_of(work, struct dw_mci, qos_work.work);
-//	pm_qos_update_request(&host->pm_qos_lock, 0);
+	struct dw_mci *host = container_of(work, struct dw_mci, qos_work.work);
+
+	pm_qos_update_request(&host->pm_qos_lock, 0);
 }
 
 static void dw_mci_qos_get(struct dw_mci *host)
@@ -295,7 +296,7 @@ static void dw_mci_qos_get(struct dw_mci *host)
 	if (delayed_work_pending(&host->qos_work))
 		cancel_delayed_work_sync(&host->qos_work);
 
-//	pm_qos_update_request(&host->pm_qos_lock, host->pdata->qos_dvfs_level);
+	pm_qos_update_request(&host->pm_qos_lock, host->pdata->qos_dvfs_level);
 }
 
 static void dw_mci_qos_put(struct dw_mci *host)
@@ -462,7 +463,6 @@ static void dw_mci_ciu_clk_dis(struct dw_mci *host)
 }
 
 #ifdef CONFIG_CPU_IDLE
-#if 0
 static void dw_mci_sicd_control(struct dw_mci *host, bool enter)
 {
 	if (enter) {
@@ -480,7 +480,7 @@ static void dw_mci_sicd_control(struct dw_mci *host, bool enter)
 	return;
 }
 #endif
-#endif
+
 u32 dw_mci_disable_interrupt(struct dw_mci * host, unsigned int *int_mask)
 {
 	u32 ctrl;
@@ -1977,8 +1977,8 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	/* IDLE IP for SICD */
 #ifdef CONFIG_CPU_IDLE
-//	atomic_inc_return(&host->sicd_active);
-//	dw_mci_sicd_control(host, false);
+	atomic_inc_return(&host->sicd_active);
+	dw_mci_sicd_control(host, false);
 #endif
 	dw_mci_queue_request(host, slot, mrq);
 
@@ -2522,8 +2522,8 @@ __releases(&host->lock) __acquires(&host->lock)
 	spin_lock(&host->lock);
 
 #ifdef CONFIG_CPU_IDLE
-//	atomic_dec_return(&host->sicd_active);
-//	dw_mci_sicd_control(host, true);
+	atomic_dec_return(&host->sicd_active);
+	dw_mci_sicd_control(host, true);
 #endif
 }
 
@@ -3827,12 +3827,10 @@ static void dw_mci_cmdq_pre_setting(struct mmc_host *mmc, bool set)
 	}
 
 #ifdef CONFIG_CPU_IDLE
-#if 0
 	if (set)
 		exynos_update_ip_idle_status(slot->host->idle_ip_index, 0);
 	else
 		exynos_update_ip_idle_status(slot->host->idle_ip_index, 1);
-#endif
 #endif
 }
 
@@ -4662,8 +4660,8 @@ int dw_mci_probe(struct dw_mci *host, struct platform_device *pdev)
 	host->quirks = host->pdata->quirks;
 
 #ifdef CONFIG_CPU_IDLE
-//	host->idle_ip_index = exynos_get_idle_ip_index(dev_name(host->dev));
-//	dw_mci_sicd_control(host, false);
+	host->idle_ip_index = exynos_get_idle_ip_index(dev_name(host->dev));
+	dw_mci_sicd_control(host, false);
 #endif
 	if (host->quirks & DW_MCI_QUIRK_HWACG_CTRL) {
 		if (drv_data && drv_data->hwacg_control)
@@ -4830,7 +4828,7 @@ int dw_mci_probe(struct dw_mci *host, struct platform_device *pdev)
 		return -ENOMEM;
 
 	INIT_DELAYED_WORK(&host->qos_work, dw_mci_qos_work);
-//	pm_qos_add_request(&host->pm_qos_lock, PM_QOS_DEVICE_THROUGHPUT, 0);
+	pm_qos_add_request(&host->pm_qos_lock, PM_QOS_DEVICE_THROUGHPUT, 0);
 
 	ret = devm_request_irq(host->dev, host->irq, dw_mci_interrupt,
 			       host->irq_flags, "dw-mci", host);
@@ -4883,7 +4881,7 @@ int dw_mci_probe(struct dw_mci *host, struct platform_device *pdev)
 		dw_mci_enable_cd(host);
 	}
 #ifdef CONFIG_CPU_IDLE
-//	dw_mci_sicd_control(host, true);
+	dw_mci_sicd_control(host, true);
 #endif
 	/* Now that slots are all setup, we can enable card detect */
 	dw_mci_enable_cd(host);
@@ -4896,7 +4894,7 @@ err_workqueue:
 	destroy_workqueue(host->card_workqueue);
 	destroy_workqueue(host->sd_card_det_workqueue);
 	destroy_workqueue(pm_workqueue);
-//	pm_qos_remove_request(&host->pm_qos_lock);
+	pm_qos_remove_request(&host->pm_qos_lock);
 
 err_dmaunmap:
 	if (host->use_dma && host->dma_ops->exit)
@@ -4917,7 +4915,7 @@ err_clk_biu:
 		clk_disable_unprepare(host->biu_clk);
 
 #ifdef CONFIG_CPU_IDLE
-//	dw_mci_sicd_control(host, true);
+	dw_mci_sicd_control(host, true);
 #endif
 	if (drv_data && drv_data->runtime_pm_control)
 		drv_data->runtime_pm_control(host,0);
@@ -4945,7 +4943,7 @@ void dw_mci_remove(struct dw_mci *host)
 	destroy_workqueue(host->card_workqueue);
 	destroy_workqueue(host->sd_card_det_workqueue);
 	destroy_workqueue(pm_workqueue);
-//	pm_qos_remove_request(&host->pm_qos_lock);
+	pm_qos_remove_request(&host->pm_qos_lock);
 
 	if (host->pdata->quirks & DW_MCI_QUIRK_USE_SSC) {
 		if (drv_data && drv_data->ssclk_control)
@@ -4989,8 +4987,6 @@ int dw_mci_runtime_suspend(struct device *dev)
 		else
 			clk_disable_unprepare(host->biu_clk);
 	}
-//	dbg_snapshot_printk("%s : mmc suspend order check", __func__);
-
 	return 0;
 }
 EXPORT_SYMBOL(dw_mci_runtime_suspend);
@@ -5085,8 +5081,6 @@ err:
 		else
 			clk_disable_unprepare(host->biu_clk);
 	}
-//	dbg_snapshot_printk("%s : mmc resume order check", __func__);
-
 	return ret;
 }
 EXPORT_SYMBOL(dw_mci_runtime_resume);
