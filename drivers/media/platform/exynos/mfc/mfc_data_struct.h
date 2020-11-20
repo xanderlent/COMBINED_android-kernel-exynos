@@ -13,7 +13,7 @@
 #ifndef __MFC_DATA_STRUCT_H
 #define __MFC_DATA_STRUCT_H __FILE__
 
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 #define CONFIG_MFC_USE_BUS_DEVFREQ
 #endif
 
@@ -28,7 +28,7 @@
 //#define CONFIG_MFC_REG_TEST
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
-#include <soc/samsung/exynos_pm_qos.h>
+#include <linux/pm_qos.h>
 #endif
 #ifdef CONFIG_MFC_USE_BTS
 #include <soc/samsung/bts.h>
@@ -1351,11 +1351,11 @@ struct mfc_core {
 	struct list_head qos_queue;
 	atomic_t qos_req_cur;
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
-	struct exynos_pm_qos_request qos_req_mfc_noidle;
-	struct exynos_pm_qos_request qos_req_mfc;
-	struct exynos_pm_qos_request qos_req_int;
-	struct exynos_pm_qos_request qos_req_mif;
-	struct exynos_pm_qos_request qos_req_cluster[MAX_NUM_CLUSTER];
+	struct pm_qos_request qos_req_mfc_noidle;
+	struct pm_qos_request qos_req_mfc;
+	struct pm_qos_request qos_req_int;
+	struct pm_qos_request qos_req_mif;
+	struct pm_qos_request qos_req_cluster[MAX_NUM_CLUSTER];
 #endif
 	struct mutex qos_mutex;
 	int mfc_freq_by_bps;

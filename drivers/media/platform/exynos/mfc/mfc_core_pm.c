@@ -186,9 +186,8 @@ int mfc_core_pm_power_on(struct mfc_core *core)
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	if (pdata->idle_clk_ctrl) {
 		mfc_core_debug(2, "request mfc idle clk OFF\n");
-		exynos_pm_qos_add_request(&core->qos_req_mfc_noidle,
-				PM_QOS_MFC_THROUGHPUT +
-				(core->id * MFC_THROUGHPUT_OFFSET),
+		pm_qos_add_request(&core->qos_req_mfc_noidle,
+				PM_QOS_MFC_THROUGHPUT,
 				pdata->mfc_freqs[0]);
 	}
 #endif
@@ -230,7 +229,7 @@ int mfc_core_pm_power_off(struct mfc_core *core)
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	if (pdata->idle_clk_ctrl) {
-		exynos_pm_qos_remove_request(&core->qos_req_mfc_noidle);
+		pm_qos_remove_request(&core->qos_req_mfc_noidle);
 		mfc_core_debug(2, "request mfc idle clk ON\n");
 	}
 #endif
