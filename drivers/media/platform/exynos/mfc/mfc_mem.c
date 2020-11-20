@@ -88,8 +88,6 @@ static unsigned int __mfc_mem_ion_get_heapmask_by_name(struct mfc_dev *dev,
 	return 1 << data[i].heap_id;
 }
 
-#define ION_EXYNOS_FLAG_PROTECTED	(1 << 16)
-
 int mfc_mem_ion_alloc(struct mfc_dev *dev,
 		struct mfc_special_buf *special_buf)
 {
@@ -106,11 +104,9 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	case MFCBUF_DRM:
 		heapname = "vframe_heap";
-		flag |= ION_EXYNOS_FLAG_PROTECTED;
 		break;
 	case MFCBUF_DRM_FW:
 		heapname = "vfw_heap";
-		flag |= ION_EXYNOS_FLAG_PROTECTED;
 		break;
 #endif
 	default:
