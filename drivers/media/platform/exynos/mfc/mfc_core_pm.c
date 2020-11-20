@@ -12,7 +12,7 @@
 
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
-#include <soc/samsung/exynos-smc.h>
+#include <linux/smc.h>
 
 #include "mfc_core_qos.h"
 #include "mfc_core_pm.h"
