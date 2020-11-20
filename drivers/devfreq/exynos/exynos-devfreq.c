@@ -323,13 +323,13 @@ unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type)
 static int exynos_devfreq_get_freq(struct device *dev, u32 *cur_freq,
 		struct clk *clk, struct exynos_devfreq_data *data)
 {
-//	if (data->pm_domain) {
-//		if (!exynos_pd_status(data->pm_domain)) {
-//			dev_err(dev, "power domain %s is offed\n", data->pm_domain->name);
-//			*cur_freq = 0;
-//			return -EINVAL;
-//		}
-//	}
+	if (data->pm_domain) {
+		if (!exynos_pd_status(data->pm_domain)) {
+			dev_err(dev, "power domain %s is offed\n", data->pm_domain->name);
+			*cur_freq = 0;
+			return -EINVAL;
+		}
+	}
 
 	*cur_freq = (u32)_exynos_devfreq_get_freq(data->devfreq_type);
 
@@ -349,12 +349,12 @@ static int exynos_devfreq_set_freq(struct device *dev, u32 new_freq,
 			bts_update_scen(BS_MIF_CHANGE, data->new_freq);
 	}
 
-//	if (data->pm_domain) {
-//		if (!exynos_pd_status(data->pm_domain)) {
-//			dev_err(dev, "power domain %s is offed\n", data->pm_domain->name);
-//			return -EINVAL;
-//		}
-//	}
+	if (data->pm_domain) {
+		if (!exynos_pd_status(data->pm_domain)) {
+			dev_err(dev, "power domain %s is offed\n", data->pm_domain->name);
+			return -EINVAL;
+		}
+	}
 
 	if (cal_dfs_set_rate(data->dfs_id, (unsigned long)new_freq)) {
 		dev_err(dev, "failed set frequency to CAL (%uKhz)\n",
@@ -1402,7 +1402,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np, struct exynos_devfreq
 #endif
 	const char *buf;
 	const char *use_delay_time;
-//	const char *pd_name;
+	const char *pd_name;
 	const char *update_fvp;
 	const char *use_dtm;
 	int ntokens;
@@ -1430,13 +1430,13 @@ static int exynos_devfreq_parse_dt(struct device_node *np, struct exynos_devfreq
 		return -ENODEV;
 	}
 
-//	if (of_property_read_string(np, "pd_name", &pd_name)) {
-//		dev_info(data->dev, "no power domain\n");
-//		data->pm_domain = NULL;
-//	} else {
-//		dev_info(data->dev, "power domain: %s\n", pd_name);
-//		data->pm_domain = exynos_pd_lookup_name(pd_name);
-//	}
+	if (of_property_read_string(np, "pd_name", &pd_name)) {
+		dev_info(data->dev, "no power domain\n");
+		data->pm_domain = NULL;
+	} else {
+		dev_info(data->dev, "power domain: %s\n", pd_name);
+		data->pm_domain = exynos_pd_lookup_name(pd_name);
+	}
 
 	data->clk = devm_clk_get(data->dev, "DEVFREQ");
 	if (data->clk && !IS_ERR(data->clk))
