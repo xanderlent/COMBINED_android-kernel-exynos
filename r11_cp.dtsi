@@ -66,6 +66,9 @@
 	cp2ap_united_status = <MAILBOX_SR 3>;
 	ap2cp_kerneltime = <MAILBOX_SR 9>;
 
+	/* Handover block info */
+	handover_block_info_offset = <0x200>;
+
 	/* srinfo settings */
 	srinfo_offset = <0x800>;
 	srinfo_size = <SRINFO_SIZE>;
