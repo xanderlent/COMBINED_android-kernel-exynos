@@ -277,9 +277,11 @@ void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, i
 			mfc_debug(4, "[LAZY_UNMAP] skip for dst plane[%d]\n", i);
 		}
 
-		if (dpb[index].addr[i])
+		if (dpb[index].addr[i]) {
 			mfc_debug(2, "[IOVMM] index %d buf[%d] fd: %d addr: %#llx\n",
 					index, i, dpb[index].fd[i], dpb[index].addr[i]);
+			ion_iovmm_unmap(dpb[index].attach[i], dpb[index].addr[i]);
+		}
 		if (dpb[index].sgt[i])
 			dma_buf_unmap_attachment(dpb[index].attach[i], dpb[index].sgt[i],
 					DMA_BIDIRECTIONAL);
@@ -308,9 +310,11 @@ void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, i
 void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb, struct dpb_table *dpb)
 {
 	struct mfc_dev *dev = ctx->dev;
+	struct vb2_queue *vq = vb->vb2_queue;
 	int i, mem_get_count = 0;
 	struct mfc_buf *mfc_buf = vb_to_mfc_buf(vb);
 	int index = mfc_buf->dpb_index;
+	int ioprot = IOMMU_READ | IOMMU_WRITE;
 
 	if (dpb[index].mapcnt != 0) {
 		mfc_ctx_err("[IOVMM] DPB[%d] %#llx invalid mapcnt %d\n",
@@ -348,9 +352,13 @@ void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb, struct dpb_table 
 			goto err_iovmm;
 		}
 
-		dpb[index].addr[i] = sg_dma_address(dpb[index].sgt[i]->sgl);
+		if (device_get_dma_attr(dev->device) == DEV_DMA_COHERENT)
+			ioprot |= IOMMU_CACHE;
+
+		dpb[index].addr[i] = ion_iovmm_map(dpb[index].attach[i],
+				0, ctx->raw_buf.plane_size[i], vq->dma_dir, ioprot);
 		if (IS_ERR_VALUE(dpb[index].addr[i])) {
-			mfc_ctx_err("[IOVMM] Failed to get iova (err 0x%p)\n",
+			mfc_ctx_err("[IOVMM] Failed to allocate iova (err 0x%p)\n",
 					&dpb[index].addr[i]);
 			dpb[index].addr[i] = 0;
 			goto err_iovmm;
