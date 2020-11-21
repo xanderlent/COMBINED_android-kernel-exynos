@@ -22,7 +22,6 @@
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
 #include <linux/iommu.h>
-#include <linux/dma-iommu.h>
 
 #include "mfc_common.h"
 
@@ -613,15 +612,6 @@ static int mfc_core_probe(struct platform_device *pdev)
 		goto err_sysmmu_fault_handler;
 	}
 
-	ret = iommu_dma_reserve_iova(core->device, 0x0,
-			MFC_BASE_ADDR + dev->variant->buf_size->firmware_code
-			+ dev->variant->buf_size->ctx_buf->dev_ctx);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to reserve dva for firmware %d\n", ret);
-		ret = -EPROBE_DEFER;
-		goto err_reserve_iova;
-	}
-
 	/* set async suspend/resume */
 	device_enable_async_suspend(core->device);
 
@@ -680,7 +670,6 @@ err_dpu_votf:
 	if (core->has_gdc_votf)
 		mfc_unmap_votf_sfr(core, core->core_pdata->gdc_votf_base);
 err_gdc_votf:
-err_reserve_iova:
 	iommu_unregister_device_fault_handler(&pdev->dev);
 err_sysmmu_fault_handler:
 	destroy_workqueue(core->butler_wq);
