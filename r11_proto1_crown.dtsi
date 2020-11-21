@@ -29,12 +29,8 @@
 	ots_int_default: ots-int-default {
 		samsung,pins = "gpa0-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-	};
-
-/* TODO: Is there anything we need to change for 'sleep'?
-         If not, do we even need this state? */
-	ots_int_sleep: ots-int-sleep {
-		samsung,pins = "gpa0-2";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_UP>;
 	};
 };
