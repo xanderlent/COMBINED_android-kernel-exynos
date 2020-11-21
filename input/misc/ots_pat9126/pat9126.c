@@ -44,7 +44,6 @@ struct pixart_pat9126_data {
 bool is_initialized = false;
 
 /*Persist Flags*/
-static int already_calibrated = 0;
 extern char *saved_command_line;
 
 struct mutex irq_mutex;
@@ -515,7 +514,7 @@ static int pat9126_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 	INIT_DELAYED_WORK(&data->polling_work, pat9126_work_handler);
-	if (already_calibrated == 1 && en_irq_cnt == 0) {
+	if (en_irq_cnt == 0) {
 		pr_err("[PAT9126]: Probe Enable Irq. \n");
 		ret = devm_request_threaded_irq(dev, client->irq, NULL, pat9126_irq,
 				 IRQF_ONESHOT | IRQF_TRIGGER_LOW,
