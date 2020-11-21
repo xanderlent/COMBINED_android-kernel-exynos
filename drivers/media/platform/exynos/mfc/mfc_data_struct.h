@@ -666,8 +666,6 @@ struct mfc_special_buf {
 	phys_addr_t			paddr;
 	void				*vaddr;
 	size_t				size;
-	struct iommu_domain		*domain;
-	size_t				map_size;
 };
 
 struct mfc_mem {

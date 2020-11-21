@@ -19,7 +19,6 @@
 #endif
 #include <linux/firmware.h>
 #include <trace/events/mfc.h>
-#include <linux/iommu.h>
 
 #include "mfc_core_pm.h"
 #include "mfc_buf.h"
@@ -689,7 +688,6 @@ int mfc_alloc_firmware(struct mfc_core *core)
 {
 	struct mfc_dev *dev = core->dev;
 	struct mfc_ctx_buf_size *buf_size;
-	struct mfc_special_buf *fw_buf;
 
 	mfc_core_debug_enter();
 
@@ -709,18 +707,6 @@ int mfc_alloc_firmware(struct mfc_core *core)
 		return -ENOMEM;
 	}
 
-	fw_buf = &core->fw_buf;
-	fw_buf->domain = iommu_get_domain_for_dev(core->device);
-	fw_buf->map_size = iommu_map_sg(fw_buf->domain, MFC_BASE_ADDR, fw_buf->sgt->sgl,
-			fw_buf->sgt->nents,
-			IOMMU_READ|IOMMU_WRITE);
-	if (!fw_buf->map_size) {
-		mfc_core_err("Failed to remap iova (err %#llx)\n",
-				fw_buf->daddr);
-		return -ENOMEM;
-	}
-	fw_buf->daddr = MFC_BASE_ADDR;
-
 	mfc_core_debug(2, "[MEMINFO][F/W] FW normal: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
 			core->fw_buf.daddr, core->fw_buf.vaddr,
 			core->fw_buf.size);
@@ -730,7 +716,7 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	core->drm_fw_buf.size = core->fw_buf.size;
 	if (mfc_mem_ion_alloc(dev, &core->drm_fw_buf)) {
 		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
-		goto err_daddr;
+		return -ENOMEM;
 	}
 
 	mfc_core_debug(2, "[MEMINFO][F/W] FW DRM: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
@@ -741,13 +727,6 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	mfc_core_debug_leave();
 
 	return 0;
-
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-err_daddr:
-#endif
-	iommu_unmap(core->domain, MFC_BASE_ADDR, fw_buf->map_size);
-	mfc_mem_ion_free(&core->fw_buf);
-	return -ENOMEM;
 }
 
 /* Load firmware to MFC */
@@ -820,16 +799,12 @@ int mfc_load_firmware(struct mfc_core *core)
 /* Release firmware memory */
 int mfc_release_firmware(struct mfc_core *core)
 {
-	struct mfc_special_buf *fw_buf;
-
 	/* Before calling this function one has to make sure
 	 * that MFC is no longer processing */
-	fw_buf = &core->fw_buf;
-	if (!fw_buf->dma_buf) {
+	if (!core->fw_buf.dma_buf) {
 		mfc_core_err("[F/W] firmware memory is already freed\n");
 		return -EINVAL;
 	}
-	iommu_unmap(core->domain, MFC_BASE_ADDR, fw_buf->map_size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	mfc_mem_ion_free(&core->drm_fw_buf);
