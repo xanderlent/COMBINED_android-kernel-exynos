@@ -446,7 +446,9 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	struct mfc_dev *dev = video_drvdata(file);
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_enc *enc = ctx->enc_priv;
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	struct mfc_core *core;
+#endif
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	struct mfc_fmt *fmt = NULL;
 	int ret = 0;
@@ -469,6 +471,7 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	mfc_ctx_info("[STREAM] Enc dst codec(%d) : %s\n",
 			ctx->codec_mode, ctx->dst_fmt->name);
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	if (ctx->otf_handle) {
 		if (ctx->dst_fmt->fourcc != V4L2_PIX_FMT_H264 &&
 				ctx->dst_fmt->fourcc != V4L2_PIX_FMT_HEVC) {
@@ -503,6 +506,7 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 			return -EINVAL;
 		}
 	}
+#endif
 
 	if (__mfc_enc_check_resolution(ctx)) {
 		mfc_ctx_err("Unsupported resolution\n");

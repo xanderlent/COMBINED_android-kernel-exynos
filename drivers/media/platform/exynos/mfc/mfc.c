@@ -523,12 +523,14 @@ static int mfc_open(struct file *file)
 		goto err_drm_start;
 	}
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	if (mfc_is_encoder_otf_node(node)) {
 		ret = mfc_core_otf_create(ctx);
 		if (ret)
 			mfc_ctx_err("[OTF] otf_create failed\n");
 	}
+#endif
 #endif
 
 	trace_mfc_node_open(ctx->num, dev->num_inst, ctx->type, ctx->is_drm);
@@ -633,11 +635,13 @@ static int mfc_release(struct file *file)
 	else if (ctx->type == MFCINST_ENCODER)
 		__mfc_deinit_enc_ctx(ctx);
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	if (ctx->otf_handle) {
 		mfc_core_otf_deinit(ctx);
 		mfc_core_otf_destroy(ctx);
 	}
+#endif
 #endif
 
 	trace_mfc_node_close(ctx->num, dev->num_inst, ctx->type, ctx->is_drm);

@@ -1377,10 +1377,12 @@ static inline int __mfc_handle_done_frame(struct mfc_core *core,
 	} else if (ctx->type == MFCINST_ENCODER) {
 		if (core->dev->debugfs.sfr_dump & MFC_DUMP_ENC_FRAME_DONE)
 			call_dop(core, dump_regs, core);
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 		if (ctx->otf_handle) {
 			mfc_core_otf_handle_stream(core, ctx);
 			return 1;
 		}
+#endif
 		enc = ctx->enc_priv;
 		if (reason == MFC_REG_R2H_CMD_SLICE_DONE_RET) {
 			core->preempt_core_ctx = ctx->num;
@@ -1822,10 +1824,12 @@ static int __mfc_irq_ctx(struct mfc_core *core, struct mfc_ctx *ctx,
 
 	switch (reason) {
 	case MFC_REG_R2H_CMD_ERR_RET:
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 		if (ctx->otf_handle) {
 			mfc_core_otf_handle_error(core, ctx, reason, err);
 			break;
 		}
+#endif
 		/* An error has occured */
 		if (core_ctx->state == MFCINST_RUNNING || core_ctx->state == MFCINST_ABORT) {
 			if ((mfc_get_err(err) >= MFC_REG_ERR_FRAME_CONCEAL) &&
@@ -1852,10 +1856,12 @@ static int __mfc_irq_ctx(struct mfc_core *core, struct mfc_ctx *ctx,
 		break;
 	case MFC_REG_R2H_CMD_SEQ_DONE_RET:
 		if (ctx->type == MFCINST_ENCODER) {
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 			if (ctx->otf_handle) {
 				mfc_core_otf_handle_seq(core, ctx);
 				break;
 			}
+#endif
 			__mfc_handle_seq_enc(core, ctx);
 		} else if (ctx->type == MFCINST_DECODER) {
 			__mfc_handle_seq_dec(core, ctx);
@@ -1885,11 +1891,11 @@ static int __mfc_irq_ctx(struct mfc_core *core, struct mfc_ctx *ctx,
 			if (ctx->is_dpb_realloc)
 				ctx->is_dpb_realloc = 0;
 		}
-
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 		if (ctx->otf_handle &&
 			(core->dev->debugfs.feature_option & MFC_OPTION_OTF_PATH_TEST_ENABLE))
 			mfc_core_otf_path_test(ctx);
-
+#endif
 		break;
 	case MFC_REG_R2H_CMD_MOVE_INSTANCE_RET:
 		if (core->dev->debugfs.sfr_dump & MFC_DUMP_MOVE_INSTANCE_RET)
@@ -1989,12 +1995,12 @@ irqreturn_t mfc_core_irq(int irq, void *priv)
 
 	if (core_ctx->state != MFCINST_RES_CHANGE_INIT)
 		mfc_ctx_ready_clear_bit(core_ctx, &core->work_bits);
-
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	if (ctx->otf_handle) {
 		if (mfc_core_otf_ctx_ready_set_bit(core_ctx, &core->work_bits) == 0)
 			mfc_core_otf_ctx_ready_clear_bit(core_ctx, &core->work_bits);
 	}
-
+#endif
 	mfc_core_hwlock_handler_irq(core, ctx, reason, err);
 
 irq_end:

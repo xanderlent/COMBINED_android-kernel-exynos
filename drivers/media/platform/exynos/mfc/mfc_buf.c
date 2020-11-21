@@ -635,6 +635,7 @@ void mfc_release_enc_roi_buffer(struct mfc_core_ctx *core_ctx)
 	mfc_debug(2, "[MEMINFO][ROI] Release the ROI buffer\n");
 }
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 int mfc_otf_alloc_stream_buf(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
@@ -682,6 +683,7 @@ void mfc_otf_release_stream_buf(struct mfc_ctx *ctx)
 	mfc_debug(2, "[OTF][MEMINFO] Release the OTF stream buffer\n");
 	mfc_debug_leave();
 }
+#endif
 
 /* Allocate firmware */
 int mfc_alloc_firmware(struct mfc_core *core)

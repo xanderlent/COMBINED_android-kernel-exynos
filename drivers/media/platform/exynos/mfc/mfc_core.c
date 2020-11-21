@@ -114,6 +114,7 @@ int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
 	else
 		trans_info = MFC_MMU_FAULT_TRANS_INFO;
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	/* [OTF] If AxID is 1 in SYSMMU1 fault info, it is TS-MUX fault */
 	if (core->has_hwfc && core->has_2sysmmu) {
 		if (MFC_MMU1_READL(MFC_MMU_INTERRUPT_STATUS) &&
@@ -123,6 +124,7 @@ int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
 			return 0;
 		}
 	}
+#endif
 
 	/* If sysmmu is used with other IPs, it should be checked whether it's an MFC fault */
 	if (core->core_pdata->share_sysmmu) {
@@ -187,12 +189,14 @@ static int __mfc_core_parse_dt(struct device_node *np, struct mfc_core *core)
 	of_property_read_u32(np, "llc", &core->has_llc);
 	of_property_read_u32(np, "need_llc_flush", &core->need_llc_flush);
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	/* vOTF */
 	of_property_read_u32(np, "mfc_votf_base", &pdata->mfc_votf_base);
 	of_property_read_u32(np, "gdc_votf_base", &pdata->gdc_votf_base);
 	of_property_read_u32(np, "dpu_votf_base", &pdata->dpu_votf_base);
 	of_property_read_u32(np, "votf_start_offset", &pdata->votf_start_offset);
 	of_property_read_u32(np, "votf_end_offset", &pdata->votf_end_offset);
+#endif
 
 	/* QoS */
 	of_property_read_u32(np, "num_default_qos_steps",
@@ -266,8 +270,10 @@ static int __mfc_core_register_resource(struct platform_device *pdev,
 {
 	struct device_node *np = core->device->of_node;
 	struct device_node *iommu;
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	struct device_node *hwfc;
 	struct device_node *votf;
+#endif
 	struct resource *res;
 	int ret;
 
@@ -308,6 +314,7 @@ static int __mfc_core_register_resource(struct platform_device *pdev,
 		core->has_2sysmmu = 1;
 	}
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	hwfc = of_get_child_by_name(np, "hwfc");
 	if (hwfc) {
 		core->hwfc_base = of_iomap(hwfc, 0);
@@ -331,6 +338,7 @@ static int __mfc_core_register_resource(struct platform_device *pdev,
 			core->has_mfc_votf = 1;
 		}
 	}
+#endif
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
@@ -348,12 +356,14 @@ static int __mfc_core_register_resource(struct platform_device *pdev,
 	return 0;
 
 err_res_irq:
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	if (core->has_mfc_votf)
 		iounmap(core->votf_base);
 err_ioremap_votf:
 	if (core->has_hwfc)
 		iounmap(core->hwfc_base);
 err_ioremap_hwfc:
+#endif
 	if (core->has_2sysmmu)
 		iounmap(core->sysmmu1_base);
 	iounmap(core->sysmmu0_base);
@@ -615,6 +625,7 @@ static int mfc_core_probe(struct platform_device *pdev)
 	/* set async suspend/resume */
 	device_enable_async_suspend(core->device);
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	/* vOTF 1:1 mapping */
 	core->domain = iommu_get_domain_for_dev(core->device);
 	if (core->core_pdata->gdc_votf_base) {
@@ -637,6 +648,7 @@ static int mfc_core_probe(struct platform_device *pdev)
 			core->has_dpu_votf = 1;
 		}
 	}
+#endif
 
 	core->logging_data = devm_kzalloc(&pdev->dev, sizeof(struct mfc_debug),
 			GFP_KERNEL);
@@ -664,12 +676,14 @@ static int mfc_core_probe(struct platform_device *pdev)
 	return 0;
 
 err_alloc_debug:
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	if (core->has_dpu_votf)
 		mfc_unmap_votf_sfr(core, core->core_pdata->dpu_votf_base);
 err_dpu_votf:
 	if (core->has_gdc_votf)
 		mfc_unmap_votf_sfr(core, core->core_pdata->gdc_votf_base);
 err_gdc_votf:
+#endif
 	iommu_unregister_device_fault_handler(&pdev->dev);
 err_sysmmu_fault_handler:
 	destroy_workqueue(core->butler_wq);
@@ -687,10 +701,12 @@ err_wq_meerkat:
 	imgloader_desc_release(&core->mfc_imgloader_desc);
 #endif
 	free_irq(core->irq, core);
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	if (core->has_mfc_votf)
 		iounmap(core->votf_base);
 	if (core->has_hwfc)
 		iounmap(core->hwfc_base);
+#endif
 	if (core->has_2sysmmu)
 		iounmap(core->sysmmu1_base);
 	iounmap(core->sysmmu0_base);

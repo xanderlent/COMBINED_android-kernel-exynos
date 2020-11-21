@@ -192,9 +192,11 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 		return ret;
 	}
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	if ((ctx->gdc_votf && core->has_gdc_votf && core->has_mfc_votf) ||
 			(ctx->otf_handle && core->has_dpu_votf && core->has_mfc_votf))
 		mfc_core_clear_votf(core);
+#endif
 
 	if (ctx->is_drm)
 		core->num_drm_inst--;
@@ -531,8 +533,10 @@ int mfc_core_instance_open(struct mfc_core *core, struct mfc_ctx *ctx)
 	mfc_debug(2, "Got instance number inst_no: %d\n", core_ctx->inst_no);
 
 	mfc_ctx_ready_set_bit(core_ctx, &core->work_bits);
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	if (ctx->otf_handle)
 		mfc_core_otf_ctx_ready_set_bit(core_ctx, &core->work_bits);
+#endif
 	if (mfc_core_is_work_to_do(core))
 		queue_work(core->butler_wq, &core->butler_work);
 

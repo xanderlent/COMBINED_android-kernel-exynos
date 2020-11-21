@@ -296,12 +296,15 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 		else if (ctx->sbwcl_ratio == 75 || ctx->sbwcl_ratio == 80)
 			mfc_clear_set_bits(reg, 0x3, 24, 2);
 	}
+
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	/* GDC-MFC vOTF enable */
 	mfc_clear_bits(reg, 0x1, 26);
 	if (ctx->gdc_votf && core->has_gdc_votf && core->has_mfc_votf) {
 		mfc_set_bits(reg, 0x1, 26, 0x1);
 		mfc_debug(2, "[vOTF] GDC-MFC vOTF is enabled\n");
 	}
+#endif
 
 	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_ENC_OPTIONS);
 

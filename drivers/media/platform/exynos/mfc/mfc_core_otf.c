@@ -10,6 +10,8 @@
  * (at your option) any later version.
  */
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
+
 #include <linux/delay.h>
 
 #include "mfc_rm.h"
@@ -875,3 +877,4 @@ int mfc_hwfc_encode(int buf_index, int job_id,
 }
 #endif
 
+#endif

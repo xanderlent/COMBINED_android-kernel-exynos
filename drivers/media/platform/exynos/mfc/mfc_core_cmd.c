@@ -335,11 +335,13 @@ int mfc_core_cmd_enc_seq_header(struct mfc_core *core, struct mfc_ctx *ctx)
 	if (core->dev->debugfs.reg_test)
 		mfc_core_set_test_params(core);
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 	if (ctx->gdc_votf && core->has_gdc_votf && core->has_mfc_votf)
 		mfc_core_set_gdc_votf(core, ctx);
 
 	if (ctx->otf_handle && core->has_dpu_votf && core->has_mfc_votf)
 		mfc_core_set_dpu_votf(core, ctx);
+#endif
 
 	if (core->dev->debugfs.sfr_dump & MFC_DUMP_ENC_SEQ_START)
 		call_dop(core, dump_regs, core);

@@ -462,6 +462,7 @@ void mfc_cleanup_iovmm_except_used(struct mfc_ctx *ctx)
 	mutex_unlock(&dec->dpb_mutex);
 }
 
+#if IS_ENABLED(CONFIG_MFC_USES_OTF)
 int mfc_map_votf_sfr(struct mfc_core *core, unsigned int addr)
 {
 	struct mfc_core_platdata *pdata = core->core_pdata;
@@ -500,6 +501,7 @@ void mfc_unmap_votf_sfr(struct mfc_core *core, unsigned int addr)
 
 	iommu_unmap(core->domain, daddr, map_size);
 }
+#endif
 
 void mfc_check_iova(struct mfc_dev *dev)
 {
