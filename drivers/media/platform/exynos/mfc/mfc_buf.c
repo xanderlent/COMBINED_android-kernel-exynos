@@ -703,7 +703,7 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	core->fw_buf.size = dev->variant->buf_size->firmware_code;
 	trace_mfc_loadfw_start(core->fw_buf.size, core->fw_buf.size);
 
-	core->fw_buf.buftype = MFCBUF_NORMAL_FW;
+	core->fw_buf.buftype = MFCBUF_NORMAL;
 	if (mfc_mem_ion_alloc(dev, &core->fw_buf)) {
 		mfc_core_err("[F/W] Allocating normal firmware buffer failed\n");
 		return -ENOMEM;

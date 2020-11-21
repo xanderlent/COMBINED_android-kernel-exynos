@@ -668,7 +668,6 @@ struct mfc_special_buf {
 	size_t				size;
 	struct iommu_domain		*domain;
 	size_t				map_size;
-	unsigned int			heapmask;
 };
 
 struct mfc_mem {
