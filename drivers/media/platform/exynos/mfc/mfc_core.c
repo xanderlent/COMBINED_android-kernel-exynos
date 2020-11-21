@@ -21,7 +21,6 @@
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
-#include <linux/iommu.h>
 
 #include "mfc_common.h"
 
@@ -104,7 +103,8 @@ static int __mfc_core_parse_mfc_qos_platdata(struct device_node *np,
 	return 0;
 }
 
-int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
+int mfc_core_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *device,
+		unsigned long addr, int id, void *param)
 {
 	struct mfc_core *core = (struct mfc_core *)param;
 	unsigned int trans_info;
@@ -154,10 +154,9 @@ int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
 			core->logging_data->fault_trans_info = MFC_MMU1_READL(trans_info);
 		}
 	}
-	core->logging_data->fault_addr = (unsigned int)(fault->event.addr);
+	core->logging_data->fault_addr = (unsigned int)addr;
 
-	mfc_core_err("MFC-%d SysMMU PAGE FAULT at %#lx\n",
-			core->id, (unsigned int)(fault->event.addr));
+	mfc_core_err("MFC-%d SysMMU PAGE FAULT at %#lx\n", core->id, (unsigned int)addr);
 
 	call_dop(core, dump_and_stop_always, core);
 
@@ -614,12 +613,13 @@ static int mfc_core_probe(struct platform_device *pdev)
 				core->core_pdata->encoder_qos_table[i].name,
 				core->core_pdata->encoder_qos_table[i].bts_scen_idx);
 
-	ret = iommu_register_device_fault_handler(core->device,
-			mfc_core_sysmmu_fault_handler, core);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register sysmmu fault handler %d\n", ret);
-		ret = -EPROBE_DEFER;
-		goto err_sysmmu_fault_handler;
+	iovmm_set_fault_handler(core->device,
+		mfc_core_sysmmu_fault_handler, core);
+
+	ret = iovmm_activate(&pdev->dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to activate iommu\n");
+		goto err_iovmm_active;
 	}
 
 	/* set async suspend/resume */
@@ -684,8 +684,8 @@ err_dpu_votf:
 		mfc_unmap_votf_sfr(core, core->core_pdata->gdc_votf_base);
 err_gdc_votf:
 #endif
-	iommu_unregister_device_fault_handler(&pdev->dev);
-err_sysmmu_fault_handler:
+	iovmm_deactivate(&pdev->dev);
+err_iovmm_active:
 	destroy_workqueue(core->butler_wq);
 err_butler_wq:
 	if (timer_pending(&core->mfc_idle_timer))
@@ -725,7 +725,7 @@ static int mfc_core_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s++\n", __func__);
 
-	iommu_unregister_device_fault_handler(&pdev->dev);
+	iovmm_deactivate(&pdev->dev);
 	if (timer_pending(&core->meerkat_timer))
 		del_timer(&core->meerkat_timer);
 	flush_workqueue(core->meerkat_wq);
@@ -777,6 +777,7 @@ static void mfc_core_shutdown(struct platform_device *pdev)
 		mfc_core_risc_off(core);
 		core->shutdown = 1;
 		mfc_clear_all_bits(&core->work_bits);
+		iovmm_deactivate(&pdev->dev);
 	}
 
 	mfc_core_release_hwlock_dev(core);

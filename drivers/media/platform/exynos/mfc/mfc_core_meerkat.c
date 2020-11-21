@@ -695,6 +695,10 @@ static void __mfc_dump_info(struct mfc_core *core)
 	__mfc_save_logging_sfr(core);
 	__mfc_dump_buffer_info(core);
 	__mfc_dump_regs(core);
+
+	/* If there was fault addr, sysmmu info is already printed out */
+	if (!core->logging_data->fault_addr)
+		exynos_sysmmu_show_status(core->device);
 }
 
 static void __mfc_dump_info_and_stop_hw(struct mfc_core *core)

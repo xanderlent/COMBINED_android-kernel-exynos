@@ -11,14 +11,28 @@
  */
 
 #include <linux/property.h>
-#include <linux/ion.h>
-#include <linux/dma-buf.h>
 
 #include "mfc_mem.h"
 
 struct vb2_mem_ops *mfc_mem_ops(void)
 {
 	return (struct vb2_mem_ops *)&vb2_dma_sg_memops;
+}
+
+void mfc_mem_clean(struct mfc_dev *dev,
+			struct mfc_special_buf *special_buf,
+			off_t offset, size_t size)
+{
+	__dma_map_area(special_buf->vaddr + offset, size, DMA_TO_DEVICE);
+	return;
+}
+
+void mfc_mem_invalidate(struct mfc_dev *dev,
+			struct mfc_special_buf *special_buf,
+			off_t offset, size_t size)
+{
+	__dma_map_area(special_buf->vaddr + offset, size, DMA_FROM_DEVICE);
+	return;
 }
 
 int mfc_mem_get_user_shared_handle(struct mfc_ctx *ctx,
@@ -68,7 +82,7 @@ void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,
 int mfc_mem_ion_alloc(struct mfc_dev *dev,
 		struct mfc_special_buf *special_buf)
 {
-	int flag = 0;
+	int flag = ION_FLAG_NOZEROED;
 	const char *heapname;
 
 	switch (special_buf->buftype) {
@@ -78,16 +92,14 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 	case MFCBUF_NORMAL_FW:
 		heapname = "vnfw_heap";
 		break;
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	case MFCBUF_DRM:
 		heapname = "vframe_heap";
-		heapmask = ION_HEAP_SYSTEM;
+		flag |= ION_FLAG_PROTECTED;
 		break;
 	case MFCBUF_DRM_FW:
 		heapname = "vfw_heap";
-		heapmask = ION_HEAP_SYSTEM;
+		flag |= ION_FLAG_PROTECTED;
 		break;
-#endif
 	default:
 		heapname = "unknown";
 		mfc_dev_err("not supported mfc mem type: %d, heapname: %s\n",
@@ -95,11 +107,7 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 		return -EINVAL;
 	}
 
-	special_buf->heapmask = __mfc_mem_ion_get_heapmask_by_name(dev, heapname);
-	if (!special_buf->heapmask)
-		return -EINVAL;
-
-	special_buf->dma_buf = ion_alloc(special_buf->size, special_buf->heapmask, flag);
+	special_buf->dma_buf = ion_alloc_dmabuf(heapname, special_buf->size, flag);
 	if (IS_ERR(special_buf->dma_buf)) {
 		mfc_dev_err("Failed to allocate buffer (err %ld)\n",
 				PTR_ERR(special_buf->dma_buf));
@@ -122,11 +130,12 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 		goto err_map;
 	}
 
-	special_buf->daddr = sg_dma_address(special_buf->sgt->sgl);
+	special_buf->daddr = ion_iovmm_map(special_buf->attachment, 0,
+			special_buf->size, DMA_BIDIRECTIONAL, 0);
 	if (IS_ERR_VALUE(special_buf->daddr)) {
-		mfc_dev_err("Failed to get iova (err 0x%p)\n",
+		mfc_dev_err("Failed to allocate iova (err 0x%p)\n",
 				&special_buf->daddr);
-		goto err_daddr;
+		goto err_iovmm;
 	}
 
 	special_buf->vaddr = dma_buf_vmap(special_buf->dma_buf);
@@ -141,7 +150,8 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 	return 0;
 err_vaddr:
 	special_buf->vaddr = NULL;
-err_daddr:
+	ion_iovmm_unmap(special_buf->attachment, special_buf->daddr);
+err_iovmm:
 	special_buf->daddr = 0;
 	dma_buf_unmap_attachment(special_buf->attachment, special_buf->sgt,
 				 DMA_BIDIRECTIONAL);
@@ -160,6 +170,8 @@ void mfc_mem_ion_free(struct mfc_special_buf *special_buf)
 {
 	if (special_buf->vaddr)
 		dma_buf_vunmap(special_buf->dma_buf, special_buf->vaddr);
+	if (special_buf->daddr)
+		ion_iovmm_unmap(special_buf->attachment, special_buf->daddr);
 	if (special_buf->sgt)
 		dma_buf_unmap_attachment(special_buf->attachment,
 					 special_buf->sgt, DMA_BIDIRECTIONAL);
@@ -183,6 +195,7 @@ void mfc_bufcon_put_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf, int plan
 		if (mfc_buf->addr[i][plane]) {
 			mfc_debug(4, "[BUFCON] put batch buf addr[%d][%d]: 0x%08llx\n",
 					i, plane, mfc_buf->addr[i][plane]);
+			ion_iovmm_unmap(mfc_buf->attachments[i][plane], mfc_buf->addr[i][plane]);
 		}
 		if (mfc_buf->attachments[i][plane])
 			dma_buf_detach(mfc_buf->dmabufs[i][plane], mfc_buf->attachments[i][plane]);

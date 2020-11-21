@@ -30,11 +30,9 @@ extern void vb2_dma_sg_set_map_attr(void *mem_priv, unsigned long attr);
 static inline dma_addr_t mfc_mem_get_daddr_vb(
 	struct vb2_buffer *vb, unsigned int n)
 {
-	struct sg_table *sgt;
 	dma_addr_t addr = 0;
 
-	sgt = vb2_dma_sg_plane_desc(vb, n);
-	addr = sg_dma_address(sgt->sgl);
+	addr = vb2_dma_sg_plane_dma_addr(vb, n);
 	WARN_ON((addr == 0) || IS_ERR_VALUE(addr));
 
 	return addr;
@@ -143,6 +141,12 @@ static inline void mfc_print_dpb_table(struct mfc_ctx *ctx)
 struct vb2_mem_ops *mfc_mem_ops(void);
 
 void mfc_mem_set_cacheable(bool cacheable);
+void mfc_mem_clean(struct mfc_dev *dev,
+			struct mfc_special_buf *specail_buf,
+			off_t offset, size_t size);
+void mfc_mem_invalidate(struct mfc_dev *dev,
+			struct mfc_special_buf *specail_buf,
+			off_t offset, size_t size);
 int mfc_mem_get_user_shared_handle(struct mfc_ctx *ctx,
 		struct mfc_user_shared_handle *handle);
 void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,

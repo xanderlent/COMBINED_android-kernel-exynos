@@ -1224,6 +1224,7 @@ static void mfc_shutdown(struct platform_device *pdev)
 			mfc_core_risc_off(core);
 			core->shutdown = 1;
 			mfc_clear_all_bits(&core->work_bits);
+			iovmm_deactivate(core->device);
 			mfc_core_err("core forcibly shutdown\n");
 		}
 	}
