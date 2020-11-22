@@ -294,9 +294,6 @@ static void mfc_enc_buf_finish(struct vb2_buffer *vb)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
 
 		mfc_mem_buf_finish(vb, 1);
-
-		vb2_dma_sg_set_map_attr(vb->planes[0].mem_priv, DMA_ATTR_SKIP_LAZY_UNMAP);
-		mfc_debug(4, "[LAZY_UNMAP] skip for dst\n");
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		/* Copy to src buffer flag */
 		call_cop(ctx, get_buf_update_val, ctx, &ctx->src_ctrls[index],
