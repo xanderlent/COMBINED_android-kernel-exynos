@@ -1342,11 +1342,6 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_MPEG_VIDEO_DECODING_ORDER:
 		dec->decoding_order = ctrl->value;
 		break;
-	case V4L2_CID_MPEG_VIDEO_SKIP_LAZY_UNMAP:
-		ctx->skip_lazy_unmap = ctrl->value;
-		mfc_debug(2, "[LAZY_UNMAP] lazy unmap %s\n",
-				ctx->skip_lazy_unmap ? "disable" : "enable");
-		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE:
 		ctx->operating_framerate = ctrl->value;
 		mfc_debug(2, "[QoS] user set the operating frame rate: %d\n", ctrl->value);

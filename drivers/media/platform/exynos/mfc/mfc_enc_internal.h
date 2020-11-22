@@ -2521,15 +2521,6 @@ static struct v4l2_queryctrl enc_controls[] = {
 		.default_value = 0,
 	},
 	{
-		.id = V4L2_CID_MPEG_VIDEO_SKIP_LAZY_UNMAP,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "skip lazy unmap",
-		.minimum = 0,
-		.maximum = 1,
-		.step = 1,
-		.default_value = 0,
-	},
-	{
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Frames per second in 1000x scale",
