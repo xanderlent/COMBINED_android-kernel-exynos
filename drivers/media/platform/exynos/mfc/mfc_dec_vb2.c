@@ -310,10 +310,6 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 				ctx->num, vb->index, buf->src_index,
 				buf->addr[0][0]);
 		mutex_unlock(&ctx->op_mode_mutex);
-
-		vb2_dma_sg_set_map_attr(vb->planes[0].mem_priv, DMA_ATTR_SKIP_LAZY_UNMAP);
-		mfc_debug(4, "[LAZY_UNMAP] apply for src\n");
-
 		if (vb->memory == V4L2_MEMORY_DMABUF && !ctx->is_drm &&
 			mfc_rm_query_state(ctx, SMALLER, MFCINST_HEAD_PARSED))
 			stream_vir = vb2_plane_vaddr(vb, 0);

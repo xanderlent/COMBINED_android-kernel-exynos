@@ -21,8 +21,6 @@
 
 #include "mfc_common.h"
 
-extern void vb2_dma_sg_set_map_attr(void *mem_priv, unsigned long attr);
-
 /* Offset base used to differentiate between CAPTURE and OUTPUT
 *  while mmaping */
 #define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
