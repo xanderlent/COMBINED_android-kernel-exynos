@@ -393,8 +393,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		if (ret) {
 			dev_err(dwc->dev, "%s: failed to reinitialize core\n",
 					__func__);
-			return ret;
-			//goto err;
+			goto err2;
 		}
 
 		// check whether USB or not (TA)
