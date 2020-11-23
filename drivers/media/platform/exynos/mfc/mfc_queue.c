@@ -976,11 +976,11 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 		ctx->dst_buf_err_queue.count++;
 		mfc_debug(2, "[DPB] DPB[%d][%d] fd: %d will be not used %#llx (%d)\n",
 				mfc_buf->vb.vb2_buf.index, index,
-				mfc_buf->vb.planes[0].m.fd, mfc_buf->addr[0][0],
+				mfc_buf->vb.vb2_buf.planes[0].m.fd, mfc_buf->addr[0][0],
 				ctx->dst_buf_err_queue.count);
 		MFC_TRACE_CTX("unused DPB[%d][%d] fd: %d %#llx (%d)\n",
 				mfc_buf->vb.vb2_buf.index, index,
-				mfc_buf->vb.planes[0].m.fd, mfc_buf->addr[0][0],
+				mfc_buf->vb.vb2_buf.planes[0].m.fd, mfc_buf->addr[0][0],
 				ctx->dst_buf_err_queue.count);
 
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
