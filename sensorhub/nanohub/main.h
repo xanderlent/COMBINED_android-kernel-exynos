@@ -52,7 +52,9 @@ struct nanohub_data {
 	#define ID_NANOHUB_AUDIO 16
 	#define ID_NANOHUB_DISPLAY 17
 	#define ID_NANOHUB_RENDER 18
-	#define ID_NANOHUB_MAX 19
+	#define ID_NANOHUB_DEBUG_LOG 19
+	#define ID_NANOHUB_METRICS 20
+	#define ID_NANOHUB_MAX 21
 
 	struct iio_dev *iio_dev;
 	struct nanohub_io io[ID_NANOHUB_MAX];

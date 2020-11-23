@@ -13,6 +13,8 @@
 #define NANOHUB_AUDIO_CHANNEL_ID 16
 #define NANOHUB_DISPLAY_CHANNEL_ID 17
 #define NANOHUB_RENDER_CHANNEL_ID 18
+#define NANOHUB_DEBUG_LOG_CHANNEL_ID 19
+#define NANOHUB_METRICS_CHANNEL_ID 20
 
 /**
  * Sends a message over a nanohub channel.
