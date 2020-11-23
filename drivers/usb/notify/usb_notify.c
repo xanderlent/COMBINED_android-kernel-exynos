@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/err.h>
-#include <linux/wakelock.h>
 #include <linux/kthread.h>
 #include <linux/usb_notify.h>
 #include "dock_notify.h"
@@ -74,7 +73,7 @@ struct usb_notify {
 	struct host_notify_dev ndev;
 	struct usb_notify_dev udev;
 	struct workqueue_struct *notifier_wq;
-	struct wake_lock wlock;
+	struct wakeup_source *ws;
 	struct otg_booster *booster;
 	struct ovc ovc_info;
 	struct otg_booting_delay b_delay;
@@ -675,7 +674,7 @@ static void otg_notify_state(struct otg_notify *n,
 		if (enable) {
 			u_notify->ndev.mode = NOTIFY_PERIPHERAL_MODE;
 			if (n->is_wakelock)
-				wake_lock(&u_notify->wlock);
+				__pm_stay_awake(u_notify->ws);
 			if (gpio_is_valid(n->redriver_en_gpio))
 				gpio_direction_output
 					(n->redriver_en_gpio, 1);
@@ -701,7 +700,7 @@ static void otg_notify_state(struct otg_notify *n,
 				gpio_direction_output
 					(n->redriver_en_gpio, 0);
 			if (n->is_wakelock)
-				wake_unlock(&u_notify->wlock);
+				__pm_relax(u_notify->ws);
 		}
 		break;
 	case NOTIFY_EVENT_LANHUB_TA:
@@ -721,7 +720,7 @@ static void otg_notify_state(struct otg_notify *n,
 			u_notify->oc_noti = 0;
 			u_notify->ndev.mode = NOTIFY_HOST_MODE;
 			if (n->is_wakelock)
-				wake_lock(&u_notify->wlock);
+				__pm_stay_awake(u_notify->ws);
 			host_state_notify(&u_notify->ndev, NOTIFY_HOST_ADD);
 			if (gpio_is_valid(n->redriver_en_gpio))
 				gpio_direction_output
@@ -737,7 +736,7 @@ static void otg_notify_state(struct otg_notify *n,
 					(n->redriver_en_gpio, 0);
 			host_state_notify(&u_notify->ndev, NOTIFY_HOST_REMOVE);
 			if (n->is_wakelock)
-				wake_unlock(&u_notify->wlock);
+				__pm_relax(u_notify->ws);
 		}
 		break;
 	case NOTIFY_EVENT_HMT:
@@ -756,7 +755,7 @@ static void otg_notify_state(struct otg_notify *n,
 			}
 			u_notify->ndev.mode = NOTIFY_HOST_MODE;
 			if (n->is_wakelock)
-				wake_lock(&u_notify->wlock);
+				__pm_stay_awake(u_notify->ws);
 			host_state_notify(&u_notify->ndev, NOTIFY_HOST_ADD);
 			if (gpio_is_valid(n->redriver_en_gpio))
 				gpio_direction_output
@@ -800,7 +799,7 @@ static void otg_notify_state(struct otg_notify *n,
 					(n->redriver_en_gpio, 0);
 			host_state_notify(&u_notify->ndev, NOTIFY_HOST_REMOVE);
 			if (n->is_wakelock)
-				wake_unlock(&u_notify->wlock);
+				__pm_relax(u_notify->ws);
 		}
 		break;
 	case NOTIFY_EVENT_CHARGER:
@@ -837,7 +836,7 @@ static void otg_notify_state(struct otg_notify *n,
 		if (enable) {
 			u_notify->ndev.mode = NOTIFY_HOST_MODE;
 			if (n->is_wakelock)
-				wake_lock(&u_notify->wlock);
+				__pm_stay_awake(u_notify->ws);
 			if (n->set_host)
 				n->set_host(true);
 		} else {
@@ -845,7 +844,7 @@ static void otg_notify_state(struct otg_notify *n,
 			if (n->set_host)
 				n->set_host(false);
 			if (n->is_wakelock)
-				wake_unlock(&u_notify->wlock);
+				__pm_relax(u_notify->ws);
 		}
 		break;
 	case NOTIFY_EVENT_DRIVE_VBUS:
@@ -1810,8 +1809,8 @@ int set_otg_notify(struct otg_notify *n)
 	}
 
 	if (n->is_wakelock)
-		wake_lock_init(&u_notify->wlock,
-			WAKE_LOCK_SUSPEND, "usb_notify");
+		u_notify->ws = wakeup_source_register(u_notify->udev.dev,
+			"usb_notify");
 
 	if (n->booting_delay_sec) {
 		INIT_DELAYED_WORK(&u_notify->b_delay.booting_work,
@@ -1866,7 +1865,7 @@ void put_otg_notify(struct otg_notify *n)
 	if (n->booting_delay_sec)
 		cancel_delayed_work_sync(&u_notify->b_delay.booting_work);
 	if (n->is_wakelock)
-		wake_lock_destroy(&u_notify->wlock);
+		wakeup_source_unregister(u_notify->ws);
 	if (gpio_is_valid(n->vbus_detect_gpio))
 		free_irq(gpio_to_irq(n->vbus_detect_gpio), NULL);
 	usb_notify_dev_unregister(&u_notify->udev);
