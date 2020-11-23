@@ -20,7 +20,7 @@
 
 #ifndef __LINUX_USB_DWC3_OTG_H
 #define __LINUX_USB_DWC3_OTG_H
-//#include <linux/wakelock.h>
+#include <linux/wakelock.h>
 #include <linux/usb/otg-fsm.h>
 #include <linux/pm_qos.h>
 #ifdef CONFIG_SND_EXYNOS_USB_AUDIO
@@ -55,7 +55,7 @@ struct dwc3_otg {
 	struct dwc3             *dwc;
 	int                     irq;
 	void __iomem            *regs;
-//	struct wake_lock	wakelock;
+	struct wake_lock	wakelock;
 
 	unsigned		ready:1;
 	int			otg_connection;
