@@ -285,11 +285,6 @@ void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, i
 			index, dpb[index].fd[0], dpb[index].addr[0], dpb[index].mapcnt);
 
 	for (i = 0; i < num_planes; i++) {
-		if (dev->skip_lazy_unmap || ctx->skip_lazy_unmap) {
-			dpb[index].attach[i]->dma_map_attrs |= DMA_ATTR_SKIP_LAZY_UNMAP;
-			mfc_debug(4, "[LAZY_UNMAP] skip for dst plane[%d]\n", i);
-		}
-
 		if (dpb[index].addr[i]) {
 			mfc_debug(2, "[IOVMM] index %d buf[%d] fd: %d addr: %#llx\n",
 					index, i, dpb[index].fd[i], dpb[index].addr[i]);
@@ -515,31 +510,3 @@ void mfc_unmap_votf_sfr(struct mfc_core *core, unsigned int addr)
 	iommu_unmap(core->domain, daddr, map_size);
 }
 #endif
-
-void mfc_check_iova(struct mfc_dev *dev)
-{
-	struct mfc_platdata *pdata = dev->pdata;
-	struct mfc_ctx *ctx;
-	unsigned long total_iova = 0;
-
-	if (!pdata->iova_threshold)
-		return;
-
-	/*
-	 * The number of extra dpb is 8
-	 * OMX: extra buffer 5, platform buffer 3
-	 * Codec2: platform buffer 8
-	 */
-	list_for_each_entry(ctx, &dev->ctx_list, list)
-		total_iova += (ctx->raw_buf.total_plane_size *
-				(ctx->dpb_count + MFC_EXTRA_DPB + 3)) / 1024;
-
-	if (total_iova > (pdata->iova_threshold * 1024))
-		dev->skip_lazy_unmap = 1;
-	else
-		dev->skip_lazy_unmap = 0;
-
-	mfc_dev_debug(2, "[LAZY_UNMAP] Now the IOVA for DPB is %d/%dMB, LAZY_UNMAP %s\n",
-			total_iova / 1024, pdata->iova_threshold,
-			dev->skip_lazy_unmap ? "disable" : "enable");
-}

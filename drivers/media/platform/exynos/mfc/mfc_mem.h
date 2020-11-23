@@ -179,6 +179,4 @@ int mfc_remap_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf);
 int mfc_map_votf_sfr(struct mfc_core *core, unsigned int addr);
 void mfc_unmap_votf_sfr(struct mfc_core *core, unsigned int addr);
 #endif
-
-void mfc_check_iova(struct mfc_dev *dev);
 #endif /* __MFC_MEM_H */

@@ -21,7 +21,6 @@
 #include "mfc_buf.h"
 #include "mfc_sync.h"
 #include "mfc_queue.h"
-#include "mfc_mem.h"
 
 static void __mfc_rm_request_butler(struct mfc_dev *dev, struct mfc_ctx *ctx)
 {
@@ -1030,21 +1029,17 @@ void mfc_rm_load_balancing(struct mfc_ctx *ctx, int load_add)
 		return;
 	}
 
+	if (!ctx->ts_is_full) {
+		mfc_debug(2, "[RMLB] instance load is not yet fixed\n");
+		return;
+	}
+
 	spin_lock_irqsave(&dev->ctx_list_lock, flags);
 	if (load_add == MFC_RM_LOAD_ADD)
 		ret = __mfc_rm_load_add(ctx);
 	else
 		ret = __mfc_rm_load_delete(ctx);
 	if (ret) {
-		spin_unlock_irqrestore(&dev->ctx_list_lock, flags);
-		return;
-	}
-
-	/* check the MFC IOVA and control lazy unmap */
-	mfc_check_iova(dev);
-
-	if (!ctx->ts_is_full && load_add == MFC_RM_LOAD_ADD) {
-		mfc_debug(2, "[RMLB] instance load is not yet fixed\n");
 		spin_unlock_irqrestore(&dev->ctx_list_lock, flags);
 		return;
 	}
@@ -1666,10 +1661,6 @@ void mfc_rm_qos_control(struct mfc_ctx *ctx, enum mfc_qos_control qos_control)
 
 			mfc_core_qos_on(core, ctx);
 		}
-
-		if (IS_MULTI_CORE_DEVICE(dev))
-			mfc_rm_load_balancing(ctx, MFC_RM_LOAD_ADD);
-
 		break;
 	case MFC_QOS_OFF:
 		mfc_core_qos_off(core, ctx);

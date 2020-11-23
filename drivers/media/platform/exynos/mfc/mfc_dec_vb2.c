@@ -220,10 +220,8 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct mfc_ctx *ctx = vq->drv_priv;
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf *buf = vb_to_mfc_buf(vb);
 	unsigned int index = vb->index;
-	int i;
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		/* Copy to dst buffer flag */
@@ -236,14 +234,6 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
 
 		mfc_mem_buf_finish(vb, 0);
-
-		if (dev->skip_lazy_unmap || ctx->skip_lazy_unmap) {
-			for (i = 0; i < ctx->dst_fmt->mem_planes; i++) {
-				vb2_dma_sg_set_map_attr(vb->planes[i].mem_priv,
-							DMA_ATTR_SKIP_LAZY_UNMAP);
-				mfc_debug(4, "[LAZY_UNMAP] skip for dst plane[%d]\n", i);
-			}
-		}
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		/* Copy to src buffer flag */
 		call_cop(ctx, get_buf_update_val, ctx, &ctx->src_ctrls[index],
@@ -253,10 +243,8 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
-
-		vb2_dma_sg_set_map_attr(vb->planes[0].mem_priv, DMA_ATTR_SKIP_LAZY_UNMAP);
-		mfc_debug(4, "[LAZY_UNMAP] skip for src\n");
 	}
+
 }
 
 static void mfc_dec_buf_cleanup(struct vb2_buffer *vb)
@@ -322,6 +310,9 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 				ctx->num, vb->index, buf->src_index,
 				buf->addr[0][0]);
 		mutex_unlock(&ctx->op_mode_mutex);
+
+		vb2_dma_sg_set_map_attr(vb->planes[0].mem_priv, DMA_ATTR_SKIP_LAZY_UNMAP);
+		mfc_debug(4, "[LAZY_UNMAP] apply for src\n");
 
 		if (vb->memory == V4L2_MEMORY_DMABUF && !ctx->is_drm &&
 			mfc_rm_query_state(ctx, SMALLER, MFCINST_HEAD_PARSED))

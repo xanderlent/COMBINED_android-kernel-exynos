@@ -934,9 +934,6 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	of_property_read_u32(np, "core_balance", &pdata->core_balance);
 
 	/* MFC IOVA threshold */
-	of_property_read_u32(np, "iova_threshold", &pdata->iova_threshold);
-
-	/* MFC IOVA threshold */
 	of_property_read_u32(np, "idle_clk_ctrl", &pdata->idle_clk_ctrl);
 
 	return 0;

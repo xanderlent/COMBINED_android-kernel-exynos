@@ -279,9 +279,7 @@ static void mfc_enc_buf_finish(struct vb2_buffer *vb)
 	struct mfc_buf *buf = vb_to_mfc_buf(vb);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct mfc_ctx *ctx = vq->drv_priv;
-	struct mfc_dev *dev = ctx->dev;
 	unsigned int index = vb->index;
-	int i;
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		/* Copy to dst buffer flag */
@@ -303,14 +301,6 @@ static void mfc_enc_buf_finish(struct vb2_buffer *vb)
 
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
-
-		if (dev->skip_lazy_unmap || ctx->skip_lazy_unmap) {
-			for (i = 0; i < ctx->src_fmt->mem_planes; i++) {
-				vb2_dma_sg_set_map_attr(vb->planes[i].mem_priv,
-							DMA_ATTR_SKIP_LAZY_UNMAP);
-				mfc_debug(4, "[LAZY_UNMAP] skip for src plane[%d]\n", i);
-			}
-		}
 	}
 }
 

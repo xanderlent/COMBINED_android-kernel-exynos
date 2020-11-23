@@ -823,7 +823,6 @@ struct mfc_platdata {
 	unsigned int mfc_freqs[MAX_NUM_MFC_FREQ];
 	unsigned int max_Kbps[MAX_NUM_MFC_BPS];
 	unsigned int core_balance;
-	unsigned int iova_threshold;
 	unsigned int idle_clk_ctrl;
 };
 
@@ -1193,9 +1192,6 @@ struct mfc_dev {
 	/* QoS bitrate */
 	struct mfc_bitrate_table bitrate_table[MAX_NUM_MFC_FREQ];
 	int bps_ratio;
-
-	/* Lazy unmap disable */
-	int skip_lazy_unmap;
 
 #if IS_ENABLED(CONFIG_EXYNOS_THERMAL_V2)
 	struct notifier_block tmu_nb;
@@ -2183,9 +2179,6 @@ struct mfc_ctx {
 	bool mem_type_10bit;
 
 	int gdc_votf;
-
-	/* Lazy unmap disable */
-	int skip_lazy_unmap;
 
 	/* external structure */
 	struct v4l2_fh fh;
