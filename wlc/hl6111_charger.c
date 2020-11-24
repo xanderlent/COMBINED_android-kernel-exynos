@@ -656,7 +656,7 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
     int sts;
 
     sts = gpio_get_value(chg->pdata->det_gpio);
-    if ((sts == 1) && (!chg->online)){
+    if ((sts == 0) && (!chg->online)){
         hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);
         enable_irq(chg->pdata->irq);
 
@@ -668,7 +668,7 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
 
         hl6111_device_init(chg);
 
-    }else if ((sts == 0) && (chg->online)){
+    }else if ((sts == 1) && (chg->online)){
         disable_irq(chg->pdata->irq);
 
         LOG_DBG("TX is not connected!! \r\n");
@@ -1400,7 +1400,7 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
         charger->retry_cnt = 0;
         schedule_delayed_work(&charger->chok_work, msecs_to_jiffies(100));
 #else
-        if (gpio_get_value(charger->pdata->det_gpio)){
+        if (gpio_get_value(charger->pdata->det_gpio) == 0){
 
             LOG_DBG("TX is connected!! \r\n");
             charger->online = true;
