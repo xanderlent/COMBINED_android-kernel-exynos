@@ -27,6 +27,7 @@
 #define INTREQ_I2C_CMGP_4						148
 #define INTREQ_I2C_CMGP_5						149
 #define INTREQ_I2C_CMGP_6						150
+#define INTREQ__MFC					206
 #define INTREQ_USI_UART						245
 #define INTREQ_I2C_0						246
 #define INTREQ_I2C_1						247
