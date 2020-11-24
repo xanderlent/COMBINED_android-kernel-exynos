@@ -13,6 +13,7 @@
 #define __SND_SOC_ABOX_UTIL_H
 
 #include <sound/pcm.h>
+#include <linux/of_reserved_mem.h>
 
 /**
  * ioremap to virtual address but not request
@@ -133,5 +134,12 @@ extern u64 width_range_to_bits(unsigned int width_min,
  * @return	'p' if direction is playback. 'c' if not.
  */
 extern char substream_to_char(struct snd_pcm_substream *substream);
+
+/** 
+  * map a reserved memory into the kernel space  
+  * @param[in]   rmem            physical address
+  * @param[in]   size            size of the area
+  */                                             
+extern void *rmem_vmap(const struct reserved_mem *rmem);
 
 #endif /* __SND_SOC_ABOX_UTIL_H */

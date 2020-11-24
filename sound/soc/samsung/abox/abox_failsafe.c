@@ -118,7 +118,7 @@ void abox_failsafe_report_reset(struct device *dev)
 
 static int abox_failsafe_reset(struct device *dev, struct abox_data *data)
 {
-	struct device *dev_abox = &data->pdev->dev;
+	struct device *dev_abox = data->dev;
 
 	dev_dbg(dev, "%s\n", __func__);
 

@@ -563,7 +563,7 @@ struct abox_component_kcontrol_value {
 };
 
 struct abox_data {
-	struct platform_device *pdev;
+	struct device *dev;
 	struct snd_soc_component *cmpnt;
 	struct regmap *regmap;
 	void __iomem *sfr_base;
@@ -935,7 +935,7 @@ extern int abox_request_int_freq(struct device *dev, struct abox_data *data,
  * @param[in]	capture		true if dai has capture capability
  * @return	error code if any
  */
-extern int abox_register_if(struct platform_device *pdev_abox,
+extern int abox_register_if(struct device *dev,
 		struct device *dev_if, unsigned int id,
 		struct snd_soc_dapm_context *dapm, const char *name,
 		bool playback, bool capture);
@@ -958,7 +958,7 @@ extern int abox_try_to_asrc_off(struct device *dev, struct abox_data *data,
  * @param[in]	id		number
  * @return	error code if any
  */
-extern int abox_register_rdma(struct platform_device *pdev_abox,
+extern int abox_register_rdma(struct device *dev,
 		struct device *dev_rdma, unsigned int id);
 
 /**
@@ -969,7 +969,7 @@ extern int abox_register_rdma(struct platform_device *pdev_abox,
  * @param[in]	dev_id		cookie which would be summitted with irq_handler
  * @return	error code if any
  */
-extern int abox_register_wdma(struct platform_device *pdev_abox,
+extern int abox_register_wdma(struct device *dev,
 		struct device *dev_wdma, unsigned int id);
 
 /**

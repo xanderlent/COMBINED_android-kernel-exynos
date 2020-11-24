@@ -1711,6 +1711,9 @@ static int abox_rdma_new(struct snd_soc_pcm_runtime *runtime)
 	if (ret < 0)
 		return ret;
 
+	dev_info(data->dev, "%s[%x] %x, %x\n", __func__, 
+			id, IOVA_RDMA_BUFFER(id), substream->dma_buffer.addr);
+
 	iommu_map(iommu_domain, IOVA_RDMA_BUFFER(id),
 			substream->dma_buffer.addr, BUFFER_BYTES_MAX, 0);
 
@@ -1892,7 +1895,7 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_dbg(dev, "Failed to read %s: %d\n", "pm_qos_hmp", ret);
 
-	abox_register_rdma(data->abox_data->pdev, dev, data->id);
+	abox_register_rdma(data->abox_data->dev, dev, data->id);
 
 	of_data = data->of_data = of_device_get_match_data(dev);
 	data->num_dai = of_data->num_dai;

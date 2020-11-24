@@ -27,6 +27,7 @@
 #include <linux/shm_ipc.h>
 #include <linux/modem_notifier.h>
 #include <linux/sched/clock.h>
+#include <linux/of_reserved_mem.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -165,7 +166,7 @@ static int abox_iommu_fault_handler(
 {
 	struct abox_data *data = token;
 
-	abox_dbg_print_gpr(&data->pdev->dev, data);
+	abox_dbg_print_gpr(data->dev, data);
 	return 0;
 }
 
@@ -179,7 +180,7 @@ static void exynos_abox_panic_handler(void)
 {
 	static bool has_run;
 	struct abox_data *data = p_abox_data;
-	struct device *dev = data ? (data->pdev ? &data->pdev->dev : NULL) :
+	struct device *dev = data ? (data->dev ? data->dev : NULL) :
 			NULL;
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -263,14 +264,14 @@ void abox_enable_mclk(unsigned int on)
 		regmap_write(data->regmap, ABOX_UAIF_CTRL0(ABOX_UAIF1), 0x2);
 	else
 		regmap_write(data->regmap, ABOX_UAIF_CTRL0(ABOX_UAIF1), 0x0);
-	dev_info(&data->pdev->dev, "%s: ABOX_UAIF_CTRL0(ABOX_UAIF1)=%08x\n", __func__,
+	dev_info(data->dev, "%s: ABOX_UAIF_CTRL0(ABOX_UAIF1)=%08x\n", __func__,
 			({regmap_read(data->regmap, ABOX_UAIF_CTRL0(ABOX_UAIF1), &on);
 			 on; }));
 #endif
 	if (on)
-		abox_disable_qchannel(&data->pdev->dev, data, ABOX_BCLK_UAIF0, 1);
+		abox_disable_qchannel(data->dev, data, ABOX_BCLK_UAIF0, 1);
 	else
-		abox_disable_qchannel(&data->pdev->dev, data, ABOX_BCLK_UAIF0, 0);
+		abox_disable_qchannel(data->dev, data, ABOX_BCLK_UAIF0, 0);
 
 }
 EXPORT_SYMBOL(abox_enable_mclk);
@@ -365,7 +366,7 @@ static int abox_get_sif_width_min(struct abox_data *data,
 static void abox_set_sif_width_min(struct abox_data *data,
 		enum ABOX_CONFIGMSG configmsg, int width)
 {
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	snd_pcm_format_t format = SNDRV_PCM_FORMAT_S16;
 
 	switch (width) {
@@ -458,7 +459,7 @@ static int abox_get_sif_width(struct abox_data *data,
 static void abox_set_sif_width(struct abox_data *data,
 		enum ABOX_CONFIGMSG configmsg, int width)
 {
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	snd_pcm_format_t format = SNDRV_PCM_FORMAT_S16;
 
 	switch (width) {
@@ -644,7 +645,7 @@ unlock:
 static void abox_process_ipc(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data, ipc_work);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	struct abox_ipc ipc;
 
 	dev_dbg(dev, "%s: %d %d\n", __func__, data->ipc_queue_start,
@@ -1687,7 +1688,7 @@ static void abox_tickle_work_func(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct abox_data *data = container_of(dwork, struct abox_data,
 			tickle_work);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 
 	dev_dbg(dev, "%s\n", __func__);
 
@@ -3016,13 +3017,12 @@ static const struct reg_default abox_reg_defaults_9610[] = {
 
 static const struct reg_default abox_reg_defaults_9110[] = {
 	{0x0000, 0x41424F58},
+	{0x0004, 0x01240000},
 	{0x0010, 0x00000000},
 	{0x0014, 0x00000000},
-	{0x0020, 0x00000000},
+	{0x0020, 0x00004444},
 	{0x0024, 0xFFF00000},
 	{0x0028, 0x14B00000},
-	{0x0030, 0x7FFFFFFF},
-	{0x0038, 0x00000000},
 	{0x0040, 0x00000000},
 	{0x0044, 0x00000000},
 	{0x0048, 0x00000000},
@@ -3035,6 +3035,10 @@ static const struct reg_default abox_reg_defaults_9110[] = {
 	{0x0224, 0x00000000},
 	{0x0228, 0x00000000},
 	{0x022C, 0x00000000},
+	{0x0230, 0x00000000},
+	{0x0234, 0x00000000},
+	{0x0238, 0x00000000},
+	{0x023C, 0x00000000},
 	{0x0240, 0x00000000},
 	{0x0244, 0x00000000},
 	{0x0248, 0x00000000},
@@ -3070,12 +3074,315 @@ static const struct reg_default abox_reg_defaults_9110[] = {
 	{0x0520, 0x01000010},
 	{0x0524, 0x00000000},
 	{0x052C, 0x00000000},
-	{0x0540, 0x01000010},
-	{0x0544, 0x00000000},
 	{0x054C, 0x00000000},
-	{0x0550, 0x00000000},
-	{0x0554, 0x00000000},
 	{0x0560, 0x00000000},
+	{0x1000, 0x00400000},
+	{0x1004, 0x00000000},
+	{0x1008, 0x00000000},
+	{0x100C, 0x00000000},
+	{0x1010, 0x00000000},
+	{0x1014, 0x00000000},
+	{0x1018, 0x00000000},
+	{0x101C, 0x00000000},
+	{0x1020, 0x00000000},
+	{0x1030, 0x00000000},
+	{0x1100, 0x00400000},
+	{0x1104, 0x00000000},
+	{0x1108, 0x00000000},
+	{0x110C, 0x00000000},
+	{0x1110, 0x00000000},
+	{0x1114, 0x00000000},
+	{0x1118, 0x00000000},
+	{0x111C, 0x00000000},
+	{0x1120, 0x00000000},
+	{0x1130, 0x00000000},
+	{0x1200, 0x00400000},
+	{0x1204, 0x00000000},
+	{0x1208, 0x00000000},
+	{0x120C, 0x00000000},
+	{0x1210, 0x00000000},
+	{0x1214, 0x00000000},
+	{0x1218, 0x00000000},
+	{0x121C, 0x00000000},
+	{0x1220, 0x00000000},
+	{0x1230, 0x00000000},
+	{0x1300, 0x00400000},
+	{0x1304, 0x00000000},
+	{0x1308, 0x00000000},
+	{0x130C, 0x00000000},
+	{0x1310, 0x00000000},
+	{0x1314, 0x00000000},
+	{0x1318, 0x00000000},
+	{0x131C, 0x00000000},
+	{0x1320, 0x00000000},
+	{0x1330, 0x00000000},
+	{0x1400, 0x00400000},
+	{0x1404, 0x00000000},
+	{0x1408, 0x00000000},
+	{0x140C, 0x00000000},
+	{0x1410, 0x00000000},
+	{0x1414, 0x00000000},
+	{0x1418, 0x00000000},
+	{0x141C, 0x00000000},
+	{0x1420, 0x00000000},
+	{0x1430, 0x00000000},
+	{0x1500, 0x00400000},
+	{0x1504, 0x00000000},
+	{0x1508, 0x00000000},
+	{0x150C, 0x00000000},
+	{0x1510, 0x00000000},
+	{0x1514, 0x00000000},
+	{0x1518, 0x00000000},
+	{0x151C, 0x00000000},
+	{0x1520, 0x00000000},
+	{0x1530, 0x00000000},
+	{0x1600, 0x00400000},
+	{0x1604, 0x00000000},
+	{0x1608, 0x00000000},
+	{0x160C, 0x00000000},
+	{0x1610, 0x00000000},
+	{0x1614, 0x00000000},
+	{0x1618, 0x00000000},
+	{0x161C, 0x00000000},
+	{0x1620, 0x00000000},
+	{0x1630, 0x00000000},
+	{0x1700, 0x00400000},
+	{0x1704, 0x00000000},
+	{0x1708, 0x00000000},
+	{0x170C, 0x00000000},
+	{0x1710, 0x00000000},
+	{0x1714, 0x00000000},
+	{0x1718, 0x00000000},
+	{0x171C, 0x00000000},
+	{0x1720, 0x00000000},
+	{0x1730, 0x00000000},
+	{0x1800, 0x00000000},
+	{0x1810, 0x00000000},
+	{0x1814, 0x00000000},
+	{0x1818, 0x00000000},
+	{0x181C, 0x00000000},
+	{0x1820, 0x00000000},
+	{0x1824, 0x00000000},
+	{0x1828, 0x00000000},
+	{0x182C, 0x00000000},
+	{0x1900, 0x00000000},
+	{0x1910, 0x00000000},
+	{0x1914, 0x00000000},
+	{0x1918, 0x00000000},
+	{0x191C, 0x00000000},
+	{0x1920, 0x00000000},
+	{0x1924, 0x00000000},
+	{0x1928, 0x00000000},
+	{0x192C, 0x00000000},
+	{0x1A00, 0x00000000},
+	{0x1A10, 0x00000000},
+	{0x1A14, 0x00000000},
+	{0x1A18, 0x00000000},
+	{0x1A1C, 0x00000000},
+	{0x1A20, 0x00000000},
+	{0x1A24, 0x00000000},
+	{0x1A28, 0x00000000},
+	{0x1A2C, 0x00000000},
+	{0x1B00, 0x00000000},
+	{0x1B10, 0x00000000},
+	{0x1B14, 0x00000000},
+	{0x1B18, 0x00000000},
+	{0x1B1C, 0x00000000},
+	{0x1B20, 0x00000000},
+	{0x1B24, 0x00000000},
+	{0x1B28, 0x00000000},
+	{0x1B2C, 0x00000000},
+	{0x1C00, 0x00000000},
+	{0x1C10, 0x00000000},
+	{0x1C14, 0x00000000},
+	{0x1C18, 0x00000000},
+	{0x1C1C, 0x00000000},
+	{0x1C20, 0x00000000},
+	{0x1C24, 0x00000000},
+	{0x1C28, 0x00000000},
+	{0x1C2C, 0x00000000},
+	{0x1D00, 0x00000000},
+	{0x1D10, 0x00000000},
+	{0x1D14, 0x00000000},
+	{0x1D18, 0x00000000},
+	{0x1D1C, 0x00000000},
+	{0x1D20, 0x00000000},
+	{0x1D24, 0x00000000},
+	{0x1D28, 0x00000000},
+	{0x1D2C, 0x00000000},
+	{0x1E00, 0x00000000},
+	{0x1E10, 0x00000000},
+	{0x1E14, 0x00000000},
+	{0x1E18, 0x00000000},
+	{0x1E1C, 0x00000000},
+	{0x1E20, 0x00000000},
+	{0x1E24, 0x00000000},
+	{0x1E28, 0x00000000},
+	{0x1E2C, 0x00000000},
+	{0x1F00, 0x00000000},
+	{0x1F10, 0x00000000},
+	{0x1F14, 0x00000000},
+	{0x1F18, 0x00000000},
+	{0x1F1C, 0x00000000},
+	{0x1F20, 0x00000000},
+	{0x1F24, 0x00000000},
+	{0x1F28, 0x00000000},
+	{0x1F2C, 0x00000000},
+	{0x2000, 0x00400000},
+	{0x2008, 0x00000000},
+	{0x200C, 0x00000000},
+	{0x2010, 0x00000000},
+	{0x2014, 0x00000000},
+	{0x2018, 0x00000000},
+	{0x201C, 0x00000000},
+	{0x2020, 0x00000000},
+	{0x2030, 0x00000000},
+	{0x2100, 0x00400000},
+	{0x2108, 0x00000000},
+	{0x210C, 0x00000000},
+	{0x2110, 0x00000000},
+	{0x2114, 0x00000000},
+	{0x2118, 0x00000000},
+	{0x211C, 0x00000000},
+	{0x2120, 0x00000000},
+	{0x2130, 0x00000000},
+	{0x2200, 0x00400000},
+	{0x2208, 0x00000000},
+	{0x220C, 0x00000000},
+	{0x2210, 0x00000000},
+	{0x2214, 0x00000000},
+	{0x2218, 0x00000000},
+	{0x221C, 0x00000000},
+	{0x2220, 0x00000000},
+	{0x2230, 0x00000000},
+	{0x2300, 0x00400000},
+	{0x2308, 0x00000000},
+	{0x230C, 0x00000000},
+	{0x2310, 0x00000000},
+	{0x2314, 0x00000000},
+	{0x2318, 0x00000000},
+	{0x231C, 0x00000000},
+	{0x2320, 0x00000000},
+	{0x2330, 0x00000000},
+	{0x2400, 0x00400000},
+	{0x2408, 0x00000000},
+	{0x240C, 0x00000000},
+	{0x2410, 0x00000000},
+	{0x2414, 0x00000000},
+	{0x2418, 0x00000000},
+	{0x241C, 0x00000000},
+	{0x2420, 0x00000000},
+	{0x2430, 0x00000000},
+	{0x2800, 0x00000000},
+	{0x2810, 0x00000000},
+	{0x2814, 0x00000000},
+	{0x2818, 0x00000000},
+	{0x281C, 0x00000000},
+	{0x2820, 0x00000000},
+	{0x2824, 0x00000000},
+	{0x2828, 0x00000000},
+	{0x282C, 0x00000000},
+	{0x2900, 0x00000000},
+	{0x2910, 0x00000000},
+	{0x2914, 0x00000000},
+	{0x2918, 0x00000000},
+	{0x291C, 0x00000000},
+	{0x2920, 0x00000000},
+	{0x2924, 0x00000000},
+	{0x2928, 0x00000000},
+	{0x292C, 0x00000000},
+	{0x2A00, 0x00000000},
+	{0x2A10, 0x00000000},
+	{0x2A14, 0x00000000},
+	{0x2A18, 0x00000000},
+	{0x2A1C, 0x00000000},
+	{0x2A20, 0x00000000},
+	{0x2A24, 0x00000000},
+	{0x2A28, 0x00000000},
+	{0x2A2C, 0x00000000},
+	{0x2B00, 0x00000000},
+	{0x2B10, 0x00000000},
+	{0x2B14, 0x00000000},
+	{0x2B18, 0x00000000},
+	{0x2B1C, 0x00000000},
+	{0x2B20, 0x00000000},
+	{0x2B24, 0x00000000},
+	{0x2B28, 0x00000000},
+	{0x2B2C, 0x00000000},
+	{0x2C00, 0x00000000},
+	{0x2C04, 0x00000000},
+	{0x2C08, 0x00000000},
+	{0x2C0C, 0x00000000},
+	{0x2C10, 0x00000000},
+	{0x2C14, 0x00000000},
+	{0x2C18, 0x00000000},
+	{0x2C1C, 0x00000000},
+	{0x2C20, 0x00000000},
+	{0x2C24, 0x00000000},
+	{0x2C28, 0x00000000},
+	{0x2C2C, 0x00000000},
+	{0x2C30, 0x00000000},
+	{0x2C34, 0x00000000},
+	{0x2C38, 0x00000000},
+	{0x2C3C, 0x00000000},
+	{0x3000, 0x028C77F5},
+	{0x3004, 0x14B2CC4B},
+	{0x3008, 0x2FC5569B},
+	{0x300C, 0x49CFDC49},
+	{0x3010, 0x5DE13770},
+	{0x3014, 0x6B829664},
+	{0x3018, 0x7427A7B6},
+	{0x301C, 0x79827551},
+	{0x3020, 0x7CEF562B},
+	{0x3024, 0x7F6D9A7B},
+	{0x3028, 0x09CD03E0},
+	{0x302C, 0x21D4005E},
+	{0x3030, 0x3D5CCE0A},
+	{0x3034, 0x54B1FC98},
+	{0x3038, 0x656D7776},
+	{0x303C, 0x70583CC5},
+	{0x3040, 0x77261896},
+	{0x3044, 0x7B64DD82},
+	{0x3048, 0x7E3F01DC},
+	{0x304C, 0x03A315A5},
+	{0x3050, 0x2128EBC9},
+	{0x3054, 0x64BD0D3F},
+	{0x3058, 0x0E955F07},
+	{0x305C, 0x3CA7D896},
+	{0x3060, 0x02DA4CF0},
+	{0x3064, 0x1C1A1599},
+	{0x3068, 0x612F333A},
+	{0x306C, 0x0BC9B8F1},
+	{0x3070, 0x369D88A0},
+	{0x3100, 0x014B8816},
+	{0x3104, 0x0B0F7FF9},
+	{0x3108, 0x1BD33F7E},
+	{0x310C, 0x2F993C8A},
+	{0x3110, 0x42EFD988},
+	{0x3114, 0x53D56218},
+	{0x3118, 0x61AB90DC},
+	{0x311C, 0x6CC00746},
+	{0x3120, 0x75DA7EBE},
+	{0x3124, 0x7DFC48C6},
+	{0x3128, 0x0514063A},
+	{0x312C, 0x12CFE5C3},
+	{0x3130, 0x25946D33},
+	{0x3134, 0x397BF07D},
+	{0x3138, 0x4BC1BE21},
+	{0x313C, 0x5B218944},
+	{0x3140, 0x67835DCA},
+	{0x3144, 0x717D64BD},
+	{0x3148, 0x79F8D0E6},
+	{0x314C, 0x03A315A5},
+	{0x3150, 0x2128EBC9},
+	{0x3154, 0x64BD0D3F},
+	{0x3158, 0x0E955F07},
+	{0x315C, 0x3CA7D896},
+	{0x3160, 0x02DA4CF0},
+	{0x3164, 0x1C1A1599},
+	{0x3168, 0x612F333A},
+	{0x316C, 0x0BC9B8F1},
+	{0x3170, 0x369D88A0},
 };
 
 static bool abox_readable_reg_9110(struct device *dev, unsigned int reg)
@@ -3122,6 +3429,15 @@ static bool abox_timer_writeable_reg_9110(struct device *dev, unsigned int reg)
 	return abox_timer_readable_reg(dev, reg);
 }
 
+static const struct reg_default abox_timer_reg_defaults_9110[] = {
+	{0x0600, 0x00000000},
+	{0x0604, 0x00000000},
+	{0x0608, 0x00000000},
+	{0x060C, 0x00000000},
+	{0x0610, 0x00000000},
+	{0x0614, 0x00000000},
+};
+
 static struct regmap_config abox_timer_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -3130,6 +3446,8 @@ static struct regmap_config abox_timer_regmap_config = {
 	.volatile_reg = abox_timer_volatile_reg,
 	.readable_reg = abox_timer_readable_reg,
 	.writeable_reg = abox_timer_writeable_reg,
+	.reg_defaults = abox_timer_reg_defaults_9110,                
+	.num_reg_defaults = ARRAY_SIZE(abox_timer_reg_defaults_9110),
 	.cache_type = REGCACHE_RBTREE,
 	.fast_io = true,
 };
@@ -3223,7 +3541,7 @@ static struct snd_soc_dapm_widget *abox_sync_params(struct abox_data *data,
 		const struct snd_soc_dapm_widget *w_src,
 		enum ABOX_CONFIGMSG rate, enum ABOX_CONFIGMSG format)
 {
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	enum ABOX_CONFIGMSG msg_rate, msg_format;
 	struct snd_soc_dapm_widget *w = NULL;
 	bool slave;
@@ -3520,7 +3838,7 @@ static void abox_check_cpu_gear(struct device *dev,
 		const void *old_id, unsigned int old_gear,
 		const void *id, unsigned int gear)
 {
-	struct device *dev_abox = &data->pdev->dev;
+	struct device *dev_abox = data->dev;
 
 	if (id != (void *)ABOX_CPU_GEAR_BOOT)
 		return;
@@ -3554,7 +3872,7 @@ static void abox_check_cpu_gear(struct device *dev,
 
 static void abox_notify_cpu_gear(struct abox_data *data, unsigned int freq)
 {
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	ABOX_IPC_MSG msg;
 	struct IPC_SYSTEM_MSG *system_msg = &msg.msg.system;
 	unsigned long long time = sched_clock();
@@ -3722,9 +4040,9 @@ static void abox_change_cpu_gear_work_func(struct work_struct *work)
 			change_cpu_gear_work);
 
 	if (IS_ENABLED(CONFIG_SOC_EXYNOS8895))
-		abox_change_cpu_gear_legacy(&data->pdev->dev, data);
+		abox_change_cpu_gear_legacy(data->dev, data);
 	else
-		abox_change_cpu_gear(&data->pdev->dev, data);
+		abox_change_cpu_gear(data->dev, data);
 }
 
 int abox_request_cpu_gear(struct device *dev, struct abox_data *data,
@@ -3794,7 +4112,7 @@ static void abox_change_int_freq_work_func(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data,
 			change_int_freq_work);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	struct abox_qos_request *request;
 	unsigned int freq = 0;
 
@@ -3853,7 +4171,7 @@ static void abox_change_mif_freq_work_func(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data,
 			change_mif_freq_work);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	struct abox_qos_request *request;
 	unsigned int freq = 0;
 
@@ -3912,7 +4230,7 @@ static void abox_change_lit_freq_work_func(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data,
 			change_lit_freq_work);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	size_t array_size = ARRAY_SIZE(data->lit_requests);
 	struct abox_qos_request *request;
 	unsigned int freq = 0;
@@ -3976,7 +4294,7 @@ static void abox_change_big_freq_work_func(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data,
 			change_big_freq_work);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	size_t array_size = ARRAY_SIZE(data->big_requests);
 	struct abox_qos_request *request;
 	unsigned int freq = 0;
@@ -4040,7 +4358,7 @@ static void abox_change_hmp_boost_work_func(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data,
 			change_hmp_boost_work);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	size_t array_size = ARRAY_SIZE(data->hmp_requests);
 	struct abox_qos_request *request;
 	unsigned int on = 0;
@@ -4329,13 +4647,12 @@ static int abox_register_if_routes(struct device *dev,
 	return 0;
 }
 
-int abox_register_if(struct platform_device *pdev_abox,
+int abox_register_if(struct device *dev,
 		struct device *dev_if, unsigned int id,
 		struct snd_soc_dapm_context *dapm, const char *name,
 		bool playback, bool capture)
 {
-	struct device *dev = &pdev_abox->dev;
-	struct abox_data *data = platform_get_drvdata(pdev_abox);
+	struct abox_data *data = dev_get_drvdata(dev);
 	int ret;
 
 	static const struct snd_soc_dapm_route route_base_pla[] = {
@@ -4387,34 +4704,34 @@ int abox_register_if(struct platform_device *pdev_abox,
 	return 0;
 }
 
-int abox_register_rdma(struct platform_device *pdev_abox,
+int abox_register_rdma(struct device *dev,
 		struct device *dev_rdma, unsigned int id)
 {
-	struct abox_data *data = platform_get_drvdata(pdev_abox);
+	struct abox_data *data = dev_get_drvdata(dev);
 
 	if (id < ARRAY_SIZE(data->dev_rdma)) {
 		data->dev_rdma[id] = dev_rdma;
 		if (id > data->rdma_count)
 			data->rdma_count = id + 1;
 	} else {
-		dev_err(&data->pdev->dev, "%s: invalid id(%u)\n", __func__, id);
+		dev_err(data->dev, "%s: invalid id(%u)\n", __func__, id);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-int abox_register_wdma(struct platform_device *pdev_abox,
+int abox_register_wdma(struct device *dev,
 		struct device *dev_wdma, unsigned int id)
 {
-	struct abox_data *data = platform_get_drvdata(pdev_abox);
+	struct abox_data *data = dev_get_drvdata(dev);
 
 	if (id < ARRAY_SIZE(data->dev_wdma)) {
 		data->dev_wdma[id] = dev_wdma;
 		if (id > data->wdma_count)
 			data->wdma_count = id + 1;
 	} else {
-		dev_err(&data->pdev->dev, "%s: invalid id(%u)\n", __func__, id);
+		dev_err(data->dev, "%s: invalid id(%u)\n", __func__, id);
 		return -EINVAL;
 	}
 
@@ -4548,7 +4865,7 @@ static void abox_register_component_work_func(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data,
 			register_component_work);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	struct abox_component *component;
 	int i;
 
@@ -4725,8 +5042,7 @@ static void abox_boot_done_work_func(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data,
 			boot_done_work);
-	struct platform_device *pdev = data->pdev;
-	struct device *dev = &pdev->dev;
+	struct device *dev = data->dev;
 
 	dev_dbg(dev, "%s\n", __func__);
 
@@ -4756,7 +5072,7 @@ static void abox_boot_done(struct device *dev, unsigned int version)
 
 static irqreturn_t abox_dma_irq_handler(int irq, struct abox_data *data)
 {
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	int id;
 	struct device **dev_dma;
 	struct abox_dma_data *dma_data;
@@ -5133,6 +5449,7 @@ static int abox_cpu_pm_ipc(struct device *dev, bool resume)
 
 static void abox_pad_retention(bool retention)
 {
+	/*
 	if (retention) {
 #ifndef EMULATOR
 		exynos_pmu_update(GPIO_MODE_ABOX_SYS_PWR_REG, 0x1, 0x1);
@@ -5140,7 +5457,8 @@ static void abox_pad_retention(bool retention)
 		update_mask_value(pmu_alive + GPIO_MODE_ABOX_SYS_PWR_REG,
 				0x1, 0x1);
 #endif
-	} else {
+*/
+	if (!retention) {
 #ifndef EMULATOR
 		exynos_pmu_update(PAD_RETENTION_ABOX_OPTION,
 				0x10000000, 0x10000000);
@@ -5220,8 +5538,7 @@ static void abox_restore_register(struct abox_data *data)
 
 static void abox_reload_extra_firmware(struct abox_data *data, const char *name)
 {
-	struct platform_device *pdev = data->pdev;
-	struct device *dev = &pdev->dev;
+	struct device *dev = data->dev;
 	struct abox_extra_firmware *ext_fw;
 	int ret;
 
@@ -5247,8 +5564,7 @@ static void abox_reload_extra_firmware(struct abox_data *data, const char *name)
 
 static void abox_request_extra_firmware(struct abox_data *data)
 {
-	struct platform_device *pdev = data->pdev;
-	struct device *dev = &pdev->dev;
+	struct device *dev = data->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *child_np;
 	struct abox_extra_firmware *ext_fw;
@@ -5299,7 +5615,7 @@ static void abox_request_extra_firmware(struct abox_data *data)
 #if 0
 static void abox_download_extra_firmware(struct abox_data *data)
 {
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	struct abox_extra_firmware *ext_fw;
 	void __iomem *base;
 	size_t size;
@@ -5473,7 +5789,7 @@ static void __abox_control_l2c(struct abox_data *data, bool enable)
 {
 	ABOX_IPC_MSG msg;
 	struct IPC_SYSTEM_MSG *system_msg = &msg.msg.system;
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 
 	if (data->l2c_enabled == enable)
 		return;
@@ -5510,8 +5826,7 @@ static void __abox_control_l2c(struct abox_data *data, bool enable)
 static void abox_l2c_work_func(struct work_struct *work)
 {
 	struct abox_data *data = container_of(work, struct abox_data, l2c_work);
-	struct platform_device *pdev = data->pdev;
-	struct device *dev = &pdev->dev;
+	struct device *dev = data->dev;
 	size_t length = ARRAY_SIZE(data->l2c_requests);
 	struct abox_l2c_request *request;
 	bool enable = false;
@@ -5781,30 +6096,13 @@ static int abox_disable(struct device *dev)
 	return 0;
 }
 
-void abox_poweroff(void)
-{
-	struct platform_device *pdev = p_abox_data->pdev;
-	struct device *dev = &pdev->dev;
-	struct abox_data *data = dev_get_drvdata(dev);
-
-	if (data->calliope_state == CALLIOPE_DISABLED) {
-		dev_dbg(dev, "already disabled\n");
-		return;
-	}
-	dev_info(dev, "%s\n", __func__);
-
-	abox_disable(dev);
-
-	exynos_sysmmu_control(dev, false);
-}
-
 static int abox_runtime_suspend(struct device *dev)
 {
 	dev_dbg(dev, "%s\n", __func__);
 
 	p_abox_data->enabled = false;
 
-	return 0;
+	return abox_disable(dev);
 }
 
 static int abox_runtime_resume(struct device *dev)
@@ -5834,7 +6132,7 @@ static int abox_qos_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
 	struct abox_data *data = container_of(nb, struct abox_data, qos_nb);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	long value = (long)action;
 	long qos_class = (long)nb_data;
 	unsigned long aclk = clk_get_rate(data->clk_bus);
@@ -5924,7 +6222,7 @@ static int abox_pm_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
 	struct abox_data *data = container_of(nb, struct abox_data, pm_nb);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	int ret;
 
 	dev_dbg(dev, "%s(%lu)\n", __func__, action);
@@ -5983,7 +6281,7 @@ static int abox_pm_notifier(struct notifier_block *nb,
 			dev_info(dev, "(%d)r suspend_state: %d\n", __LINE__,
 					atomic_read(&data->suspend_state));
 			if (atomic_read(&data->suspend_state) == 1) {
-				pm_runtime_get_sync(&data->pdev->dev);
+				pm_runtime_get_sync(data->dev);
 				atomic_set(&data->suspend_state, 0);
 			}
 		}
@@ -5999,11 +6297,11 @@ static int abox_modem_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
 	struct abox_data *data = container_of(nb, struct abox_data, modem_nb);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	ABOX_IPC_MSG msg;
 	struct IPC_SYSTEM_MSG *system_msg = &msg.msg.system;
 
-	dev_info(&data->pdev->dev, "%s(%lu)\n", __func__, action);
+	dev_info(data->dev, "%s(%lu)\n", __func__, action);
 
 	switch (action) {
 	case MODEM_EVENT_ONLINE:
@@ -6021,7 +6319,7 @@ static int abox_itmon_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
 	struct abox_data *data = container_of(nb, struct abox_data, itmon_nb);
-	struct device *dev = &data->pdev->dev;
+	struct device *dev = data->dev;
 	struct itmon_notifier *itmon_data = nb_data;
 
 	if (itmon_data && itmon_data->dest && (strncmp("ABOX", itmon_data->dest,
@@ -6113,6 +6411,16 @@ static DEVICE_ATTR_RO(calliope_version);
 static DEVICE_ATTR_WO(calliope_debug);
 static DEVICE_ATTR_WO(calliope_cmd);
 
+static struct reserved_mem *abox_dram_rmem;
+static int __init abox_dram_rmem_setup(struct reserved_mem *rmem)
+{
+	pr_info("%s: base=%pa, size=%pa\n", __func__, &rmem->base,
+			&rmem->size);
+	abox_dram_rmem = rmem;
+	return 0;
+}
+RESERVEDMEM_OF_DECLARE(abox_dram_rmem, "exynos,abox_dram_rmem", abox_dram_rmem_setup);
+
 static int samsung_abox_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -6131,7 +6439,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, data);
-	data->pdev = pdev;
+	data->dev = dev;
 	p_abox_data = data;
 
 	atomic_set(&data->suspend_state, 0);
@@ -6217,8 +6525,17 @@ static int samsung_abox_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (!abox_dram_rmem) {
+		dev_err(dev, "%s: no memory\n", "dram firmware");
+		return -ENOMEM;
+	}
+	data->dram_base_phys = abox_dram_rmem->base;
+	data->dram_base = rmem_vmap(abox_dram_rmem);
+
+	/*
 	data->dram_base = dmam_alloc_coherent(dev, DRAM_FIRMWARE_SIZE,
 			&data->dram_base_phys, GFP_KERNEL);
+			*/
 	if (IS_ERR_OR_NULL(data->dram_base)) {
 		dev_err(dev, "Failed to allocate coherent memory: %ld\n",
 				PTR_ERR(data->dram_base));
@@ -6536,14 +6853,12 @@ module_platform_driver(samsung_abox_driver);
 
 static int __init samsung_abox_late_initcall(void)
 {
-	pr_info("%s\n", __func__);
+	pr_info("%s - sb\n", __func__);
 
-	if (p_abox_data && p_abox_data->pdev) {
-		if (!abox_test_quirk(p_abox_data, ABOX_QUIRK_OFF_ON_SUSPEND))
-			pm_runtime_put(&p_abox_data->pdev->dev);
-	} else {
-		pr_err("%s: p_abox_data or pdev is null", __func__);
-	}
+	if (p_abox_data && p_abox_data->dev)
+		pm_runtime_put_sync_suspend(p_abox_data->dev);
+	else
+		pr_err("%s: p_abox_data or dev is null", __func__);
 
 	return 0;
 }

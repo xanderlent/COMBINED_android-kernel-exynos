@@ -1,6 +1,8 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/slab.h>
 #include <sound/pcm.h>
 
 #include "abox_util.h"
@@ -187,3 +189,28 @@ char substream_to_char(struct snd_pcm_substream *substream)
 {
 	return (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ? 'p' : 'c';
 }
+
+void *rmem_vmap(const struct reserved_mem *rmem)
+{
+	phys_addr_t phys = rmem->base;
+	size_t size = rmem->size;
+	unsigned int num_pages = (unsigned int)DIV_ROUND_UP(size, PAGE_SIZE);
+	pgprot_t prot = pgprot_writecombine(PAGE_KERNEL);
+	struct page **pages, **page;
+	void *vaddr = NULL;
+
+	pages = kcalloc(num_pages, sizeof(pages[0]), GFP_KERNEL);
+	if (!pages)
+		goto out;
+
+	for (page = pages; (page - pages < num_pages); page++) {
+		*page = phys_to_page(phys);
+		phys += PAGE_SIZE;
+	}
+
+	vaddr = vmap(pages, num_pages, VM_MAP, prot);
+	kfree(pages);
+out:
+	return vaddr;
+}
+

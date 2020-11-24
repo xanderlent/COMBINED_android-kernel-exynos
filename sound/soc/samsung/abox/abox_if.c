@@ -688,7 +688,7 @@ static int abox_if_cmpnt_probe(struct snd_soc_component *cmpnt)
 
 	data->cmpnt = cmpnt;
 	snd_soc_component_init_regmap(cmpnt, data->abox_data->regmap);
-	abox_register_if(data->abox_data->pdev, dev,
+	abox_register_if(data->abox_data->dev, dev,
 			data->id, snd_soc_component_get_dapm(cmpnt),
 			data->of_data->get_dai_name(data->id),
 			!!data->dai_drv->playback.formats,

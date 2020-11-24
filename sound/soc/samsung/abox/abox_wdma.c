@@ -580,7 +580,7 @@ static int samsung_abox_wdma_probe(struct platform_device *pdev)
 
 	init_completion(&data->closed);
 
-	abox_register_irq_handler(data->dev, IPC_PCMCAPTURE,
+	abox_register_irq_handler(data->dev_abox, IPC_PCMCAPTURE,
 			abox_wdma_irq_handler, pdev);
 
 	ret = of_property_read_u32_index(np, "id", 0, &data->id);

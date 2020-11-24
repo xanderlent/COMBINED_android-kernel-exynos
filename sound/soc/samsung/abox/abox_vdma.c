@@ -735,7 +735,7 @@ static int __init samsung_abox_vdma_initcall(void)
 
 	pr_info("%s\n", __func__);
 
-	dev_abox = &abox_get_abox_data()->pdev->dev;
+	dev_abox = data->dev;
 	abox_register_irq_handler(dev_abox, IPC_PCMPLAYBACK,
 			abox_vdma_irq_handler, dev_abox);
 	abox_register_irq_handler(dev_abox, IPC_PCMCAPTURE,
