@@ -1142,7 +1142,7 @@
 		zinitix,reset-gpio = <&gpg4 0 0>;
 		zinitix,x_resolution = <360>;
 		zinitix,y_resolution = <360>;
-		ztw522,fw_name = "ztm630.nobless.small.fw";
+		ztw522,fw_name = "ZTM630_TEST_0B0003_201127.mng.bin";
 		avdd_regulator = "vdd_ldo25";
 	};
 };
