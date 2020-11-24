@@ -770,6 +770,65 @@ static int contexthub_ipc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int contexthub_alive_noirq(struct contexthub_ipc_info *ipc)
+{
+	int cnt = 100;
+	int start_index;
+	unsigned int status;
+	int irq_num = IRQ_NUM_CHUB_ALIVE + start_index;
+	struct cipc_info *cipc;
+	enum ipc_mb_id rcv_mb_id;
+	void *base;
+
+	cipc = ipc->chub_ipc->cipc;
+	rcv_mb_id = cipc->user_info[CIPC_USER_CHUB2AP].map_info.dst.mb_id;
+	status = ipc_hw_read_int_status_reg_all(ipc->mailbox, rcv_mb_id);
+	start_index = ipc_hw_start_bit(rcv_mb_id);
+	irq_num = IRQ_NUM_CHUB_ALIVE + start_index;
+	base = cipc->user_info[CIPC_USER_CHUB2AP].mb_base;
+
+	ipc_write_hw_value(IPC_VAL_HW_AP_STATUS, AP_WAKE);
+	ipc_hw_gen_interrupt(ipc->mailbox, ipc->chub_ipc->opp_mb_id, IRQ_NUM_CHUB_ALIVE);
+
+	atomic_set(&ipc->chub_alive_lock.flag, 0);
+	while(cnt--) {
+		mdelay(1);
+		status = ipc_hw_read_int_status_reg_all(base, rcv_mb_id);
+		if (status & (1 << irq_num)) {
+			ipc_hw_clear_int_pend_reg(base, rcv_mb_id, irq_num);
+			atomic_set(&ipc->chub_alive_lock.flag, 1);
+			return 0;
+		}
+	}
+	return -1;
+}
+
+static int contexthub_resume_noirq(struct device *dev)
+{
+	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+
+ 	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
+		return 0;
+
+	contexthub_alive_noirq(ipc);
+	dev_info(dev, "%s\n", __func__);
+	return 0;
+}
+
+static int contexthub_suspend_noirq(struct device *dev)
+{
+	struct contexthub_ipc_info *ipc = dev_get_drvdata(dev);
+
+	if (atomic_read(&ipc->chub_status) != CHUB_ST_RUN)
+	return 0;
+
+	dev_info(dev, "%s: send ap sleep\n", __func__);
+	ipc_write_hw_value(IPC_VAL_HW_AP_STATUS, AP_SLEEP);
+	ipc_hw_gen_interrupt(ipc->mailbox, ipc->chub_ipc->opp_mb_id, IRQ_NUM_CHUB_ALIVE);
+	dev_info(dev, "%s: out\n", __func__);
+	return 0;
+}
+
 static int contexthub_suspend(struct device *dev)
 {
 	struct contexthub_ipc_info *chub = dev_get_drvdata(dev);
@@ -778,11 +837,14 @@ static int contexthub_suspend(struct device *dev)
 	if (atomic_read(&chub->chub_status) != CHUB_ST_RUN)
 		return 0;
 
+#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
+	cancel_delayed_work(&ipc->sensor_alive_work);
+	ipc->sensor_alive_work_run = false;
+#endif
+
 	nanohub_dev_info(dev, "%s: irq-pend:ap:%x,chub:%x\n", __func__,
 		ipc_hw_read_int_status_reg_all(chub->mailbox, chub_ipc->my_mb_id),
 		ipc_hw_read_int_status_reg_all(chub->mailbox, chub_ipc->opp_mb_id));
-	ipc_write_hw_value(IPC_VAL_HW_AP_STATUS, AP_SLEEP);
-	ipc_hw_gen_interrupt(chub->mailbox, chub_ipc->opp_mb_id, IRQ_NUM_CHUB_ALIVE);
 	atomic_set(&chub->chub_sleep, 1);
 	return 0;
 }
@@ -794,17 +856,25 @@ static int contexthub_resume(struct device *dev)
 
 	if (atomic_read(&chub->chub_status) != CHUB_ST_RUN)
 		return 0;
-
+#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
+	if (ipc->sensor_alive_work_run == false) {
+		dev_info(dev, "%s: schedule sensor_alive_work\n", __func__);
+		schedule_delayed_work(&ipc->sensor_alive_work, msecs_to_jiffies(1000));
+	}
+#endif
 	nanohub_dev_info(dev, "%s: irq-pend:ap:%x,chub:%x\n", __func__,
 		ipc_hw_read_int_status_reg_all(chub->mailbox, chub_ipc->my_mb_id),
 		ipc_hw_read_int_status_reg_all(chub->mailbox, chub_ipc->opp_mb_id));
-	ipc_write_hw_value(IPC_VAL_HW_AP_STATUS, AP_WAKE);
-	ipc_hw_gen_interrupt(chub->mailbox, chub_ipc->opp_mb_id, IRQ_NUM_CHUB_ALIVE);
 	atomic_set(&chub->chub_sleep, 0);
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(contexthub_pm_ops, contexthub_suspend, contexthub_resume);
+static const struct dev_pm_ops contexthub_pm_ops = {
+	.suspend = contexthub_suspend,
+	.suspend_noirq = contexthub_suspend_noirq,
+	.resume = contexthub_resume,
+	.resume_noirq = contexthub_resume_noirq,
+};
 
 static const struct of_device_id contexthub_ipc_match[] = {
 	{.compatible = "samsung,exynos-nanohub"},

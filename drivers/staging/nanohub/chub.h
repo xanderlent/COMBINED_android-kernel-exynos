@@ -271,7 +271,16 @@ struct contexthub_ipc_info {
 	struct wakeup_source *ws_reset;
 	/* chub f/w callstack */
 	struct contexthub_symbol_table *symbol_table;
-
+#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
+	struct delayed_work sensor_alive_work;
+	bool sensor_alive_work_run;
+	u32 sensor_cnt_last;
+	u32 event_flush_last;
+	u32 event_rtc_last;
+	u32 event_hrm_last;
+	u32 rtc_expired_last;
+	u32 sensor_cnt_no_update;
+#endif
 	/* communicate with others */
 	/* chub notifiers */
 	struct contexthub_notifier_block chub_cipc_nb;

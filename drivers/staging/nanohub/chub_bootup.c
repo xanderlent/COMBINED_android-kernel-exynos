@@ -692,6 +692,12 @@ int contexthub_poweron(struct contexthub_ipc_info *chub)
 	ipc_test(chub);
 #endif
 
+#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
+	nanohub_dev_info(dev, "contexthub schedule sensor_alive_work\n");
+	schedule_delayed_work(&chub->sensor_alive_work, msecs_to_jiffies(SENSORTASK_KICK_MS * 4));
+	chub->sensor_alive_work_run = true;
+#endif
+
 	nanohub_info("%s done!\n", __func__);
 
 	return 0;
@@ -924,6 +930,9 @@ int contexthub_bootup_init(struct contexthub_ipc_info *chub)
 	contexthub_set_in_reset(chub, 0);
 	contexthub_imgloader_init(chub);
 	INIT_WORK(&chub->debug_work, handle_debug_work_func);
+#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
+	INIT_DELAYED_WORK(&chub->sensor_alive_work, sensor_alive_check_func);
+#endif
 
 	for (i = 0, ret = 0; i < ARRAY_SIZE(attributes); i++) {
 		ret = device_create_file(chub->dev, &attributes[i]);
