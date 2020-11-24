@@ -416,11 +416,32 @@ static ssize_t pat9126_sensitivity_show(struct device *dev,
 	return count;
 }
 
+static ssize_t pat9126_id_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf) {
+	int count = 0;
+	uint8_t maj, min;
+
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	pat9126_read(client, PIXART_PAT9126_PRODUCT_ID1_REG, &maj);
+	pat9126_read(client, PIXART_PAT9126_PRODUCT_ID2_REG, &min);
+	count += sprintf(buf, "0x%2x 0x%2x\n", maj, min);
+
+	return count;
+}
+
 static DEVICE_ATTR
 	(crown_sensitivity, S_IRUGO | S_IWUSR | S_IWGRP, pat9126_sensitivity_show, pat9126_sensitivity_store);
 
+static DEVICE_ATTR
+	(id, S_IRUGO, pat9126_id_show, NULL);
+
 static struct attribute *pat9126_attr_list[] = {
 	&dev_attr_crown_sensitivity.attr,
+	&dev_attr_id.attr,
 	NULL,
 };
 
