@@ -39,6 +39,11 @@
 #include <mali_kbase_hw.h>
 #include <mali_kbase_config_defaults.h>
 
+/* MALI_SEC_INTEGRATION */
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 10, 0))
+#include <linux/sched/clock.h>
+#endif
+
 /* NOTE: Magic - 0x45435254 (TRCE in ASCII).
  * Supports tracing feature provided in the base module.
  * Please keep it in sync with the value of base module.
