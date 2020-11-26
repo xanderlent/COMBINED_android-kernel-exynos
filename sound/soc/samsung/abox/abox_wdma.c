@@ -37,7 +37,7 @@
 #include "abox.h"
 #include "abox_dma.h"
 
-#define USE_FIXED_MEMORY
+//#define USE_FIXED_MEMORY
 
 static const struct snd_pcm_hardware abox_wdma_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED
@@ -510,7 +510,9 @@ static int abox_wdma_new(struct snd_soc_pcm_runtime *runtime)
 	struct snd_pcm_substream *substream = stream->substream;
 	struct snd_soc_dai *dai = runtime->cpu_dai;
 	struct abox_dma_data *data = snd_soc_dai_get_drvdata(dai);
+#ifdef USE_FIXED_MEMORY
 	int id = data->id;
+#endif
 	size_t buffer_bytes;
 	int ret;
 
@@ -527,14 +529,16 @@ static int abox_wdma_new(struct snd_soc_pcm_runtime *runtime)
 			runtime->cpu_dai->dev, buffer_bytes, buffer_bytes);
 	if (ret < 0)
 		return ret;
-
+#ifdef USE_FIXED_MEMORY
 	ret = iommu_map(data->abox_data->iommu_domain, IOVA_WDMA_BUFFER(id),
 			substream->dma_buffer.addr, BUFFER_BYTES_MAX, 0);
+#endif
 	return ret;
 }
 
 static void abox_wdma_free(struct snd_pcm *pcm)
 {
+#ifdef USE_FIXED_MEMORY
 	struct snd_soc_pcm_runtime *runtime = pcm->private_data;
 	struct snd_soc_dai *dai = runtime->cpu_dai;
 	struct abox_dma_data *data = snd_soc_dai_get_drvdata(dai);
@@ -542,6 +546,7 @@ static void abox_wdma_free(struct snd_pcm *pcm)
 
 	iommu_unmap(data->abox_data->iommu_domain, IOVA_WDMA_BUFFER(id),
 			BUFFER_BYTES_MAX);
+#endif
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 

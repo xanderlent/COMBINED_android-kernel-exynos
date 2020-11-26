@@ -321,7 +321,9 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.stream_name = "UAIF0",
 		.cpu_dai_name = "UAIF0",
 		.platform_name = "snd-soc-dummy",
-		.codec_dai_name = "cod9005x-aif",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		//.codec_dai_name = "snd-soc-dummy-dai",//cod9005x-aif
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
@@ -363,6 +365,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},
+	/*
 	{
 		.name = "VTS-Trigger",
 		.stream_name = "VTS-Trigger",
@@ -385,6 +388,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.ignore_pmdown_time = 1,
 		.capture_only = true,
 	},
+	*/
 	{
 		.name = "SIFS0",
 		.stream_name = "SIFS0",
@@ -489,7 +493,7 @@ static struct snd_soc_card exynos9110_sound = {
 	.aux_dev = aux_dev,
 	.num_aux_devs = ARRAY_SIZE(aux_dev),
 };
-
+/*
 static int read_dai(struct device_node *np, const char * const prop,
 			      struct device_node **dai, const char **name)
 {
@@ -506,7 +510,7 @@ static int read_dai(struct device_node *np, const char * const prop,
 	}
 
 	if (*name == NULL) {
-		/* Ignoring the return as we don't register DAIs to the platform */
+		// Ignoring the return as we don't register DAIs to the platform
 		ret = snd_soc_of_get_dai_name(np, name);
 		if (ret && !*name)
 			return ret;
@@ -516,7 +520,7 @@ out:
 
 	return ret;
 }
-
+*/
 static struct clk *xclkout;
 
 static void control_xclkout(bool on)
@@ -528,21 +532,94 @@ static void control_xclkout(bool on)
 	}
 }
 
+static int read_platform(struct device_node *np, const char * const prop,
+		struct device_node **dai)
+{
+	int ret = 0;
+
+	np = of_get_child_by_name(np, prop);
+	if (!np)
+		return -ENOENT;
+
+	*dai = of_parse_phandle(np, "sound-dai", 0);
+	if (!*dai) {
+		ret = -ENODEV;
+		goto out;
+	}
+out:
+	of_node_put(np);
+
+	return ret;
+}
+
+static int read_cpu(struct device_node *np, struct device *dev,
+		struct snd_soc_dai_link *dai_link)
+{
+	int ret = 0;
+
+	np = of_get_child_by_name(np, "cpu");
+	if (!np)
+		return -ENOENT;
+
+	dai_link->cpu_of_node = of_parse_phandle(np, "sound-dai", 0);
+	if (!dai_link->cpu_of_node) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	if (dai_link->cpu_dai_name == NULL) {
+		// Ignoring the return as we don't register DAIs to the platform
+		ret = snd_soc_of_get_dai_name(np, &dai_link->cpu_dai_name);
+		if (ret)
+			goto out;
+	}
+out:
+	of_node_put(np);
+
+	return ret;
+}
+
+static int read_codec(struct device_node *np, struct device *dev,
+		struct snd_soc_dai_link *dai_link)
+{
+	np = of_get_child_by_name(np, "codec");
+	if (!np)
+		return -ENOENT;
+
+	return snd_soc_of_get_dai_link_codecs(dev, np, dai_link);
+}
+
+static void exynos9110_register_card_work_func(struct work_struct *work)
+{
+	struct snd_soc_card *card = &exynos9110_sound;
+	int ret;
+
+	dev_info(card->dev, "%s\n", __func__); 
+
+	ret = devm_snd_soc_register_card(card->dev, card);
+	if (ret)
+		dev_err(card->dev, "sound card register failed: %d\n", ret);
+}
+DECLARE_WORK(exynos9110_register_card_work, exynos9110_register_card_work_func);
+
 static int exynos9110_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &exynos9110_sound;
 	struct sound_drvdata *drvdata = card->drvdata;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *dai;
+	struct snd_soc_dai_link *link;
 	int nlink = 0;
 	int rc, ret;
 	unsigned int i;
 	const char *cur = NULL;
 	struct property *p;
 
-	nlink = card->num_links - NUM_SIFS - 1;
+//	nlink = card->num_links - NUM_SIFS - 1;
 	card->dev = &pdev->dev;
 	drvdata->dev = card->dev;
+
+	dev_info(&pdev->dev, "%s\n", __func__);
 
 	snd_soc_card_set_drvdata(card, drvdata);
 
@@ -574,11 +651,73 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 	}
 
 	for_each_child_of_node(np, dai) {
-		/* search dai_link */
+
+		link = &exynos9110_dai[nlink];
+		dev_info(drvdata->dev, "%s - (%s)(%s)\n", __func__,
+				link->name, dai->name);
+
+		if (!link->name)
+			link->name = dai->name;
+		if (!link->stream_name)
+			link->stream_name = dai->name;
+
+		if (!link->cpu_name) {
+			ret = read_cpu(dai, card->dev, link);
+			if (ret) {
+				dev_err(card->dev, "Failed to parse cpu DAI for %s: %d\n",
+						dai->name, ret);
+				return ret;
+			}
+		}
+
+		if (!link->platform_name) {
+			ret = read_platform(dai, "platform",
+					&link->platform_of_node);
+			if (ret) {
+				link->platform_of_node = link->cpu_of_node;
+				dev_info(card->dev, "Cpu node is used as platform for %s: %d\n",
+						dai->name, ret);
+			}
+		}
+
+		if (!link->codec_name) {
+			ret = read_codec(dai, card->dev, link);
+			if (ret) {
+				dev_warn(card->dev, "Failed to parse codec DAI for %s: %d\n",
+						dai->name, ret);
+				link->codec_name = "snd-soc-dummy";
+				link->codec_dai_name = "snd-soc-dummy-dai";
+				ret = 0;
+			}
+
+//			if (link->codecs && strstr(link->codecs[0].dai_name,
+//						"cs35l41"))
+//				link->ops = &cs35l41_ops;
+		}
+
+		if (strstr(dai->name, "left-amp")) {
+			link->params = sound_amp_params;
+			drvdata->left_amp_dai = nlink;
+		} else if (strstr(dai->name, "right-amp")) {
+			link->params = sound_amp_params;
+			drvdata->right_amp_dai = nlink;
+		}
+
+		link->dai_fmt = snd_soc_of_parse_daifmt(dai, NULL, NULL,
+				NULL);
+
+		if (++nlink == card->num_links)
+			break;
+	}
+
+/*
+		// search dai_link
 		for (nlink = 0; nlink < card->num_links; nlink++) {
 			const char *dai_link_name;
 			ret = of_property_read_string(dai, "dai_link",
 					&dai_link_name);
+			dev_info(drvdata->dev, "(%d) (%s)\n", nlink,
+					dai_link_name);
 			if (ret < 0)
 				continue;
 
@@ -656,10 +795,10 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 		exynos9110_dai[nlink].dai_fmt =
 				snd_soc_of_parse_daifmt(dai, NULL, NULL, NULL);
 
-		if (--nlink < 0) /* card->num_links) */
+		if (--nlink < 0) // card->num_links)
 			break;
 	}
-
+*/
 	/* if (!nlink) { */
 	if (nlink < -1) {
 		dev_err(card->dev, "No DAIs specified\n");
@@ -693,9 +832,7 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_snd_soc_register_card(card->dev, card);
-	if (ret)
-		dev_err(card->dev, "snd_soc_register_card() failed:%d\n", ret);
+	schedule_work(&exynos9110_register_card_work);
 
 	return ret;
 }

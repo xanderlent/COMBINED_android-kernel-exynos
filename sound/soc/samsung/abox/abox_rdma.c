@@ -40,7 +40,7 @@
 
 #define COMPR_USE_COPY
 #define COMPR_USE_FIXED_MEMORY
-#define USE_FIXED_MEMORY
+//#define USE_FIXED_MEMORY
 
 /* Mailbox between driver and firmware for offload */
 #define COMPR_CMD_CODE		(0x0004)
@@ -1692,8 +1692,10 @@ static int abox_rdma_new(struct snd_soc_pcm_runtime *runtime)
 	struct snd_pcm_substream *substream = stream->substream;
 	struct snd_soc_dai *dai = runtime->cpu_dai;
 	struct abox_dma_data *data = snd_soc_dai_get_drvdata(dai);
+#ifdef USE_FIXED_MEMORY
 	struct iommu_domain *iommu_domain = data->abox_data->iommu_domain;
 	int id = data->id;
+#endif
 	size_t buffer_bytes;
 	int ret;
 
@@ -1711,17 +1713,19 @@ static int abox_rdma_new(struct snd_soc_pcm_runtime *runtime)
 	if (ret < 0)
 		return ret;
 
-	dev_info(data->dev, "%s[%x] %x, %x\n", __func__, 
+#ifdef USE_FIXED_MEMORY
+	dev_info(data->dev, "%s[%d] %x, %x\n", __func__, 
 			id, IOVA_RDMA_BUFFER(id), substream->dma_buffer.addr);
 
 	iommu_map(iommu_domain, IOVA_RDMA_BUFFER(id),
 			substream->dma_buffer.addr, BUFFER_BYTES_MAX, 0);
-
+#endif
 	return ret;
 }
 
 static void abox_rdma_free(struct snd_pcm *pcm)
 {
+#ifdef USE_FIXED_MEMORY
 	struct snd_soc_pcm_runtime *runtime = pcm->private_data;
 	struct snd_soc_dai *dai = runtime->cpu_dai;
 	struct abox_dma_data *data = snd_soc_dai_get_drvdata(dai);
@@ -1729,6 +1733,7 @@ static void abox_rdma_free(struct snd_pcm *pcm)
 	int id = data->id;
 
 	iommu_unmap(iommu_domain, IOVA_RDMA_BUFFER(id), BUFFER_BYTES_MAX);
+#endif
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
@@ -1828,6 +1833,7 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 	int i, ret;
 	const char *type;
 
+	dev_info(dev, "%s\n", __func__);
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -1855,7 +1861,9 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 	abox_register_irq_handler(data->dev_abox, IPC_PCMPLAYBACK,
 			abox_rdma_irq_handler, pdev);
 
+	dev_info(dev, "%s(%d)\n", __func__, data->id);
 	ret = of_property_read_u32_index(np, "id", 0, &data->id);
+	dev_info(dev, "%s(%d)\n", __func__, data->id);
 	if (ret < 0) {
 		dev_err(dev, "id property reading fail\n");
 		return ret;

@@ -299,7 +299,7 @@ void abox_dump_register_buffer_work_func(struct work_struct *work)
 				"samsung-abox-dump", -1, NULL, 0);
 	}
 
-	dev_dbg(abox_dump_card.dev, "%s\n", __func__);
+	dev_info(abox_dump_card.dev, "%s\n", __func__);
 
 	for (info = &abox_dump_list[0]; (info - &abox_dump_list[0]) <
 			ARRAY_SIZE(abox_dump_list); info++) {
@@ -321,7 +321,7 @@ int abox_dump_register_buffer(struct device *dev, int id, const char *name,
 {
 	struct abox_dump_buffer_info *info;
 
-	dev_dbg(dev, "%s[%d] %p(%pa)\n", __func__, id, area, &addr);
+	dev_info(dev, "%s[%d] %p(%pa)\n", __func__, id, area, &addr);
 
 	if (id < 0 || id >= ARRAY_SIZE(abox_dump_list)) {
 		dev_err(dev, "invalid id: %d\n", id);
@@ -575,7 +575,7 @@ static int abox_dump_probe(struct snd_soc_component *component)
 	struct device *dev = component->dev;
 	int id = to_platform_device(dev)->id;
 
-	dev_dbg(dev, "%s[%d]\n", __func__, id);
+	dev_info(dev, "%s[%d]\n", __func__, id);
 
 	return 0;
 }
@@ -628,7 +628,7 @@ static int samsung_abox_dump_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int id = to_platform_device(dev)->id;
 
-	dev_dbg(dev, "%s[%d]\n", __func__, id);
+	dev_info(dev, "%s[%d]\n", __func__, id);
 
 	if (id >= 0) {
 		pm_runtime_no_callbacks(dev);
