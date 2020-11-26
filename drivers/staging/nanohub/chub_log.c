@@ -259,7 +259,7 @@ static struct log_buffer_info *log_register_buffer
 
 static struct contexthub_ipc_info *chub_info;
 
-void chub_printf(int level, int fw_idx, const char *fmt, ...)
+void chub_printf(struct device *dev, int level, int fw_idx, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -268,26 +268,60 @@ void chub_printf(int level, int fw_idx, const char *fmt, ...)
 	struct contexthub_ipc_info *chub = chub_info;
 	char buf[240];
 
+	memset(&log, 0, sizeof(struct logbuf_output));
+	log.timestamp = ktime_get_boot_ns() / 1000;
+	log.level = level;
+	log.size = fw_idx;
+	log.buf = buf;
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	switch (level) {
+	case 'W':
+		if (dev)
+			dev_warn(dev, "nanohub: %pV", &vaf);
+		else
+			pr_warn("nanohub: %pV", &vaf);
+		break;
+	case 'E':
+		if (dev)
+			dev_err(dev, "nanohub: %pV", &vaf);
+		else
+			pr_err("nanohub: %pV", &vaf);
+		break;
+	case 'D':
+		if (dev)
+			dev_dbg(dev, "nanohub: %pV", &vaf);
+		else
+			pr_debug("nanohub: %pV", &vaf);
+		break;
+	default:
+		if (dev)
+			dev_info(dev, "nanohub: %pV", &vaf);
+		else
+			pr_info("nanohub: %pV", &vaf);
+		break;
+	}
 	if (chub) {
-		memset(&log, 0, sizeof(struct logbuf_output));
-		log.timestamp = ktime_get_boot_ns() / 1000;
-		log.level = level;
-		log.size = fw_idx;
-		log.buf = buf;
-		va_start(args, fmt);
-		vaf.fmt = fmt;
-		vaf.va = &args;
 #ifdef CONFIG_EXYNOS_MEMORY_LOGGER
-		if (chub->mlog.memlog_printf_chub)
-			memlog_write_printf(chub->mlog.memlog_printf_chub,
-					    MEMLOG_LEVEL_ERR, "%pV", &vaf);
+		if (chub->mlog.memlog_printf_chub) {
+			if (dev)
+				memlog_write_printf(chub->mlog.memlog_printf_chub,
+						    MEMLOG_LEVEL_ERR, "%s: %pV",
+						    dev->init_name, &vaf);
+			else
+				memlog_write_printf(chub->mlog.memlog_printf_chub,
+						    MEMLOG_LEVEL_ERR, "%pV", &vaf);
+		}
 #endif
-		pr_info("nanohub: %pV", &vaf);
-		n = snprintf(log.buf, 239, "%pV", &vaf);
+		if (dev)
+			n = snprintf(log.buf, 239, "%s: %pV", dev->init_name,  &vaf);
+		else
+			n = snprintf(log.buf, 239, "%pV", &vaf);
 		log.buf[238] = '\n';
 		ipc_logbuf_printf(chub, &log, strlen(log.buf));
-		va_end(args);
 	}
+	va_end(args);
 }
 
 int contexthub_log_init(void *chub_p)

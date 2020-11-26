@@ -49,10 +49,7 @@
 enum { CHUB_ON, CHUB_OFF };
 enum { C2A_ON, C2A_OFF };
 
-#ifndef EXUNOS_SET_CONN_TZPC
 #define EXYNOS_CHUB 2ull
-#define EXYNOS_SET_CONN_TZPC 0
-#endif
 
 /* utils for nanohub main */
 #define wait_event_interruptible_timeout_locked(q, cond, tmo)		\

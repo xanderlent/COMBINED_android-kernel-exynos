@@ -53,17 +53,16 @@ struct LOG_BUFFER {
 	char buffer[0];
 };
 
-void chub_printf(int level, int fw_idx, const char *fmt, ...);
-#define nanohub_debug(fmt, ...)			chub_printf('D', 0, fmt, ##__VA_ARGS__)
-#define nanohub_info(fmt, ...)			chub_printf('I', 0, fmt, ##__VA_ARGS__)
-#define nanohub_warn(fmt, ...)			chub_printf('W', 0, fmt, ##__VA_ARGS__)
-#define nanohub_err(fmt, ...)			chub_printf('E', 0, fmt, ##__VA_ARGS__)
-#define nanohub_dev_debug(dev, fmt, ...)	chub_printf('D', 0, fmt, ##__VA_ARGS__)
-#define nanohub_dev_info(dev, fmt, ...)		chub_printf('I', 0, fmt, ##__VA_ARGS__)
-#define nanohub_dev_warn(dev, fmt, ...)		chub_printf('W', 0, fmt, ##__VA_ARGS__)
-#define nanohub_dev_err(dev, fmt, ...)		chub_printf('E', 0, fmt, ##__VA_ARGS__)
+void chub_printf(struct device * dev, int level, int fw_idx, const char *fmt, ...);
+#define nanohub_debug(fmt, ...)			chub_printf(NULL, 'D', 0, fmt, ##__VA_ARGS__)
+#define nanohub_info(fmt, ...)			chub_printf(NULL, 'I', 0, fmt, ##__VA_ARGS__)
+#define nanohub_warn(fmt, ...)			chub_printf(NULL, 'W', 0, fmt, ##__VA_ARGS__)
+#define nanohub_err(fmt, ...)			chub_printf(NULL, 'E', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_debug(dev, fmt, ...)	chub_printf(dev, 'D', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_info(dev, fmt, ...)		chub_printf(dev, 'I', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_warn(dev, fmt, ...)		chub_printf(dev, 'W', 0, fmt, ##__VA_ARGS__)
+#define nanohub_dev_err(dev, fmt, ...)		chub_printf(dev, 'E', 0, fmt, ##__VA_ARGS__)
 
-void chub_printf(int level, int fw_idx, const char *fmt, ...);
 int contexthub_sync_memlogger(void *chub_p);
 void contexthub_log_active_work(void *chub);
 int contexthub_log_init(void *chub_p);

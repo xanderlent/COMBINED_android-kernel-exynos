@@ -160,13 +160,13 @@ retry:
 
 				memset(buf, 0, 120);
 				if (log->level || log->timestamp) {
-					chub_printf(log->level, log->size,
+					chub_printf(NULL, log->level, log->size,
 						    "[%6llu.%06llu]%c %s",
 						    (log->timestamp) / 1000000,
 						    (log->timestamp) % 1000000,
 						    log->level, (char *)log->buf);
 				} else {
-					chub_printf('I', log->size, "                 %s",
+					chub_printf(NULL, 'I', log->size, "                 %s",
 						    (char *)log->buf);
 				}
 			} else {
