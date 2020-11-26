@@ -15,6 +15,16 @@
 #include <dt-bindings/power/exynos-power.h>
 
 / {
+	pd_is: pd-is@11864010 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x11864010 0x20>;
+		cal_id = <0xB1380002>;
+		need_smc = <0x14510204>;
+		status = "okay";
+		#power-domain-cells = <0>;
+		skip-idle-ip;
+	};
+
 	pd_dispaud: pd-dispaud@11864000 {
 		compatible = "samsung,exynos-pd";
 		reg = <0x0 0x11864000 0x20>;
@@ -23,6 +33,7 @@
 		status = "okay";
 		power-down-ok = <PD_OK_AUD>;
 		#power-domain-cells = <0>;
+		parent = <&pd_is>;
 		skip-idle-ip;
 	};
 
@@ -35,17 +46,6 @@
 		#power-domain-cells = <0>;
 		skip-idle-ip;
 	};
-
-	pd_is: pd-is@11864010 {
-		compatible = "samsung,exynos-pd";
-		reg = <0x0 0x11864010 0x20>;
-		cal_id = <0xB1380002>;
-		need_smc = <0x14510204>;
-		status = "disabled";
-		#power-domain-cells = <0>;
-		skip-idle-ip;
-	};
-
 	pd_mfcmscl: pd-mfcmscl@11864018 {
 		compatible = "samsung,exynos-pd";
 		reg = <0x0 0x11864018 0x20>;
