@@ -426,7 +426,6 @@
 			dummy_audio_codec: audio_codec_dummy {
 				status = "okay";
 				compatible = "snd-soc-dummy";
-				#sound-dai-cells = <0>;
 			};
 
 			sound {
@@ -437,15 +436,12 @@
 					"ABOX UAIF1 Capture", "VINPUT1",
 					"VTS PAD DPDM", "DMIC1",
 					"VTS Virtual Output", "VTS Virtual Output Mux",
-					"VTS Virtual Output Mux", "DMIC1",
-					"VOUTPUTCALL", "ABOX SIFS0 Playback",
-					"ABOX SIFS0 Capture", "VINPUTCALL";
+					"VTS Virtual Output Mux", "DMIC1";
 				samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4 &vts>;
 				samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX", "VTS";
-				/* samsung,aux = <&abox_effect>; */
+				//samsung,aux = <&abox_effect>;
 
-				rdma@0 {
-					dai_link = "RDMA0";
+				rdma0 {
 					cpu {
 						sound-dai = <&abox 0>;
 					};
@@ -453,8 +449,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				rdma@1 {
-					dai_link = "RDMA1";
+				rdma1 {
 					cpu {
 						sound-dai = <&abox 1>;
 					};
@@ -462,8 +457,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				rdma@2 {
-					dai_link = "RDMA2";
+				rdma2 {
 					cpu {
 						sound-dai = <&abox 2>;
 					};
@@ -471,8 +465,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				rdma@3 {
-					dai_link = "RDMA3";
+				rdma3 {
 					cpu {
 						sound-dai = <&abox 3>;
 					};
@@ -480,8 +473,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				rdma@4 {
-					dai_link = "RDMA4";
+				rdma4 {
 					cpu {
 						sound-dai = <&abox 4>;
 					};
@@ -489,8 +481,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				rdma@5 {
-					dai_link = "RDMA5";
+				rdma5 {
 					cpu {
 						sound-dai = <&abox 5>;
 					};
@@ -498,8 +489,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				rdma@6 {
-					dai_link = "RDMA6";
+				rdma6 {
 					cpu {
 						sound-dai = <&abox 6>;
 					};
@@ -507,8 +497,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				rdma@7 {
-					dai_link = "RDMA7";
+				rdma7 {
 					cpu {
 						sound-dai = <&abox 7>;
 					};
@@ -516,8 +505,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				wdma@0 {
-					dai_link = "WDMA0";
+				wdma0 {
 					cpu {
 						sound-dai = <&abox 8>;
 					};
@@ -525,8 +513,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				wdma@1 {
-					dai_link = "WDMA1";
+				wdma1 {
 					cpu {
 						sound-dai = <&abox 9>;
 					};
@@ -534,8 +521,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				wdma@2 {
-					dai_link = "WDMA2";
+				wdma2 {
 					cpu {
 						sound-dai = <&abox 10>;
 					};
@@ -543,8 +529,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				wdma@3 {
-					dai_link = "WDMA3";
+				wdma3 {
 					cpu {
 						sound-dai = <&abox 11>;
 					};
@@ -552,8 +537,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				wdma@4 {
-					dai_link = "WDMA4";
+				wdma4 {
 					cpu {
 						sound-dai = <&abox 12>;
 					};
@@ -561,18 +545,17 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				uaif@0 {
-					dai_link = "UAIF0";
+				uaif0 {
 					format = "i2s";
 					cpu {
 						sound-dai = <&abox_uaif_0>;
 					};
 					codec {
-						sound-dai = <&audio_codec_cod9005x>;
+						sound-dai = <&dummy_audio_codec>;
+						//sound-dai = <&audio_codec_cod9005x>;
 					};
 				};
-				uaif@1 {
-					dai_link = "UAIF1";
+				uaif1 {
 					format = "i2s";
 					cpu {
 						sound-dai = <&abox_uaif_1>;
@@ -581,8 +564,7 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				uaif@4 {
-					dai_link = "UAIF4";
+				uaif4 {
 					format = "i2s";
 					bitclock-master;
 					frame-master;
@@ -593,8 +575,8 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				vts@0 {
-					dai_link = "VTS-Trigger";
+				/*
+				vts0 {
 					cpu {
 						sound-dai = <&vts 0>;
 					};
@@ -602,10 +584,34 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				vts@1 {
-					dai_link = "VTS-Record";
+				vts1 {
 					cpu {
 						sound-dai = <&vts 1>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				*/
+				sifs0 {
+					cpu {
+						sound-dai = <&abox 0>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				sifs1 {
+					cpu {
+						sound-dai = <&abox 0>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				sifs2 {
+					cpu {
+						sound-dai = <&abox 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
