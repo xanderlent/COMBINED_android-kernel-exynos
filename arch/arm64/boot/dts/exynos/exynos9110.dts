@@ -29,6 +29,7 @@
 #include "exynos9110-erd9110-cp-s307ap-sit.dtsi"
 #include "exynos9110-debug.dtsi"
 #include "exynos9110-mfc.dtsi"
+#include "exynos9110-bts.dtsi"
 
 / {
 	compatible = "samsung,armv8", "samsung,exynos9110";
