@@ -144,7 +144,7 @@
 		usbl2_suspend_available = <1>;	/* SYS_SLEEP_AUD_ON */
 		usbl2_suspend_mode_idx = <12>;	/* SYS_SLEEP_AUD_ON */
 		extra_wakeup_stat = <0x640>;
-		wake_lock = <1>;                /* 1: held wake_lock */
+		wake_lock = <0>;                /* 1: held wake_lock */
 	};
 
 	exynos-powermode {
