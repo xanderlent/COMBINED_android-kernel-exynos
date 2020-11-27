@@ -1146,3 +1146,8 @@
 		avdd_regulator = "vdd_ldo25";
 	};
 };
+
+&contexthub_0 {
+	chub-irq-pin-len = <2>;
+	chub-irq-pin = <&gpm22 0 0>, <&gpm23 0 0>;
+};
