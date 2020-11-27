@@ -24,7 +24,7 @@
 
 		abox_dram_rmem: abox_dram_rmem {
 			compatible = "exynos,abox_dram_rmem";
-			reg = <0x0 0x9EE00000 0xD00000>;
+			reg = <0x0 0x9C000000 0xC00000>;
 		};
 
                 chub_rmem: chub_rmem {
