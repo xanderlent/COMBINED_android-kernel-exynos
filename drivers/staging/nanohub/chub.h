@@ -284,6 +284,8 @@ struct contexthub_ipc_info {
 	struct contexthub_notifi_info cipc_noti[IPC_OWN_MAX];
 	struct notifier_block itmon_nb;
 	struct notifier_block panic_nb;
+	u32 irq_pin_len;
+	u32 irq_pins[CHUB_IRQ_PIN_MAX];
 #ifdef CONFIG_EXYNOS_IMGLOADER
 	/* image loader */
 	struct imgloader_desc chub_img_desc[3];

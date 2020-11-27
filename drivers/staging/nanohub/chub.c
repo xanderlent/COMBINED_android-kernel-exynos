@@ -174,7 +174,7 @@ static int contexthub_dt_init(struct platform_device *pdev,
 	/*chub_usi_array*/
 	int reg_cnt;
 	const char *reg_names[50];
-	int j;
+	int i, j;
 	struct resource *res;
 
 	if (!node) {
@@ -414,7 +414,27 @@ static int contexthub_dt_init(struct platform_device *pdev,
 		nanohub_dev_err(&pdev->dev,
 			"driver failed to get baaw-d-chub, remap\n");
 	}
+	/* disable chub irq list (for sensor irq) */
+	of_property_read_u32(node, "chub-irq-pin-len", &chub->irq_pin_len);
+	if (chub->irq_pin_len) {
+		if (chub->irq_pin_len > sizeof(chub->irq_pins)) {
+			nanohub_dev_err(&pdev->dev, "failed to get irq pin length %d, %d\n",
+				chub->irq_pin_len, sizeof(chub->irq_pins));
+			chub->irq_pin_len = 0;
+			return -ENODEV;
+		}
 
+		dev_info(&pdev->dev, "get chub irq_pin len:%d\n", chub->irq_pin_len);
+		for (i = 0; i < chub->irq_pin_len; i++) {
+			chub->irq_pins[i] = of_get_named_gpio(node, "chub-irq-pin", i);
+			if (!gpio_is_valid(chub->irq_pins[i])) {
+				nanohub_dev_err(&pdev->dev, "get invalid chub irq_pin:%d\n",
+					chub->irq_pins[i]);
+				return -EINVAL;
+			}
+			nanohub_dev_info(&pdev->dev, "get chub irq_pin:%d\n", chub->irq_pins[i]);
+		}
+	}
 	contexthub_disable_pin(chub);
 	//contexthub_set_clk(chub);
 	contexthub_get_clock_names(chub);

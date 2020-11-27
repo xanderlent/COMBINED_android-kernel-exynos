@@ -97,6 +97,21 @@ int contexthub_core_reset(struct contexthub_ipc_info *chub)
 
 int contexthub_disable_pin(struct contexthub_ipc_info *chub)
 {
+	int i;
+	u32 irq;
+
+	if (!chub->irq_pin_len) {
+		nanohub_dev_info(chub->dev, "%s: no irq pin found\n", __func__);
+		return -1;
+	}
+
+	for (i = 0; i < chub->irq_pin_len; i++) {
+		irq = gpio_to_irq(chub->irq_pins[i]);
+		disable_irq_nosync(irq);
+		nanohub_dev_info(chub->dev, "%s: %d irq (pin:%d) is for chub. disable it\n",
+				 __func__, irq, chub->irq_pins[i]);
+	}
+
 	return 0;
 }
 
