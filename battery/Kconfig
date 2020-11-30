@@ -2,3 +2,8 @@ config BATTERY_GOOGLE
 	tristate "Google battery driver"
 	help
 	  Say Y here to enable support for Google battery driver.
+
+config NTC_GOOGLE
+	tristate "Google NTC driver"
+	help
+	  Say Y here to enable support for Google NTC driver.

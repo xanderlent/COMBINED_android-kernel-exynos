@@ -80,14 +80,12 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 	usleep_range(10, 20);
 
 	ret = iio_read_channel_raw(ntc_sensor->channel, &val);
-	pr_info("adc raw read value: %d\n", val);
 	if (ret < 0) {
 		dev_err(ntcdev->dev, "IIO channel read failed %d\n", ret);
 		return ret;
 	}
 	long_val = val;
 	long_val = mult_frac(long_val, ntcdev->reference_voltage, 0xfff);
-	pr_info("adc voltage: %llu\n", long_val);
 	*temp = ntc_thermal_adc_to_temp(ntcdev, long_val);
 
 	gpiod_set_value(ntcdev->enable_gpio, 0);
