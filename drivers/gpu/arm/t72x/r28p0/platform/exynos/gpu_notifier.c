@@ -133,7 +133,7 @@ static void gpu_power_off(struct kbase_device *kbdev)
 #ifdef CONFIG_MALI_RT_PM
 	if (kbdev->is_power_on) {
 		pm_runtime_mark_last_busy(kbdev->dev);
-		pm_runtime_put_sync_autosuspend(kbdev->dev);
+		pm_runtime_put_autosuspend(kbdev->dev);
 		kbdev->is_power_on = false;
 	}
 
@@ -168,26 +168,16 @@ static void gpu_power_suspend(struct kbase_device *kbdev)
 #endif
 }
 
-static void gpu_power_resume(struct kbase_device *kbdev)
-{
-	// Do nothing
-	return;
-}
-
 #ifdef CONFIG_MALI_RT_PM
-extern int kbase_device_resume(struct kbase_device *kbdev);
 static int gpu_pm_notifier(struct notifier_block *nb, unsigned long event, void *cmd)
 {
 	int err = NOTIFY_OK;
-	struct kbase_device *kbdev = pkbdev;
 
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		GPU_LOG(DVFS_DEBUG, LSI_SUSPEND, 0u, 0u, "%s: suspend event\n", __func__);
 		break;
 	case PM_POST_SUSPEND:
-		if (kbdev)
-			kbase_device_resume(kbdev);
 		GPU_LOG(DVFS_DEBUG, LSI_RESUME, 0u, 0u, "%s: resume event\n", __func__);
 		break;
 	default:
@@ -213,8 +203,7 @@ static int gpu_device_runtime_init(struct kbase_device *kbdev)
 
 	dev_dbg(kbdev->dev, "kbase_device_runtime_init\n");
 
-	// Remove runtime_pm_delay_time.
-	pm_runtime_set_autosuspend_delay(kbdev->dev, 0);
+	pm_runtime_set_autosuspend_delay(kbdev->dev, platform->runtime_pm_delay_time);
 	pm_runtime_use_autosuspend(kbdev->dev);
 
 	pm_runtime_set_active(kbdev->dev);
@@ -296,7 +285,6 @@ struct kbase_pm_callback_conf pm_callbacks = {
 	.power_on_callback = gpu_power_on,
 	.power_off_callback = gpu_power_off,
 	.power_suspend_callback = gpu_power_suspend,
-	.power_resume_callback = gpu_power_resume,
 #ifdef CONFIG_MALI_RT_PM
 	.power_runtime_init_callback = gpu_device_runtime_init,
 	.power_runtime_term_callback = gpu_device_runtime_disable,
@@ -327,6 +315,8 @@ int gpu_notifier_init(struct kbase_device *kbdev)
 	if (register_pm_notifier(&gpu_pm_nb))
 		return -1;
 #endif /* CONFIG_MALI_RT_PM */
+
+	pm_runtime_enable(kbdev->dev);
 
 	platform->power_status = true;
 
