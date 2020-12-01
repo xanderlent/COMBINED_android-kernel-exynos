@@ -308,14 +308,14 @@ void chub_printf(struct device *dev, int level, int fw_idx, const char *fmt, ...
 			if (dev)
 				memlog_write_printf(chub->mlog.memlog_printf_chub,
 						    MEMLOG_LEVEL_ERR, "%s: %pV",
-						    dev->init_name, &vaf);
+						    dev_driver_string(dev), &vaf);
 			else
 				memlog_write_printf(chub->mlog.memlog_printf_chub,
 						    MEMLOG_LEVEL_ERR, "%pV", &vaf);
 		}
 #endif
 		if (dev)
-			n = snprintf(log.buf, 239, "%s: %pV", dev->init_name,  &vaf);
+			n = snprintf(log.buf, 239, "%s: %pV", dev_driver_string(dev),  &vaf);
 		else
 			n = snprintf(log.buf, 239, "%pV", &vaf);
 		log.buf[238] = '\n';
