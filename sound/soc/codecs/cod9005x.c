@@ -20,7 +20,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-//#include <sound/samsung/abox.h>
+#include <sound/samsung/abox.h>
 #include <linux/i2c.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
@@ -1660,7 +1660,7 @@ static int cod9005x_enable(struct device *dev)
 
 	dev_dbg(dev, "(*) %s\n", __func__);
 
-	//abox_enable_mclk(true);
+	abox_enable_mclk(true);
 
 	cod9005x_regulators_enable(cod9005x->codec);
 
@@ -1687,7 +1687,7 @@ static int cod9005x_disable(struct device *dev)
 	cod9005x_regulators_disable(cod9005x->codec);
 
 	msleep(250);
-	//abox_enable_mclk(false);
+	abox_enable_mclk(false);
 
 	return 0;
 }

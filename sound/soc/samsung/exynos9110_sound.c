@@ -319,12 +319,10 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 	{
 		.name = "UAIF0",
 		.stream_name = "UAIF0",
-		.cpu_dai_name = "UAIF0",
 		.platform_name = "snd-soc-dummy",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		//.codec_dai_name = "snd-soc-dummy-dai",//cod9005x-aif
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS,
+		//.codec_dai_name = "snd-soc-dummy-dai",
+		//.codec_dai_name = "cod9005x-aif",
+		//.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -689,6 +687,9 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 				link->codec_dai_name = "snd-soc-dummy-dai";
 				ret = 0;
 			}
+			dev_info(card->dev, "name: %s, dai_name: %s\n",
+					link->codec_name,
+					link->codec_dai_name);
 
 //			if (link->codecs && strstr(link->codecs[0].dai_name,
 //						"cs35l41"))
