@@ -210,8 +210,8 @@ config SND_SOC_SAMSUNG_TM2_WM5110
 	  Say Y if you want to add support for SoC audio on the TM2 board.
 
 config SND_SOC_SAMSUNG_EXYNOS9110_COD9005
-	tristate "S.LSI audio codec COD3033 support on exynos9110"
-	select SND_SOC_COD3033X
+	tristate "S.LSI audio codec COD9005 support on exynos9110"
+	select SND_SOC_COD9005X
 
 source "sound/soc/samsung/abox/Kconfig"
 #source "sound/soc/samsung/vts/Kconfig"
