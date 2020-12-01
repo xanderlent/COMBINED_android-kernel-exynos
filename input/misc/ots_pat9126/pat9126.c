@@ -433,15 +433,125 @@ static ssize_t pat9126_id_show(struct device *dev,
 	return count;
 }
 
+static ssize_t pat9126_max_sleep_level_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t count) {
+	u8 tmp, sleep_mode;
+
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	pat9126_read(client, PIXART_PAT9126_SLEEP_MODE_SELECT_REG, &sleep_mode);
+
+	if (kstrtou8(buf, 0, &tmp)) {
+		return count;
+	}
+
+	dev_dbg(dev, "Max sleep level: %u\n", tmp);
+
+	sleep_mode &= ~SLEEP_MODES_ENABLED_MASK;
+
+	if (tmp == 0) {
+		sleep_mode |= SLEEP_MODES_ENABLED_ZERO;
+	} else if (tmp == 1) {
+		sleep_mode |= SLEEP_MODES_ENABLED_ONE;
+	} else if (tmp == 2) {
+		sleep_mode |= SLEEP_MODES_ENABLED_TWO;
+	}
+
+	pat9126_write(client, PIXART_PAT9126_SLEEP_MODE_SELECT_REG, sleep_mode);
+
+	return count;
+}
+
+static ssize_t pat9126_max_sleep_level_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf) {
+	int count = 0;
+	uint8_t sleep_mode;
+
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	pat9126_read(client, PIXART_PAT9126_SLEEP_MODE_SELECT_REG, &sleep_mode);
+
+	switch (sleep_mode & SLEEP_MODES_ENABLED_MASK) {
+		case SLEEP_MODES_ENABLED_TWO:
+			count += sprintf(buf, "2\n");
+			break;
+		case SLEEP_MODES_ENABLED_ONE:
+			count += sprintf(buf, "1\n");
+			break;
+		default:
+			/* Note: this case covers '01' and '00' which both
+			   correspond to zero sleep modes */
+			count += sprintf(buf, "0\n");
+			break;
+	}
+
+	return count;
+}
+
+static ssize_t pat9126_sleep_level_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t count) {
+	u8 tmp, sleep_mode;
+
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	pat9126_read(client, PIXART_PAT9126_SLEEP_MODE_SELECT_REG, &sleep_mode);
+
+	if (kstrtou8(buf, 0, &tmp)) {
+		return count;
+	}
+
+	dev_dbg(dev, "Setting sleep level: %u\n", tmp);
+
+	if (tmp == 0) {
+		sleep_mode &= ~SLEEP_MODE_MASK;
+		sleep_mode |= SLEEP_MODE_WAKE;
+	} else if (tmp == 1) {
+		/* Can't switch to sleep mode #1 if disabled */
+		if ((sleep_mode & SLEEP_MODES_ENABLED_MASK) != SLEEP_MODES_ENABLED_ZERO) {
+			sleep_mode &= ~SLEEP_MODE_MASK;
+			sleep_mode |= SLEEP_MODE_ONE;
+		}
+	} else if (tmp == 2) {
+		/* Can't switch to sleep mode #2 if disabled */
+		if ((sleep_mode & SLEEP_MODES_ENABLED_MASK) == SLEEP_MODES_ENABLED_TWO) {
+			sleep_mode &= ~SLEEP_MODE_MASK;
+			sleep_mode |= SLEEP_MODE_TWO;
+		}
+	}
+
+	pat9126_write(client, PIXART_PAT9126_SLEEP_MODE_SELECT_REG, sleep_mode);
+
+	return count;
+}
+
 static DEVICE_ATTR
 	(crown_sensitivity, S_IRUGO | S_IWUSR | S_IWGRP, pat9126_sensitivity_show, pat9126_sensitivity_store);
 
 static DEVICE_ATTR
 	(id, S_IRUGO, pat9126_id_show, NULL);
 
+static DEVICE_ATTR
+	(max_sleep_level, S_IRUGO | S_IWUSR | S_IWGRP, pat9126_max_sleep_level_show, pat9126_max_sleep_level_store);
+
+static DEVICE_ATTR
+	(sleep_level, S_IWUSR | S_IWGRP, NULL, pat9126_sleep_level_store);
+
 static struct attribute *pat9126_attr_list[] = {
 	&dev_attr_crown_sensitivity.attr,
 	&dev_attr_id.attr,
+	&dev_attr_max_sleep_level.attr,
+	&dev_attr_sleep_level.attr,
 	NULL,
 };
 
