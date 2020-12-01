@@ -283,6 +283,6 @@
 
 /* Low memory check */
 #define IS_LOW_MEM			(totalram_pages <= ((SZ_1G + SZ_512M) >> PAGE_SHIFT))
-#define SZ_600M				(6 * 1024 * 1024)
+#define SZ_600M				(600 * 1024 * 1024)
 
 #endif /* __MFC_COMMON_H */
