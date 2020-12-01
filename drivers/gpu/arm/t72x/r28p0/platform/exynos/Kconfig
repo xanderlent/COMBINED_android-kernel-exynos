@@ -52,7 +52,7 @@ config MALI_SEC_HWCNT
 config MALI_DVFS
     bool "Enable EXYNOS DVFS"
     depends on MALI_T72X
-    default n
+    default y
     help
       Choose this option to enable DVFS in the Mali Midgard DDK.
 
@@ -97,7 +97,7 @@ config MALI_SEC_UTILIZATION
 config MALI_PM_QOS
     bool "Enable DVFS with QoS"
     depends on MALI_T72X && MALI_DVFS && PM_DEVFREQ && CPU_FREQ
-    default n
+    default y
     help
       Choose this option to enable PM_QOS in the Mali tMIX DDK.
 
