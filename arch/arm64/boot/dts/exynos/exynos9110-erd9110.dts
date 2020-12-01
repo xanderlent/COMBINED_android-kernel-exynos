@@ -551,8 +551,8 @@
 						sound-dai = <&abox_uaif_0>;
 					};
 					codec {
-						sound-dai = <&dummy_audio_codec>;
-						//sound-dai = <&audio_codec_cod9005x>;
+						//sound-dai = <&dummy_audio_codec>;
+						sound-dai = <&audio_codec_cod9005x>;
 					};
 				};
 				uaif1 {
@@ -842,7 +842,6 @@
 	#size-cells = <0>;
 	status = "okay";
 	audio_codec_cod9005x: cod9005x@03 {
-
 		compatible = "codec,cod9005x";
 		#sound-dai-cells = <0>;
 		reg = <0x03>;
