@@ -1055,7 +1055,7 @@
 				regulator-name = "vdd_ldo21";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1950000>;
-				/* regulator-always-on; */
+				regulator-always-on;
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 			};
