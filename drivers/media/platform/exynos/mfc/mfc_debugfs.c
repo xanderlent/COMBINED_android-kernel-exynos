@@ -190,7 +190,7 @@ static int __mfc_reg_info_show(struct seq_file *s, void *unused)
 
 	seq_puts(s, ">> MFC REG test(encoder)\n");
 
-	seq_printf(s, "-----Register test on/off: %s\n", reg_test ? "on" : "off");
+	seq_printf(s, "-----Register test on/off: %s\n", dev->debugfs.reg_test ? "on" : "off");
 	seq_printf(s, "-----Register number: %d\n", dev->reg_cnt);
 
 	if (dev->reg_val) {
