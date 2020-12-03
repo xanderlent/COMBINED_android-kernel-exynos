@@ -1150,4 +1150,5 @@
 &contexthub_0 {
 	chub-irq-pin-len = <2>;
 	chub-irq-pin = <&gpm22 0 0>, <&gpm23 0 0>;
+	chub-dfs-gov = "disabled";
 };
