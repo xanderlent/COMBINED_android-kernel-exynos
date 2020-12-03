@@ -169,6 +169,7 @@ static int contexthub_dt_init(struct platform_device *pdev,
 	int ret;
 	const char *os;
 	const char *resetmode;
+	const char *dfs;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	/*chub_usi_array*/
@@ -199,6 +200,13 @@ static int contexthub_dt_init(struct platform_device *pdev,
 		chub->block_reset = 1;
 	else
 		chub->block_reset = 0;
+
+	dfs = of_get_property(node, "chub-dfs-gov", NULL);
+	nanohub_info("%s: dfs %s\n", __func__, dfs);
+	if (dfs && !strcmp(dfs, "enabled"))
+		chub->chub_dfs_gov = true;
+	else
+		chub->chub_dfs_gov = false;
 
 	/* get mailbox interrupt */
 	chub->irq_mailbox = irq_of_parse_and_map(node, 0);

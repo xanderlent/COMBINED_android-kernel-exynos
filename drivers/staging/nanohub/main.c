@@ -97,6 +97,11 @@ static long chub_dev_compat_ioctl(struct file *file, unsigned int cmd,
 		return -EINVAL;
 	}
 
+	if (!chub->chub_dfs_gov) {
+		nanohub_info("%s: chub dfs is disabled\n", __func__);
+		return 0;
+	}
+
 	switch (cmd) {
 		case CHUB_DEV_IOCTL_SET_DFS:
 			chub->chub_dfs_gov = DFS_GVERNOR_MAX;

@@ -210,7 +210,7 @@ static inline int is_evt(enum cipc_region reg)
 		else
 			return CIPC_FALSE;
 	} else {
-		CIPC_PRINT("%s: worng is_valid_cipc_map, reg:%d\n", __func__,
+		CIPC_PRINT("%s: wrong is_valid_cipc_map, reg:%d\n", __func__,
 			   reg);
 	}
 	return CIPC_FALSE;
@@ -256,7 +256,7 @@ static inline int is_evt_valid(enum cipc_region reg)
 		     sizeof(CIPC_MAGIC_USER_EVT)))
 			return CIPC_TRUE;
 		else
-			CIPC_PRINT("%s: worng magic:%s, +%x\n", __func__,
+			CIPC_PRINT("%s: wrong magic:%s, +%x\n", __func__,
 				   evt->magic, cipc_get_offset_addr(evt));
 	}
 	CIPC_PRINT("%s: reg:%d fails\n", __func__, reg);
@@ -279,7 +279,7 @@ static inline int is_data(enum cipc_region reg)
 		else
 			return CIPC_FALSE;
 	} else {
-		CIPC_PRINT("%s: worng is_valid_cipc_map, reg:%d\n", __func__,
+		CIPC_PRINT("%s: wrong is_valid_cipc_map, reg:%d\n", __func__,
 			   reg);
 	}
 	return CIPC_FALSE;
@@ -301,10 +301,10 @@ static inline int is_data_valid(enum cipc_region reg)
 		     sizeof(CIPC_MAGIC_USER_DATA)))
 			return CIPC_TRUE;
 		else
-			CIPC_PRINT("%s: worng magic:%s, +%x\n", __func__,
+			CIPC_PRINT("%s: wrong magic:%s, +%x\n", __func__,
 				   data->magic, cipc_get_offset_addr(data));
 	} else {
-		CIPC_PRINT("%s: worng is_valid_cipc_map, reg:%d\n", __func__,
+		CIPC_PRINT("%s: wrong is_valid_cipc_map, reg:%d\n", __func__,
 			   reg);
 	}
 	CIPC_PRINT("%s: reg:%d fails\n", __func__, reg);
@@ -323,7 +323,7 @@ static inline int is_user(enum cipc_region reg)
 		else
 			return CIPC_FALSE;
 	} else {
-		CIPC_PRINT("%s: worng is_valid_cipc_map, reg:%d\n", __func__,
+		CIPC_PRINT("%s: wrong is_valid_cipc_map, reg:%d\n", __func__,
 			   reg);
 	}
 	return CIPC_FALSE;
@@ -345,7 +345,7 @@ static inline int is_user_valid(enum cipc_user_id id)
 		    (user->magic, CIPC_MAGIC_USER, sizeof(CIPC_MAGIC_USER)))
 			return CIPC_TRUE;
 		else
-			CIPC_PRINT("%s: worng magic:%s, +%x\n", __func__,
+			CIPC_PRINT("%s: wrong magic:%s, +%x\n", __func__,
 				   user->magic, cipc_get_offset_addr(user));
 	}
 	CIPC_PRINT("%s: reg:%d fails\n", __func__, reg);
