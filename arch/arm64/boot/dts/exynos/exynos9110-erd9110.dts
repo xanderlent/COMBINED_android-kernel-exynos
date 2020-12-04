@@ -419,7 +419,7 @@
 				button@1 {
 					label = "gpio-keys: KEY_BACK";
 					linux,code = <158>;
-					gpios = <&gpa0 2 0xf>;
+					gpios = <&gpa1 0 0xf>;
 				};
 			};
 
@@ -669,7 +669,7 @@
 	};
 
 	key_back: key-back {
-		samsung,pins = "gpa0-2";
+		samsung,pins = "gpa1-0";
 		samsung,pin-function = <0xf>;
 		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
