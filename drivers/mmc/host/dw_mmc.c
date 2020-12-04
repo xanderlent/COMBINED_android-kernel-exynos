@@ -1711,7 +1711,6 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 {
 	struct dw_mci *host = slot->host;
 	unsigned int clock = slot->clock;
-	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	u32 div;
 	u32 clk_en_a;
 	u32 sdmmc_cmd_bits = SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT;
@@ -1787,16 +1786,6 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 	/* Set the current slot bus width */
 	mci_writel(host, CTYPE, (slot->ctype << slot->id));
-
-	/* Hwacg control for init */
-	if (host->pdata->quirks & DW_MCI_QUIRK_HWACG_CTRL) {
-		if (drv_data && drv_data->hwacg_control) {
-			if (host->current_speed > 400 * 1000)
-				drv_data->hwacg_control(host, HWACG_Q_ACTIVE_EN);
-			else
-				drv_data->hwacg_control(host, HWACG_Q_ACTIVE_DIS);
-		}
-	}
 }
 
 inline u32 dw_mci_calc_timeout(struct dw_mci *host)
