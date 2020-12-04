@@ -26,11 +26,6 @@
 #define REG_MAILBOX_INTSR1 (0x028)
 #define REG_MAILBOX_INTMSR1 (0x02C)
 
-#define REG_MAILBOX_ISSR0 (0x100)
-#define REG_MAILBOX_ISSR1 (0x104)
-#define REG_MAILBOX_ISSR2 (0x108)
-#define REG_MAILBOX_ISSR3 (0x10c)
-
 #define IPC_HW_IRQ_MAX (16)
 
 #define IPC_HW_READ_STATUS(base) \

@@ -10,6 +10,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/gpio.h>
 
 #ifdef CONFIG_SENSOR_DRV
 #include "main.h"

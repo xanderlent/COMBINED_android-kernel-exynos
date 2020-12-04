@@ -387,41 +387,6 @@ static bool contexthub_lowlevel_alive(struct contexthub_ipc_info *chub)
 	return atomic_read(&chub->chub_alive_lock.flag);
 }
 
-#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
-static void sensor_alive_check_func(struct work_struct *work)
-{
-	struct contexthub_ipc_info *ipc = container_of(to_delayed_work(work),
-						       struct contexthub_ipc_info,
-						       sensor_alive_work);
-
-	nanohub_info("%s: ipc:%p\n", __func__, ipc);
-	if (ipc->sensor_cnt_last == ipc->ipc_map->sensor_cnt ||
-		ipc->event_rtc_last == ipc->ipc_map->event_rtc_cnt) {
-		ipc->sensor_cnt_no_update++;
-	} else {
-		ipc->sensor_cnt_last = ipc->ipc_map->sensor_cnt;
-		ipc->event_flush_last = ipc->ipc_map->event_flush_cnt;
-		ipc->event_rtc_last = ipc->ipc_map->event_rtc_cnt;
-		ipc->event_hrm_last = ipc->ipc_map->event_hrm_cnt;
-		ipc->rtc_expired_last = ipc->ipc_map->rtc_expired_cnt;
-		ipc->sensor_cnt_no_update = 0;
-	}
-
-	nanohub_info("%s: sensor_cnt:%d/%d, evflush:%d/%d, \
-		evrtc:%d/%d, evhrm:%d/%d, rtcexp:%d/%d, no_cnt:%d\n",
-                __func__, ipc->ipc_map->sensor_cnt, ipc->sensor_cnt_last,
-		ipc->ipc_map->event_flush_cnt, ipc->event_flush_last,
-		ipc->ipc_map->event_rtc_cnt, ipc->event_rtc_last,
-		ipc->ipc_map->event_hrm_cnt, ipc->event_hrm_last,
-		ipc->ipc_map->rtc_expired_cnt, ipc->rtc_expired_last,
-		ipc->sensor_cnt_no_update);
-		if (ipc->sensor_cnt_no_update > SENSORTASK_NO_TS) {
-			contexthub_reset(ipc, true, 0xff);
-			ipc->sensor_cnt_last = ipc->ipc_map->sensor_cnt = ipc->sensor_cnt_no_update = 0;
-		}
-	schedule_delayed_work(&ipc->sensor_alive_work, msecs_to_jiffies(SENSORTASK_KICK_MS));
-}
-#endif
 int contexthub_ipc_write_event(struct contexthub_ipc_info *chub,
 			       enum mailbox_event event)
 {
@@ -434,7 +399,7 @@ int contexthub_ipc_write_event(struct contexthub_ipc_info *chub,
 		ret = contexthub_ipc_drv_init(chub);
 		break;
 	case MAILBOX_EVT_CHUB_ALIVE:
-		pr_info("%s alive check", __func__);
+		nanohub_info("%s alive check\n", __func__);
 		ipc_write_hw_value(IPC_VAL_HW_AP_STATUS, AP_WAKE);
 		val = contexthub_lowlevel_alive(chub);
 		if (val) {

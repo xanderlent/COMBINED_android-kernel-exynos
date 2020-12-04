@@ -58,6 +58,12 @@ config CONTEXTHUB_DEBUG
 	bool "Nanohub debug"
 	default N
 	help
-	  Eanble nanohub device debug message
+	  Enable nanohub device debug message
+
+config CONTEXTHUB_SENSOR_DEBUG
+	bool "Nanohub sensor debug"
+	default N
+	help
+	  Enable nanohub seneor alive check
 
 endif # NANOHUB

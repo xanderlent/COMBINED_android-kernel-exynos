@@ -866,8 +866,10 @@ static int contexthub_suspend(struct device *dev)
 		return 0;
 
 #ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
-	cancel_delayed_work(&ipc->sensor_alive_work);
-	ipc->sensor_alive_work_run = false;
+#ifdef ALIVE_WORK
+	cancel_delayed_work(&chub->sensor_alive_work);
+	chub->sensor_alive_work_run = false;
+#endif
 #endif
 
 	nanohub_dev_info(dev, "%s: irq-pend:ap:%x,chub:%x\n", __func__,
@@ -885,10 +887,12 @@ static int contexthub_resume(struct device *dev)
 	if (atomic_read(&chub->chub_status) != CHUB_ST_RUN)
 		return 0;
 #ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
-	if (ipc->sensor_alive_work_run == false) {
+#ifdef ALIVE_WORK
+	if (chub->sensor_alive_work_run == false) {
 		dev_info(dev, "%s: schedule sensor_alive_work\n", __func__);
-		schedule_delayed_work(&ipc->sensor_alive_work, msecs_to_jiffies(1000));
+		schedule_delayed_work(&chub->sensor_alive_work, msecs_to_jiffies(1000));
 	}
+#endif
 #endif
 	nanohub_dev_info(dev, "%s: irq-pend:ap:%x,chub:%x\n", __func__,
 		ipc_hw_read_int_status_reg_all(chub->mailbox, chub_ipc->my_mb_id),

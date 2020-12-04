@@ -78,6 +78,15 @@
 #define REG_PMU_CHUB_RESET_STATUS	(0x504)
 #define REG_CTRL_REFCLK_PMU		(0x0)
 #define REG_CTRL_REFCLK_CHUB_VTS	(0x8)
+#define REG_MAILBOX_ISSR0 (0x80)
+#define REG_MAILBOX_ISSR1 (0x84)
+#define REG_MAILBOX_ISSR2 (0x88)
+#define REG_MAILBOX_ISSR3 (0x8c)
+#else
+#define REG_MAILBOX_ISSR0 (0x100)
+#define REG_MAILBOX_ISSR1 (0x104)
+#define REG_MAILBOX_ISSR2 (0x108)
+#define REG_MAILBOX_ISSR3 (0x10c)
 #endif
 
 int contexthub_blk_poweron(struct contexthub_ipc_info *chub);

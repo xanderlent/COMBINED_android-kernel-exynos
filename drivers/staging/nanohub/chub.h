@@ -237,7 +237,6 @@ struct contexthub_ipc_info {
 	void __iomem *usi_array[MAX_USI_CNT];
 	int usi_cnt;
 	struct contexthub_baaw_info baaw_info;
-	struct ipc_map_area *ipc_map;
 	struct log_buffer_info *log_info;
 	struct log_buffer_info *dd_log;
 	struct LOG_BUFFER *dd_log_buffer;
@@ -268,16 +267,6 @@ struct contexthub_ipc_info {
 	struct wakeup_source *ws_reset;
 	/* chub f/w callstack */
 	struct contexthub_symbol_table *symbol_table;
-#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
-	struct delayed_work sensor_alive_work;
-	bool sensor_alive_work_run;
-	u32 sensor_cnt_last;
-	u32 event_flush_last;
-	u32 event_rtc_last;
-	u32 event_hrm_last;
-	u32 rtc_expired_last;
-	u32 sensor_cnt_no_update;
-#endif
 	/* communicate with others */
 	/* chub notifiers */
 	struct contexthub_notifier_block chub_cipc_nb;
@@ -286,6 +275,8 @@ struct contexthub_ipc_info {
 	struct notifier_block panic_nb;
 	u32 irq_pin_len;
 	u32 irq_pins[CHUB_IRQ_PIN_MAX];
+	struct delayed_work sensor_alive_work;
+	bool sensor_alive_work_run;
 #ifdef CONFIG_EXYNOS_IMGLOADER
 	/* image loader */
 	struct imgloader_desc chub_img_desc[3];

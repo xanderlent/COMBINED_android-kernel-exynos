@@ -194,7 +194,7 @@ struct ipc_log_content {
 };
 
 #define LOGBUF_SIZE (80)
-#define LOGBUF_NUM (80)
+#define LOGBUF_NUM (79)
 #define LOGBUF_TOTAL_SIZE (LOGBUF_SIZE * LOGBUF_NUM)
 /* u8 error, u8 newline, u16 size, void *next(CM4) */
 #define LOGBUF_DATA_SIZE (LOGBUF_SIZE - sizeof(u64) - sizeof(u32) - sizeof(u16) - 3 * sizeof(u8))
@@ -282,11 +282,38 @@ struct chub_persist {
 	struct chub_dfs dfs;
 };
 
+#if defined(CONFIG_CONTEXTHUB_SENSOR_DEBUG)
+struct ipc_cpu_info {
+        u32 pgcnt;
+        u64 pgtime;
+        u32 cgcnt;
+        u64 cgtime;
+        u64 curtime;
+};
+
+struct sensor_check_cnt {
+	u32 sensor_cnt_last;
+	u32 event_flush_last;
+	u32 event_rtc_last;
+	u32 event_hrm_last;
+	u32 rtc_expired_last;
+	u32 sensor_cnt_no_update;
+};
+#endif
+
 struct ipc_map_area {
 	struct chub_persist persist;
 	char magic[16];
 	u16 wake;
 	u64 value[IPC_VAL_MAX];
+#if defined(CONFIG_CONTEXTHUB_SENSOR_DEBUG)
+        u32 sensor_cnt;
+        u32 event_flush_cnt;
+        u32 event_rtc_cnt;
+        u32 event_hrm_cnt;
+        u32 rtc_expired_cnt;
+        struct ipc_cpu_info cpu_info;
+#endif
 	struct sensor_map sensormap;
 	struct ipc_logbuf logbuf;
 	struct cipc_map_area *cipc_base;
@@ -311,6 +338,7 @@ struct ipc_info *ipc_init(enum ipc_owner owner, enum ipc_mb_id mb_id,
 void *ipc_get_base(enum ipc_region area);
 u32 ipc_get_size(enum ipc_region area);
 int ipc_hw_read_int_start_index(enum ipc_owner owner);
+int ipc_sensor_alive_check(void);
 /* logbuf functions */
 enum ipc_fw_loglevel ipc_logbuf_loglevel(enum ipc_fw_loglevel loglevel,
 					 int set);

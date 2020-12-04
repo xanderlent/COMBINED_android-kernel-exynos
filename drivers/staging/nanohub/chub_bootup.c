@@ -22,7 +22,8 @@
 #include "chub.h"
 #include "chub_exynos.h"
 
-#define CHUB_ONE_BINARY
+#define CHUB_ONE_BINARY 1
+#undef ALIVE_WORK
 
 const char *os_image[SENSOR_VARIATION] = {
 	"os.checked_0.bin",
@@ -56,6 +57,25 @@ static inline void contexthub_set_in_reset(struct contexthub_ipc_info *chub,
 static ssize_t chub_reset(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count);
 
+#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
+#define SENSORTASK_KICK_MS (5000)
+
+void sensor_alive_check_func(struct work_struct *work)
+{
+	int ret;
+	struct contexthub_ipc_info *ipc = container_of(to_delayed_work(work),
+						       struct contexthub_ipc_info,
+						       sensor_alive_work);
+
+	nanohub_info("%s\n", __func__);
+	ret = ipc_sensor_alive_check();
+	if (ret < 0) {
+		nanohub_info("%s: contexthub no reponce -> reset\n", __func__);
+		contexthub_reset(ipc, true, 0xff);
+	}
+	schedule_delayed_work(&ipc->sensor_alive_work, msecs_to_jiffies(SENSORTASK_KICK_MS));
+}
+#endif
 static int contexthub_alive_check(struct contexthub_ipc_info *chub)
 {
 	int trycnt = 0;
@@ -522,15 +542,16 @@ int contexthub_reset(struct contexthub_ipc_info *chub, bool force_load,
 			ret = -EINVAL;
 			goto out;
 		}
-
-		if (!IS_ENABLED(CHUB_ONE_BINARY) && force_load) { /* can use new binary */
+		if (!IS_ENABLED(CHUB_ONE_BINARY)) {
+			if (force_load) { /* can use new binary */
 #ifdef CONFIG_EXYNOS_IMGLOADER
-			ret = imgloader_boot(&chub->chub_img_desc[chub->num_os + 1]);
+				ret = imgloader_boot(&chub->chub_img_desc[chub->num_os + 1]);
 #else
-			ret = contexthub_download_image(chub, IPC_REG_OS);
+				ret = contexthub_download_image(chub, IPC_REG_OS);
 #endif
-		} else { /* use previous binary */
-			ret = contexthub_download_and_check_image(chub, IPC_REG_OS);
+			} else { /* use previous binary */
+				ret = contexthub_download_and_check_image(chub, IPC_REG_OS);
+			}
 		}
 		if (ret) {
 			nanohub_dev_err(chub->dev, "%s: download os fails\n", __func__);
@@ -561,6 +582,7 @@ int contexthub_reset(struct contexthub_ipc_info *chub, bool force_load,
 				 __func__, chub->err_cnt[CHUB_ERR_RESET_CNT]);
 		chub->err_cnt[CHUB_ERR_RESET_CNT]++;
 		contexthub_reset_token(chub);
+		contexthub_log_active_work(chub);
 	}
 
 out:
@@ -693,11 +715,14 @@ int contexthub_poweron(struct contexthub_ipc_info *chub)
 #endif
 
 #ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
+#ifdef ALIVE_WORK
 	nanohub_dev_info(dev, "contexthub schedule sensor_alive_work\n");
 	schedule_delayed_work(&chub->sensor_alive_work, msecs_to_jiffies(SENSORTASK_KICK_MS * 4));
 	chub->sensor_alive_work_run = true;
+#else
+	nanohub_dev_info(dev, "skip sensor_alive_work\n");
 #endif
-
+#endif
 	nanohub_info("%s done!\n", __func__);
 
 	return 0;

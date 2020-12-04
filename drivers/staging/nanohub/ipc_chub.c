@@ -12,6 +12,7 @@
 #include "ipc_chub.h"
 
 static struct ipc_info ipc;
+static struct sensor_check_cnt cnt;
 
 #if defined(CHUB_IPC)
 #define NAME_PREFIX "ipc"
@@ -243,6 +244,43 @@ u64 ipc_read_hw_value(enum ipc_value_id id)
 	};
 	return val;
 }
+#ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
+#define SENSORTASK_NO_TS (3)
+
+int ipc_sensor_alive_check(void) {
+
+	if (cnt.sensor_cnt_last == ipc.ipc_map->sensor_cnt ||
+		cnt.event_rtc_last == ipc.ipc_map->event_rtc_cnt) {
+		cnt.sensor_cnt_no_update++;
+	} else {
+		cnt.sensor_cnt_last = ipc.ipc_map->sensor_cnt;
+		cnt.event_flush_last = ipc.ipc_map->event_flush_cnt;
+		cnt.event_rtc_last = ipc.ipc_map->event_rtc_cnt;
+		cnt.event_hrm_last = ipc.ipc_map->event_hrm_cnt;
+		cnt.rtc_expired_last = ipc.ipc_map->rtc_expired_cnt;
+		cnt.sensor_cnt_no_update = 0;
+	}
+
+	nanohub_info("%s: sensor_cnt:%d/%d, evflush:%d/%d, \
+		evrtc:%d/%d, evhrm:%d/%d, rtcexp:%d/%d, no_cnt:%d\n",
+                __func__, ipc.ipc_map->sensor_cnt, cnt.sensor_cnt_last,
+		ipc.ipc_map->event_flush_cnt, cnt.event_flush_last,
+		ipc.ipc_map->event_rtc_cnt, cnt.event_rtc_last,
+		ipc.ipc_map->event_hrm_cnt, cnt.event_hrm_last,
+		ipc.ipc_map->rtc_expired_cnt, cnt.rtc_expired_last,
+		cnt.sensor_cnt_no_update);
+
+	if (cnt.sensor_cnt_no_update > SENSORTASK_NO_TS) {
+		cnt.sensor_cnt_last = 0;
+		cnt.sensor_cnt_no_update = 0;
+		ipc.ipc_map->sensor_cnt = 0;
+		return -1;
+	}
+
+	return 0;
+}
+
+#endif
 
 static void *ipc_set_map(char *sram_base)
 {

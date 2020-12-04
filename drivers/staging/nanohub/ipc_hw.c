@@ -9,6 +9,7 @@
  */
 
 #include "ipc_hw.h"
+#include "chub_exynos.h"
 
 int ipc_hw_start_bit(enum ipc_mb_id which_mb)
 {
