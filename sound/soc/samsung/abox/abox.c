@@ -4674,6 +4674,7 @@ int abox_register_if(struct device *dev,
 		return -EINVAL;
 	}
 
+/*
 	if (data->cmpnt->name_prefix && dapm->component->name_prefix &&
 			strcmp(data->cmpnt->name_prefix,
 			dapm->component->name_prefix)) {
@@ -4682,6 +4683,7 @@ int abox_register_if(struct device *dev,
 				dapm->component->name_prefix);
 		return -EINVAL;
 	}
+*/
 
 	data->dev_if[id] = dev_if;
 	if (id > data->if_count)
@@ -5462,6 +5464,7 @@ static void abox_pad_retention(bool retention)
 #ifndef EMULATOR
 		exynos_pmu_update(PAD_RETENTION_ABOX_OPTION,
 				0x10000000, 0x10000000);
+		exynos_pmu_update(GPIO_MODE_ABOX_SYS_PWR_REG, 0x1, 0x1);
 #else
 		update_mask_value(pmu_alive + PAD_RETENTION_ABOX_OPTION,
 				0x10000000, 0x10000000);
@@ -5933,6 +5936,8 @@ static int abox_enable(struct device *dev)
 	unsigned int i, value;
 	bool has_reset = !abox_is_timer_set(data);
 	int ret = 0;
+	struct pinctrl *p;
+	struct pinctrl_state *s;
 
 	dev_info(dev, "%s\n", __func__);
 
@@ -5981,7 +5986,28 @@ static int abox_enable(struct device *dev)
 		goto error;
 	}
 
-	abox_cfg_gpio(dev, "default");
+	//abox_cfg_gpio(dev, "default");
+	p = pinctrl_get(dev);
+	if (IS_ERR(p)) {
+		dev_info(dev, "Failed to get pinctrl\n");
+		goto error;
+	}
+
+	s = pinctrl_lookup_state(p, "active");
+	if (IS_ERR(s)) {
+		dev_info(dev, "Failed to pinctrl lookup state\n");
+		pinctrl_put(p);
+		goto error;
+	}
+
+	ret = pinctrl_select_state(p, s);
+	if (ret < 0) {
+		dev_info(dev, "Failed to pinctrl select state\n");
+		pinctrl_put(p);
+		goto error;
+	}
+
+	pinctrl_put(p);
 
 	abox_restore_register(data);
 	if (!has_reset) {
