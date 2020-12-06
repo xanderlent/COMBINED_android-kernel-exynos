@@ -430,20 +430,23 @@
 
 			sound {
 				status = "okay";
-				compatible = "samsung,exynos9110-sound";
+				compatible = "samsung,exynos9110-Sound";
 
 				samsung,routing = "VOUTPUT", "ABOX UAIF0 Playback",
 					"ABOX UAIF1 Capture", "VINPUT1",
 					"VTS PAD DPDM", "DMIC1",
 					"VTS Virtual Output", "VTS Virtual Output Mux",
 					"VTS Virtual Output Mux", "DMIC1";
-				samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4 &vts>;
-				samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX", "VTS";
+				//samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4 &vts>;
+				//samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX", "VTS";
 				//samsung,aux = <&abox_effect>;
 
 				rdma0 {
 					cpu {
-						sound-dai = <&abox 0>;
+						sound-dai = <&abox_rdma_0 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_0 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -451,7 +454,10 @@
 				};
 				rdma1 {
 					cpu {
-						sound-dai = <&abox 1>;
+						sound-dai = <&abox_rdma_1 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_1 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -459,7 +465,10 @@
 				};
 				rdma2 {
 					cpu {
-						sound-dai = <&abox 2>;
+						sound-dai = <&abox_rdma_2 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_2 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -467,7 +476,10 @@
 				};
 				rdma3 {
 					cpu {
-						sound-dai = <&abox 3>;
+						sound-dai = <&abox_rdma_3 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_3 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -475,7 +487,10 @@
 				};
 				rdma4 {
 					cpu {
-						sound-dai = <&abox 4>;
+						sound-dai = <&abox_rdma_4 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_4 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -483,7 +498,10 @@
 				};
 				rdma5 {
 					cpu {
-						sound-dai = <&abox 5>;
+						sound-dai = <&abox_rdma_5 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_5 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -491,7 +509,10 @@
 				};
 				rdma6 {
 					cpu {
-						sound-dai = <&abox 6>;
+						sound-dai = <&abox_rdma_6 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_6 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -499,7 +520,10 @@
 				};
 				rdma7 {
 					cpu {
-						sound-dai = <&abox 7>;
+						sound-dai = <&abox_rdma_7 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_7 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -509,6 +533,9 @@
 					cpu {
 						sound-dai = <&abox 8>;
 					};
+					platform {
+						sound-dai = <&abox_wdma_0 0>;
+					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
 					};
@@ -516,6 +543,9 @@
 				wdma1 {
 					cpu {
 						sound-dai = <&abox 9>;
+					};
+					platform {
+						sound-dai = <&abox_wdma_1 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -525,6 +555,9 @@
 					cpu {
 						sound-dai = <&abox 10>;
 					};
+					platform {
+						sound-dai = <&abox_wdma_2 0>;
+					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
 					};
@@ -533,6 +566,9 @@
 					cpu {
 						sound-dai = <&abox 11>;
 					};
+					platform {
+						sound-dai = <&abox_wdma_3 0>;
+					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
 					};
@@ -540,6 +576,9 @@
 				wdma4 {
 					cpu {
 						sound-dai = <&abox 12>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_4 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -603,7 +642,7 @@
 				};
 				sifs1 {
 					cpu {
-						sound-dai = <&abox 0>;
+						sound-dai = <&abox 1>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -611,7 +650,7 @@
 				};
 				sifs2 {
 					cpu {
-						sound-dai = <&abox 0>;
+						sound-dai = <&abox 2>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
