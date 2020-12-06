@@ -40,7 +40,7 @@
 
 #define COMPR_USE_COPY
 #define COMPR_USE_FIXED_MEMORY
-//#define USE_FIXED_MEMORY
+#define USE_FIXED_MEMORY
 
 /* Mailbox between driver and firmware for offload */
 #define COMPR_CMD_CODE		(0x0004)
@@ -1318,6 +1318,7 @@ static int abox_rdma_hw_params(struct snd_pcm_substream *substream,
 
 	pcmtask_msg->channel_id = id;
 #ifndef USE_FIXED_MEMORY
+	dev_dbg(dev, "%s[%d] fixed\n", __func__, id);
 	ret = iommu_map(data->abox_data->iommu_domain, IOVA_RDMA_BUFFER(id),
 			runtime->dma_addr, round_up(runtime->dma_bytes,
 			PAGE_SIZE), 0);
@@ -1737,12 +1738,76 @@ static void abox_rdma_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
+static int register_rdma_routes(struct device *dev,
+		const struct snd_soc_dapm_route *route_base, int num,
+		struct snd_soc_dapm_context *dapm, const char *name, int id)
+{
+	struct snd_soc_dapm_route *route;
+	int i;
+
+	dev_info(dev, "%s\n", __func__);
+
+	route = devm_kmemdup(dev, route_base, sizeof(*route_base) * num, GFP_KERNEL);
+
+	if (!route)
+		return -ENOMEM;
+
+	for (i = 0; i < num; i++) {
+		if (route[i].sink)
+			route[i].sink = devm_kasprintf(dev, GFP_KERNEL,
+					route[i].sink, id);
+		if (route[i].control)
+			route[i].control = devm_kasprintf(dev, GFP_KERNEL,
+					route[i].control);
+		if (route[i].source)
+			route[i].source = devm_kasprintf(dev, GFP_KERNEL,
+					route[i].source, name);
+	}
+
+	snd_soc_dapm_add_routes(dapm, route, num);
+	devm_kfree(dev, route);
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_route route_base_rdma[] = {
+	/* sink, control, source */
+	{"SPUS IN%d", NULL, "%s Playback"},
+};
+
+int abox_cmpnt_register_rdma(struct snd_soc_dapm_context *dapm, struct device *dev_abox,
+		struct device *dev, unsigned int id, const char *name)
+{
+	struct abox_data *data = dev_get_drvdata(dev_abox);
+
+	dev_info(dev, "%s(%s)\n", __func__, name);
+
+	if (id >= ARRAY_SIZE(data->dev_rdma)) {
+		dev_err(dev, "%s: invalid id(%u)\n", __func__, id);
+		return -EINVAL;
+	}
+
+	data->dev_rdma[id] = dev;
+	if (id > data->rdma_count)
+		data->rdma_count = id + 1;
+
+	return register_rdma_routes(dev, route_base_rdma, 1, dapm, name, id);
+}
+
 static int abox_rdma_probe(struct snd_soc_component *cmpnt)
 {
 	struct device *dev = cmpnt->dev;
 	struct abox_dma_data *data =
 			snd_soc_component_get_drvdata(cmpnt);
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(cmpnt);
 	int ret;
+
+	dev_info(dev, "%s\n", __func__);
+
+	data->cmpnt = cmpnt;
+	abox_cmpnt_register_rdma(dapm, data->abox_data->dev, dev,
+			data->id, data->dai_drv[DMA_DAI_PCM].name);
 
 	if (data->type == PLATFORM_COMPRESS) {
 		struct abox_compr_data *compr_data = &data->compr_data;
@@ -1801,6 +1866,136 @@ struct snd_soc_component_driver abox_rdma = {
 	.pcm_new	= abox_rdma_new,
 	.pcm_free	= abox_rdma_free,
 };
+/*
+static int abox_rdma_dai_bespoke_trigger(struct snd_pcm_substream *substream,
+		int cmd, struct snd_soc_dai *dai)
+{
+	struct device *dev = dai->dev;
+	struct abox_dma_data *dma_data = dev_get_drvdata(dev);
+	struct snd_soc_pcm_runtime *runtime = substream->private_data;
+	struct snd_soc_component *component = dai->component;
+	const struct snd_compr_ops *compr_ops = component->driver->compr_ops;
+	struct abox_compr_data *compr_data = &dma_data->compr_data;
+	struct snd_compr_stream *cstream = compr_data->cstream;
+	struct snd_compr_params *params = &compr_data->codec_param;
+	int stream = substream->stream;
+	struct list_head *clients = &runtime->dpcm[stream].be_clients;
+	struct snd_soc_dpcm *dpcm;
+
+	dev_info(dev, "%s(%d)\n", __func__, cmd);
+
+	if (!compr_ops || !compr_ops->trigger) {
+		dev_err(dev, "%s: invalid substream\n", __func__);
+		return -EINVAL;
+	}
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (compr_data->bespoke_start == false) {
+			if (compr_data->dirty) {
+				compr_ops->set_params(cstream, params);
+				compr_ops->trigger(cstream,
+						SNDRV_PCM_TRIGGER_START);
+			}
+			list_for_each_entry(dpcm, clients, list_be) {
+				struct snd_soc_dai *be_dai;
+				const struct snd_soc_dai_ops *ops;
+
+				be_dai = dpcm->be->cpu_dai;
+				ops = be_dai->driver->ops;
+				if (ops && ops->trigger)
+					ops->trigger(substream, cmd, be_dai);
+			}
+
+			compr_data->bespoke_start = true;
+		} else {
+			dev_info(dev, "%s(%d) already started\n",
+					__func__, cmd);
+		}
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (compr_data->bespoke_start == true) {
+			list_for_each_entry(dpcm, clients, list_be) {
+				struct snd_soc_dai *be_dai;
+				const struct snd_soc_dai_ops *ops;
+
+				be_dai = dpcm->be->cpu_dai;
+				ops = be_dai->driver->ops;
+				if (ops && ops->trigger)
+					ops->trigger(substream, cmd, be_dai);
+
+			}
+			if (compr_data->dirty)
+				compr_ops->trigger(cstream,
+						SNDRV_PCM_TRIGGER_STOP);
+			compr_data->bespoke_start = false;
+		} else {
+			dev_info(dev, "%s(%d) already stopped\n",
+					__func__, cmd);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+*/
+const struct snd_soc_dai_ops abox_rdma_dai_ops = {
+	//.bespoke_trigger = abox_rdma_dai_bespoke_trigger,
+};
+
+static const struct snd_soc_dai_driver abox_rdma_dai_drv[] = {
+	{
+		.ops = &abox_rdma_dai_ops,
+		.playback = {
+			.stream_name = "Playback",
+			.channels_min = 1,
+			.channels_max = 8,
+			.rates = ABOX_SAMPLING_RATES,
+			.rate_min = 8000,
+			.rate_max = 384000,
+			.formats = ABOX_SAMPLE_FORMATS,
+		},
+	},
+};
+
+static enum abox_dai abox_rdma_get_dai_id(enum abox_dma_dai dai, int id)
+{
+	enum abox_dai ret;
+
+	switch (dai) {
+	case DMA_DAI_PCM:
+		ret = ABOX_RDMA0 + id;
+		ret = (ret <= ABOX_RDMA7) ? ret : -EINVAL;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static char *abox_rdma_get_dai_name(struct device *dev, enum abox_dma_dai
+		dai, int id)
+{
+	char *ret;
+
+	switch (dai) {
+	case DMA_DAI_PCM:
+		ret = devm_kasprintf(dev, GFP_KERNEL, "RDMA%d", id);
+		break;
+	default:
+		ret = ERR_PTR(-EINVAL);
+		break;
+	}
+
+	return ret;
+}
 
 static int abox_rdma_runtime_suspend(struct device *dev)
 {
@@ -1839,12 +2034,15 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, data);
-
+	data->dev = dev;
 	data->sfr_base = devm_not_request_and_map(pdev, "sfr", 0, NULL, NULL);
 	if (IS_ERR(data->sfr_base))
 		return PTR_ERR(data->sfr_base);
 
 	data->dev_abox = pdev->dev.parent;
+	//data->dev_abox = abox_get_abox_data()->dev;
+	dev_info(dev, "%s - data(%llx) dev_abox(%llx)\n", __func__,
+			data, data->dev_abox);
 	if (!data->dev_abox) {
 		dev_err(dev, "Failed to get abox platform device\n");
 		return -EPROBE_DEFER;
@@ -1859,17 +2057,16 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 	data->compr_data.isr_handler = abox_rdma_compr_isr_handler;
 
 	abox_register_irq_handler(data->dev_abox, IPC_PCMPLAYBACK,
-			abox_rdma_irq_handler, pdev);
+			abox_rdma_irq_handler, data->abox_data);
 
-	dev_info(dev, "%s(%d)\n", __func__, data->id);
-	ret = of_property_read_u32_index(np, "id", 0, &data->id);
+	ret = of_property_read_u32_index(np, "samsung,id", 0, &data->id);
 	dev_info(dev, "%s(%d)\n", __func__, data->id);
 	if (ret < 0) {
 		dev_err(dev, "id property reading fail\n");
 		return ret;
 	}
 
-	ret = of_property_read_string(np, "type", &type);
+	ret = of_property_read_string(np, "samsung,type", &type);
 	if (ret < 0)
 		return ret;
 
@@ -1914,10 +2111,28 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 	if (!data->dai_drv)
 		return -ENOMEM;
 
+	dev_info(dev, "num_dai(%d)\n", data->num_dai);
+
 	for (i = 0; i < data->num_dai; i++) {
 		data->dai_drv[i].id = of_data->get_dai_id(i, data->id);
-		data->dai_drv[i].name = of_data->get_dai_name(dev, i,
-				data->id);
+		data->dai_drv[i].name = of_data->get_dai_name(dev, i, data->id);
+		dev_info(dev, "id(%d), name(%s)\n", data->dai_drv[i].id,
+				data->dai_drv[i].name);
+
+		if (data->dai_drv[i].capture.formats) {
+			data->dai_drv[i].capture.stream_name =
+				of_data->get_str_name(data->id,
+						SNDRV_PCM_STREAM_CAPTURE);
+			dev_info(dev, "id(%d), Cstream_name(%s)\n", data->id,
+					data->dai_drv[i].capture.stream_name);
+		}
+		if (data->dai_drv[i].playback.formats) {
+			data->dai_drv[i].playback.stream_name =
+				of_data->get_str_name(data->id,
+						SNDRV_PCM_STREAM_PLAYBACK);
+			dev_info(dev, "id(%d), Pstream_name(%s)\n", data->id,
+					data->dai_drv[i].playback.stream_name);
+		}
 	}
 
 	if (data->type == PLATFORM_COMPRESS) {
@@ -1953,10 +2168,41 @@ static int samsung_abox_rdma_remove(struct platform_device *pdev)
 	return 0;
 }
 
+const char *abox_rdma_get_str_name(int id, int stream)
+{
+	static const char * const names_pla[] = {
+		"RDMA0 Playback", "RDMA1 Playback", "RDMA2 Playback",
+		"RDMA3 Playback", "RDMA4 Playback", "RDMA5 Playback",
+		"RDMA6 Playback", "RDMA7 Playback",
+	};
+	static const char * const names_cap[] = {
+		"RDMA0 Capture", "RDMA1 Capture", "RDMA2 Capture",
+		"RDMA3 Capture", "RDMA4 Capture", "RDMA5 Capture",
+		"RDMA6 Capture", "RDMA7 Capture",
+	};
+	const char *ret;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK && id <
+			ARRAY_SIZE(names_pla))
+		ret = names_pla[id];
+	else if (stream == SNDRV_PCM_STREAM_CAPTURE &&
+			id < ARRAY_SIZE(names_cap))
+		ret = names_cap[id];
+	else
+		ret = ERR_PTR(-EINVAL);
+
+	return ret;
+}
+
 static const struct of_device_id samsung_abox_rdma_match[] = {
 	{
 		.compatible = "samsung,abox-rdma",
 		.data = (void *)&(struct abox_dma_of_data){
+			.get_dai_id = abox_rdma_get_dai_id,
+			.get_dai_name = abox_rdma_get_dai_name,
+			.get_str_name = abox_rdma_get_str_name,
+			.dai_drv = abox_rdma_dai_drv,
+			.num_dai = ARRAY_SIZE(abox_rdma_dai_drv),
 			.cmpnt_drv = &abox_rdma,
 		},
 	},

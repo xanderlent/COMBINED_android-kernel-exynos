@@ -588,13 +588,13 @@ static int samsung_abox_wdma_probe(struct platform_device *pdev)
 	abox_register_irq_handler(data->dev_abox, IPC_PCMCAPTURE,
 			abox_wdma_irq_handler, pdev);
 
-	ret = of_property_read_u32_index(np, "id", 0, &data->id);
+	ret = of_property_read_u32_index(np, "samsung,id", 0, &data->id);
 	if (ret < 0) {
 		dev_err(dev, "id property reading fail\n");
 		return ret;
 	}
 
-	ret = of_property_read_string(np, "type", &type);
+	ret = of_property_read_string(np, "samsung,type", &type);
 	if (ret < 0) {
 		dev_err(dev, "type property reading fail\n");
 		return ret;

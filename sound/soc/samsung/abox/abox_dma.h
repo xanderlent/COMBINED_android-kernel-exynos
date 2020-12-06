@@ -184,7 +184,7 @@ struct abox_dma_of_data {
 	enum abox_dai (*get_dai_id)(enum abox_dma_dai dai, int id);
 	char *(*get_dai_name)(struct device *dev, enum abox_dma_dai dai,
 			int id);
-	char *(*get_str_name)(struct device *dev, int id, int stream);
+	const char *(*get_str_name)(int id, int stream);
 	const struct snd_soc_dai_driver *dai_drv;
 	unsigned int num_dai;
 	const struct snd_soc_component_driver *cmpnt_drv;
