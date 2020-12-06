@@ -56,6 +56,7 @@
 		sysmmu,tlb_property =
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_READ(0x0) | SYSMMU_BL1) SYSMMU_NOID>;
 		#iommu-cells = <0>;
+		power-domains = <&pd_dispaud>;
 	};
 
 	sysmmu_isp: sysmmu@14540000 {
