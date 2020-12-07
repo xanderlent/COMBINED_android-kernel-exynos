@@ -751,7 +751,7 @@
 &dwmmc_2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "disabled";
+	status = "okay";
 	num-slots = <1>;
 	supports-4bit;
 	supports-cmd23;
@@ -781,7 +781,7 @@
 	ciu_clkin = <25 50 50 25 50 100 200 50 50>;
 
 	clk-drive-number = <4>;
-	pinctrl-names = "default",
+	pinctrl-names = "init",
 		"fast-slew-rate-1x",
 		"fast-slew-rate-2x",
 		"fast-slew-rate-3x",
