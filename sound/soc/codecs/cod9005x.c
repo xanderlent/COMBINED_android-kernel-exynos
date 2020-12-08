@@ -32,6 +32,7 @@
 #include <linux/mfd/samsung/s2mpw02-regulator.h>
 #include <soc/samsung/acpm_mfd.h>
 #include <sound/cod9005x.h>
+#include <sound/samsung/abox.h>
 #include "cod9005x.h"
 
 #define COD9005X_SAMPLE_RATE_48KHZ	48000
@@ -307,31 +308,27 @@ SOC_ENUM_SINGLE(COD9005X_50_DAC1, DAC1_MONOMIX_SHIFT,
 
 static void cod9005x_dac_mute(struct snd_soc_component *codec, bool on)
 {
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
-	
 	dev_dbg(codec->dev, "%s called, %s\n", __func__,
 			on ? "Mute" : "Unmute");
 
 	if (on)
-		regmap_update_bits(cod9005x->regmap, COD9005X_50_DAC1,
+		snd_soc_component_update_bits(codec, COD9005X_50_DAC1,
 				DAC1_SOFT_MUTE_MASK, DAC1_SOFT_MUTE_MASK);
 	else
-		regmap_update_bits(cod9005x->regmap, COD9005X_50_DAC1,
+		snd_soc_component_update_bits(codec, COD9005X_50_DAC1,
 				DAC1_SOFT_MUTE_MASK, 0x0);
 }
 
 static void cod9005x_adc_digital_mute(struct snd_soc_component *codec, bool on)
 {
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
-
 	dev_dbg(codec->dev, "%s called, %s\n", __func__,
 			on ? "Mute" : "Unmute");
 
 	if (on)
-		regmap_update_bits(cod9005x->regmap, COD9005X_46_ADC1,
+		snd_soc_component_update_bits(codec, COD9005X_46_ADC1,
 				ADC1_MUTE_AD_EN_MASK, ADC1_MUTE_AD_EN_MASK);
 	else
-		regmap_update_bits(cod9005x->regmap, COD9005X_46_ADC1,
+		snd_soc_component_update_bits(codec, COD9005X_46_ADC1,
 				ADC1_MUTE_AD_EN_MASK, 0x0);
 }
 
@@ -339,11 +336,10 @@ static int dac_soft_mute_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
 	unsigned int dac_control;
 	bool soft_mute_flag;
 
-	regmap_read(cod9005x->regmap, COD9005X_50_DAC1, &dac_control);
+	dac_control = snd_soc_component_read32(codec, COD9005X_50_DAC1);
 	soft_mute_flag = dac_control & DAC1_SOFT_MUTE_MASK;
 
 	ucontrol->value.integer.value[0] = soft_mute_flag;
@@ -374,11 +370,10 @@ static int adc_digital_mute_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
 	unsigned int adc_control;
 	bool digital_mute_flag;
 
-	regmap_read(cod9005x->regmap, COD9005X_46_ADC1, &adc_control);
+	adc_control = snd_soc_component_read32(codec, COD9005X_46_ADC1);
 	digital_mute_flag = adc_control & ADC1_MUTE_AD_EN_MASK;
 
 	ucontrol->value.integer.value[0] = digital_mute_flag;
@@ -437,11 +432,10 @@ static int dmic_clk_off_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
 	unsigned int digital_power;
 	bool dmic_clk_flag;
 
-	regmap_read(cod9005x->regmap, COD9005X_40_DIGITAL_POWER, &digital_power);
+	digital_power = snd_soc_component_read32(codec, COD9005X_40_DIGITAL_POWER);
 	dmic_clk_flag = digital_power & DMIC_CLK0_EN_MASK;
 
 	ucontrol->value.integer.value[0] = dmic_clk_flag;
@@ -453,17 +447,16 @@ static int dmic_clk_off_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
 	int value = ucontrol->value.integer.value[0];
 
 	if (value) {
-		regmap_write(cod9005x->regmap, COD9005X_0F_IO_CTRL1, 0x2A);
-		regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+		snd_soc_component_write(codec, COD9005X_0F_IO_CTRL1, 0x2A);
+		snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 				DMIC_CLK1_EN_MASK|DMIC_CLK0_EN_MASK,
 				DMIC_CLK1_EN_MASK|DMIC_CLK0_EN_MASK);
 	} else {
-		regmap_write(cod9005x->regmap, COD9005X_0F_IO_CTRL1, 0x00);
-		regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+		snd_soc_component_write(codec, COD9005X_0F_IO_CTRL1, 0x00);
+		snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 				DMIC_CLK1_EN_MASK|DMIC_CLK0_EN_MASK, 0);
 	}
 
@@ -563,52 +556,50 @@ static int dac_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		int event)
 {
 	struct snd_soc_component *codec = snd_soc_dapm_to_component(w->dapm);
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
-	unsigned int ret;
 
 	dev_dbg(codec->dev, "%s called, event = %d\n", __func__, event);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		/* Boost control enable */
-		regmap_write(cod9005x->regmap, COD9005X_94_BST_CTL, 0x08);
+		snd_soc_component_write(codec, COD9005X_94_BST_CTL, 0x08);
 
 		/* Mute scheme selection */
-		regmap_update_bits(cod9005x->regmap, COD9005X_B0_CTR_SPK_MU1,
+		snd_soc_component_update_bits(codec, COD9005X_B0_CTR_SPK_MU1,
 				SEL_AMU_MASK, SEL_AMU_MASK);
 
 		cod9005x_dac_mute(codec, SOFT_MUTE_ENABLE);
 
 		/* DAC digital power On */
-		regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+		snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 				PDB_DACDIG_MASK, PDB_DACDIG_MASK);
 
 		/* DAC digital Reset On/Off */
-		regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+		snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 				RSTB_DAT_DA_MASK, 0);
-		regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+		snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 				RSTB_DAT_DA_MASK, RSTB_DAT_DA_MASK);
 
 		/* LRCLK half-period count */
-		regmap_read(cod9005x->regmap, COD9005X_67_CED_CHK1, &ret);
-		regmap_read(cod9005x->regmap, COD9005X_68_CED_CHK2, &ret);
+		snd_soc_component_read32(codec, COD9005X_67_CED_CHK1);
+		snd_soc_component_read32(codec, COD9005X_68_CED_CHK2);
 
 		/* BCLK half-period count */
-		regmap_read(cod9005x->regmap, COD9005X_69_CED_CHK3, &ret);
+		snd_soc_component_read32(codec, COD9005X_69_CED_CHK3);
 
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		/* DAC digital Reset Off */
-		regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+		snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 				RSTB_DAT_DA_MASK, 0x0);
 
 		/* DAC digital power Off */
-		regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+		snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 				PDB_DACDIG_MASK, 0x0);
 
 		/* Boost control disable */
-		regmap_write(cod9005x->regmap, COD9005X_94_BST_CTL, 0x01);
+		snd_soc_component_write(codec, COD9005X_94_BST_CTL, 0x01);
 
 		break;
 
@@ -631,19 +622,19 @@ static int cod9005x_dmic_capture_init(struct snd_soc_component *codec)
 	mutex_unlock(&cod9005x->adc_mute_lock);
 
 	/* DMIC CLK ON */
-	regmap_write(cod9005x->regmap, COD9005X_0F_IO_CTRL1, 0x2A);
-	regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+	snd_soc_component_write(codec, COD9005X_0F_IO_CTRL1, 0x2A);
+	snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 			DMIC_CLK1_EN_MASK|DMIC_CLK0_EN_MASK,
 			DMIC_CLK1_EN_MASK|DMIC_CLK0_EN_MASK);
 
 	/* Recording Digital Power on */
-	regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+	snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 			PDB_ADCDIG_MASK, PDB_ADCDIG_MASK);
 
 	/* Recording Digital Reset on/off */
-	regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+	snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 			RSTB_DAT_AD_MASK, 0x0);
-	regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+	snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 			RSTB_DAT_AD_MASK, RSTB_DAT_AD_MASK);
 
 	return 0;
@@ -656,16 +647,16 @@ static int cod9005x_dmic_capture_deinit(struct snd_soc_component *codec)
 	dev_dbg(codec->dev, "%s called.\n", __func__);
 
 	/* DMIC CLK OFF */
-	regmap_write(cod9005x->regmap, COD9005X_0F_IO_CTRL1, 0x00);
-	regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+	snd_soc_component_write(codec, COD9005X_0F_IO_CTRL1, 0x00);
+	snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 			DMIC_CLK1_EN_MASK|DMIC_CLK0_EN_MASK, 0);
 
 	/* Recording Digital Reset on */
-	regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+	snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 			RSTB_DAT_AD_MASK, 0x0);
 
 	/* Recording Digital  Power off */
-	regmap_update_bits(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+	snd_soc_component_update_bits(codec, COD9005X_40_DIGITAL_POWER,
 			PDB_ADCDIG_MASK, 0x0);
 
 	/* disable ADC digital mute after configuring ADC */
@@ -730,11 +721,9 @@ static int cod9005x_mute_mic(struct snd_soc_component *codec, bool on)
 
 static int cod9005_power_on_dmic1(struct snd_soc_component *codec)
 {
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
-
 	dev_dbg(codec->dev, "%s called\n", __func__);
 
-	regmap_update_bits(cod9005x->regmap, COD9005X_49_DMIC1,
+	snd_soc_component_update_bits(codec, COD9005X_49_DMIC1,
 			SEL_DMIC_L_MASK | SEL_DMIC_R_MASK,
 			DMIC1L << SEL_DMIC_L_SHIFT | DMIC1L << SEL_DMIC_R_SHIFT);
 	return 0;
@@ -742,11 +731,9 @@ static int cod9005_power_on_dmic1(struct snd_soc_component *codec)
 
 static int cod9005_power_off_dmic1(struct snd_soc_component *codec)
 {
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
-
 	dev_dbg(codec->dev, "%s called\n", __func__);
 
-	regmap_update_bits(cod9005x->regmap, COD9005X_49_DMIC1,
+	snd_soc_component_update_bits(codec, COD9005X_49_DMIC1,
 			SEL_DMIC_L_MASK | SEL_DMIC_R_MASK,
 			NOTUSE << SEL_DMIC_L_SHIFT | NOTUSE << SEL_DMIC_R_SHIFT);
 
@@ -755,11 +742,9 @@ static int cod9005_power_off_dmic1(struct snd_soc_component *codec)
 
 static int cod9005_power_on_dmic2(struct snd_soc_component *codec)
 {
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
-
 	dev_dbg(codec->dev, "%s called\n", __func__);
 
-	regmap_update_bits(cod9005x->regmap, COD9005X_49_DMIC1,
+	snd_soc_component_update_bits(codec, COD9005X_49_DMIC1,
 			SEL_DMIC_L_MASK | SEL_DMIC_R_MASK,
 			DMIC2L << SEL_DMIC_L_SHIFT | DMIC2L << SEL_DMIC_R_SHIFT);
 
@@ -768,11 +753,9 @@ static int cod9005_power_on_dmic2(struct snd_soc_component *codec)
 
 static int cod9005_power_off_dmic2(struct snd_soc_component *codec)
 {
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
-	
 	dev_dbg(codec->dev, "%s called\n", __func__);
 
-	regmap_update_bits(cod9005x->regmap, COD9005X_49_DMIC1,
+	snd_soc_component_update_bits(codec, COD9005X_49_DMIC1,
 			SEL_DMIC_L_MASK | SEL_DMIC_R_MASK,
 			NOTUSE << SEL_DMIC_L_SHIFT | NOTUSE << SEL_DMIC_R_SHIFT);
 
@@ -855,20 +838,19 @@ static int spkdrv_ev(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *codec = snd_soc_dapm_to_component(w->dapm);
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
 
 	dev_info(codec->dev, "%s called, event = %d\n", __func__, event);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		/* SPK Path Auto Power On */
-		regmap_update_bits(cod9005x->regmap, COD9005X_18_PWAUTO_DA,
+		snd_soc_component_update_bits(codec, COD9005X_18_PWAUTO_DA,
 				DLYST_DA_MASK|APW_SPK_MASK, DLYST_DA_MASK|APW_SPK_MASK);
 
 		msleep(105);
 
 		/* DCT pre-charge Off */
-		regmap_update_bits(cod9005x->regmap, COD9005X_14_PD_DA1, EN_DCTL_PREQ_MASK, 0);
+		snd_soc_component_update_bits(codec, COD9005X_14_PD_DA1, EN_DCTL_PREQ_MASK, 0);
 
 		cod9005x_dac_mute(codec, SOFT_MUTE_DISABLE);
 		break;
@@ -877,12 +859,12 @@ static int spkdrv_ev(struct snd_soc_dapm_widget *w,
 
 		/* For remove speaker off noise, speaker turn off before bclk disable */
 		cod9005x_dac_mute(codec, SOFT_MUTE_ENABLE);
-		regmap_update_bits(cod9005x->regmap, COD9005X_18_PWAUTO_DA,
+		snd_soc_component_update_bits(codec, COD9005X_18_PWAUTO_DA,
 				DLYST_DA_MASK|APW_SPK_MASK, 0);
 		cod9005x_usleep(8000);
 
 		/* DCT pre-charge On */
-		regmap_update_bits(cod9005x->regmap, COD9005X_14_PD_DA1,
+		snd_soc_component_update_bits(codec, COD9005X_14_PD_DA1,
 				EN_DCTL_PREQ_MASK, EN_DCTL_PREQ_MASK);
 
 		break;
@@ -895,7 +877,7 @@ static int spkdrv_ev(struct snd_soc_dapm_widget *w,
 }
 
 /* DMIC1 DMIC1 L [6:4] */
-/*static const char * const cod9005x_dmicl_src1[] = {
+static const char * const cod9005x_dmicl_src1[] = {
 	"Zero Data1", "Zero Data2", "Zero Data3", "Not Use",
 	"DMIC1L DMIC1L", "DMIC1R DMIC1L", "DMIC2L DMIC1L", "DMIC2R DMIC1L"
 };
@@ -904,10 +886,10 @@ static SOC_ENUM_SINGLE_DECL(cod9005x_dmicl_enum1, COD9005X_49_DMIC1,
 		SEL_DMIC_L_SHIFT, cod9005x_dmicl_src1);
 
 static const struct snd_kcontrol_new cod9005x_dmicl_mux1 =
-		SOC_DAPM_ENUM("DMICL Mux1", cod9005x_dmicl_enum1);*/
+		SOC_DAPM_ENUM("DMICL Mux1", cod9005x_dmicl_enum1);
 
 /* DMIC1 DMIC1 R [2:0] */
-/* static const char * const cod9005x_dmicr_src1[] = {
+ static const char * const cod9005x_dmicr_src1[] = {
 	"Zero Data1", "Zero Data2", "Zero Data3", "Not Use",
 	"DMIC1L DMIC1R", "DMIC1R DMIC1R", "DMIC2L DMIC1R", "DMIC2R DMIC1R"
 };
@@ -916,7 +898,7 @@ static SOC_ENUM_SINGLE_DECL(cod9005x_dmicr_enum1, COD9005X_49_DMIC1,
 		SEL_DMIC_R_SHIFT, cod9005x_dmicr_src1);
 
 static const struct snd_kcontrol_new cod9005x_dmicr_mux1 =
-		SOC_DAPM_ENUM("DMICR Mux1", cod9005x_dmicr_enum1);*/
+		SOC_DAPM_ENUM("DMICR Mux1", cod9005x_dmicr_enum1);
 
 
 /* SEL_ADC0 [1:0] */
@@ -1096,12 +1078,11 @@ static int cod9005x_dai_hw_free(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *codec = dai->component;
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
 
 	/* For remove speaker off noise, speaker turn off before bclk disable */
 	if (substream->stream == 0) {
 		cod9005x_dac_mute(codec, SOFT_MUTE_ENABLE);
-		regmap_update_bits(cod9005x->regmap, COD9005X_18_PWAUTO_DA,
+		snd_soc_component_update_bits(codec, COD9005X_18_PWAUTO_DA,
 				DLYST_DA_MASK|APW_SPK_MASK, 0);
 		cod9005x_usleep(8000);
 	}
@@ -1234,9 +1215,8 @@ static void cod9005x_regulators_disable(struct snd_soc_component *codec)
 
 static void cod9005x_reset_io_selector_bits(struct snd_soc_component *codec)
 {
-	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
 	/* Reset output selector bits */
-	regmap_update_bits(cod9005x->regmap, COD9005X_77_CHOP_DA, EN_SPK_CHOP_MASK, 0x0);
+	snd_soc_component_update_bits(codec, COD9005X_77_CHOP_DA, EN_SPK_CHOP_MASK, 0x0);
 }
 
 /**
@@ -1262,46 +1242,46 @@ static void cod9005x_codec_initialize(void *context)
 	cod9005x_enable(codec->dev);
 #endif
 
-	regmap_write(cod9005x->regmap, COD9005X_80_PDB_ACC1, 0x02);
+	snd_soc_component_write(codec, COD9005X_80_PDB_ACC1, 0x02);
 	cod9005x_usleep(15000);
 
 	/* DCT pre-charge On */
-	regmap_write(cod9005x->regmap, COD9005X_14_PD_DA1, 0x20);
+	snd_soc_component_write(codec, COD9005X_14_PD_DA1, 0x20);
 
 	/* IO Setting for DMIC */
-	regmap_write(cod9005x->regmap, COD9005X_0F_IO_CTRL1, 0x00);
-	regmap_write(cod9005x->regmap, COD9005X_40_DIGITAL_POWER, 0x58);
+	snd_soc_component_write(codec, COD9005X_0F_IO_CTRL1, 0x00);
+	snd_soc_component_write(codec, COD9005X_40_DIGITAL_POWER, 0x58);
 
 	/* I2S interface setting */
-	regmap_write(cod9005x->regmap, COD9005X_41_IF1_FORMAT1, 0x00);
-	regmap_write(cod9005x->regmap, COD9005X_42_IF1_FORMAT2, 0x10);
-	regmap_write(cod9005x->regmap, COD9005X_43_IF1_FORMAT3, 0x20);
-	regmap_write(cod9005x->regmap, COD9005X_44_IF1_FORMAT4, 0xE4);
-	regmap_write(cod9005x->regmap, COD9005X_45_IF1_FORMAT5, 0x10);
+	snd_soc_component_write(codec, COD9005X_41_IF1_FORMAT1, 0x00);
+	snd_soc_component_write(codec, COD9005X_42_IF1_FORMAT2, 0x10);
+	snd_soc_component_write(codec, COD9005X_43_IF1_FORMAT3, 0x20);
+	snd_soc_component_write(codec, COD9005X_44_IF1_FORMAT4, 0xE4);
+	snd_soc_component_write(codec, COD9005X_45_IF1_FORMAT5, 0x10);
 
 	/* DMIC control setting */
-	regmap_write(cod9005x->regmap, COD9005X_49_DMIC1, 0x33);
-	regmap_write(cod9005x->regmap, COD9005X_4A_DMIC2, 0x14);
+	snd_soc_component_write(codec, COD9005X_49_DMIC1, 0x33);
+	snd_soc_component_write(codec, COD9005X_4A_DMIC2, 0x14);
 
 	/* ADC digital volume setting */
-	regmap_write(cod9005x->regmap, COD9005X_4B_AVOLL1_SUB, 0x54);
-	regmap_write(cod9005x->regmap, COD9005X_4C_AVOLR1_SUB, 0x54);
+	snd_soc_component_write(codec, COD9005X_4B_AVOLL1_SUB, 0x54);
+	snd_soc_component_write(codec, COD9005X_4C_AVOLR1_SUB, 0x54);
 
 	/* DAC digital volume setting */
-	regmap_write(cod9005x->regmap, COD9005X_51_DVOLL, 0x68);
-	regmap_write(cod9005x->regmap, COD9005X_52_DVOLR, 0x68);
+	snd_soc_component_write(codec, COD9005X_51_DVOLL, 0x68);
+	snd_soc_component_write(codec, COD9005X_52_DVOLR, 0x68);
 
 	/* DAC, ADC digital mute */
-	regmap_write(cod9005x->regmap, COD9005X_50_DAC1, 0x02);
-	regmap_write(cod9005x->regmap, COD9005X_46_ADC1, 0x0D);
+	snd_soc_component_write(codec, COD9005X_50_DAC1, 0x02);
+	snd_soc_component_write(codec, COD9005X_46_ADC1, 0x0D);
 
 	/* AVC Slope Parameter Setting */
-	regmap_write(cod9005x->regmap, COD9005X_F2_AVC_PARAM18, cod9005x->avc_slope_param1);
-	regmap_write(cod9005x->regmap, COD9005X_F3_AVC_PARAM19, cod9005x->avc_slope_param2);
+	snd_soc_component_write(codec, COD9005X_F2_AVC_PARAM18, cod9005x->avc_slope_param1);
+	snd_soc_component_write(codec, COD9005X_F3_AVC_PARAM19, cod9005x->avc_slope_param2);
 
 	/* Speaker Boost Headroom Tuning */
-	regmap_write(cod9005x->regmap, COD9005X_92_BOOST_HR0, cod9005x->boost_hr0);
-	regmap_write(cod9005x->regmap, COD9005X_93_BOOST_HR1, cod9005x->boost_hr1);
+	snd_soc_component_write(codec, COD9005X_92_BOOST_HR0, cod9005x->boost_hr0);
+	snd_soc_component_write(codec, COD9005X_93_BOOST_HR1, cod9005x->boost_hr1);
 
 	/* All boot time hardware access is done. Put the device to sleep. */
 #ifdef CONFIG_PM
@@ -1325,25 +1305,24 @@ static void cod9005x_regmap_sync(struct device *dev)
 	struct cod9005x_priv *cod9005x = dev_get_drvdata(dev);
 	unsigned char reg[COD9005X_MAX_REGISTER] = {0,};
 	int i;
-	unsigned int ret;
 
 	/* Read from Cache */
 	for (i = 0; i < COD9005X_REGCACHE_SYNC_END_REG; i++)
 		if (cod9005x_readable_register(dev, i) &&
 				(!cod9005x_volatile_register(dev, i)))
 			reg[i] = (unsigned char)
-				regmap_read(cod9005x->regmap, i, &ret);
+				snd_soc_component_read32(cod9005x->codec, i);
 
 	regcache_cache_bypass(cod9005x->regmap, true);
 
-	regmap_write(cod9005x->regmap, COD9005X_40_DIGITAL_POWER,
+	snd_soc_component_write(cod9005x->codec, COD9005X_40_DIGITAL_POWER,
 			reg[COD9005X_40_DIGITAL_POWER]);
 
 	/* Update HW */
 	for (i = 0; i < COD9005X_REGCACHE_SYNC_END_REG ; i++)
 		if (cod9005x_writeable_register(dev, i) &&
 				(!cod9005x_volatile_register(dev, i)))
-			regmap_write(cod9005x->regmap, i, reg[i]);
+			snd_soc_component_write(cod9005x->codec, i, reg[i]);
 
 	regcache_cache_bypass(cod9005x->regmap, false);
 }
@@ -1352,7 +1331,7 @@ static void cod9005x_reg_restore(struct snd_soc_component *codec)
 {
 	struct cod9005x_priv *cod9005x = snd_soc_component_get_drvdata(codec);
 
-	regmap_update_bits(cod9005x->regmap, COD9005X_80_PDB_ACC1,
+	snd_soc_component_update_bits(codec, COD9005X_80_PDB_ACC1,
 			EN_ACC_CLK_MASK, EN_ACC_CLK_MASK);
 
 	/* Give 15ms delay before storing the otp values */
@@ -1430,68 +1409,6 @@ static void cod9005x_i2c_parse_dt(struct cod9005x_priv *cod9005x)
 		cod9005x->boost_hr1 = COD9005X_SPK_BST_HR1_DEFAULT;
 }
 
-/*
-struct codec_notifier_struct {
-	struct cod9005x_priv *cod9005x;
-};
-static struct codec_notifier_struct codec_notifier_t;
-
-static void  cod9005x_notifier_handler(struct notifier_block *nb,
-		unsigned long insert,
-		void *data)
-{
-	struct codec_notifier_struct *codec_notifier_data = data;
-	struct cod9005x_priv *cod9005x = codec_notifier_data->cod9005x;
-	unsigned int stat1, pend1, pend2, pend3, pend4;
-
-	mutex_lock(&cod9005x->key_lock);
-
-	pend1 = cod9005x->irq_val[0];
-	pend2 = cod9005x->irq_val[1];
-	pend3 = cod9005x->irq_val[2];
-	pend4 = cod9005x->irq_val[3];
-	stat1 = cod9005x->irq_val[4];
-
-	dev_dbg(cod9005x->dev,
-			"[DEBUG] %s , line %d 01: %02x, 02:%02x, 03:%02x, 04:%02x, stat1:%02x\n",
-			__func__, __LINE__, pend1, pend2, pend3, pend4, stat1);
-
-	mutex_unlock(&cod9005x->key_lock);
-}
-static BLOCKING_NOTIFIER_HEAD(cod9005x_notifier);
-
-int cod9005x_register_notifier(struct notifier_block *n,
-		struct cod9005x_priv *cod9005x)
-{
-	int ret;
-
-	codec_notifier_t.cod9005x = cod9005x;
-	ret = blocking_notifier_chain_register(&cod9005x_notifier, n);
-	if (ret < 0)
-		pr_err("[DEBUG] %s(%d)\n", __func__, __LINE__);
-	return ret;
-}
-
-void cod9005x_call_notifier(int irq1, int irq2, int irq3, int irq4, int status1,
-		int param1, int param2, int param3, int param4, int param5)
-{
-	struct cod9005x_priv *cod9005x = codec_notifier_t.cod9005x;
-
-	dev_dbg(cod9005x->dev,
-			"[DEBUG] %s(%d)  0x1: %02x 0x2: %02x 0x3: %02x 0x4: %02x\n",
-			__func__, __LINE__, irq1, irq2, irq3, irq4);
-
-	cod9005x->irq_val[0] = irq1;
-	cod9005x->irq_val[1] = irq2;
-	cod9005x->irq_val[2] = irq3;
-	cod9005x->irq_val[3] = irq4;
-	cod9005x->irq_val[4] = status1;
-
-	blocking_notifier_call_chain(&cod9005x_notifier, 0, &codec_notifier_t);
-}
-EXPORT_SYMBOL(cod9005x_call_notifier);
-struct notifier_block codec_notifier;
-*/
 
 static int cod9005x_codec_probe(struct snd_soc_component *codec)
 {
@@ -1532,16 +1449,6 @@ static int cod9005x_codec_probe(struct snd_soc_component *codec)
 	cod9005x_i2c_parse_dt(cod9005x);
 
 	mutex_init(&cod9005x->adc_mute_lock);
-
-	/*
-	 * interrupt pin should be shared with pmic.
-	 * so codec driver use notifier because of knowing
-	 * the interrupt status from mfd.
-	 */
-//	codec_notifier.notifier_call = cod9005x_notifier_handler,
-//		cod9005x_register_notifier(&codec_notifier, cod9005x);
-
-//	set_codec_notifier_flag();
 
 	msleep(20);
 
