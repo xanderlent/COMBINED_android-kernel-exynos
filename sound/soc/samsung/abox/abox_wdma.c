@@ -37,7 +37,7 @@
 #include "abox.h"
 #include "abox_dma.h"
 
-//#define USE_FIXED_MEMORY
+#define USE_FIXED_MEMORY
 
 static const struct snd_pcm_hardware abox_wdma_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED
@@ -550,11 +550,140 @@ static void abox_wdma_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
+static int register_wdma_routes(struct device *dev,
+		const struct snd_soc_dapm_route *route_base, int num,
+		struct snd_soc_dapm_context *dapm, const char *name, int id)
+{
+	struct snd_soc_dapm_route *route;
+	int i;
+
+	dev_info(dev, "%s(%d)\n", __func__, id);
+
+	route = devm_kmemdup(dev, route_base, sizeof(*route_base) * num,
+			GFP_KERNEL);
+	if (!route)
+		return -ENOMEM;
+
+	for (i = 0; i < num; i++) {
+		if (route[i].sink)
+			route[i].sink = devm_kasprintf(dev, GFP_KERNEL,
+					route[i].sink, name);
+		if(id == 0) {
+			route[i].control = NULL;
+			route[i].source = "SPUM ASRC0";
+			continue;
+		}
+
+		if (route[i].control)
+			route[i].control = devm_kasprintf(dev, GFP_KERNEL,
+					route[i].control);
+		if (route[i].source)
+			route[i].source = devm_kasprintf(dev, GFP_KERNEL,
+					route[i].source, id - 1);
+	}
+
+	dev_info(dev, "sink(%s), source(%s), control(%s)\n", route[0].sink,
+			route[0].source, route[0].control);
+
+	snd_soc_dapm_add_routes(dapm, route, num);
+	devm_kfree(dev, route);
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_route route_base_wdma[] = {
+	/* sink, control, source */
+	{"%s Capture", "WDMA", "SIFM%d"},
+};
+
+int abox_cmpnt_register_wdma(struct snd_soc_dapm_context *dapm, struct device *dev_abox,
+		struct device *dev, unsigned int id, const char *name)
+{
+	struct abox_data *data = dev_get_drvdata(dev_abox);
+
+	dev_info(dev, "%s(%s)\n", __func__, name);
+
+	if (id >= ARRAY_SIZE(data->dev_wdma)) {
+		dev_err(dev, "%s: invalid id(%u)\n", __func__, id);
+		return -EINVAL;
+	}
+
+	data->dev_wdma[id] = dev;
+	if (id > data->wdma_count)
+		data->wdma_count = id + 1;
+
+	return register_wdma_routes(dev, route_base_wdma, 1, dapm, name, id);
+}
+
+static int abox_wdma_probe(struct snd_soc_component *cmpnt)
+{
+	struct device *dev = cmpnt->dev;
+	struct abox_dma_data *data = snd_soc_component_get_drvdata(cmpnt);
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(cmpnt);
+
+	dev_dbg(dev, "%s(%d)\n", __func__, data->id);
+
+	data->cmpnt = cmpnt;
+	abox_cmpnt_register_wdma(dapm, data->abox_data->dev, dev, data->id,
+			data->dai_drv[DMA_DAI_PCM].name);
+	return 0;
+}
+
 static struct snd_soc_component_driver abox_wdma = {
+	.probe          = abox_wdma_probe,
 	.ops		= &abox_wdma_ops,
 	.pcm_new	= abox_wdma_new,
 	.pcm_free	= abox_wdma_free,
 };
+
+static const struct snd_soc_dai_driver abox_wdma_dai_drv[] = {
+	{
+		.capture = {
+			.stream_name = "Capture",
+			.channels_min = 1,
+			.channels_max = 8,
+			.rates = ABOX_SAMPLING_RATES,
+			.rate_min = 8000,
+			.rate_max = 384000,
+			.formats = ABOX_SAMPLE_FORMATS,
+		},
+	},
+};
+
+static enum abox_dai abox_wdma_get_dai_id(enum abox_dma_dai dai, int id)
+{
+	enum abox_dai ret;
+
+	switch (dai) {
+	case DMA_DAI_PCM:
+		ret = ABOX_WDMA0 + id;
+		ret = (ret <= ABOX_WDMA4) ? ret : -EINVAL;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static char *abox_wdma_get_dai_name(struct device *dev, enum abox_dma_dai dai,
+		int id)
+{
+	char *ret;
+
+	switch (dai) {
+	case DMA_DAI_PCM:
+		ret = devm_kasprintf(dev, GFP_KERNEL, "WDMA%d", id);
+		break;
+	default:
+		ret = ERR_PTR(-EINVAL);
+		break;
+	}
+
+	return ret;
+}
 
 static int samsung_abox_wdma_probe(struct platform_device *pdev)
 {
@@ -565,9 +694,11 @@ static int samsung_abox_wdma_probe(struct platform_device *pdev)
 	int i, ret;
 	const char *type;
 
+	dev_info(dev, "%s\n", __func__);
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+
 	platform_set_drvdata(pdev, data);
 	data->dev = dev;
 	dma_set_mask(dev, DMA_BIT_MASK(36));
@@ -624,8 +755,25 @@ static int samsung_abox_wdma_probe(struct platform_device *pdev)
 
 	for (i = 0; i < data->num_dai; i++) {
 		data->dai_drv[i].id = of_data->get_dai_id(i, data->id);
-		data->dai_drv[i].name = of_data->get_dai_name(dev, i,
-				data->id);
+		data->dai_drv[i].name = of_data->get_dai_name(dev, i, data->id);
+		dev_info(dev, "id(%d), name(%s)\n", data->dai_drv[i].id,
+				data->dai_drv[i].name);
+
+		if (data->dai_drv[i].capture.formats) {
+			data->dai_drv[i].capture.stream_name =
+				of_data->get_str_name(data->id,
+						SNDRV_PCM_STREAM_CAPTURE);
+			dev_info(dev, "id(%d), Cstream_name(%s)\n", data->id,
+					data->dai_drv[i].capture.stream_name);
+		}
+
+		if (data->dai_drv[i].playback.formats) {
+			data->dai_drv[i].playback.stream_name =
+				of_data->get_str_name(data->id,
+						SNDRV_PCM_STREAM_PLAYBACK);
+			dev_info(dev, "id(%d), Pstream_name(%s)\n", data->id,
+					data->dai_drv[i].playback.stream_name);
+		}
 	}
 
 	ret = devm_snd_soc_register_component(dev, data->of_data->cmpnt_drv,
@@ -646,11 +794,40 @@ static int samsung_abox_wdma_remove(struct platform_device *pdev)
 	return 0;
 }
 
+const char *abox_wdma_get_str_name(int id, int stream)
+{
+	static const char * const names_pla[] = {
+		"WDMA0 Playback", "WDMA1 Playback", "WDMA2 Playback",
+		"WDMA3 Playback", "WDMA4 Playback",
+	};
+	static const char * const names_cap[] = {
+		"WDMA0 Capture", "WDMA1 Capture", "WDMA2 Capture",
+		"WDMA3 Capture", "WDMA4 Capture",
+	};
+	const char *ret;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK && id <
+			ARRAY_SIZE(names_pla))
+		ret = names_pla[id];
+	else if (stream == SNDRV_PCM_STREAM_CAPTURE &&
+			id < ARRAY_SIZE(names_cap))
+		ret = names_cap[id];
+	else
+		ret = ERR_PTR(-EINVAL);
+
+	return ret;
+}
+
 static const struct of_device_id samsung_abox_wdma_match[] = {
 	{
 		.compatible = "samsung,abox-wdma",
 		.data = (void *)&(struct abox_dma_of_data){
-			.cmpnt_drv = &abox_wdma
+			.get_dai_id = abox_wdma_get_dai_id,
+			.get_dai_name = abox_wdma_get_dai_name,
+			.get_str_name = abox_wdma_get_str_name,
+			.dai_drv = abox_wdma_dai_drv,
+			.num_dai = ARRAY_SIZE(abox_wdma_dai_drv),
+			.cmpnt_drv = &abox_wdma,
 		},
 	},
 	{},

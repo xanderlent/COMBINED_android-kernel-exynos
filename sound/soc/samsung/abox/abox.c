@@ -2405,6 +2405,7 @@ static const struct snd_soc_dapm_widget abox_cmpnt_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("SPUM ASRC1", SND_SOC_NOPM, 0, 0, spum_asrc1_controls),
 	SND_SOC_DAPM_MUX("SPUM ASRC2", SND_SOC_NOPM, 0, 0, spum_asrc2_controls),
 	SND_SOC_DAPM_MUX("SPUM ASRC3", SND_SOC_NOPM, 0, 0, spum_asrc3_controls),
+
 	SND_SOC_DAPM_DEMUX_E("SIFM0", SND_SOC_NOPM, 0, 0, sifm0_controls,
 			abox_flush_sifm0,
 			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
@@ -2631,12 +2632,6 @@ static const struct snd_soc_dapm_route abox_cmpnt_dapm_routes[] = {
 	{"SIFMS", "SIFM1", "SIFM1-SIFMS"},
 	{"SIFMS", "SIFM2", "SIFM2-SIFMS"},
 	{"SIFMS", "SIFM3", "SIFM3-SIFMS"},
-
-	{"WDMA0 Capture", NULL, "SPUM ASRC0"},
-	{"WDMA1 Capture", "WDMA", "SIFM0"},
-	{"WDMA2 Capture", "WDMA", "SIFM1"},
-	{"WDMA3 Capture", "WDMA", "SIFM2"},
-	{"WDMA4 Capture", "WDMA", "SIFM3"},
 };
 
 static bool abox_volatile_reg(struct device *dev, unsigned int reg)
