@@ -437,8 +437,7 @@
 					"VTS PAD DPDM", "DMIC1",
 					"VTS Virtual Output", "VTS Virtual Output Mux",
 					"VTS Virtual Output Mux", "DMIC1";
-				//samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4 &vts>;
-				//samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX", "VTS";
+
 				//samsung,aux = <&abox_effect>;
 
 				rdma0 {
@@ -531,7 +530,7 @@
 				};
 				wdma0 {
 					cpu {
-						sound-dai = <&abox 8>;
+						sound-dai = <&abox_wdma_0 0>;
 					};
 					platform {
 						sound-dai = <&abox_wdma_0 0>;
@@ -542,7 +541,7 @@
 				};
 				wdma1 {
 					cpu {
-						sound-dai = <&abox 9>;
+						sound-dai = <&abox_wdma_1 0>;
 					};
 					platform {
 						sound-dai = <&abox_wdma_1 0>;
@@ -553,7 +552,7 @@
 				};
 				wdma2 {
 					cpu {
-						sound-dai = <&abox 10>;
+						sound-dai = <&abox_wdma_2 0>;
 					};
 					platform {
 						sound-dai = <&abox_wdma_2 0>;
@@ -564,7 +563,7 @@
 				};
 				wdma3 {
 					cpu {
-						sound-dai = <&abox 11>;
+						sound-dai = <&abox_wdma_3 0>;
 					};
 					platform {
 						sound-dai = <&abox_wdma_3 0>;
@@ -575,7 +574,7 @@
 				};
 				wdma4 {
 					cpu {
-						sound-dai = <&abox 12>;
+						sound-dai = <&abox_wdma_4 0>;
 					};
 					platform {
 						sound-dai = <&abox_rdma_4 0>;

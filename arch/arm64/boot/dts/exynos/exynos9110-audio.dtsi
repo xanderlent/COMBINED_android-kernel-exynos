@@ -143,7 +143,7 @@
 			samsung,type = "realtime";
 			samsung,buffer_type = "dma";
 			#sound-dai-cells = <1>;
-			sound-name-prefix = "ABOX WDMA0";
+			sound-name-prefix = "ABOX";
 		};
 
 		abox_wdma_1: abox_wdma@14A52100 {
@@ -154,7 +154,7 @@
 			samsung,type = "normal";
 			samsung,buffer_type = "dma";
 			#sound-dai-cells = <1>;
-			sound-name-prefix = "ABOX WDMA1";
+			sound-name-prefix = "ABOX";
 		};
 
 		abox_wdma_2: abox_wdma@14A52200 {
@@ -165,7 +165,7 @@
 			samsung,type = "call";
 			samsung,buffer_type = "dma";
 			#sound-dai-cells = <1>;
-			sound-name-prefix = "ABOX WDMA2";
+			sound-name-prefix = "ABOX";
 		};
 
 		abox_wdma_3: abox_wdma@14A52300 {
@@ -176,7 +176,7 @@
 			samsung,type = "realtime";
 			samsung,buffer_type = "dma";
 			#sound-dai-cells = <1>;
-			sound-name-prefix = "ABOX WDMA3";
+			sound-name-prefix = "ABOX";
 		};
 
 		abox_wdma_4: abox_wdma@14A52400 {
@@ -187,7 +187,7 @@
 			samsung,type = "vi-sensing";
 			samsung,buffer_type = "dma";
 			#sound-dai-cells = <1>;
-			sound-name-prefix = "ABOX WDMA4";
+			sound-name-prefix = "ABOX";
 		};
 
 		abox_uaif_0: abox_uaif@14A50500 {
