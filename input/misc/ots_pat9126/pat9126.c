@@ -535,6 +535,50 @@ static ssize_t pat9126_sleep_level_store(struct device *dev,
 	return count;
 }
 
+static ssize_t pat9126_pd_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t count) {
+	u8 config, tmp;
+
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	pat9126_read(client, PIXART_PAT9126_CONFIG_REG, &config);
+	config &= ~POWER_DOWN_ENABLE_BIT;
+
+	if (!kstrtou8(buf, 0, &tmp)) {
+		if (tmp) {
+			config |= POWER_DOWN_ENABLE_BIT;
+		}
+
+		dev_dbg(dev, "power down: %d\n", (tmp ? 1 : 0));
+		pat9126_write(client, PIXART_PAT9126_CONFIG_REG, config);
+	} else {
+		dev_warn(dev, "failed to parse sysfs arg: '%s'\n", buf);
+	}
+
+	return count;
+}
+
+static ssize_t pat9126_pd_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf) {
+	int count = 0;
+	uint8_t tmp;
+
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	pat9126_read(client, PIXART_PAT9126_CONFIG_REG, &tmp);
+	tmp = ((POWER_DOWN_ENABLE_BIT & tmp) ? 1 : 0);
+	count += sprintf(buf, "0x%x\n", tmp);
+
+	return count;
+}
+
 static DEVICE_ATTR
 	(crown_sensitivity, S_IRUGO | S_IWUSR | S_IWGRP, pat9126_sensitivity_show, pat9126_sensitivity_store);
 
@@ -547,11 +591,15 @@ static DEVICE_ATTR
 static DEVICE_ATTR
 	(sleep_level, S_IWUSR | S_IWGRP, NULL, pat9126_sleep_level_store);
 
+static DEVICE_ATTR
+	(pd, S_IRUGO | S_IWUSR | S_IWGRP, pat9126_pd_show, pat9126_pd_store);
+
 static struct attribute *pat9126_attr_list[] = {
 	&dev_attr_crown_sensitivity.attr,
 	&dev_attr_id.attr,
 	&dev_attr_max_sleep_level.attr,
 	&dev_attr_sleep_level.attr,
+	&dev_attr_pd.attr,
 	NULL,
 };
 

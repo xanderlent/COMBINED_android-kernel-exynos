@@ -114,6 +114,9 @@
 #define SLEEP_MODE_ONE 0x2
 #define SLEEP_MODE_TWO 0x4
 
+/* Power down bit */
+#define POWER_DOWN_ENABLE_BIT 0x08
+
 /*define pixel grab flag*/
 #define OTS_FRAME_VALID	0x80
 #define OTS_PIXEL_VALID	0x40
