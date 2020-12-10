@@ -29,4 +29,9 @@ config DEBUG_SNAPSHOT_QUICKDUMP
 	tristate "Debug Snapshot quickdump"
 	depends on DEBUG_SNAPSHOT
 	default n
+
+config EXYNOS_ITMON
+        bool "Exynos IPs Traffic Monitor"
+        depends on EXYNOS_DEBUG
+        default n
 endif
