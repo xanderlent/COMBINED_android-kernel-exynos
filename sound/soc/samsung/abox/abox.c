@@ -254,7 +254,6 @@ static void abox_probe_quirks(struct abox_data *data, struct device_node *np)
 	}
 }
 
-
 void abox_enable_mclk(unsigned int on)
 {
 	struct abox_data *data = p_abox_data;
@@ -6761,7 +6760,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 			&abox_timer_regmap_config);
 
 	pm_runtime_enable(dev);
-	pm_runtime_set_autosuspend_delay(dev, 1);
+	pm_runtime_set_autosuspend_delay(dev, 500);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_get(dev);
 
