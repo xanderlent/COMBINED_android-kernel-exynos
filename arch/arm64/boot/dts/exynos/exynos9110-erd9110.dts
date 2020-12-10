@@ -436,7 +436,8 @@
 					"ABOX UAIF1 Capture", "VINPUT1",
 					"VTS PAD DPDM", "DMIC1",
 					"VTS Virtual Output", "VTS Virtual Output Mux",
-					"VTS Virtual Output Mux", "DMIC1";
+					"VTS Virtual Output Mux", "DMIC1",
+					"ABOX SIFS0 Capture", "VINPUT2";
 
 				//samsung,aux = <&abox_effect>;
 
@@ -633,7 +634,7 @@
 				*/
 				sifs0 {
 					cpu {
-						sound-dai = <&abox 0>;
+						sound-dai = <&abox 13>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -641,7 +642,7 @@
 				};
 				sifs1 {
 					cpu {
-						sound-dai = <&abox 1>;
+						sound-dai = <&abox 14>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
@@ -649,7 +650,7 @@
 				};
 				sifs2 {
 					cpu {
-						sound-dai = <&abox 2>;
+						sound-dai = <&abox 15>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
