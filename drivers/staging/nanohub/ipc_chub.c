@@ -12,7 +12,6 @@
 #include "ipc_chub.h"
 
 static struct ipc_info ipc;
-static struct sensor_check_cnt cnt;
 
 #if defined(CHUB_IPC)
 #define NAME_PREFIX "ipc"
@@ -246,6 +245,7 @@ u64 ipc_read_hw_value(enum ipc_value_id id)
 }
 #ifdef CONFIG_CONTEXTHUB_SENSOR_DEBUG
 #define SENSORTASK_NO_TS (3)
+static struct sensor_check_cnt cnt;
 
 int ipc_sensor_alive_check(void) {
 
