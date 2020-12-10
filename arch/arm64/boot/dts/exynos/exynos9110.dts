@@ -295,13 +295,6 @@
 		};
 	};
 
-	ITMON {
-		compatible = "samsung,exynos-itmon";
-		interrupts = <0 40 IRQ_TYPE_LEVEL_HIGH>, /* DATA_CORE */
-			     <0 41 IRQ_TYPE_LEVEL_HIGH>, /* DATA_NRT */
-			     <0 42 IRQ_TYPE_LEVEL_HIGH>; /* PERI_CORE */
-	};
-
 	exynos-reboot {
 		compatible = "samsung,exynos-reboot";
 		samsung,syscon-phandle = <&pmu_system_controller>;
