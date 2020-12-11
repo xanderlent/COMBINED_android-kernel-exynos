@@ -52,4 +52,11 @@
 			     <0 41 IRQ_TYPE_LEVEL_HIGH>, /* DATA_NRT */
 			     <0 42 IRQ_TYPE_LEVEL_HIGH>; /* PERI_CORE */
 	};
+
+	exynos-debug-test {
+		compatible = "samsung,exynos-debug-test";
+		nr_cpu = <0x2>;
+		nr_little_cpu = <0x2>;
+		little_cpu_start = <0x0>;
+	};
 };
