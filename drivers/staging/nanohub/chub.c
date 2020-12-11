@@ -452,7 +452,7 @@ static int contexthub_dt_init(struct platform_device *pdev,
 
 
 #ifdef CONFIG_EXYNOS_ITMON
-static int chub_itmon_notifier(struct notifier_block *nb,
+static int contexthub_itmon_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
 	struct contexthub_ipc_info *data = container_of(nb, struct contexthub_ipc_info, itmon_nb);

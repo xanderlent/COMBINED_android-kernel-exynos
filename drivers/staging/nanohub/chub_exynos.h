@@ -8,10 +8,6 @@
  *
  */
 
-#ifdef CONFIG_EXYNOS_ITMON
-#include <soc/samsung/exynos-itmon.h>
-#endif
-
 #ifdef CONFIG_SENSOR_DRV
 #include "main.h"
 #endif
