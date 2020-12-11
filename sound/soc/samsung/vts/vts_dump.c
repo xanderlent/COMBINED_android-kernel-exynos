@@ -16,7 +16,7 @@
 
 #include "vts_dump.h"
 
-#define S_IRWUG (S_IRUSR|S_IRGRP|S_IWUSR|S_IWGRP)
+#define S_IRWUG (0660)
 
 struct vts_dump_info {
 	struct device *dev;
@@ -53,7 +53,7 @@ static void vts_audiodump_flush_work_func(struct work_struct *work)
 		size_t bytes = (size_t)dump_info->audiodump_sz;
 
 		/* dev_dbg(dev, " %p, %zx\n", area, bytes); */
-		kernel_write(filp, area, bytes, filp->f_pos);
+		kernel_write(filp, area, bytes, &filp->f_pos);
 		dev_dbg(dev, "kernel_write %p, %zx\n", area, bytes);
 
 		vfs_fsync(filp, 1);
@@ -90,7 +90,7 @@ static void vts_logdump_flush_work_func(struct work_struct *work)
 		size_t bytes = (size_t)dump_info->logdump_sz;
 
 		/* dev_dbg(dev, " %p, %zx\n", area, bytes); */
-		kernel_write(filp, area, bytes, filp->f_pos);
+		kernel_write(filp, area, bytes, &filp->f_pos);
 		dev_dbg(dev, "kernel_write %p, %zx\n", area, bytes);
 
 		vfs_fsync(filp, 1);

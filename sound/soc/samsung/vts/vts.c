@@ -21,8 +21,10 @@
 #include <linux/proc_fs.h>
 #include <linux/delay.h>
 #include <linux/regmap.h>
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 #include <linux/smc.h>
+#include <linux/sched/clock.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm-generic/delay.h>
 
@@ -634,6 +636,7 @@ EXPORT_SYMBOL(vts_is_recognitionrunning);
 static struct snd_soc_dai_driver vts_dai[] = {
 	{
 		.name = "vts-tri",
+		.id = 0,
 		.capture = {
 			.stream_name = "VTS Trigger Capture",
 			.channels_min = 1,
@@ -645,6 +648,7 @@ static struct snd_soc_dai_driver vts_dai[] = {
 	},
 	{
 		.name = "vts-rec",
+		.id = 1,
 		.capture = {
 			.stream_name = "VTS Capture",
 			.channels_min = 1,
@@ -1212,12 +1216,18 @@ static int set_vtsforce_reset(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new vts_controls[] = {
-	SOC_SINGLE("PERIOD DATA2REQ", VTS_DMIC_ENABLE_DMIC_IF, VTS_DMIC_PERIOD_DATA2REQ_OFFSET, 3, 0),
-	SOC_SINGLE("HPF EN", VTS_DMIC_CONTROL_DMIC_IF, VTS_DMIC_HPF_EN_OFFSET, 1, 0),
+	SOC_SINGLE("PERIOD DATA2REQ", VTS_DMIC_ENABLE_DMIC_IF,
+		VTS_DMIC_PERIOD_DATA2REQ_OFFSET, 3, 0),
+	SOC_SINGLE("HPF EN", VTS_DMIC_CONTROL_DMIC_IF,
+		VTS_DMIC_HPF_EN_OFFSET, 1, 0),
 	SOC_ENUM("HPF SEL", vts_hpf_sel),
 	SOC_ENUM("CPS SEL", vts_cps_sel),
-	SOC_SINGLE_TLV("GAIN", VTS_DMIC_CONTROL_DMIC_IF, VTS_DMIC_GAIN_OFFSET, 4, 0, vts_gain_tlv_array),
-	SOC_ENUM_EXT("SYS SEL", vts_sys_sel, snd_soc_get_enum_double, vts_sys_sel_put_enum),
+	SOC_SINGLE_TLV("GAIN", VTS_DMIC_CONTROL_DMIC_IF,
+		VTS_DMIC_GAIN_OFFSET, 4, 0, vts_gain_tlv_array),
+	SOC_SINGLE("1DB GAIN", VTS_DMIC_CONTROL_DMIC_IF,
+		VTS_DMIC_1DB_GAIN_OFFSET, 5, 0),
+	SOC_ENUM_EXT("SYS SEL", vts_sys_sel, snd_soc_get_enum_double,
+		vts_sys_sel_put_enum),
 	SOC_ENUM("POLARITY CLK", vts_polarity_clk),
 	SOC_ENUM("POLARITY OUTPUT", vts_polarity_output),
 	SOC_ENUM("POLARITY INPUT", vts_polarity_input),
@@ -1235,15 +1245,36 @@ static const struct snd_kcontrol_new vts_controls[] = {
 		get_vtsforce_reset, set_vtsforce_reset),
 };
 
-static const char *dmic_sel_texts[] = {"DPDM", "APDM"};
-static SOC_ENUM_SINGLE_DECL(dmic_sel_enum, VTS_DMIC_CONTROL_DMIC_IF, VTS_DMIC_DMIC_SEL_OFFSET, dmic_sel_texts);
+static int vts_dmic_sel_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct vts_data *data = p_vts_data;
+	unsigned int dmic_sel;
+
+	dmic_sel = ucontrol->value.enumerated.item[0];
+	if (dmic_sel > 1)
+		return -EINVAL;
+
+	pr_info("%s : VTS DMIC SEL: %d\n", __func__, dmic_sel);
+
+	data->dmic_if = dmic_sel;
+
+	return  0;
+}
+
+static const char * const dmic_sel_texts[] = {"DPDM", "APDM"};
+static SOC_ENUM_SINGLE_EXT_DECL(dmic_sel_enum, dmic_sel_texts);
+
 static const struct snd_kcontrol_new dmic_sel_controls[] = {
-	SOC_DAPM_ENUM("MUX", dmic_sel_enum),
+	SOC_DAPM_ENUM_EXT("MUX", dmic_sel_enum,
+			snd_soc_dapm_get_enum_double, vts_dmic_sel_put),
 };
 
 static const struct snd_kcontrol_new dmic_if_controls[] = {
-	SOC_DAPM_SINGLE("RCH EN", VTS_DMIC_CONTROL_DMIC_IF, VTS_DMIC_RCH_EN_OFFSET, 1, 0),
-	SOC_DAPM_SINGLE("LCH EN", VTS_DMIC_CONTROL_DMIC_IF, VTS_DMIC_LCH_EN_OFFSET, 1, 0),
+	SOC_DAPM_SINGLE("RCH EN", VTS_DMIC_CONTROL_DMIC_IF,
+		VTS_DMIC_RCH_EN_OFFSET, 1, 0),
+	SOC_DAPM_SINGLE("LCH EN", VTS_DMIC_CONTROL_DMIC_IF,
+		VTS_DMIC_LCH_EN_OFFSET, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget vts_dapm_widgets[] = {
@@ -1305,7 +1336,7 @@ int vts_set_dmicctrl(struct platform_device *pdev, int micconf_type, bool enable
 		if (!data->micclk_init_cnt) {
 			ctrl_dmicif = readl(data->dmic_base + VTS_DMIC_CONTROL_DMIC_IF);
 
-			if (ctrl_dmicif & (0x1 << VTS_DMIC_DMIC_SEL_OFFSET)) {
+			if (data->dmic_if == APDM) {
 				vts_cfg_gpio(dev, "amic_default");
 				select_dmicclk = ((0x1 << VTS_ENABLE_CLK_GEN_OFFSET) |
 					(0x1 << VTS_SEL_EXT_DMIC_CLK_OFFSET) |
@@ -1485,8 +1516,7 @@ static irqreturn_t vts_voice_triggered_handler(int irq, void *dev_id)
 		}
 
 		kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
-		wake_lock_timeout(&data->wake_lock,
-				VTS_TRIGGERED_TIMEOUT_MS);
+		__pm_wakeup_event(data->wake_lock, VTS_TRIGGERED_TIMEOUT_MS);
 		data->vts_state = VTS_STATE_RECOG_TRIGGERED;
 	}
 
@@ -2474,8 +2504,7 @@ static int samsung_vts_probe(struct platform_device *pdev)
 	init_waitqueue_head(&data->ipc_wait_queue);
 	spin_lock_init(&data->ipc_spinlock);
 	mutex_init(&data->ipc_mutex);
-	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "vts");
-
+	data->wake_lock = wakeup_source_register(dev, "vts");
 	data->pinctrl = devm_pinctrl_get(dev);
 	if (IS_ERR(data->pinctrl)) {
 		dev_err(dev, "Couldn't get pins (%li)\n",
@@ -2818,6 +2847,7 @@ late_initcall(samsung_vts_late_initcall);
 /* Module information */
 MODULE_AUTHOR("Gyeongtaek Lee, <gt82.lee@samsung.com>");
 MODULE_AUTHOR("Palli Satish Kumar Reddy, <palli.satish@samsung.com>");
+MODULE_AUTHOR("Jaewon Kim, <jaewons.kim@samsung.com>");
 MODULE_DESCRIPTION("Samsung Voice Trigger System");
 MODULE_ALIAS("platform:samsung-vts");
 MODULE_LICENSE("GPL");

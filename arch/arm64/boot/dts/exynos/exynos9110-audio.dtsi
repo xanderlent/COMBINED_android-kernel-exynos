@@ -309,7 +309,7 @@
 		#interrupt-cells = <1>;
 	};
 
-	vts: vts@0x11170000 {
+	vts: vts@0x11110000 {
 		compatible = "samsung,vts";
 		reg = <0x0 0x11110000 0x1000>, <0x0 0x11020000 0x10010>,
 			<0x0 0x11170000 0x8>, <0x0 0x11200000 0xB0000>, <0x0 0x111F0000 0x50>;
@@ -328,6 +328,7 @@
 		clock-names = "rco", "dmic", "dmic_if", "dmic_sync";
 		mailbox = <&mailbox_vts>;
 		interrupt-parent = <&mailbox_vts>;
+		sound-name-prefix = "VTS";
 		interrupts = <0>, <1>, <2>, <3>, <4>, <5>, <6>, <7>, <8>, <9>;
 		interrupt-names = "error", "boot_completed", "ipc_received", "voice_triggered",
 				"trigger_period_elapsed", "record_period_elapsed",

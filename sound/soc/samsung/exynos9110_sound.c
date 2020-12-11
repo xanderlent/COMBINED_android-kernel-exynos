@@ -361,7 +361,6 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},
-	/*
 	{
 		.name = "VTS-Trigger",
 		.stream_name = "VTS-Trigger",
@@ -384,7 +383,6 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.ignore_pmdown_time = 1,
 		.capture_only = true,
 	},
-	*/
 	{
 		.name = "SIFS0",
 		.stream_name = "SIFS0",

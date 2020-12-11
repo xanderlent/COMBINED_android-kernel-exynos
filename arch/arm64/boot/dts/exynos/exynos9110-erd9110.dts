@@ -614,7 +614,6 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				/*
 				vts0 {
 					cpu {
 						sound-dai = <&vts 0>;
@@ -631,7 +630,6 @@
 						sound-dai = <&dummy_audio_codec>;
 					};
 				};
-				*/
 				sifs0 {
 					cpu {
 						sound-dai = <&abox 13>;

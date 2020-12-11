@@ -1,4 +1,5 @@
-/* sound/soc/samsung/vts/vts.h
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * sound/soc/samsung/vts/vts.h
  *
  * ALSA SoC - Samsung VTS driver
  *
@@ -13,7 +14,7 @@
 #define __SND_SOC_VTS_H
 
 #include <sound/memalloc.h>
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 
 /* SYSREG_VTS */
 #define VTS_DEBUG			(0x0404)
@@ -67,6 +68,7 @@
 #define VTS_DMIC_CPS_SEL_OFFSET		(27)
 #define VTS_DMIC_CPS_SEL_SIZE		(1)
 #define VTS_DMIC_GAIN_OFFSET		(24)
+#define VTS_DMIC_1DB_GAIN_OFFSET	(21)
 #define VTS_DMIC_GAIN_SIZE		(3)
 #define VTS_DMIC_DMIC_SEL_OFFSET	(18)
 #define VTS_DMIC_DMIC_SEL_SIZE		(1)
@@ -202,6 +204,11 @@ enum vts_platform_type {
 	PLATFORM_VTS_TRIGGER_RECORD,
 };
 
+enum vts_dmic_sel {
+	DPDM,
+	APDM,
+};
+
 enum executionmode {
 	//default is off
 	VTS_OFF_MODE			= 0,
@@ -332,13 +339,14 @@ struct vts_data {
 	struct snd_soc_card *card;
 	int micclk_init_cnt;
 	unsigned int mic_ready;
+	enum vts_dmic_sel dmic_if;
 	bool irq_state;
 	u32 lpsdgain;
 	u32 dmicgain;
 	u32 amicgain;
 	char *sramlog_baseaddr;
 	u32 running_ipc;
-	struct wake_lock wake_lock;
+	struct wakeup_source *wake_lock;
 	unsigned int vts_state;
 	u32 vtslog_enabled;
 	bool audiodump_enabled;
@@ -352,10 +360,11 @@ struct vts_data {
 struct vts_platform_data {
 	unsigned int id;
 	struct platform_device *pdev_vts;
+	struct device *dev;
 	struct vts_data *vts_data;
 	struct snd_pcm_substream *substream;
 	enum vts_platform_type type;
-	volatile unsigned int pointer;
+	unsigned int pointer;
 };
 
 extern int vts_start_ipc_transaction(struct device *dev, struct vts_data *data,
