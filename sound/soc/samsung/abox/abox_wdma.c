@@ -593,7 +593,7 @@ static int register_wdma_routes(struct device *dev,
 
 static const struct snd_soc_dapm_route route_base_wdma[] = {
 	/* sink, control, source */
-	{"%s Capture", "WDMA", "SIFM%d"},
+	{"%s Capture", NULL, "SIFM%d"},
 };
 
 int abox_cmpnt_register_wdma(struct snd_soc_dapm_context *dapm, struct device *dev_abox,
