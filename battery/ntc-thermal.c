@@ -35,6 +35,7 @@ struct ntc_device {
 	int reference_voltage;
 	struct device *dev;
 	struct gpio_desc *enable_gpio;
+	struct mutex gpiolock;
 	u32 num_sensors;
 	struct ntc_sensor *sensors;
 };
@@ -76,10 +77,15 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 	s64 long_val;
 	int ret;
 
+	/* Lock it so other threads don't set the gpio back to 0 */
+	mutex_lock(&ntcdev->gpiolock);
 	gpiod_set_value(ntcdev->enable_gpio, 1);
-	usleep_range(10, 20);
-
+	/* Wait for ADC to stabilize, takes ~50ms */
+	usleep_range(50000, 60000);
 	ret = iio_read_channel_raw(ntc_sensor->channel, &val);
+	gpiod_set_value(ntcdev->enable_gpio, 0);
+	mutex_unlock(&ntcdev->gpiolock);
+
 	if (ret < 0) {
 		dev_err(ntcdev->dev, "IIO channel read failed %d\n", ret);
 		return ret;
@@ -88,7 +94,6 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 	long_val = mult_frac(long_val, ntcdev->reference_voltage, 0xfff);
 	*temp = ntc_thermal_adc_to_temp(ntcdev, long_val);
 
-	gpiod_set_value(ntcdev->enable_gpio, 0);
 	return 0;
 }
 
@@ -171,7 +176,8 @@ static int ntc_thermal_probe(struct platform_device *pdev)
 
 	ntc_device->num_sensors = nchan;
 	ntc_device->dev = &pdev->dev;
-	ntc_device->enable_gpio = gpiod_get(&pdev->dev, "enable", GPIOD_OUT_LOW);
+	ntc_device->enable_gpio = devm_gpiod_get(&pdev->dev, "enable", GPIOD_OUT_LOW);
+	mutex_init(&ntc_device->gpiolock);
 	ret = of_property_read_u32(pdev->dev.of_node, "ref-voltage", &ntc_device->reference_voltage);
 	if (ret) {
 		ntc_device->reference_voltage = 1800000;
