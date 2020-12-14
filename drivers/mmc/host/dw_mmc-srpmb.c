@@ -95,7 +95,7 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
 	u8 *result_buf = NULL;
 	mm_segment_t old_fs;
 
-	dev_info(dev, "start rpmb workqueue with command(%d)\n", req->type);
+	dev_dbg(dev, "start rpmb workqueue with command(%d)\n", req->type);
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -297,7 +297,7 @@ wout:
 	}
 
 	wake_unlock(&ctx->wakelock);
-	dev_info(dev, "finish rpmb workqueue with command(%d)\n", req->type);
+	dev_dbg(dev, "finish rpmb workqueue with command(%d)\n", req->type);
 out:
  	set_fs(old_fs);
 	return ret;
