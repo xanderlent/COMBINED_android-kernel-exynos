@@ -578,7 +578,7 @@
 						sound-dai = <&abox_wdma_4 0>;
 					};
 					platform {
-						sound-dai = <&abox_rdma_4 0>;
+						sound-dai = <&abox_wdma_4 0>;
 					};
 					codec {
 						sound-dai = <&dummy_audio_codec>;
