@@ -31,6 +31,7 @@
 #include <linux/power_supply.h>
 #include <linux/muic/muic.h>
 #include <linux/alarmtimer.h>
+#include <linux/thermal.h>
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/muic_notifier.h>
@@ -104,6 +105,10 @@ typedef struct battery_platform_data {
 	charging_current_t *charging_current;
 	char *charger_name;
 	char *fuelgauge_name;
+	char *wlc_name;
+	char *bat_tz_name;
+	char *wlc_tz_name;
+	char *wlc_cdev_name;
 
 	int max_input_current;
 	int max_charging_current;
@@ -164,6 +169,9 @@ struct battery_info {
 
 	/* charging */
 	bool is_recharging;
+	bool wlc_connected;
+	bool wlc_throttled;
+	struct mutex wlc_state_lock;
 
 	bool battery_valid;
 	int status;
@@ -190,6 +198,10 @@ struct battery_info {
 	int temp_high_recovery;
 	int temp_low;
 	int temp_low_recovery;
+
+	struct thermal_cooling_device *tcd;
+	struct thermal_zone_device *wlc_tzd;
+	int thermal_level;
 };
 
 static void limit_charging_current(struct battery_info *battery,
@@ -596,6 +608,8 @@ static int get_battery_info(struct battery_info *battery)
 {
 	union power_supply_propval value;
 	struct power_supply *psy;
+	struct thermal_zone_device *tzd;
+	int temp;
 	int ret;
 
 	/*Get fuelgauge psy*/
@@ -630,10 +644,20 @@ static int get_battery_info(struct battery_info *battery)
 	battery->current_avg = value.intval;
 
 	/* Get temperature info */
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_TEMP, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-	battery->temperature = value.intval;
+	tzd = thermal_zone_get_zone_by_name(battery->pdata->bat_tz_name);
+	if (!tzd) {
+		pr_err("%s: Fail to get battery thermal zone\n", __func__);
+		battery->temperature = -1;
+	} else {
+		ret = thermal_zone_get_temp(tzd, &temp);
+		if (ret < 0) {
+			pr_err("%s: Fail to get temp from thermal zone\n", __func__);
+			battery->temperature = -1;
+		} else {
+			// Supposed to be represented in 1/10 degrees celsius
+			battery->temperature = temp / 100;
+		}
+	}
 
 	get_battery_capacity(battery);
 
@@ -720,9 +744,6 @@ static int get_temperature_health(struct battery_info *battery)
 		break;
 	}
 
-	/* For test, Temperature health is always good*/
-	health = POWER_SUPPLY_HEALTH_GOOD;
-
 	return health;
 }
 
@@ -744,8 +765,12 @@ static void check_health(struct battery_info *battery)
 	if (battery_health == POWER_SUPPLY_HEALTH_GOOD &&
 		temperature_health == POWER_SUPPLY_HEALTH_GOOD) {
 		battery->health = POWER_SUPPLY_HEALTH_GOOD;
-		if (battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING)
-			set_bat_status_by_cable(battery);
+		mutex_lock(&battery->wlc_state_lock);
+		if (battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING) {
+			if (!battery->wlc_throttled)
+				set_bat_status_by_cable(battery);
+		}
+		mutex_unlock(&battery->wlc_state_lock);
 		return;
 	}
 
@@ -849,6 +874,93 @@ static void check_charging_full(
 	}
 }
 
+static void battery_print_wlc_debug_info(struct battery_info* battery) {
+	int ret;
+	union power_supply_propval value;
+	struct power_supply *wlc_psy;
+	wlc_psy = power_supply_get_by_name(battery->pdata->wlc_name);
+	if (!wlc_psy) {
+		pr_err("Failed to get WLC PSY\n");
+		return;
+	}
+	ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ONLINE, &value);
+	if (ret < 0) {
+		pr_err("%s: Fail to execute property\n", __func__);
+		goto wlc_info_fail;
+	}
+	if (value.intval) {
+		dev_info(battery->dev, "WLC connected\n");
+		dev_info(battery->dev, "WLC properties:\n");
+
+		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ENERGY_NOW, &value);
+		if (ret < 0) {
+			pr_err("%s: Fail to execute property\n", __func__);
+		} else {
+			dev_info(battery->dev, "VRECT: %d\n", value.intval);
+		}
+
+		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ENERGY_AVG, &value);
+		if (ret < 0) {
+			pr_err("%s: Fail to execute property\n", __func__);
+		} else {
+			dev_info(battery->dev, "VOUT: %d\n", value.intval);
+		}
+
+		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_CURRENT_AVG, &value);
+		if (ret < 0) {
+			pr_err("%s: Fail to execute property\n", __func__);
+		} else {
+			dev_info(battery->dev, "IOUT: %d\n", value.intval);
+		}
+
+		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_TEMP_AMBIENT, &value);
+		if (ret < 0) {
+			pr_err("%s: Fail to execute property\n", __func__);
+		} else {
+			dev_info(battery->dev, "NTC_TEMP: %d\n", value.intval);
+		}
+
+	} else {
+		dev_info(battery->dev, "WLC disconnected\n");
+	}
+wlc_info_fail:
+	power_supply_put(wlc_psy);
+}
+
+static void battery_external_power_changed(struct power_supply *psy) {
+	union power_supply_propval value;
+	struct power_supply *wlc_psy;
+	int ret;
+	struct battery_info *battery = power_supply_get_drvdata(psy);
+	mutex_lock(&battery->wlc_state_lock);
+	wlc_psy = power_supply_get_by_name(battery->pdata->wlc_name);
+	if (!wlc_psy) {
+		pr_err("Failed to get WLC PSY\n");
+		goto external_power_changed_fail;
+	}
+	ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ONLINE, &value);
+	if (ret < 0) {
+		pr_err("%s: Fail to execute property\n", __func__);
+	} else {
+		if (value.intval) {
+			battery->wlc_connected = true;
+		} else {
+			battery->wlc_connected = false;
+			if (battery->wlc_throttled) {
+				battery->wlc_throttled = false;
+				battery->thermal_level = 0;
+				alarm_cancel(&battery->monitor_alarm);
+				wake_lock(&battery->monitor_wake_lock);
+				queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+			}
+		}
+	}
+	battery_print_wlc_debug_info(battery);
+external_power_changed_fail:
+	power_supply_put(wlc_psy);
+	mutex_unlock(&battery->wlc_state_lock);
+}
+
 static void bat_monitor_work(struct work_struct *work)
 {
 	struct battery_info *battery =
@@ -925,6 +1037,26 @@ static int google_battery_parse_dt(struct device *dev,
 			"battery,fuelgauge_name", (char const **)&pdata->fuelgauge_name);
 	if (ret)
 		pr_info("%s: Fuelgauge name is empty\n", __func__);
+
+	ret = of_property_read_string(np,
+			"battery,wlc_name", (char const **)&pdata->wlc_name);
+	if (ret)
+		pr_info("%s: WLC name is empty\n", __func__);
+
+	ret = of_property_read_string(np,
+			"battery,bat_tz_name", (char const **)&pdata->bat_tz_name);
+	if (ret)
+		pr_info("%s: Battery Thermal Zone name is empty\n", __func__);
+
+	ret = of_property_read_string(np,
+			"battery,wlc_tz_name", (char const **)&pdata->wlc_tz_name);
+	if (ret)
+		pr_info("%s: WLC Thermal Zone name is empty\n", __func__);
+
+	ret = of_property_read_string(np,
+			"battery,wlc_cdev_name", (char const **)&pdata->wlc_cdev_name);
+	if (ret)
+		pr_info("%s: WLC Cooling device name is empty\n", __func__);
 
 	ret = of_property_read_u32(np, "battery,technology",
 			&pdata->technology);
@@ -1086,6 +1218,58 @@ static enum alarmtimer_restart bat_monitor_alarm(
 	return ALARMTIMER_NORESTART;
 }
 
+static int get_max_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned long *lvl) {
+	*lvl = 1;
+	return 0;
+}
+
+static int get_cur_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned long *lvl) {
+	struct battery_info *battery = (struct battery_info *)tcd->devdata;
+	*lvl = battery->thermal_level;
+	return 0;
+}
+
+static int set_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned long lvl) {
+	struct battery_info *battery = (struct battery_info *) tcd->devdata;
+	if (!battery->wlc_connected) {
+		// Only apply thermal throttling if WLC is connected
+		return 0;
+	}
+	if (lvl < 0 || lvl > 1)
+		return -EINVAL;
+	if (battery->thermal_level == lvl) {
+		// No update needed
+		return 0;
+	}
+	battery->thermal_level = lvl;
+	dev_info(battery->dev, "Received new cooling device limit: %lu\n", lvl);
+
+	mutex_lock(&battery->wlc_state_lock);
+	if (battery->thermal_level == 0) {
+		dev_info(battery->dev, "%s: Temperature normal: enable charging\n", __func__);
+		battery->wlc_throttled = false;
+
+		// Trigger next battery monitor work
+		alarm_cancel(&battery->monitor_alarm);
+		wake_lock(&battery->monitor_wake_lock);
+		queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+	} else if (battery->thermal_level == 1) {
+		dev_info(battery->dev, "%s: Temperature high: disable charging\n", __func__);
+		battery->wlc_throttled = true;
+		// Turn off Linear Charger output
+		battery->is_recharging = false;
+		set_battery_status(battery, POWER_SUPPLY_STATUS_NOT_CHARGING);
+	}
+	mutex_unlock(&battery->wlc_state_lock);
+	return 0;
+}
+
+static const struct thermal_cooling_device_ops wlc_cooling_ops = {
+	.get_max_state = get_max_charge_cntl_limit,
+	.get_cur_state = get_cur_charge_cntl_limit,
+	.set_cur_state = set_charge_cntl_limit,
+};
+
 static int google_battery_probe(struct platform_device *pdev)
 {
 	struct battery_info *battery;
@@ -1093,6 +1277,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	union power_supply_propval value;
 	int ret = 0, temp = 0;
 	struct power_supply *psy;
+	struct device_node *cooling_node = NULL;
 #ifndef CONFIG_OF
 	int i;
 #endif
@@ -1175,6 +1360,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	battery->psy_battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	battery->psy_battery_desc.get_property =  battery_get_property;
 	battery->psy_battery_desc.set_property =  battery_set_property;
+	battery->psy_battery_desc.external_power_changed =  battery_external_power_changed;
 	battery->psy_battery_desc.properties = google_battery_props;
 	battery->psy_battery_desc.num_properties =  ARRAY_SIZE(google_battery_props);
 
@@ -1236,6 +1422,26 @@ static int google_battery_probe(struct platform_device *pdev)
 	muic_notifier_register(&battery->batt_nb, battery_handle_notification,
 			MUIC_NOTIFY_DEV_CHARGER);
 #endif
+
+	/* Set up wlc related variable */
+	battery->wlc_throttled = false;
+	battery->wlc_connected = false;
+	mutex_init(&battery->wlc_state_lock);
+
+	/* Set up WLC cooling device */
+	if (battery->pdata->wlc_cdev_name) {
+		cooling_node = of_find_node_by_name(NULL, battery->pdata->wlc_cdev_name);
+		if (!cooling_node) {
+			pr_err("No %s OF node for cooling device\n", battery->pdata->wlc_cdev_name);
+		} else {
+			battery->tcd = thermal_of_cooling_device_register(cooling_node, battery->pdata->wlc_cdev_name, battery, &wlc_cooling_ops);
+			battery->thermal_level = 0;
+			battery->wlc_tzd = thermal_zone_get_zone_by_name(battery->pdata->wlc_tz_name);
+			if (battery->wlc_tzd) {
+				battery->wlc_tzd->ops->set_mode(battery->wlc_tzd, THERMAL_DEVICE_ENABLED);
+			}
+		}
+	}
 
 	/* Kick off monitoring thread */
 	pr_info("%s: start battery monitoring work\n", __func__);

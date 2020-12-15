@@ -127,7 +127,6 @@
 #define BITS_IOUT                           BITS(7,0)
 
 #define REG_MAX     0xFF
-#define HALO_DBG
 
 #ifdef HALO_DBG
 #define LOG_DBG(fmt, args...)   printk(KERN_ERR "[%s]:: " fmt, __func__, ## args);

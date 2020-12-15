@@ -32,7 +32,7 @@ static const struct regmap_config hl6111_regmap_config = {
 };
 
 static char *hl6111_supplied_to[] = {
-    "hl6111-charger",
+    "battery",
 };
 
 static int hl6111_read_reg(struct hl6111_charger *halo, int reg, int *value)
@@ -496,8 +496,9 @@ static void hl6111_get_vout_bypass(struct hl6111_charger *chg)
 
 static void hl6111_set_vout_bypass(struct hl6111_charger *chg, u8 update)
 {
+#if defined (HALO_DBG)
     int r_val;
-
+#endif
     LOG_DBG("Start!! update::[0x%x]\r\n", update);
 
     if (update < 0 ) update = 0;
@@ -646,7 +647,6 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
         LOG_DBG("previous request is not finished yet!\n");
     }
 
-
     return IRQ_HANDLED;
 }
 #else
@@ -677,6 +677,7 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
         __pm_relax(&chg->wake_lock);
     }
 
+    power_supply_changed(chg->psy_chg);
     return IRQ_HANDLED;
 }
 #endif
@@ -848,6 +849,7 @@ static void hl6111_chok_pin_work(struct work_struct *work)
         }
     }
 
+    power_supply_changed(chg->psy_chg);
     enable_irq(chg->pdata->irq_det);
 }
 #endif
@@ -911,7 +913,7 @@ static int hl6111_psy_get_property(struct power_supply *psy, enum power_supply_p
             break;
 
         case POWER_SUPPLY_PROP_ENERGY_NOW: //vrect
-            LOG_DBG("VOUT\r\n");
+            LOG_DBG("VRECT\r\n");
              hl6111_measure_vrect(chg);
             val->intval = chg->vrect;
             break;
@@ -1427,6 +1429,7 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
             dev_warn(&client->dev, "failed to initialize IRQ_DET :: %d\n", ret);
             goto FAIL_IRQ;
         }
+        power_supply_changed(charger->psy_chg);
 #endif
     }
 
