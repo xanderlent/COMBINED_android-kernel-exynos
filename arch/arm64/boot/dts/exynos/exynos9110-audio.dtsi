@@ -321,7 +321,7 @@
 		pinctrl-0 = <&dmic_bus_clk &dmic_pdm>;
 		pinctrl-1 = <&amic_bus_clk &amic_pdm>;
 		pinctrl-2 = <&mic_bus_clk_idle &dmic_pdm_idle &amic_pdm_idle>;
-		samsung,power-domain = <&pd_vts>;
+		power-domains = <&pd_vts>;
 		#sound-dai-cells = <1>;
 		clocks = <&clock GATE_VTS_CPU>, <&clock CLK_VTS_DMIC>,
 			<&clock CLK_VTS_DMIC_IF>, <&clock CLK_VTS_DMIC_IF_DIV2>;

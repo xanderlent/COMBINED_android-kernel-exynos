@@ -1297,12 +1297,13 @@ static const struct snd_soc_dapm_route vts_dapm_routes[] = {
 static int vts_component_probe(struct snd_soc_component *component)
 {
 	struct device *dev = component->dev;
-	struct vts_data *data = dev_get_drvdata(dev);
+//	struct vts_data *data = dev_get_drvdata(dev);
 
 	dev_info(dev, "%s\n", __func__);
 
-	data->cmpnt = component;
-	vts_clk_set_rate(component->dev, 0);
+//	20.12.15 Blocked
+//	data->cmpnt = component;
+//	vts_clk_set_rate(component->dev, 0);
 
 	return 0;
 }
