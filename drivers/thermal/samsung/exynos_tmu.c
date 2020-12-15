@@ -79,6 +79,7 @@
 #define EXYNOS_TMU_REG_INTEN_OFFSET	0x10
 #define EXYNOS_TMU_REG_INTSTAT		0x74
 #define EXYNOS_TMU_REG_INTCLEAR		0x78
+#define EXYNOS_GPU_THERMAL_ZONE_ID	(1)
 
 #define EXYNOS_TMU_REF_VOLTAGE_SHIFT	24
 #define EXYNOS_TMU_REF_VOLTAGE_MASK	0x1f
@@ -742,7 +743,7 @@ static int exynos9110_tmu_read(struct exynos_tmu_data *data)
 
 #ifdef CONFIG_EXYNOS_ACPM_THERMAL
 	int stat;
-	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp, &stat);
+	exynos_acpm_tmu_set_read_temp(data->id, &temp, &stat);
 #else
 	u32 reg_offset, bit_offset;
 	u32 temp_code;
@@ -1308,7 +1309,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_ENABLED);
 
 #ifdef CONFIG_MALI_DEBUG_KERNEL_SYSFS
-	if (data->id == 2)
+	if (data->id == EXYNOS_GPU_THERMAL_ZONE_ID)
 		gpu_thermal_data = data;
 #endif
 
@@ -1394,7 +1395,7 @@ static int exynos_tmu_resume(struct device *dev)
 		exynos_tmu_control(pdev, true);
 	}
 
-	exynos_acpm_tmu_set_read_temp(data->tzd->id, &temp, &stat);
+	exynos_acpm_tmu_set_read_temp(data->id, &temp, &stat);
 
 	pr_info("%s: thermal zone %d temp %d stat %d\n",
 			__func__, data->tzd->id, temp, stat);
