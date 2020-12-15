@@ -195,15 +195,18 @@ static int of_thermal_bind(struct thermal_zone_device *thermal,
 			/* if governor is not power_allocator */
 			if (strncasecmp(thermal->tzp->governor_name, "power_allocator",
 						THERMAL_NAME_LENGTH)) {
-				unsigned long max_level = 0, level = 0;
+				/* Only do extra exynos logic if get_cooling_level function exists */
+				if (cdev->ops->get_cooling_level) {
+					unsigned long max_level = 0, level = 0;
 
-				cdev->ops->get_max_state(cdev, &max_level);
-				level = cdev->ops->get_cooling_level(cdev, tbp->value);
+					cdev->ops->get_max_state(cdev, &max_level);
+					level = cdev->ops->get_cooling_level(cdev, tbp->value);
 
-				if (level == THERMAL_CSTATE_INVALID)
-					level = max_level;
+					if (level == THERMAL_CSTATE_INVALID)
+						level = max_level;
 
-				tbp->max = level;
+					tbp->max = level;
+				}
 			}
 #endif
 			ret = thermal_zone_bind_cooling_device(thermal,
