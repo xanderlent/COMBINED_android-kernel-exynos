@@ -836,7 +836,7 @@ void decon_reg_set_select_crc_bits(u32 id, u32 bit_sel)
 	decon_write_mask(id, CRC_CONTROL, val, CRC_COLOR_SEL_MASK);
 }
 
-void decon_reg_get_crc_data(u32 id, u32 *w0_data, u32 *w1_data)
+void decon_reg_get_crc_data(u32 id, u32 *w0_data)
 {
 	u32 val;
 

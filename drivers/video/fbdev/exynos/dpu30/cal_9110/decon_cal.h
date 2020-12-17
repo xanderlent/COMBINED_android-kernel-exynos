@@ -243,7 +243,7 @@ void __decon_dump(u32 id, void __iomem *regs, void __iomem *base_regs, bool dsc_
 
 void decon_reg_set_start_crc(u32 id, u32 en);
 void decon_reg_set_select_crc_bits(u32 id, u32 bit_sel);
-void decon_reg_get_crc_data(u32 id, u32 *w0_data, u32 *w1_data);
+void decon_reg_get_crc_data(u32 id, u32 *w0_data);
 
 /* DPU hw limitation check */
 struct decon_device;
