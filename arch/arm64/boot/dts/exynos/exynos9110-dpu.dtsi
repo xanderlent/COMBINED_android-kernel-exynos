@@ -38,7 +38,7 @@
 		reg = <0x0 0x14884000 0x1000>, <0x0 0x14894000 0x1000>, <0x0 0x14880000 0x110>;
 		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>, <0 61 IRQ_TYPE_LEVEL_HIGH>;
 		/* IDMA[16]/FLIP[2]/BLOCK[1] */
-		attr = <0x50006>;
+		attr = <0x50016>;
 		port = <0>;
 		/* HW restriction */
 		src_f_w = <16 65534 1>;
