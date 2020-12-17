@@ -248,19 +248,18 @@ fail_scale:
 	return ret;
 }
 
-static int update_freq(struct exynos_cpufreq_domain *domain,
-		unsigned int freq)
+static int update_freq(struct exynos_cpufreq_domain *domain, unsigned int freq)
 {
 	struct cpufreq_policy *policy;
 	struct cpumask mask;
 	int ret;
 
-	pr_debug("update frequency of domain%d to %d kHz\n",
-			domain->id, freq);
+	pr_debug("update frequency of domain%d to %d kHz\n", domain->id, freq);
 
 	cpumask_and(&mask, &domain->cpus, cpu_online_mask);
 	if (cpumask_empty(&mask))
 		return -ENODEV;
+
 	policy = cpufreq_cpu_get(cpumask_first(&mask));
 	if (!policy)
 		return -EINVAL;
@@ -715,8 +714,13 @@ static int need_update_freq(struct exynos_cpufreq_domain *domain,
 	if (cur == freq)
 		return 0;
 
-	if ((pm_qos_class != domain->pm_qos_min_class) &&
-			(pm_qos_class != domain->pm_qos_max_class)) {
+	if (pm_qos_class == domain->pm_qos_min_class) {
+		if (cur > freq)
+			return 0;
+	} else if (domain->pm_qos_max_class == pm_qos_class) {
+		if (cur < freq)
+			return 0;
+	} else {
 		/* invalid PM QoS class */
 		return -EINVAL;
 	}
@@ -727,43 +731,17 @@ static int need_update_freq(struct exynos_cpufreq_domain *domain,
 static int exynos_cpufreq_pm_qos_callback(struct notifier_block *nb,
 		unsigned long val, void *v)
 {
-	struct exynos_cpufreq_domain *domain;
-	struct cpufreq_policy *policy;
-	struct cpumask mask;
 	int pm_qos_class = *((int *)v);
-	int qos_max, ret;
+	struct exynos_cpufreq_domain *domain;
+	int ret;
 
 	pr_debug("update PM QoS class %d to %ld kHz\n", pm_qos_class, val);
-
-	if (!cpufreq_init_flag) {
-		pr_warn("ACME is not initialized\n");
-		return NOTIFY_BAD;
-	}
 
 	domain = find_domain_pm_qos_class(pm_qos_class);
 	if (!domain)
 		return NOTIFY_BAD;
 
-	cpumask_and(&mask, &domain->cpus, cpu_online_mask);
-	if (cpumask_empty(&mask))
-		return NOTIFY_BAD;
-
-	policy = cpufreq_cpu_get(cpumask_first(&mask));
-	if (!policy)
-		return NOTIFY_BAD;
-
-	down_read(&policy->rwsem);
 	update_dm_constraint(domain, NULL);
-	up_read(&policy->rwsem);
-
-	if (pm_qos_class == domain->pm_qos_max_class) {
-		qos_max = pm_qos_request(pm_qos_class);
-		if (qos_max < policy->cpuinfo.min_freq) {
-			domain->qos_max_freq = policy->cpuinfo.min_freq;
-			WARN(1, "Someone requests max qos under cpuinfo min freq\n");
-		} else
-			domain->qos_max_freq = qos_max;
-	}
 
 	ret = need_update_freq(domain, pm_qos_class, val);
 	if (ret < 0)
