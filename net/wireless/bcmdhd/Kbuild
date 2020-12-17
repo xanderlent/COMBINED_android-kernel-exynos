@@ -482,6 +482,8 @@ DHDCFLAGS += -DWL_USE_RANDOMIZED_SCAN
 #DHDCFLAGS += -DWL_SOFTAP_RAND
 #p2p MAC randomization
 #DHDCFLAGS += -DWL_P2P_RAND
+# Notify the MAC changed to wpa_supplicant
+DHDCFLAGS += -DDHD_NOTIFY_MAC_CHANGED
 # Enable below define for production
 #DHDCFLAGS += -DMACADDR_PROVISION_ENFORCED
 
