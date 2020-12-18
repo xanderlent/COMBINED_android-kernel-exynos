@@ -26,6 +26,7 @@
 #include <linux/mfd/samsung/s2mpw02-regulator.h>
 #include <linux/io.h>
 #include <linux/debugfs.h>
+#include <linux/reset/exynos-reset.h>
 
 static struct s2mpw02_info *static_info;
 static struct regulator_desc regulators[S2MPW02_REGULATOR_MAX];
@@ -284,6 +285,17 @@ static int s2m_set_voltage_time_sel(struct regulator_dev *rdev,
 u32 pmic_rev_get(void)
 {
 	return SEC_PMIC_REV(static_info->iodev);
+}
+
+static int s2mpw02_read_pwron_status(void)
+{
+	u8 val;
+	struct s2mpw02_info *s2mpw02 = static_info;
+
+	s2mpw02_read_reg(s2mpw02->i2c, S2MPW02_PMIC_REG_STATUS1, &val);
+	pr_info("%s : 0x%02hhx\n", __func__, val);
+
+	return (val & S2MPW02_STATUS1_PWRON_M);
 }
 
 static struct regulator_ops s2mpw02_bst_ops = {
@@ -605,6 +617,9 @@ static int s2mpw02_pmic_probe(struct platform_device *pdev)
 	s2mpw02_write_reg(s2mpw02->i2c, S2MPW02_PMIC_REG_L31CTRL2, 0x07);
 
 	s2mpw02->num_regulators = pdata->num_regulators;
+
+	exynos_reboot_register_pmic_ops(NULL, NULL, NULL, s2mpw02_read_pwron_status);
+
 	return 0;
 
 err:
