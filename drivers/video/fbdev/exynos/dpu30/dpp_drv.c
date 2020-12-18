@@ -21,6 +21,10 @@
 #include "decon.h"
 #include "format.h"
 
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+#include "sysfs_error.h"
+#endif
+
 int dpp_log_level = 6;
 
 struct dpp_device *dpp_drvdata[SOC_DPP_CNT];
@@ -703,6 +707,114 @@ static void dpp_init_subdev(struct dpp_device *dpp)
 	v4l2_set_subdevdata(sd, dpp);
 }
 
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+/* dpp irq error state */
+static ssize_t dpp_irq_err_sysfs_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct dpp_device *dpp = dev_get_drvdata(dev);
+	int size = 0;
+	int count;
+
+	size = (ssize_t)sprintf(buf, "0x%X", dpp->dpp_irq_err_state);
+	dpp_info("DPP(%d) IRQ State : 0x%X\n", dpp->id, dpp->dpp_irq_err_state);
+
+	count = strlen(buf);
+	return count;
+}
+
+static ssize_t dpp_irq_err_sysfs_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long cmd;
+	struct dpp_device *dpp = dev_get_drvdata(dev);
+
+	ret = kstrtoul(buf, 0, &cmd);
+	if (ret)
+		return ret;
+
+	if (cmd == 0) {
+		dpp_info("DPP(%d) IRQ State: Clear cmd\n", dpp->id);
+		dpp->dpp_irq_err_state = 0;
+	}
+	else {
+		dpp_info("DPP(%d) IRQ State: Unknown cmd = %d\n", dpp->id, cmd);
+	}
+
+	return count;
+}
+static DEVICE_ATTR(dpp_irq_err, 0600, dpp_irq_err_sysfs_show, dpp_irq_err_sysfs_store);
+
+int dpp_create_irq_err_sysfs(struct dpp_device *dpp)
+{
+	int ret = 0;
+
+	ret = device_create_file(dpp->dev, &dev_attr_dpp_irq_err);
+	if (ret) {
+		dpp_err("failed to create dpp irq err sysfs\n");
+		goto error;
+	}
+
+	error:
+
+	return ret;
+}
+
+/* dma irq error state */
+static ssize_t dma_irq_err_sysfs_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct dpp_device *dpp = dev_get_drvdata(dev);
+	int size = 0;
+	int count;
+
+	size = (ssize_t)sprintf(buf, "0x%X", dpp->dma_irq_err_state);
+	dpp_info("DMA(%d) IRQ State : 0x%X\n", dpp->id, dpp->dma_irq_err_state);
+
+	count = strlen(buf);
+	return count;
+}
+
+static ssize_t dma_irq_err_sysfs_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long cmd;
+	struct dpp_device *dpp = dev_get_drvdata(dev);
+
+	ret = kstrtoul(buf, 0, &cmd);
+	if (ret)
+		return ret;
+
+	if (cmd == 0) {
+		dpp_info("DMA(%d) IRQ State: Clear cmd\n", dpp->id);
+		dpp->dma_irq_err_state = 0;
+	}
+	else {
+		dpp_info("DMA(%d) IRQ State: Unknown cmd = %d\n", dpp->id, cmd);
+	}
+
+	return count;
+}
+static DEVICE_ATTR(dma_irq_err, 0600, dma_irq_err_sysfs_show, dma_irq_err_sysfs_store);
+
+int dma_create_irq_err_sysfs(struct dpp_device *dpp)
+{
+	int ret = 0;
+
+	ret = device_create_file(dpp->dev, &dev_attr_dma_irq_err);
+	if (ret) {
+		dpp_err("failed to create dma irq err sysfs\n");
+		goto error;
+	}
+
+	error:
+
+	return ret;
+}
+#endif
+
 static void dpp_parse_restriction(struct dpp_device *dpp, struct device_node *n)
 {
 	u32 range[3] = {0, };
@@ -863,6 +975,13 @@ static irqreturn_t dpp_irq_handler(int irq, void *priv)
 
 	dpp_irq = dpp_reg_get_irq_and_clear(dpp->id);
 
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+	// DPP_CFG_ERROR_IRQ
+	if (dpp_irq & DPP_CONFIG_ERROR) {
+		dpp->dpp_irq_err_state |= SYSFS_ERR_DPP_CONFIG_ERROR_IRQ;
+	}
+#endif
+
 irq_end:
 	del_timer(&dpp->op_timer);
 	spin_unlock(&dpp->slock);
@@ -898,6 +1017,13 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 #endif
 	} else { /* IDMA case */
 		irqs = idma_reg_get_irq_and_clear(dpp->id);
+
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+		// IDMA_CONFIG_ERR_IRQ
+		if (irqs & IDMA_CONFIG_ERROR) {
+			dpp->dma_irq_err_state |= SYSFS_ERR_DMA_CONFIG_ERROR_IRQ;
+		}
+#endif
 
 		if (irqs & IDMA_RECOVERY_TRG_IRQ) {
 			DPU_EVENT_LOG(DPU_EVT_DMA_RECOVERY, &dpp->sd,
@@ -1135,6 +1261,11 @@ static int dpp_probe(struct platform_device *pdev)
 	ret = dpp_set_output_device(dpp);
 	if (ret)
 		goto err_clk;
+
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+	dpp_create_irq_err_sysfs(dpp);
+	dma_create_irq_err_sysfs(dpp);
+#endif
 
 	dpp->state = DPP_STATE_OFF;
 	dpp_info("dpp%d is probed successfully\n", dpp->id);

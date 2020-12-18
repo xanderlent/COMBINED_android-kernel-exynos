@@ -214,6 +214,9 @@ struct exynos_dsim_cmd_set {
 struct dsim_device {
 	int id;
 	enum dsim_state state;
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+	u64 irq_err_state;
+#endif
 	struct device *dev;
 	struct dsim_resources res;
 

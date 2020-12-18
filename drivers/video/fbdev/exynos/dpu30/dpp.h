@@ -227,6 +227,10 @@ struct dpp_device {
 	int port;
 	unsigned long attr;
 	enum dpp_state state;
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+	u64 dpp_irq_err_state;
+	u64 dma_irq_err_state;
+#endif
 	enum wbmux_state wb_state;	/* only for writeback */
 	struct device *dev;
 	struct v4l2_subdev sd;

@@ -36,6 +36,10 @@
 struct task_struct *devfreq_change_task;
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+#include "sysfs_error.h"
+#endif
+
 /* DECON irq handler for DSI interface */
 static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 {
@@ -55,6 +59,17 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 	irq_sts_reg = decon_reg_get_interrupt_and_clear(decon->id, &ext_irq);
 	decon_dbg("%s: irq_sts_reg = %x, ext_irq = %x\n", __func__,
 			irq_sts_reg, ext_irq);
+
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+
+	/* NOTE : Not defined on 9110 */
+	/* if (ext_irq & INT_PEND_RESOURCE_CONFLICT)
+		decon->irq_err_state |= SYSFS_ERR_DECON_INT_PEND_RESOURCE_CONFLICT; */
+
+	if (ext_irq & DPU_TIME_OUT_INT_PEND)
+		decon->irq_err_state |= SYSFS_ERR_DECON_INT_PEND_TIME_OUT;
+#endif
+
 
 	if (irq_sts_reg & DPU_FRAME_START_INT_PEND) {
 		/* VSYNC interrupt, accept it */

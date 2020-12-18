@@ -136,11 +136,17 @@ config EXYNOS_LIMIT_ROTATION
 	bool "Limit Rotation based on Size and Bit-depth"
         depends on EXYNOS_DPU30
         default n
-endif
 
 config EXYNOS_DPU_SYSTRACE
 	bool "Support Systrace for DPU"
-		depends on EXYNOS_DPU30
-		default y
+	depends on EXYNOS_DPU30
+	default y
+
+config EXYNOS_DPU_TC_SYSFS_ITF
+	bool "Support Systrace for DPU Regression Test"
+	depends on EXYNOS_DPU30
+	depends on EXYNOS_DPU_SYSTRACE
+	default y
+endif
 
 source "drivers/video/fbdev/exynos/dpu30/panels/Kconfig"

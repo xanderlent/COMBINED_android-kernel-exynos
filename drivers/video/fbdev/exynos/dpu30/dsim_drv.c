@@ -54,6 +54,10 @@
 #include "./cal_9110/regs-dsim.h"
 #include "./panels/exynos_panel_drv.h"
 
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+#include "sysfs_error.h"
+#endif
+
 int dsim_log_level = 6;
 
 struct dsim_device *dsim_drvdata[MAX_DSIM_CNT];
@@ -802,6 +806,17 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 #endif
 
 	int_src = dsim_reg_get_int_and_clear(dsim->id);
+
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+	// DSIM_INTSRC_ERR_RX_ECC
+	// DSIM_INTSRC_UNDER_RUN
+	if (int_src & DSIM_INTSRC_UNDER_RUN)
+		dsim->irq_err_state |= SYSFS_ERR_DSIM_UNDER_RUN;
+
+	if (int_src & DSIM_INTSRC_ERR_RX_ECC)
+		dsim->irq_err_state |= SYSFS_ERR_DSIM_ERR_RX_ECC;
+#endif
+
 	if (int_src & DSIM_INTSRC_SFR_PH_FIFO_EMPTY) {
 		del_timer(&dsim->cmd_timer);
 		complete(&dsim->ph_wr_comp);
@@ -1762,6 +1777,60 @@ error:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+static ssize_t dsim_irq_err_sysfs_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+	int size = 0;
+	int count;
+
+	size = (ssize_t)sprintf(buf, "0x%X", dsim->irq_err_state);
+	dsim_info("DPP(%d) IRQ State : 0x%X\n", dsim->id, dsim->irq_err_state);
+
+	count = strlen(buf);
+	return count;
+}
+
+static ssize_t dsim_irq_err_sysfs_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long cmd;
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+
+	ret = kstrtoul(buf, 0, &cmd);
+	if (ret)
+		return ret;
+
+	if (cmd == 0) {
+		dsim_info("DSIM(%d) IRQ State: Clear cmd\n", dsim->id);
+		dsim->irq_err_state = 0;
+	}
+	else {
+		dsim_info("DSIM(%d) IRQ State: Unknown cmd = %d\n", dsim->id, cmd);
+	}
+
+	return count;
+}
+static DEVICE_ATTR(dsim_irq_err, 0600, dsim_irq_err_sysfs_show, dsim_irq_err_sysfs_store);
+
+int dsim_create_irq_err_sysfs(struct dsim_device *dsim)
+{
+	int ret = 0;
+
+	ret = device_create_file(dsim->dev, &dev_attr_dsim_irq_err);
+	if (ret) {
+		dsim_err("failed to create dsim irq err sysfs\n");
+		goto error;
+	}
+
+	error:
+
+	return ret;
+}
+#endif
+
 static int dsim_parse_dt(struct dsim_device *dsim, struct device *dev)
 {
 	if (IS_ERR_OR_NULL(dev->of_node)) {
@@ -2027,6 +2096,10 @@ static int dsim_probe(struct platform_device *pdev)
 	/* TODO: This is for dsim BIST mode in zebu emulator. only for test*/
 	dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DISPLAYON, NULL);
 	dsim_reg_set_bist(dsim->id, true);
+#endif
+
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+	dsim_create_irq_err_sysfs(dsim);
 #endif
 
 	/* for debug */

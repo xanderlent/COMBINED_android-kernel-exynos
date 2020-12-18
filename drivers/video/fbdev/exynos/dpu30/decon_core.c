@@ -2821,7 +2821,7 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 	u32 crtc;
 	bool active;
 	u32 crc_bit, crc_start;
-	u32 crc_data[2];
+	u32 crc_data[3];
 	int i;
 	u32 cm_num;
 	enum disp_pwr_mode pwr;
@@ -2973,8 +2973,14 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 			break;
 		}
 		mutex_unlock(&decon->lock);
-		decon_reg_get_crc_data(decon->id, &crc_data[0], &crc_data[1]);
-		if (copy_to_user((u32 __user *)arg, &crc_data[0], sizeof(u32))) {
+
+		for (crc_bit=0; crc_bit<3; crc_bit++)
+		{
+			decon_reg_set_select_crc_bits(decon->id, crc_bit);
+			decon_reg_get_crc_data(decon->id, &crc_data[crc_bit]);
+		}
+
+		if (copy_to_user((u32 __user *)arg, crc_data, sizeof(crc_data))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -3533,7 +3539,9 @@ static int decon_fb_test_alloc_memory(struct decon_device *decon, u32 size)
 {
 	struct fb_info *fbi = decon->win[decon->dt.dft_win]->fbinfo;
 	struct decon_win *win = decon->win[decon->dt.dft_win];
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	struct displayport_device *displayport;
+#endif
 	struct dpp_device *dpp;
 	struct dsim_device *dsim;
 	struct device *dev = NULL;
@@ -3565,16 +3573,22 @@ static int decon_fb_test_alloc_memory(struct decon_device *decon, u32 size)
 	dma_buf_vunmap(buf, vaddr);
 	fbi->screen_base = NULL;
 
+#if defined(CONFIG_EXYNOS_DISPLAYPORT)
 	if (decon->dt.out_type == DECON_OUT_DP) {
 		displayport = v4l2_get_subdevdata(decon->out_sd[0]);
 		dev = displayport->dev;
+
 	} else if (decon->dt.out_type == DECON_OUT_DSI) {
+#else
+	if (decon->dt.out_type == DECON_OUT_DSI) {
+#endif
 		dsim = v4l2_get_subdevdata(decon->out_sd[0]);
 		dev = dsim->dev;
 	} else {	/* writeback case */
 		dpp = v4l2_get_subdevdata(decon->out_sd[0]);
 		dev = dpp->dev;
 	}
+
 
 	ret = decon_map_ion_handle(decon, dev, &win->fb_buf_data,
 			buf, win->idx);
@@ -3710,6 +3724,60 @@ static int decon_acquire_windows(struct decon_device *decon)
 
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+static ssize_t decon_irq_err_sysfs_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct decon_device *decon = dev_get_drvdata(dev);
+	int size = 0;
+	int count;
+
+	size = (ssize_t)sprintf(buf, "0x%X", decon->irq_err_state);
+	decon_info("DECON(%d) IRQ State : 0x%X\n", decon->id, decon->irq_err_state);
+
+	count = strlen(buf);
+	return count;
+}
+
+static ssize_t decon_irq_err_sysfs_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long cmd;
+	struct decon_device *decon = dev_get_drvdata(dev);
+
+	ret = kstrtoul(buf, 0, &cmd);
+	if (ret)
+		return ret;
+
+	if (cmd == 0) {
+		decon_info("DECON(%d) IRQ State: Clear cmd\n", decon->id);
+		decon->irq_err_state = 0;
+	}
+	else {
+		decon_info("DECON(%d) IRQ State: Unknown cmd = %d\n", decon->id, cmd);
+	}
+
+	return count;
+}
+static DEVICE_ATTR(decon_irq_err, 0600, decon_irq_err_sysfs_show, decon_irq_err_sysfs_store);
+
+int decon_create_irq_err_sysfs(struct decon_device *decon)
+{
+	int ret = 0;
+
+	ret = device_create_file(decon->dev, &dev_attr_decon_irq_err);
+	if (ret) {
+		decon_err("failed to create decon irq err sysfs\n");
+		goto error;
+	}
+
+	error:
+
+	return ret;
+}
+#endif
 
 static void decon_parse_dt(struct decon_device *decon)
 {
@@ -4192,6 +4260,10 @@ static int decon_probe(struct platform_device *pdev)
 	ret = decon_create_esd_thread(decon);
 	if (ret)
 		goto err_esd;
+#endif
+
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+	decon_create_irq_err_sysfs(decon);
 #endif
 
 	decon_info("decon%d registered successfully", decon->id);

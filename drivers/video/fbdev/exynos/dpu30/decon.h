@@ -1074,6 +1074,10 @@ struct decon_device {
 	int id;
 	enum decon_state state;
 
+#if IS_ENABLED(CONFIG_EXYNOS_DPU_TC_SYSFS_ITF)
+	u64 irq_err_state;
+#endif
+
 	unsigned long prev_used_dpp;
 	unsigned long cur_using_dpp;
 	unsigned long dpp_err_stat;
