@@ -294,8 +294,12 @@ static struct regmap_bus regmap_i2c_smbus_i2c_block = {
 static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 					const struct regmap_config *config)
 {
-	if(strncmp(config->name, "speedy", sizeof("speedy")))
-		return &regmap_apm_byte;
+	if (config->name) {
+#ifdef CONFIG_EXYNOS_ACPM
+		if(strncmp(config->name, "speedy", sizeof("speedy")))
+			return &regmap_apm_byte;
+#endif
+	}
 	if (i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
 		return &regmap_i2c;
 	else if (config->val_bits == 8 && config->reg_bits == 8 &&
