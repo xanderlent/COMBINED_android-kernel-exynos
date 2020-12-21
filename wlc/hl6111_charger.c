@@ -684,7 +684,7 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
 static int hl6111_irq_init(struct hl6111_charger *chg, struct i2c_client *client)
 {
     struct hl6111_platform_data *pdata = chg->pdata;
-    int ret, irq, irq_det;
+    int ret, irq;
 
     LOG_DBG("start!\n");
 
@@ -703,29 +703,6 @@ static int hl6111_irq_init(struct hl6111_charger *chg, struct i2c_client *client
     client->irq = irq;
     disable_irq(chg->pdata->irq);
 
-    if (pdata->det_gpio > 0){
-        irq_det = gpio_to_irq(pdata->det_gpio);
-
-#ifdef HL6111_ENABLE_CHOK
-        ret = request_threaded_irq(irq_det, NULL, hl6111_pad_detect_handler,
-                              IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-                              "wireless-det-irq", chg);
-        if(ret < 0)
-            goto fail_irq;
-        pdata->irq_det = irq_det;
-#else
-        ret = request_threaded_irq(irq_det, NULL, hl6111_pad_detect_handler,
-                              IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-                              "wireless-det-irq", chg);
-        if(ret < 0)
-            goto fail_irq;
-        pdata->irq_det = irq_det;
-        disable_irq(chg->pdata->irq_det);
-#endif
-
-        LOG_DBG("irq_det::%d, det_gpio::%d\r\n",pdata->irq_det,  pdata->det_gpio);
-    }
-
     return 0;
 
 fail_irq:
@@ -736,6 +713,37 @@ fail_irq:
 fail:
     LOG_DBG("gpio_request failed :: ret->%d\n", ret);
     client->irq = 0;
+    return ret;
+}
+
+static int hl6111_irq_det_init(struct hl6111_charger *chg)
+{
+    struct hl6111_platform_data *pdata = chg->pdata;
+    int ret, irq_det;
+
+    if (pdata->det_gpio > 0) {
+        irq_det = gpio_to_irq(pdata->det_gpio);
+
+#ifdef HL6111_ENABLE_CHOK
+        ret = request_threaded_irq(irq_det, NULL, hl6111_pad_detect_handler,
+                              IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+                              "wireless-det-irq", chg);
+#else
+        ret = request_threaded_irq(irq_det, NULL, hl6111_pad_detect_handler,
+                              IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+                              "wireless-det-irq", chg);
+#endif
+        if(ret < 0)
+            goto fail_irq_det;
+        pdata->irq_det = irq_det;
+
+        LOG_DBG("irq_det::%d, det_gpio::%d\r\n",pdata->irq_det,  pdata->det_gpio);
+    }
+    return 0;
+
+fail_irq_det:
+    LOG_DBG("gpio_request failed :: ret->%d\n", ret);
+    gpio_free(pdata->det_gpio);
     return ret;
 }
 
@@ -1414,7 +1422,11 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
             LOG_DBG("TX is not connected!! \r\n");
             charger->online = false;
         }
-        enable_irq(charger->pdata->irq_det);
+        ret = hl6111_irq_det_init(charger);
+        if (ret < 0) {
+            dev_warn(&client->dev, "failed to initialize IRQ_DET :: %d\n", ret);
+            goto FAIL_IRQ;
+        }
 #endif
     }
 
