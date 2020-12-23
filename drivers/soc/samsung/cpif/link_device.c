@@ -547,9 +547,6 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 		ld->name, mc->name, mc->name, mc_state(mc),
 		atomic_read(&mld->cp_boot_done));
 
-	if ((ld->protocol == PROTOCOL_SIT) && (ld->link_type == LINKDEV_SHMEM))
-		write_clk_table_to_shmem(mld);
-
 #if defined(CONFIG_CP_PKTPROC) || defined(CONFIG_CP_PKTPROC_V2)
 	err = pktproc_init(&mld->pktproc);
 	if (err < 0) {
@@ -691,6 +688,9 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 	ld->crash_reason.type = CRASH_REASON_NONE;
 	memset(ld->crash_reason.string, 0, CP_CRASH_INFO_SIZE);
 	mif_err("Set crash_reason type:%d\n", ld->crash_reason.type);
+
+	if ((ld->protocol == PROTOCOL_SIT) && (ld->link_type == LINKDEV_SHMEM))
+		write_clk_table_to_shmem(mld);
 
 	mld->state = LINK_STATE_IPC;
 	complete_all(&mc->init_cmpl);
