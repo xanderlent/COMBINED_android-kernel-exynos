@@ -296,7 +296,7 @@ static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 {
 	if (config->name) {
 #ifdef CONFIG_EXYNOS_ACPM
-		if(strncmp(config->name, "speedy", sizeof("speedy")))
+		if(!strncmp(config->name, "speedy", sizeof("speedy")))
 			return &regmap_apm_byte;
 #endif
 	}
