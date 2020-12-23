@@ -572,6 +572,7 @@ int init_gnssctl_device(struct gnss_ctl *gc, struct gnss_pdata *pdata)
 
 	dev_set_drvdata(gc->dev, gc);
 
+	init_completion(&gc->fault_cmpl);
 	init_completion(&gc->bcmd_cmpl);
 	init_completion(&gc->sw_init_cmpl);
 
