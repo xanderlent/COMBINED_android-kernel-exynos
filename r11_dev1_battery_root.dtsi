@@ -53,8 +53,8 @@ google_battery: battery {
 tsmab104_ntc: thermal-sensor {
 	compatible = "google,ntc-thermal";
 	#thermal-sensor-cells = <1>;
-	io-channels = <&exynos_adc 0>, <&exynos_adc 1>, <&exynos_adc 2>, <&exynos_adc 4>, <&exynos_adc 6>;
-	io-channel-names = "soc-ntc", "batt-ntc", "lte-ntc", "audio-ntc", "ppg-ntc";
+	io-channels = <&exynos_adc 0>, <&exynos_adc 1>;
+	io-channel-names = "soc-ntc", "batt-ntc";
 	enable-gpio = <&gpg2 0 0>;
 	ref-voltage = <1800000>;
 
