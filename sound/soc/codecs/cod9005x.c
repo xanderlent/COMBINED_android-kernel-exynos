@@ -75,6 +75,24 @@ static void no_dev_dbg(void *v, char *s, ...)
 /* Forward Declarations */
 static int cod9005x_disable(struct device *dev);
 static int cod9005x_enable(struct device *dev);
+
+static int cod9005x_reg_hw_write(void *context, unsigned int reg,
+		unsigned int value)
+{
+	return exynos_acpm_write_reg(0x3, (u8)reg, (u8)value);
+}
+
+static int cod9005x_reg_hw_read(void *context, unsigned int reg,
+		unsigned int *value)
+{
+	return exynos_acpm_read_reg(0x3, (u8)reg, (u8 *)value);
+}
+
+static const struct regmap_bus cod9005x_bus = {
+	.reg_write = cod9005x_reg_hw_write,
+	.reg_read = cod9005x_reg_hw_read,
+};
+
 static inline void cod9005x_usleep(unsigned int u_sec)
 {
 	usleep_range(u_sec, u_sec + 10);
@@ -1514,7 +1532,8 @@ static int cod9005x_i2c_probe(struct i2c_client *i2c,
 	cod9005x->is_probe_done = false;
 	cod9005x->regulator_count = 0;
 
-	cod9005x->regmap = devm_regmap_init_i2c(i2c, &cod9005x_regmap);
+	cod9005x->regmap = devm_regmap_init(cod9005x->dev, &cod9005x_bus,
+			cod9005x, &cod9005x_regmap);
 	if (IS_ERR(cod9005x->regmap)) {
 		dev_err(&i2c->dev, "Failed to allocate regmap: %li\n",
 				PTR_ERR(cod9005x->regmap));
