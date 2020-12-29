@@ -663,11 +663,6 @@ static void nvt_flash_proc_deinit(void)
 #define GESTURE_SLIDE_DOWN      22
 #define GESTURE_SLIDE_LEFT      23
 #define GESTURE_SLIDE_RIGHT     24
-/* customized gesture id */
-#define DATA_PROTOCOL           30
-
-/* function page definition */
-#define FUNCPAGE_GESTURE         1
 
 /*******************************************************
 Description:
@@ -948,6 +943,21 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 		goto XFER_ERROR;
 	}
+
+#if PALM_GESTURE
+	input_id = (uint8_t)(point_data[1] >> 3);
+	if ((input_id == DATA_PROTOCOL) && (point_data[2] == FUNCPAGE_PALM)) {
+		if (point_data[3] == 1) {
+			NVT_LOG("Palm On\n");
+			input_report_key(ts->input_dev, KEY_SLEEP, 1);
+			input_sync(ts->input_dev);
+			input_report_key(ts->input_dev, KEY_SLEEP, 0);
+			input_sync(ts->input_dev);
+		}
+		mutex_unlock(&ts->lock);
+		return IRQ_HANDLED;
+	}
+#endif
 
 #if WAKEUP_GESTURE
 	if ((bTouchIsAwake == 0) || (ts->idle_mode)) {
@@ -1321,6 +1331,10 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	for (retry = 0; retry < (sizeof(gesture_key_array) / sizeof(gesture_key_array[0])); retry++) {
 		input_set_capability(ts->input_dev, EV_KEY, gesture_key_array[retry]);
 	}
+#endif
+
+#if PALM_GESTURE
+	input_set_capability(ts->input_dev, EV_KEY, KEY_SLEEP);
 #endif
 
 	sprintf(ts->phys, "input/ts");
