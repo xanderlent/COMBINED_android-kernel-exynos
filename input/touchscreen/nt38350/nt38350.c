@@ -1839,9 +1839,8 @@ static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long e
 			NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
 			if(ts->idle_mode) {
 				ts->idle_mode = false;
-			} else {
-				nvt_ts_resume(&ts->client->dev);
 			}
+			nvt_ts_resume(&ts->client->dev);
 		}
 	}
 
