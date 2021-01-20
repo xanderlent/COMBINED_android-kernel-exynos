@@ -94,15 +94,7 @@ enum battery_charger_mode {
 	BAT_CHG_MODE_BUCK_OFF,
 };
 
-typedef struct charging_current {
-	unsigned int input_current_limit;
-	unsigned int fast_charging_current;
-	unsigned int full_check_current_1st;
-	unsigned int full_check_current_2nd;
-} charging_current_t;
-
 typedef struct battery_platform_data {
-	charging_current_t *charging_current;
 	char *charger_name;
 	char *fuelgauge_name;
 	char *wlc_name;
@@ -110,26 +102,26 @@ typedef struct battery_platform_data {
 	char *wlc_tz_name;
 	char *wlc_cdev_name;
 
-	int max_input_current;
-	int max_charging_current;
-
-	int temp_high;
-	int temp_high_recovery;
-	int temp_low;
-	int temp_low_recovery;
+	/* charging profile */
+	unsigned int num_temp_limits;
+	unsigned int num_volt_limits;
+	s32 *temp_limits;
+	s32 *volt_limits;
+	s32 *cc_limits;
+	int topoff_current;
 
 	/* full check */
 	unsigned int full_check_count;
 	unsigned int chg_recharge_vcell;
-	unsigned int chg_full_vcell;
 	int full_check_condition_soc;
 
+	int temp_hysteresis;
+	int voltage_hysteresis;
 	/* Initial maximum raw SOC */
 	unsigned int max_rawsoc;
 
 	/* battery */
 	char *vendor;
-	int technology;
 	int battery_type;
 	void *battery_data;
 } battery_platform_data_t;
@@ -153,13 +145,11 @@ struct battery_info {
 	struct alarm monitor_alarm;
 	unsigned int monitor_alarm_interval;
 
-	int input_current;
-	int max_input_current;
+	int temp_index;
+	int voltage_index;
 	int charging_current;
-	int max_charging_current;
 	int topoff_current;
-	int cable_type;
-	unsigned int charging_mode;
+	int power_supply_type;
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 	struct notifier_block batt_nb;
@@ -204,83 +194,142 @@ struct battery_info {
 	int thermal_level;
 };
 
-static void limit_charging_current(struct battery_info *battery,
-		int *input_current, int *charging_current)
-{
-	int max_input_current = battery->max_input_current;
-	int max_charging_current = battery->max_charging_current;
-
-	if (*input_current > max_input_current) {
-		*input_current = max_input_current;
-		pr_info("%s: limit input current. (%d)\n", __func__, *input_current);
-	}
-	if (*charging_current > max_charging_current) {
-		*charging_current = max_charging_current;
-		pr_info("%s: limit charging current. (%d)\n", __func__, *charging_current);
-	}
+static int calculate_cc_index(struct battery_info *battery, int temp_index, int voltage_index) {
+	return (temp_index - 1) * (battery->pdata->num_volt_limits) + voltage_index;
 }
 
-static int set_charging_current(struct battery_info *battery)
+static int check_charging_current(struct battery_info *battery)
 {
 	union power_supply_propval value;
-	int input_current =
-			battery->pdata->charging_current[battery->cable_type].input_current_limit,
-		charging_current =
-			battery->pdata->charging_current[battery->cable_type].fast_charging_current,
-		topoff_current =
-			battery->pdata->charging_current[battery->cable_type].full_check_current_1st;
 	struct power_supply *psy;
-	int ret;
-
-	pr_info("%s: cable_type(%d), current(%d, %d, %d)\n", __func__,
-			battery->cable_type, input_current, charging_current, topoff_current);
-	mutex_lock(&battery->iolock);
-
-	/*Limit input & charging current according to the max current*/
-	limit_charging_current(battery, &input_current, &charging_current);
-
-	/* set input current limit */
-	if (battery->input_current != input_current) {
-		value.intval = input_current;
-
-		psy = power_supply_get_by_name(battery->pdata->charger_name);
-		if (!psy)
-			return -EINVAL;
-		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &value);
-		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
-
-		battery->input_current = input_current;
+	int ret = 0;
+	int t_i, v_i, cc_i, check_cc_i, charging_current, topoff_current;
+	int temp_diff, volt_diff;
+	// Calculate temp index
+	for (t_i = 0; t_i < battery->pdata->num_temp_limits; t_i++) {
+		if (battery->temperature < battery->pdata->temp_limits[t_i]) {
+			// temp is between limits[t_i - 1] and limits[t_i]
+			break;
+		}
 	}
-	/* set fast charging current */
-	if (battery->charging_current != charging_current) {
-		value.intval = charging_current;
+	// Calculate voltage index, do not pass final index
+	for (v_i = 0; v_i < battery->pdata->num_volt_limits - 1; v_i++) {
+		if (battery->voltage_now < battery->pdata->volt_limits[v_i]) {
+			break;
+		}
+	}
+	if (t_i == 0 || t_i >= battery->pdata->num_temp_limits) {
+		battery->temp_index = t_i;
+		// temp outside limits, no charge; handled by check_health
+		return 0;
+	}
+	if (t_i == battery->temp_index && v_i == battery->voltage_index) {
+		// Want to stay in same CC index as last check
+		return 0;
+	}
+	// Check temperature hysteresis if previous temp index set
+	if (battery->temp_index >= 0) {
+		// Calculate initial estimate of new charging current
+		cc_i = calculate_cc_index(battery, t_i, v_i);
+		charging_current = battery->pdata->cc_limits[cc_i];
+		// Calculate charging current if we keep current temp index
+		check_cc_i = calculate_cc_index(battery, battery->temp_index, v_i);
+		// Apply hysteresis only when new current is greater
+		if (charging_current > battery->pdata->cc_limits[check_cc_i]) {
+			if (t_i > battery->temp_index)
+				temp_diff = battery->temperature - battery->pdata->temp_limits[battery->temp_index];
+			else
+				temp_diff = battery->pdata->temp_limits[t_i] - battery->temperature;
+			if (temp_diff < battery->pdata->temp_hysteresis) {
+				t_i = battery->temp_index;
+				dev_info(battery->dev, "Temp hysteresis, keeping temp_index %d\n", t_i);
+			}
+		}
+	}
 
+	// Check voltage hysteresis if previous volt index set and temp index stayed same
+	if (battery->voltage_index >= 0 && t_i == battery->temp_index) {
+		// Higher voltage threshold always correspond to lower current
+		volt_diff = battery->pdata->volt_limits[v_i] - battery->voltage_now;
+		if (v_i < battery->voltage_index && volt_diff < battery->pdata->voltage_hysteresis) {
+			v_i = battery->voltage_index;
+			dev_info(battery->dev, "Voltage hysteresis, keeping volt_index %d\n", v_i);
+		}
+	}
+
+	// Check if the charging current would be 0 at the specified voltage index
+	while (v_i > 0) {
+		check_cc_i = calculate_cc_index(battery, t_i, v_i);
+		if (battery->pdata->cc_limits[check_cc_i] == 0) {
+			v_i = v_i - 1;
+			dev_info(battery->dev, "0 Charging current, moving down volt_index to %d\n", v_i);
+		} else {
+			break;
+		}
+	}
+
+	if (t_i == battery->temp_index && v_i == battery->voltage_index) {
+		// Want to stay in same CC index as last check
+		return 0;
+	}
+	dev_info(battery->dev, "%s: temp_index(%d to %d), volt_index(%d to %d)\n", __func__,
+			battery->temp_index, t_i, battery->voltage_index, v_i);
+	battery->temp_index = t_i;
+	// Calculate final new CC index
+	cc_i = calculate_cc_index(battery, battery->temp_index, v_i);
+	charging_current = battery->pdata->cc_limits[cc_i];
+
+	// Actually change charger parameters
+	mutex_lock(&battery->iolock);
+	// Update charging current if necessary
+	if (battery->charging_current != charging_current) {
+		dev_info(battery->dev, "%s: charging_current(%d to %d)\n", __func__,
+			battery->charging_current, charging_current);
+		value.intval = charging_current;
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
-		if (!psy)
-			return -EINVAL;
+		if (!psy) {
+			ret = -EINVAL;
+			goto charger_fail;
+		}
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
 		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
-
+			pr_err("%s: Fail to execute property CURRENT_NOW\n", __func__);
 		battery->charging_current = charging_current;
 	}
-	/* set topoff current */
-	if (battery->topoff_current != topoff_current) {
-		value.intval = topoff_current;
 
+	// Update Float Voltage if necessary
+	if (battery->voltage_index != v_i) {
+		pr_info("%s: voltage_index(%d to %d)\n", __func__,
+			battery->voltage_index, v_i);
+		value.intval = battery->pdata->volt_limits[v_i];
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
-		if (!psy)
-			return -EINVAL;
-		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_FULL, &value);
+		if (!psy) {
+			ret = -EINVAL;
+			goto charger_fail;
+		}
+		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &value);
 		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
-
-		battery->topoff_current = topoff_current;
+			pr_err("%s: Fail to execute property VOLTAGE_MAX\n", __func__);
+		battery->voltage_index = v_i;
 	}
 
+	// Update topoff current if necessary
+	topoff_current = battery->pdata->topoff_current;
+	if (battery->topoff_current != topoff_current) {
+		value.intval = topoff_current;
+		psy = power_supply_get_by_name(battery->pdata->charger_name);
+		if (!psy) {
+			ret = -EINVAL;
+			goto charger_fail;
+		}
+		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_FULL, &value);
+		if (ret < 0)
+			pr_err("%s: Fail to execute property CURRENT_FULL\n", __func__);
+		battery->topoff_current = topoff_current;
+	}
+charger_fail:
 	mutex_unlock(&battery->iolock);
-	return 0;
+	return ret;
 }
 
 /*
@@ -333,7 +382,7 @@ static int set_battery_status(struct battery_info *battery,
 	switch (status) {
 	case POWER_SUPPLY_STATUS_CHARGING:
 		/* notify charger cable type */
-		value.intval = battery->cable_type;
+		value.intval = battery->power_supply_type;
 
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
 		if (!psy)
@@ -342,15 +391,20 @@ static int set_battery_status(struct battery_info *battery,
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 
+		// Recalculate charging current
+		battery->temp_index = -1;
+		battery->voltage_index = -1;
+		ret = check_charging_current(battery);
+		if (ret < 0)
+			pr_err("%s: Fail to check charging current\n", __func__);
+
 		set_charger_mode(battery, BAT_CHG_MODE_CHARGING);
-		set_charging_current(battery);
 		break;
 
 	case POWER_SUPPLY_STATUS_DISCHARGING:
-		set_charging_current(battery);
 
-		/* notify charger cable type */
-		value.intval = battery->cable_type;
+		/* notify charger cable type, this is the power supply type */
+		value.intval = battery->power_supply_type;
 
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
 		if (!psy)
@@ -363,15 +417,20 @@ static int set_battery_status(struct battery_info *battery,
 		break;
 
 	case POWER_SUPPLY_STATUS_NOT_CHARGING:
+		// charger in unhealthy state
 		set_charger_mode(battery, BAT_CHG_MODE_BUCK_OFF);
 
 		/* to recover charger configuration when heath is recovered */
-		battery->input_current = 0;
-		battery->charging_current = 0;
+		battery->temp_index = -1;
+		battery->voltage_index = -1;
+		battery->charging_current = -1;
 		battery->topoff_current = 0;
 		break;
 
 	case POWER_SUPPLY_STATUS_FULL:
+		// battery full
+		battery->temp_index = -1;
+		battery->voltage_index = -1;
 		set_charger_mode(battery, BAT_CHG_MODE_CHARGING_OFF);
 		break;
 	}
@@ -392,9 +451,9 @@ static int set_battery_status(struct battery_info *battery,
 
 static void set_bat_status_by_cable(struct battery_info *battery)
 {
-	if (battery->cable_type == POWER_SUPPLY_TYPE_BATTERY ||
-		battery->cable_type == POWER_SUPPLY_TYPE_UNKNOWN ||
-		battery->cable_type == POWER_SUPPLY_TYPE_OTG) {
+	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY ||
+		battery->power_supply_type == POWER_SUPPLY_TYPE_UNKNOWN ||
+		battery->power_supply_type == POWER_SUPPLY_TYPE_OTG) {
 		battery->is_recharging = false;
 		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
 		return;
@@ -404,7 +463,7 @@ static void set_bat_status_by_cable(struct battery_info *battery)
 		return;
 	}
 
-	dev_info(battery->dev, "%s: abnormal cable_type or status", __func__);
+	dev_info(battery->dev, "%s: abnormal power_supply_type or status", __func__);
 }
 
 static int battery_get_property(struct power_supply *psy,
@@ -423,25 +482,19 @@ static int battery_get_property(struct power_supply *psy,
 		val->intval = battery->health;
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = battery->cable_type;
+		val->intval = battery->power_supply_type;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = battery->battery_valid;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		if (!battery->battery_valid)
-			val->intval = FAKE_BAT_LEVEL;
-		else
-			val->intval = battery->voltage_now * 1000;
+		val->intval = battery->voltage_now * 1000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		val->intval = battery->voltage_avg * 1000;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = battery->temperature;
-		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		val->intval = battery->charging_mode;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (!battery->battery_valid)
@@ -475,7 +528,7 @@ static int battery_set_property(struct power_supply *psy,
 		battery->health = val->intval;
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
-		battery->cable_type = val->intval;
+		battery->power_supply_type = val->intval;
 		break;
 	default:
 		ret = -EINVAL;
@@ -497,7 +550,7 @@ static int ac_get_property(struct power_supply *psy,
 		return -EINVAL;
 
 	/* Set enable=1 only if the AC charger is connected */
-	switch (battery->cable_type) {
+	switch (battery->power_supply_type) {
 	case POWER_SUPPLY_TYPE_MAINS:
 	case POWER_SUPPLY_TYPE_UNKNOWN:
 	case POWER_SUPPLY_TYPE_PREPARE_TA:
@@ -517,7 +570,7 @@ static int battery_handle_notification(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
 	const char *cmd;
-	int cable_type;
+	int power_supply_type;
 	struct battery_info *battery =
 		container_of(nb, struct battery_info, batt_nb);
 
@@ -525,28 +578,29 @@ static int battery_handle_notification(struct notifier_block *nb,
 	case MUIC_NOTIFY_CMD_DETACH:
 	case MUIC_NOTIFY_CMD_LOGICALLY_DETACH:
 		cmd = "DETACH";
-		cable_type = POWER_SUPPLY_TYPE_BATTERY;
+		power_supply_type = POWER_SUPPLY_TYPE_BATTERY;
 		break;
 	case MUIC_NOTIFY_CMD_ATTACH:
 	case MUIC_NOTIFY_CMD_LOGICALLY_ATTACH:
 		cmd = "ATTACH";
-		cable_type = POWER_SUPPLY_TYPE_MAINS;
+		// TODO: determine if wire or wireless. Need POWER_SUPPLY_TYPE_WIRELESS
+		power_supply_type = POWER_SUPPLY_TYPE_MAINS;
 		break;
 	default:
 		cmd = "ERROR";
-		cable_type = POWER_SUPPLY_TYPE_BATTERY;
+		power_supply_type = POWER_SUPPLY_TYPE_BATTERY;
 		break;
 	}
 
-	pr_info("%s: current_cable(%d) former cable_type(%d) battery_valid(%d)\n",
-			__func__, cable_type, battery->cable_type,
+	pr_info("%s: current_power_supply_type(%d) former power_supply_type(%d) battery_valid(%d)\n",
+			__func__, power_supply_type, battery->power_supply_type,
 			battery->battery_valid);
 	if (battery->battery_valid == false)
 		pr_info("%s: Battery is disconnected\n", __func__);
 
-	battery->cable_type = cable_type;
+	battery->power_supply_type = power_supply_type;
 
-	if (battery->cable_type == POWER_SUPPLY_TYPE_BATTERY) {
+	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
 		battery->is_recharging = false;
 		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
 	} else {
@@ -555,11 +609,11 @@ static int battery_handle_notification(struct notifier_block *nb,
 	}
 
 	pr_info(
-			"%s: Status(%s), Health(%s), Cable(%d), Recharging(%d))"
+			"%s: Status(%s), Health(%s), Power Supply Type(%d), Recharging(%d))"
 			"\n", __func__,
 			bat_status_str[battery->status],
 			health_str[battery->health],
-			battery->cable_type,
+			battery->power_supply_type,
 			battery->is_recharging
 		  );
 
@@ -989,17 +1043,20 @@ static void bat_monitor_work(struct work_struct *work)
 
 	check_health(battery);
 
+	ret = check_charging_current(battery);
+	if (ret < 0)
+		pr_err("%s: Fail to check charging current\n", __func__);
 	check_charging_full(battery);
 
 	power_supply_changed(battery->psy_battery);
 
 continue_monitor:
-	dev_dbg(battery->dev,
-		 "%s: Status(%s), Health(%s), Cable(%d), Recharging(%d))"
+	dev_info(battery->dev,
+		 "%s: Status(%s), Health(%s), Power Supply Type(%d), Recharging(%d))"
 		 "\n", __func__,
 		 bat_status_str[battery->status],
 		 health_str[battery->health],
-		 battery->cable_type,
+		 battery->power_supply_type,
 		 battery->is_recharging
 		 );
 
@@ -1013,11 +1070,9 @@ static int google_battery_parse_dt(struct device *dev,
 {
 	struct device_node *np = of_find_node_by_name(NULL, "battery");
 	battery_platform_data_t *pdata = battery->pdata;
-	int ret = 0, len;
-	unsigned int i;
-	const u32 *p;
+	int ret = 0;
 	u32 temp;
-	u32 default_input_current, default_charging_current, default_full_check_current;
+	u32 array_size;
 
 	if (!np) {
 		pr_info("%s np NULL(battery)\n", __func__);
@@ -1030,13 +1085,17 @@ static int google_battery_parse_dt(struct device *dev,
 
 	ret = of_property_read_string(np,
 			"battery,charger_name", (char const **)&pdata->charger_name);
-	if (ret)
+	if (ret) {
 		pr_info("%s: Charger name is empty\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = of_property_read_string(np,
 			"battery,fuelgauge_name", (char const **)&pdata->fuelgauge_name);
-	if (ret)
+	if (ret) {
 		pr_info("%s: Fuelgauge name is empty\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = of_property_read_string(np,
 			"battery,wlc_name", (char const **)&pdata->wlc_name);
@@ -1045,8 +1104,10 @@ static int google_battery_parse_dt(struct device *dev,
 
 	ret = of_property_read_string(np,
 			"battery,bat_tz_name", (char const **)&pdata->bat_tz_name);
-	if (ret)
+	if (ret) {
 		pr_info("%s: Battery Thermal Zone name is empty\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = of_property_read_string(np,
 			"battery,wlc_tz_name", (char const **)&pdata->wlc_tz_name);
@@ -1058,145 +1119,116 @@ static int google_battery_parse_dt(struct device *dev,
 	if (ret)
 		pr_info("%s: WLC Cooling device name is empty\n", __func__);
 
-	ret = of_property_read_u32(np, "battery,technology",
-			&pdata->technology);
-	if (ret)
-		pr_info("%s : technology is empty\n", __func__);
-
-	p = of_get_property(np, "battery,input_current_limit", &len);
-	if (!p)
-		return 1;
-
-	len = len / sizeof(u32);
-
-	if (len < POWER_SUPPLY_TYPE_END)
-		len = POWER_SUPPLY_TYPE_END;
-
-	pdata->charging_current = kzalloc(sizeof(charging_current_t) * len,
+	pdata->num_temp_limits =
+	    of_property_count_elems_of_size(np, "battery,chg_temp_limits",
+					    sizeof(u32));
+	if (pdata->num_temp_limits <= 0) {
+		pr_err("%s: cannot read chg_temp_limits, num=%d\n", __func__, pdata->num_temp_limits);
+		return -EINVAL;
+	}
+	pdata->temp_limits = devm_kzalloc(dev, sizeof(s32) * pdata->num_temp_limits,
 			GFP_KERNEL);
+	if (!pdata->temp_limits)
+		return -ENOMEM;
 
-	ret = of_property_read_u32(np, "battery,default_input_current",
-			&default_input_current);
-	if (ret)
-		pr_info("%s : default_input_current is empty\n", __func__);
+	ret = of_property_read_u32_array(np, "battery,chg_temp_limits",
+					 (u32 *)pdata->temp_limits,
+					 pdata->num_temp_limits);
+	if (ret < 0) {
+		pr_err("%s: cannot read chg_temp_limits table, ret=%d\n", __func__,
+			 ret);
+		return ret;
+	}
 
-	ret = of_property_read_u32(np, "battery,default_charging_current",
-			&default_charging_current);
-	if (ret)
-		pr_info("%s : default_charging_current is empty\n", __func__);
+	pdata->num_volt_limits =
+	    of_property_count_elems_of_size(np, "battery,chg_volt_limits",
+					    sizeof(u32));
+	if (pdata->num_volt_limits <= 0) {
+		pr_err("%s: cannot read chg_volt_limits, num=%d\n", __func__, pdata->num_temp_limits);
+		return -EINVAL;
+	}
+	pdata->volt_limits = devm_kzalloc(dev, sizeof(s32) * pdata->num_volt_limits,
+			GFP_KERNEL);
+	if (!pdata->volt_limits)
+		return -ENOMEM;
 
-	ret = of_property_read_u32(np, "battery,default_full_check_current",
-			&default_full_check_current);
-	if (ret)
-		pr_info("%s : default_full_check_current is empty\n", __func__);
+	ret = of_property_read_u32_array(np, "battery,chg_volt_limits",
+					 (u32 *)pdata->volt_limits,
+					 pdata->num_volt_limits);
+	if (ret < 0) {
+		pr_err("%s: cannot read chg_volt_limits table, ret=%d\n", __func__,
+			 ret);
+		return -EINVAL;
+	}
 
-	for (i = 0; i < len; i++) {
-		ret = of_property_read_u32_index(np,
-				"battery,input_current_limit", i,
-				&pdata->charging_current[i].input_current_limit);
-		if (ret) {
-			pr_info("%s : Input_current_limit is empty\n",
-					__func__);
-			pdata->charging_current[i].input_current_limit = default_input_current;
-		}
+	array_size = (pdata->num_temp_limits - 1) * pdata->num_volt_limits;
+	pdata->cc_limits = devm_kzalloc(dev, sizeof(s32) * array_size, GFP_KERNEL);
 
-		ret = of_property_read_u32_index(np,
-				"battery,fast_charging_current", i,
-				&pdata->charging_current[i].fast_charging_current);
-		if (ret) {
-			pr_info("%s : Fast charging current is empty\n",
-					__func__);
-			pdata->charging_current[i].fast_charging_current = default_charging_current;
-		}
+	if (!pdata->cc_limits)
+		return -ENOMEM;
 
-		ret = of_property_read_u32_index(np,
-				"battery,full_check_current_1st", i,
-				&pdata->charging_current[i]
-				.full_check_current_1st);
-		if (ret) {
-			pr_info("%s : Full check current_1st is empty\n",
-					__func__);
-		}
-		ret = of_property_read_u32_index(np,
-				"battery,full_check_current_2nd", i,
-				&pdata->charging_current[i]
-				.full_check_current_2nd);
-		if (ret)
-			pr_debug("%s : Full check current 2nd is empty\n",
-					__func__);
+	ret = of_property_read_u32_array(np, "battery,chg_cc_limits",
+					 (u32 *)pdata->cc_limits, array_size);
+	if (ret < 0) {
+		pr_err("%s: cannot read chg_cc_limits table, ret=%d\n", __func__,
+			 ret);
+		return -EINVAL;
+	}
 
+	ret = of_property_read_u32(np, "battery,topoff_current",
+			&pdata->topoff_current);
+	if (ret) {
+		pr_debug("%s : Topoff current is empty\n", __func__);
+		return -EINVAL;
 	}
 
 	ret = of_property_read_u32(np, "battery,full_check_condition_soc",
 			&pdata->full_check_condition_soc);
-	if (ret)
+	if (ret) {
 		pr_debug("%s : Full check condition soc is empty\n", __func__);
+		return -EINVAL;
+	}
 
-	ret = of_property_read_u32(np, "battery,max_input_current",
-			&pdata->max_input_current);
-	if (ret)
-		pr_info("%s : max_input_current is empty\n", __func__);
-
-	ret = of_property_read_u32(np, "battery,max_charging_current",
-			&pdata->max_charging_current);
-	if (ret)
-		pr_info("%s : max_charging_current is empty\n", __func__);
-
-	ret = of_property_read_u32(np, "battery,temp_high", &temp);
+	ret = of_property_read_u32(np, "battery,temp_hysteresis", &temp);
 	if (ret) {
 		pr_info("%s : temp_high is empty\n", __func__);
-		pdata->temp_high = 500;
+		pdata->temp_hysteresis = 10;
 	} else
-		pdata->temp_high = (int)temp;
+		pdata->temp_hysteresis = (int)temp;
 
-	ret = of_property_read_u32(np, "battery,temp_high_recovery", &temp);
+	ret = of_property_read_u32(np, "battery,voltage_hysteresis", &temp);
 	if (ret) {
-		pr_info("%s : temp_high_recovery is empty\n", __func__);
-		pdata->temp_high_recovery = pdata->temp_high - 50;
+		pr_info("%s : voltage_hysteresis is empty\n", __func__);
+		pdata->voltage_hysteresis = 100;
 	} else
-		pdata->temp_high_recovery = (int)temp;
+		pdata->voltage_hysteresis = (int)temp;
 
-	ret = of_property_read_u32(np, "battery,temp_low", &temp);
-	if (ret) {
-		pr_info("%s : temp_low is empty\n", __func__);
-		pdata->temp_low = 100;
-	} else
-		pdata->temp_low = (int)temp;
-
-	ret = of_property_read_u32(np, "battery,temp_low_recovery", &temp);
-	if (ret) {
-		pr_info("%s : temp_low_recovery is empty\n", __func__);
-		pdata->temp_low_recovery = pdata->temp_low + 50;
-	} else
-		pdata->temp_low_recovery = (int)temp;
-
-	pr_info("%s : temp_high(%d), temp_high_recovery(%d), temp_low(%d), temp_low_recovery(%d)\n",
+	pr_info("%s : num_temp_limits(%d), num_volt_limits(%d), temp_hysteresis(%d), voltage_hysteresis(%d)\n",
 			__func__,
-			pdata->temp_high, pdata->temp_high_recovery,
-			pdata->temp_low, pdata->temp_low_recovery);
+			pdata->num_temp_limits, pdata->num_volt_limits,
+			pdata->temp_hysteresis, pdata->voltage_hysteresis);
 
 	ret = of_property_read_u32(np, "battery,full_check_count",
 			&pdata->full_check_count);
 	if (ret)
 		pr_info("%s : full_check_count is empty\n", __func__);
 
-	ret = of_property_read_u32(np, "battery,chg_full_vcell",
-			&pdata->chg_full_vcell);
-	if (ret)
-		pr_info("%s : chg_full_vcell is empty\n", __func__);
-
 	ret = of_property_read_u32(np, "battery,chg_recharge_vcell",
 			&pdata->chg_recharge_vcell);
-	if (ret)
+	if (ret) {
 		pr_info("%s : chg_recharge_vcell is empty\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = of_property_read_u32(np, "battery,max_rawsoc",
 			&pdata->max_rawsoc);
-	if (ret)
+	if (ret) {
 		pr_info("%s : max_rawsoc is empty\n", __func__);
+		pdata->max_rawsoc = 10000;
+	}
 
-	pr_info("%s:DT parsing is done, vendor : %s, technology : %d\n",
-			__func__, pdata->vendor, pdata->technology);
+	pr_info("%s:DT parsing is done, vendor : %s\n",
+			__func__, pdata->vendor);
 	return ret;
 }
 
@@ -1302,6 +1334,7 @@ static int google_battery_probe(struct platform_device *pdev)
 
 	/* Get device/board dependent configuration data from DT */
 	temp = google_battery_parse_dt(&pdev->dev, battery);
+	pr_info("test2\n");
 	if (temp) {
 		pr_info("%s: google_battery_parse_dt(&pdev->dev, battery) == %d\n", __func__, temp);
 		dev_err(&pdev->dev, "%s: Failed to get battery dt\n", __func__);
@@ -1326,22 +1359,20 @@ static int google_battery_probe(struct platform_device *pdev)
 	battery->status = POWER_SUPPLY_STATUS_DISCHARGING;
 	battery->health = POWER_SUPPLY_HEALTH_GOOD;
 
-	battery->input_current = 0;
-	battery->charging_current = 0;
-	battery->topoff_current = 0;
+	battery->charging_current = -1;
+	battery->temp_index = -1;
+	battery->voltage_index = -1;
+	battery->topoff_current = -1;
 
-	battery->max_input_current = battery->pdata->max_input_current;
-	battery->max_charging_current = battery->pdata->max_charging_current;
-
-	battery->temp_high = battery->pdata->temp_high;
-	battery->temp_high_recovery = battery->pdata->temp_high_recovery;
-	battery->temp_low = battery->pdata->temp_low;
-	battery->temp_low_recovery = battery->pdata->temp_low_recovery;
+	battery->temp_high = battery->pdata->temp_limits[battery->pdata->num_temp_limits - 1];
+	battery->temp_high_recovery = battery->temp_high - battery->pdata->temp_hysteresis;
+	battery->temp_low = battery->pdata->temp_limits[0];
+	battery->temp_low_recovery = battery->temp_low + battery->pdata->temp_hysteresis;
 
 	battery->max_rawsoc = battery->pdata->max_rawsoc;
 
 	battery->is_recharging = false;
-	battery->cable_type = POWER_SUPPLY_TYPE_BATTERY;
+	battery->power_supply_type = POWER_SUPPLY_TYPE_BATTERY;
 
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy)
@@ -1480,7 +1511,7 @@ static int google_battery_prepare(struct device *dev)
 	alarm_cancel(&battery->monitor_alarm);
 	wake_unlock(&battery->monitor_wake_lock);
 	/* If charger is connected, monitoring is required*/
-	if (battery->cable_type != POWER_SUPPLY_TYPE_BATTERY) {
+	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
 		battery->monitor_alarm_interval = SLEEP_ALARM_INTERVAL;
 		pr_info("%s: Increase battery monitoring interval -> %d\n",
 				__func__, battery->monitor_alarm_interval);
@@ -1555,5 +1586,5 @@ static void __exit google_battery_exit(void)
 module_exit(google_battery_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Samsung Electronics");
+MODULE_AUTHOR("Alice Sheng <alicesheng@google.com>");
 MODULE_DESCRIPTION("Google Battery driver");

@@ -1,0 +1,94 @@
+Google Battery Bindings
+
+Battery driver definition that talks to the Fuel Gauge, Linear Charger and Wireless Charger to manage charging rates. It checks the battery status once every 10 seconds when awake and once every 60 seconds when asleep.
+
+Required Properties:
+- compatible: "google, battery" for google battery
+- battery,charger_name: Name of the power_supply registered for the linear charger
+- battery,fuelgauge_name: Name of the power_supply registered for the fuel gauge
+- battery,wlc_name: Name of the power_supply registered for the WLC
+- battery,bat_tz_name: Name of the thermal zone registered for reading battery temperature
+- battery,chg_volt_limits: Array with voltage charging current step limits in mV
+- battery,chg_temp_limits: Array with temperature charging current step limits in dC. Lowest and highest limit will be considered as the cut off temperatures for charging.
+- battery,chg_cc_limits: Array with charging currents for each temperature and voltage step. The size should be equal to (size of temperature limits - 1) * (size of voltage limits). The order should be first by temperature, then voltage, such that the appropriate current index can be found by the following calculation: (temp_index - 1)*(size of voltage limits) + (voltage index) where temp_index is the index of the lowest temperature thresdhold above the current temperature.
+- battery,topoff_current: Top off current setting to send to the charger
+- battery,chg_recharge_vcell: Voltage at which to restart charging after the battery was full and charging was stopped
+- battery,full_check_condition_soc: SOC threshold below which to ignore the "FULL" condition reported by the charger
+
+Optional Properties:
+- battery,wlc_tz_name: Name of the thermal zone registered for reading skin temperature. It should be set up with a trip for WLC throttling and the "bang bang" thermal governor.
+- battery,wlc_cdev_name: Name of the cooling device registered for skin temperature throttling. It should be set up as a cooling device for the wlc_tz.
+- battery,vendor: Name of the battery vendor
+- battery,full_check_count: When charger reports that battery is full, number of additional checks to make before turning off charging
+- battery,temp_hysteresis: Temperature in dC to use as hysteresis when stepping up in current. This is to avoid major charge current fluctuation when the temperature is close to a threshold.
+- battery,voltage_hyteresis: Voltage in mV to use as hysteresis when moving down a voltage tier. This is to avoid voltage tier fluctuation because lowering the charge current may cause a voltage drop.
+- battery,max_rawsoc: In units of 0.001%. Default value to use as the Max SOC. Generally should be 10000.
+
+Example:
+
+Assume there is a thermal sensor named "thermal-sensor" which reports the temperature and has 2 channels for battery and skin temp respectively.
+
+google_battery: battery {
+	status = "okay";
+	compatible = "google,battery";
+	battery,charger_name = "s2mpw02-charger";
+	battery,fuelgauge_name = "s2mpw02-fuelgauge";
+	battery,wlc_name = "hl6111-charger";
+	battery,bat_tz_name = "BATT_NTC";
+	battery,wlc_tz_name = "PPG_NTC";
+	battery,wlc_cdev_name = "wlc_cool_dev";
+
+	battery,vendor = "Desay";
+	battery,chg_volt_limits = <4200 4300>;
+	battery,chg_cc_limits = <
+						90		30
+						150		90
+						300		210
+						240		150
+						150		150
+						90		0
+	>;
+	battery,chg_temp_limits = <0 100 200 420 460 480 550>;
+	battery,topoff_current = <15>;
+
+	battery,full_check_type = <7>; // used by s2mpw02_charger
+	battery,full_check_type_2nd = <7>; // used by s2mpw02_charger
+	battery,full_check_count = <1>;
+	battery,chg_recharge_vcell = <4250>;
+	battery,full_check_condition_soc = <90>;
+
+	battery,temp_hysteresis = <10>; // 1 degree
+	battery,voltage_hysteresis = <100>; // 100 mV
+	battery,max_rawsoc = <10000>; /* In units of 0.001% */
+};
+
+wlc_cool_dev: wlc_cool_dev {
+	#cooling-cells = <2>;
+};
+
+thermal-zones {
+	BATT_NTC {
+		polling-delay = <15000>; /* milliseconds */
+		polling-delay-passive = <0>; /* milliseconds */
+		thermal-sensors = <&thermal-sensor 0>;
+	};
+	PPG_NTC {
+		polling-delay = <15000>; /* milliseconds */
+		polling-delay-passive = <0>; /* milliseconds */
+		thermal-sensors = <&thermal-sensor 1>;
+		governor = "bang_bang";
+		trips {
+			wlc_throttle: wlc-throttle {
+				temperature = <41000>;
+				hysteresis = <2000>;
+				type = "passive";
+			};
+		};
+		cooling-maps {
+			wireless-charge-disabled {
+				trip = <&wlc_throttle>;
+				cooling-device = <&wlc_cool_dev (~0) (~0) >; /* THERMAL_NO_LIMIT THERMAL_NO_LIMIT */
+			};
+		};
+	};
+};
