@@ -15,7 +15,7 @@
 		halo,vout-range = <0x03>; //16mV step
 		halo,trgt-vout = <0x26>; //4.56V
 		halo,trgt-vrect = <0x02>; //6V
-		halo,temp-limit = <0x17>; // 448.5mV; around 50C
+		halo,temp-limit = <0x14>; // default
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&wlc_irq &wlc_det>;
