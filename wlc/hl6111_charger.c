@@ -196,7 +196,7 @@ static void hl6111_send_ept(struct hl6111_charger *chg, enum hl6111_ept_reason e
         hl6111_update_reg(chg, 0xED, 0x80, 0x80);
         LOG_DBG("internal!!\r\n");
     } else if (ept == sys_fault){
-        LOG_DBG("sys_fault!!\r\n");
+        dev_info(chg->dev, "Sending EPT to TX\n");
         hl6111_update_reg(chg, 0xED, 0x40, 0x40);
     }else if (ept == fully_charged){
         LOG_DBG("fully_charged!!\r\n");
@@ -674,8 +674,10 @@ static int hl6111_psy_set_property(struct power_supply *psy, enum power_supply_p
             if (val->intval == POWER_SUPPLY_STATUS_FULL){
                 LOG_DBG("Fully charged!!\r\n");
                 hl6111_send_ept(chg, fully_charged);
+            } else if (val->intval == POWER_SUPPLY_STATUS_NOT_CHARGING){
+                LOG_DBG("Stop charging!!\r\n");
+                hl6111_send_ept(chg, sys_fault);
             }
-
             break;
         case POWER_SUPPLY_PROP_PRESENT:
             LOG_DBG("PRESENT:\r\n");
