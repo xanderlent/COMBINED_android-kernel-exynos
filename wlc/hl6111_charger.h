@@ -195,6 +195,7 @@ struct hl6111_platform_data{
     unsigned int ldop;
     unsigned int vout_range;
     unsigned int trgt_vout;
+    unsigned int trgt_vrect;
     unsigned int temp_limit;
 };
 
@@ -221,7 +222,9 @@ struct hl6111_charger{
     unsigned int irect;
     unsigned int t_die;//temperature;
     unsigned int trgt_vout;
+    unsigned int trgt_vrect;
     unsigned int iout_lim;
+    unsigned int temp_lim;
     unsigned int bypass;
     unsigned int vhead;
     unsigned int iout;

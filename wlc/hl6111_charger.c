@@ -87,7 +87,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
     LOG_DBG("irq-det:: %d \r\n", pdata->det_gpio);
 
     //*Vrect Clamp threshold*//
-    pdata->clm_vth = of_property_read_u32(np, "halo,clm-vth", &temp);
+    rc = of_property_read_u32(np, "halo,clm-vth", &temp);
     if (rc) {
         pr_err("Invalid clm-vth\n");
     }else{
@@ -96,7 +96,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
     }
 
     //*vout bypass*//
-    pdata->bypass = of_property_read_u32(np, "halo,bypass", &temp);
+    rc = of_property_read_u32(np, "halo,bypass", &temp);
     if (rc) {
         pr_err("Invalid bypass\n");
     }else{
@@ -105,7 +105,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
     }
 
     //*ldop ref*//
-    pdata->ldop = of_property_read_u32(np, "halo,ldop", &temp);
+    rc = of_property_read_u32(np, "halo,ldop", &temp);
     if (rc) {
         pr_err("Invalid ldop\n");
         pdata->ldop = LDOP_1_8V;
@@ -115,7 +115,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
     }
 
     /*VOUT Range */
-    pdata->vout_range = of_property_read_u32(np, "halo,vout-range", &temp);
+    rc = of_property_read_u32(np, "halo,vout-range", &temp);
     if (rc) {
         pr_err("Invalid Vrange\n");
         pdata->vout_range = VOUT_RANGE_16MV;
@@ -125,7 +125,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
     }
 
     /* VOUT_TARGET */
-    pdata->trgt_vout = of_property_read_u32(np, "halo,trgt-vout", &temp);
+    rc = of_property_read_u32(np, "halo,trgt-vout", &temp);
     if (rc) {
         pr_err("Invalid TargetVout\n");
         pdata->trgt_vout = 0x15;
@@ -133,7 +133,16 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
         pdata->trgt_vout = temp;
         LOG_DBG("trgt_vout[%d]\n", pdata->trgt_vout);
     }
-    pdata->temp_limit = of_property_read_u32(np, "halo,temp-limit", &temp);
+    /* VRECT TARGET */
+    rc = of_property_read_u32(np, "halo,trgt-vrect", &temp);
+    if (rc) {
+        pr_err("Invalid TargetVrect\n");
+        pdata->trgt_vrect = 0x02;
+    }else{
+        pdata->trgt_vrect = temp;
+        LOG_DBG("trgt_vrect[%d]\n", pdata->trgt_vrect);
+    }
+    rc = of_property_read_u32(np, "halo,temp-limit", &temp);
     if (rc) {
         pr_err("Invalid TempLimit\n");
         pdata->temp_limit = 0x1a; // 46C
@@ -427,7 +436,6 @@ static void hl6111_get_target_vout(struct hl6111_charger *chg)
     LOG_DBG("Target Vout is [%d uV]\r\n", chg->trgt_vout);
 }
 
-
 static void hl6111_target_vout_ctrl(struct hl6111_charger *chg, u8 update)
 {
     //int ret;
@@ -440,6 +448,36 @@ static void hl6111_target_vout_ctrl(struct hl6111_charger *chg, u8 update)
 
     hl6111_write_reg(chg, REG_VOUT_TARGET, update);
     hl6111_get_target_vout(chg); //to update chg->trgt_vout;
+}
+
+static void hl6111_get_target_vrect(struct hl6111_charger *chg)
+{
+    int ret;
+    int vrect;
+
+    ret = hl6111_read_reg(chg, REG_VRECT_TARGET, &vrect);
+    if (ret < 0){
+        LOG_DBG("Failed to read addr=%X\r\n ", REG_VRECT_TARGET);
+        return;
+    }
+    LOG_DBG("vrect=[0x%x]\r\n", vrect);
+
+    chg->trgt_vrect = 5000000 + 500000 * vrect;
+
+    LOG_DBG("Target Vrect is [%d uV]\r\n", chg->trgt_vrect);
+}
+
+static void hl6111_target_vrect_ctrl(struct hl6111_charger *chg, u8 update)
+{
+    LOG_DBG("Start!!, update ==[0x%x]", update);
+
+    if (update < 0)
+        update = 0;
+    else if (update > 0xFF)
+        update = 0xFF;
+
+    hl6111_write_reg(chg, REG_VRECT_TARGET, update);
+    hl6111_get_target_vrect(chg); //to update chg->trgt_vrect;
 }
 
 static void hl6111_get_ioutlim(struct hl6111_charger *chg)
@@ -471,6 +509,34 @@ static void hl6111_set_ioutlim(struct hl6111_charger *chg, u8 update)
     hl6111_write_reg(chg, REG_IOUT_LIM_SEL, (update << 3));
 
     hl6111_get_ioutlim(chg);
+}
+
+static void hl6111_get_templim(struct hl6111_charger *chg)
+{
+    int ret;
+    int templim;
+
+    ret = hl6111_read_reg(chg, REG_TEMP_LIMIT, &templim);
+    if (ret < 0){
+        LOG_DBG("Failed to read addr=%X\r\n ", REG_TEMP_LIMIT);
+        return;
+    }
+
+    chg->temp_lim = templim * 19500;
+    LOG_DBG("templim:[%d uV], register:[0x%x]\r\n", chg->temp_lim, templim);
+}
+
+static void hl6111_set_templim(struct hl6111_charger *chg, u8 update)
+{
+    LOG_DBG("START !! update ==[0x%x]", update);
+    if (update < 0)
+        update = 0;
+    else if (update > 0xFF)
+        update = 0xFF;
+
+    hl6111_write_reg(chg, REG_TEMP_LIMIT, update);
+
+    hl6111_get_templim(chg);
 }
 
 static void hl6111_get_vout_bypass(struct hl6111_charger *chg)
@@ -536,8 +602,9 @@ static void hl6111_device_init(struct hl6111_charger *chg)
     hl6111_update_reg(chg, REG_VOUT_RANGE_SEL, BITS_VOUT_RNG_SEL, (chg->pdata->vout_range << 6));
     /* Vout == 4.304V 16mV/step*/
     hl6111_target_vout_ctrl(chg, chg->pdata->trgt_vout);
-
-    hl6111_update_reg(chg, REG_TEMP_LIMIT, BITS_MPP_TLIM, chg->pdata->temp_limit);
+    hl6111_target_vrect_ctrl(chg, chg->pdata->trgt_vrect);
+    hl6111_get_templim(chg);
+    hl6111_set_templim(chg, chg->pdata->temp_limit);
 
 #if 1
     hl6111_read_reg(chg, REG_VOUT_BYPASS, &rVal);
@@ -1079,6 +1146,7 @@ static int target_vout_set(void *data, u64 val)
         return -EAGAIN;
     }
 
+    chg->pdata->trgt_vout = val;
     hl6111_target_vout_ctrl(chg, val);
 
     return 0;
@@ -1093,6 +1161,58 @@ static int target_vout_get(void *data, u64 *val)
     *val = chg->trgt_vout;
     return 0;
 
+}
+
+static int target_vrect_get(void *data, u64 *val)
+{
+    struct hl6111_charger *chg = data;
+
+    LOG_DBG("Start!!");
+    hl6111_get_target_vrect(chg);
+    *val = chg->trgt_vrect;
+    return 0;
+}
+
+static int target_vrect_set(void *data, u64 val)
+{
+    struct hl6111_charger *chg = data;
+
+    LOG_DBG("Start! val == [%x]\n", (u8)val);
+    if ((val > 0xFF) || (val < 0))
+    {
+        return -EAGAIN;
+    }
+
+    chg->pdata->trgt_vrect = val;
+    hl6111_target_vrect_ctrl(chg, val);
+
+    return 0;
+}
+
+static int templim_get(void *data, u64 *val)
+{
+    struct hl6111_charger *chg = data;
+
+    LOG_DBG("Start!!");
+    hl6111_get_templim(chg);
+    *val = chg->temp_lim;
+    return 0;
+}
+
+static int templim_set(void* data, u64 val)
+{
+   struct hl6111_charger *chg = data;
+
+    LOG_DBG("Start! val == [0x%x]\n", (u8)val);
+    if ((val > 0xFF) || (val < 0))
+    {
+        return -EAGAIN;
+    }
+
+    chg->pdata->temp_limit = val;
+    hl6111_set_templim(chg, (u8)val);
+
+    return 0;
 }
 
 static int ioutlim_get(void *data, u64 *val)
@@ -1172,6 +1292,8 @@ static int ntc_temp_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(register_debug_ops, read_reg, write_reg, "0x%02llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(headroom_debug_ops, vrect_head_get, vrect_head_set, "%lld\n");
 DEFINE_SIMPLE_ATTRIBUTE(tvout_debug_ops, target_vout_get, target_vout_set, "%lld\n");
+DEFINE_SIMPLE_ATTRIBUTE(tvrect_debug_ops, target_vrect_get, target_vrect_set, "%lld\n");
+DEFINE_SIMPLE_ATTRIBUTE(templim_debug_ops, templim_get, templim_set, "%lld\n");
 DEFINE_SIMPLE_ATTRIBUTE(vrect_debug_ops, vrect_show, NULL, "%lld\n");
 DEFINE_SIMPLE_ATTRIBUTE(irect_debug_ops, irect_show, NULL, "%lld\n");
 DEFINE_SIMPLE_ATTRIBUTE(tdie_debug_ops, tdie_show, NULL, "0x%02llx\n");
@@ -1222,7 +1344,25 @@ static int hl6111_create_debugfs_entries(struct hl6111_charger *chg)
                        &tvout_debug_ops);
 
         if (!ent) {
-             dev_err(chg->dev, "Couldn't create vrectheadroom debug file\n");
+             dev_err(chg->dev, "Couldn't create target vout debug file\n");
+             rc = -ENOENT;
+         }
+
+        ent = debugfs_create_file("t_vrect", S_IFREG | S_IWUSR | S_IRUGO,
+                       chg->debug_root, chg,
+                       &tvrect_debug_ops);
+
+        if (!ent) {
+             dev_err(chg->dev, "Couldn't create target vrect debug file\n");
+             rc = -ENOENT;
+         }
+
+        ent = debugfs_create_file("temp_lim", S_IFREG | S_IWUSR | S_IRUGO,
+                       chg->debug_root, chg,
+                       &templim_debug_ops);
+
+        if (!ent) {
+             dev_err(chg->dev, "Couldn't create temp limit debug file\n");
              rc = -ENOENT;
          }
 
