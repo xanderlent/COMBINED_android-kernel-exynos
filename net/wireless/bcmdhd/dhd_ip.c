@@ -959,6 +959,12 @@ dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt)
 	ether_hdr = PKTDATA(dhdp->osh, pkt);
 	cur_framelen = PKTLEN(dhdp->osh, pkt);
 
+	if (cur_framelen < TCPACKSZMIN || cur_framelen > TCPACKSZMAX) {
+		DHD_TRACE(("%s %d: Too short or long length %d to be TCP ACK\n",
+				__FUNCTION__, __LINE__, cur_framelen));
+		goto exit;
+	}
+
 	ether_type = ether_hdr[12] << 8 | ether_hdr[13];
 
 	if (ether_type != ETHER_TYPE_IP) {
