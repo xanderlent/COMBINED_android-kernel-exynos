@@ -978,24 +978,23 @@ static const char * const cs40l2x_coeff_files_remap[] = {
 
 static const char * const cs40l2x_coeff_files_cal[] = {
 	"cs40l25a_cal.bin",
-};
+};  /* Calibration */
 
 static const char * const cs40l2x_coeff_files_clab[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
-	"cs40l25a_clab.bin",
-};
+	CS40L2X_CLAB_CONFIG_FILE_NAME,
+};  /* Closed loop active braking */
 
 static const char * const cs40l2x_coeff_files_par[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
-	"cs40l25a_par.bin",
-	CS40L2X_DYN_F0_FILE_NAME,
+	CS40L2X_PAR_CONFIG_FILE_NAME,
 };  /* PWLE Amplitude Regulation */
 
 static const char * const cs40l2x_coeff_files_a2h[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_a2h.bin",
 	CS40L2X_DYN_F0_FILE_NAME,
-};  /* PWLE Amplitude Regulation */
+};  /* Audio to Haptics */
 
 const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 	{
@@ -1029,7 +1028,7 @@ const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_cal),
 		.coeff_files = cs40l2x_coeff_files_cal,
 		.fw_file = "cs40l25a_cal.wmfw",
-	},
+	},  /* Calibration */
 	{
 		.id = CS40L2X_FW_ID_CLAB,
 		.min_rev = 0x080100,
@@ -1037,7 +1036,7 @@ const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_clab),
 		.coeff_files = cs40l2x_coeff_files_clab,
 		.fw_file = "cs40l25a_clab.wmfw",
-	},
+	},  /* Closed loop active braking */
 	{
 		.id = CS40L2X_FW_ID_PAR,
 		.min_rev = 0x080A00,
@@ -1053,7 +1052,15 @@ const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_a2h),
 		.coeff_files = cs40l2x_coeff_files_a2h,
 		.fw_file = "cs40l25a_a2h.wmfw",
-	},  /* PWLE Amplitude Regulation */
+	},  /* Audio to Haptics */
+	{
+		.id = CS40L2X_FW_ID_DSWAP,
+		.min_rev = 0x0A0200,
+		.halo_state_run = 0,
+		.num_coeff_files = 0,
+		.coeff_files = NULL,
+		.fw_file = NULL,
+	}, /* Placeholder for dynamic FW swapping */
 };
 
 const struct cs40l2x_hw_err_desc cs40l2x_hw_errs[CS40L2X_NUM_HW_ERRS] = {
