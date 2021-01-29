@@ -470,7 +470,8 @@ DHDCFLAGS += -DCUSTOM_ROAMRSSI_5G=-70
 
 # SAE..if kernel < 4.17 ..back port support required
 ifneq ($(CONFIG_CFG80211_SAE_BKPORT),)
-	DHDCFLAGS += -DWL_SAE
+	# WPA3 external authenticator
+	DHDCFLAGS += -DWL_CLIENT_SAE
 endif
 
 #Android Q

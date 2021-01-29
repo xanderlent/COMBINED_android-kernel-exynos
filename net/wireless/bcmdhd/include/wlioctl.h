@@ -1636,6 +1636,13 @@ typedef struct wl_auth_event {
 	uint8 xtlvs[];
 } wl_auth_event_t;
 
+typedef struct wl_ext_auth_evt {
+	wlc_ssid_t ssid;
+	struct ether_addr bssid;
+	unsigned int key_mgmt_suite;
+	int status;
+} wl_ext_auth_evt_t;
+
 #define WL_AUTH_EVENT_FIXED_LEN_V1	OFFSETOF(wl_auth_event_t, xtlvs)
 #define WL_AUTH_EVENT_FIXED_LEN_V2	OFFSETOF(wl_auth_event_t, xtlvs)
 
@@ -17925,6 +17932,7 @@ enum wl_sae_auth_xtlv_id {
 #define WL_ASSOC_MGR_CMD_PAUSE_ON_EVT		0 /* have assoc pause on certain events */
 #define WL_ASSOC_MGR_CMD_ABORT_ASSOC		1
 #define WL_ASSOC_MGR_CMD_SET_SAE_FRAME		2
+#define WL_ASSOC_MGR_CMD_SEND_AUTH		3
 
 #define WL_ASSOC_MGR_PARAMS_EVENT_NONE			0 /* use this to resume as well as clear */
 #define WL_ASSOC_MGR_PARAMS_PAUSE_EVENT_AUTH_RESP	1
