@@ -11,54 +11,27 @@
 
 #include <linux/ktime.h>
 #include <linux/cpuidle.h>
-#include <linux/psci.h>
 
 #include <asm/cputype.h>
 
-/*
- * cpuidle major state
- */
-#define PROFILE_C1		0
-#define PROFILE_C2		1
-#define PROFILE_SYS		2
-
-#define has_sub_state(_state)	(_state > PROFILE_C1 ? 1 : 0)
-
-/*
- * C2 sub state
- */
-#define C2_CPD			PSCI_CLUSTER_SLEEP
-#define C2_SICD			PSCI_SYSTEM_IDLE
-
-#define to_cluster(cpu)		MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 1)
-
-struct cpuidle_profile_state_usage {
-	unsigned int entry_count;
-	unsigned int early_wakeup_count;
-	unsigned long long time;
-};
-
-struct cpuidle_profile_info {
-	ktime_t last_entry_time;
-	int cur_state;
-	int state_count;
-
-	struct cpuidle_profile_state_usage *usage;
-};
-
-extern void cpuidle_profile_start(int cpu, int state, int sub_state);
-extern void cpuidle_profile_finish(int cpuid, int early_wakeup);
-extern void cpuidle_profile_register(struct cpuidle_driver *drv);
-
-#ifdef CONFIG_CPU_IDLE
-extern void cpuidle_profile_collect_idle_ip(int mode,
-				int index, unsigned int idle_ip);
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
+extern void cpuidle_profile_cpu_idle_enter(int cpu, int index);
+extern void cpuidle_profile_cpu_idle_exit(int cpu, int index, int cancel);
+extern void cpuidle_profile_cpu_idle_register(struct cpuidle_driver *drv);
+extern void cpuidle_profile_group_idle_enter(int id);
+extern void cpuidle_profile_group_idle_exit(int id, int cancel);
+extern void cpuidle_profile_group_idle_register(int id, const char *name);
+extern void cpuidle_profile_idle_ip(unsigned long long val);
+extern void cpuidle_profile_fix_idle_ip(unsigned int fix_idle_ip, int max_index);
 #else
-static inline void cpuidle_profile_collect_idle_ip(int mode,
-				int index, unsigned int idle_ip)
-{
-	/* Nothing to do */
-}
-#endif
+static inline void cpuidle_profile_cpu_idle_enter(int cpu, int index) { }
+static inline void cpuidle_profile_cpu_idle_exit(int cpu, int index, int cancel) { }
+static inline void cpuidle_profile_cpu_idle_register(struct cpuidle_driver *drv) { }
+static inline void cpuidle_profile_group_idle_enter(int id) { }
+static inline void cpuidle_profile_group_idle_exit(int id, int cancel) { }
+static inline void cpuidle_profile_group_idle_register(int id, const char *name) { }
+static inline void cpuidle_profile_idle_ip(unsigned long long val) { }
+static inline void cpuidle_profile_fix_idle_ip(unsigned int fix_idle_ip, int max_index) { }
+#endif /* CONFIG_ARM64_EXYNOS_CPUIDLE */
 
 #endif /* CPUIDLE_PROFILE_H */

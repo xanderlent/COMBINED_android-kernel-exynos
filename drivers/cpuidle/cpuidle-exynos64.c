@@ -47,14 +47,14 @@ static unsigned int prepare_idle(unsigned int cpu, int index)
 		entry_state = exynos_cpu_pm_enter(cpu, index);
 	}
 
-	cpuidle_profile_start(cpu, index, entry_state);
+	cpuidle_profile_cpu_idle_enter(cpu, index);
 
 	return entry_state;
 }
 
 static void post_idle(unsigned int cpu, int index, int fail)
 {
-	cpuidle_profile_finish(cpu, fail);
+	cpuidle_profile_cpu_idle_exit(cpu, index, fail);
 
 	if (!index)
 		return;
@@ -157,6 +157,8 @@ static int __init exynos_idle_driver_init(struct cpuidle_driver *drv,
 	return 0;
 }
 
+struct class *idle_class;
+
 static int __init exynos_idle_init(void)
 {
 	int ret, cpu, i;
@@ -202,9 +204,12 @@ static int __init exynos_idle_init(void)
 		}
 	}
 
+	cpuidle_profile_cpu_idle_register(&exynos_idle_driver[0]);
+
 	register_reboot_notifier(&exynos_cpuidle_reboot_nb);
 
-	cpuidle_profile_register(&exynos_idle_driver[0]);
+	/* class for exynos cpuidle : /sys/class/cpuidle */
+	idle_class = class_create(THIS_MODULE, "cpuidle");
 
 	pr_info("Exynos cpuidle driver Initialized\n");
 
