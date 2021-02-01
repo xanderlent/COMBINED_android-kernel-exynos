@@ -15,9 +15,8 @@
 		resolution = <384 384>;
 		size = <30 30>;
 		timing,refresh = <60>;
-		/* TODO: Set below 3 timing parameters to be correct values */
-		timing,dsi-hs-clk = <384>;
-		timing,pmsk = <2 118 2 0>;
+		timing,dsi-hs-clk = <386>;
+		timing,pmsk = <0x2 0xEE 0x3 0x89D9>;
 		timing,dsi-escape-clk = <16>;
 		data_lane = <1>;
 		type_of_ddi = <2>;
