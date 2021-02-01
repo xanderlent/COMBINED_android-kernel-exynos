@@ -78,7 +78,7 @@ struct proc_dir_entry *bluetooth_dir, *sleep_dir;
 struct bluesleep_info {
 	struct gpio_desc *host_wake;
 	struct gpio_desc *ext_wake;
-	int host_wake_irq;
+	unsigned int host_wake_irq;
 	struct uart_port *uport;
 	struct wake_lock bt_wakelock;
 	struct wake_lock host_wakelock;
@@ -423,10 +423,10 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev_id)
 	host_wake = gpiod_get_value(bsi->host_wake);
 	pr_debug("ext_wake : %d, host_wake : %d", ext_wake, host_wake);
 	if (host_wake == 0) {
-		wake_lock(&bsi->host_wakelock);
+		wake_lock_timeout(&bsi->host_wakelock, HZ*1);
 		irq_set_irq_type(irq, IRQF_TRIGGER_HIGH);
 	} else {
-		wake_lock_timeout(&bsi->host_wakelock, HZ*5);
+		wake_lock(&bsi->host_wakelock);
 		irq_set_irq_type(irq, IRQF_TRIGGER_LOW);
 	}
 
