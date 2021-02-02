@@ -156,6 +156,7 @@ typedef struct pkt_cnt_log {
 #define PKT_CNT_RSN_VALID(rsn)	\
 	(((rsn) > (PKT_CNT_RSN_INVALID)) && ((rsn) < (PKT_CNT_RSN_MAX)))
 
+#ifdef DHD_PKTDUMP_ROAM
 static const char pkt_cnt_msg[][20] = {
 	"INVALID",
 	"ROAM_SUCCESS",
@@ -163,6 +164,7 @@ static const char pkt_cnt_msg[][20] = {
 	"CONNECT_SUCCESS",
 	"INVALID"
 };
+#endif /* DHD_PKTDUMP_ROAM */
 
 static const char tx_pktfate[][30] = {
 	"TX_PKT_FATE_ACKED",		/* 0: WLFC_CTL_PKTFLAG_DISCARD */
@@ -1104,14 +1106,10 @@ dhd_check_arp(uint8 *pktdata)
 }
 
 #ifdef DHD_ARP_DUMP
-#ifdef BOARD_HIKEY
-/* On Hikey, due to continuous ARP prints
+/* Due to continuous ARP prints
  * DPC not scheduled. Hence rate limit the prints.
  */
 #define DHD_PKTDUMP_ARP DHD_ERROR_RLMT
-#else
-#define DHD_PKTDUMP_ARP DHD_PKTDUMP
-#endif /* BOARD_HIKEY */
 
 #define ARP_PRINT(str) \
 	do { \
