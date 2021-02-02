@@ -1500,7 +1500,7 @@ int32_t nvt_load_mp_criteria(void){
 	org_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	snprintf(mpcriteria, PAGE_SIZE, "%s_%04X.csv", MP_LIMIT_CSV_FILE, ts->nvt_pid);
+	snprintf(mpcriteria, sizeof(mpcriteria), "%s_%04X.csv", MP_LIMIT_CSV_FILE, ts->nvt_pid);
 	fp = filp_open(mpcriteria, O_RDONLY, 0);
 	if (fp == NULL || IS_ERR(fp)) {
 		NVT_ERR("open %s failed\n", mpcriteria);
