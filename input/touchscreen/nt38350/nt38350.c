@@ -86,7 +86,7 @@ const uint16_t gesture_key_array[] = {
 	KEY_POWER,  //GESTURE_WORD_C
 	KEY_POWER,  //GESTURE_WORD_W
 	KEY_POWER,  //GESTURE_WORD_V
-	KEY_POWER,  //GESTURE_DOUBLE_CLICK
+	KEY_WAKEUP, //GESTURE_TAP_TO_WAKE
 	KEY_POWER,  //GESTURE_WORD_Z
 	KEY_POWER,  //GESTURE_WORD_M
 	KEY_POWER,  //GESTURE_WORD_O
@@ -653,7 +653,7 @@ static void nvt_flash_proc_deinit(void)
 #define GESTURE_WORD_C          12
 #define GESTURE_WORD_W          13
 #define GESTURE_WORD_V          14
-#define GESTURE_DOUBLE_CLICK    15
+#define GESTURE_TAP_TO_WAKE     15
 #define GESTURE_WORD_Z          16
 #define GESTURE_WORD_M          17
 #define GESTURE_WORD_O          18
@@ -700,8 +700,8 @@ void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 			NVT_LOG("Gesture : Word-V.\n");
 			keycode = gesture_key_array[2];
 			break;
-		case GESTURE_DOUBLE_CLICK:
-			NVT_LOG("Gesture : Double Click.\n");
+		case GESTURE_TAP_TO_WAKE:
+			NVT_LOG("Gesture : Tap to Wake.\n");
 			keycode = gesture_key_array[3];
 			break;
 		case GESTURE_WORD_Z:
