@@ -29,6 +29,8 @@ quiet_cmd_dtb_install =	INSTALL $<
 
 install-dir = $(patsubst $(dtbinst_root)%,$(INSTALL_DTBS_PATH)%,$(obj))
 
+$(dtbinst-files) $(dtbinst-dirs): | __dtbs_install_prep
+
 $(dtbinst-files) $(dtboinst-files) $(dtbinst-dirs): | __dtbs_install_prep
 
 $(dtbinst-files): %.dtb: $(obj)/%.dtb

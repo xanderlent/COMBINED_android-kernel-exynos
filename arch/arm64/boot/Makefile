@@ -18,6 +18,15 @@ OBJCOPYFLAGS_Image :=-O binary -R .note -R .note.gnu.build-id -R .comment -S
 
 targets := Image Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo
 
+DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES))
+ifneq ($(DTB_NAMES),)
+DTB_LIST := $(addsuffix .dtb,$(DTB_NAMES))
+else
+DTB_LIST := $(dtb-y) $(dtbo-y)
+endif
+DTB_OBJS := $(addprefix $(obj)/dts/,$(DTB_LIST))
+DTBO_OBJS := $(shell find -L $(obj)/dts/ -name \*.dtbo)
+
 $(obj)/Image: vmlinux FORCE
 	$(call if_changed,objcopy)
 
@@ -35,6 +44,14 @@ $(obj)/Image.lzma: $(obj)/Image FORCE
 
 $(obj)/Image.lzo: $(obj)/Image FORCE
 	$(call if_changed,lzo)
+
+$(obj)/Image.gz-dtb: $(obj)/Image.gz $(DTB_OBJS) FORCE
+	$(call if_changed,cat)
+
+ifeq ($(CONFIG_BUILD_ARM64_APPLY_DTBO_IMG),y)
+$(obj)/dtbo.img: $(obj)/dts/dtboimg.cfg $(DTBO_OBJS) FORCE
+	$(call if_changed,mkdtimg,4096) # align dtbo.img to 4kB
+endif
 
 install:
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \

@@ -126,11 +126,37 @@ core-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 
 # Default target when executing plain make
 boot		:= arch/arm64/boot
+ifeq ($(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE),y)
+KBUILD_IMAGE	:= $(boot)/$(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_KERNEL_IMAGE_NAME))
+else
 KBUILD_IMAGE	:= $(boot)/Image.gz
+endif
+
 KBUILD_DTBS	:= dtbs
 
-all:	Image.gz $(KBUILD_DTBS)
+ifeq ($(CONFIG_BUILD_ARM64_APPLY_DTBO_IMG),y)
+KBUILD_DTBO_IMG := dtbo.img
+endif
 
+ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
+export DTC_FLAGS := -@
+endif
+
+ifeq ($(CONFIG_BUILD_ARM64_APPLY_DTBO),y)
+	KBUILD_APPLY_DTBO := apply_dtbo
+endif
+
+BUILD_DTC_PATH = $(subst $\",,$(CONFIG_BUILD_ARM64_DTC))
+ifneq ($(BUILD_DTC_PATH),)
+	DTC = $(BUILD_DTC_PATH)
+endif
+
+BUILD_DTC_FLAGS = $(subst $\",,$(CONFIG_BUILD_ARM64_DTC_FLAGS))
+ifneq ($(BUILD_DTC_FLAGS),)
+	DTC_FLAGS += $(BUILD_DTC_FLAGS)
+endif
+
+all:	Image.gz $(KBUILD_DTBS) $(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_KERNEL_IMAGE_NAME)) $(KBUILD_DTBO_IMG) $(KBUILD_APPLY_DTBO)
 
 Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
@@ -144,6 +170,9 @@ zinstall install:
 %.dtb: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
+%.dtbo: scripts
+	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
+
 PHONY += dtbs dtbs_install
 
 dtbs: prepare scripts
@@ -152,6 +181,20 @@ dtbs: prepare scripts
 dtbs_install:
 	$(Q)$(MAKE) $(dtbinst)=$(boot)/dts
 
+Image-dtb: vmlinux scripts dtbs
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+Image.gz-dtb: vmlinux scripts dtbs Image.gz
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+dtbo.img: $(boot)/dts/dtboimg.cfg dtbs
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+
+PHONY += apply_dtbo
+dtboapply := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.dtboapply obj
+apply_dtbo: Image.lz4-dtb dtbo.img
+	$(Q)$(MAKE) $(dtboapply)=$(boot) KERNEL_DTB=Image.lz4-dtb DTBO=dtbo.img
 PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
@@ -161,6 +204,8 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 	$(Q)$(MAKE) $(clean)=$(boot)/dts
 
+CLEAN_FILES += $(boot)/Image $(boot)/Image-dtb $(boot)/Image.* $(boot)/dtbo.img
+MRPROPER_FILES += $(boot)/Image $(boot)/Image-dtb $(boot)/Image.* $(boot)/dtbo.img
 ifeq ($(KBUILD_EXTMOD),)
 # We need to generate vdso-offsets.h before compiling certain files in kernel/.
 # In order to do that, we should use the archprepare target, but we can't since
