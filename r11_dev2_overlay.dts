@@ -17,16 +17,15 @@
 /plugin/;
 
 #include <dt-bindings/clock/exynos9110.h>
-#include <dt-bindings/soc/samsung/exynos9110.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 
-#include "r11_st21_nfc.dtsi"
-#include "r11_st54_ese.dtsi"
+/* #include "r11_st21_nfc.dtsi" */
+/* #include "r11_st54_ese.dtsi" */
 #include "r11_cp.dtsi"
 #include "r11_dev1_common.dtsi"
-#include "r11_auo_display_lcd.dtsi"
-#include "r11_raydium_touchscreen.dtsi"
+/* #include "r11_auo_display_lcd.dtsi" */
+/* #include "r11_raydium_touchscreen.dtsi" */
 
 / {
 	compatible = "google,r11";

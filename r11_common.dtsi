@@ -143,6 +143,7 @@
 	* https://drive.google.com/corp/drive/u/0/folders/1oJWggugDl7EeUM3SbeKJ1Y6b1tvxxeSs
 	*/
 	audio_codec_cod9005x: cod9005x@03 {
+		#sound-dai-cells = <0>;
 		compatible = "codec,cod9005x";
 		/* 0x03 was copied from the DT of the reference platform. It should be
 		   the same for r11, because the whole PMIC block is the same. */
@@ -352,12 +353,18 @@
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-ramp-delay = <12000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-initial-mode = <1>;
 			};
 			ldo19_reg: LDO19 {
 				regulator-name = "vqemmc";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3375000>;
 				regulator-ramp-delay = <12000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-initial-mode = <1>;
 			};
 			ldo20_reg: LDO20 {
 				regulator-name = "vdd_ldo20";

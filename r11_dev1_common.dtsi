@@ -15,14 +15,26 @@
 
 #include "r11_common.dtsi"
 #include "r11_adc.dtsi"
-#include "r11_bcm430132_bluetooth.dtsi"
-#include "r11_bcm430132_wifi.dtsi"
+/* #include "r11_bcm430132_bluetooth.dtsi" */
+/* #include "r11_bcm430132_wifi.dtsi" */
 #include "r11_bcm47765_gnss.dtsi"
 #include "r11_dev1_audio_haptics.dtsi"
 #include "r11_dev1_wlc.dtsi"
 #include "r11_nanohub.dtsi"
 #include "r11_dev1_crown.dtsi"
 #include "r11_adc.dtsi"
+
+&dsim_0 {
+	status = "disabled";
+};
+
+&panel_0 {
+	status = "disabled";
+};
+
+&decon_f {
+	status = "disabled";
+};
 
 &regulators {
 	ldo22_reg: LDO22 {
