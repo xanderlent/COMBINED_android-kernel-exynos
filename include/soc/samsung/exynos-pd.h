@@ -35,23 +35,16 @@
 #include <soc/samsung/exynos-devfreq.h>
 #include <dt-bindings/power/exynos-power.h>
 
-#define EXYNOS_PD_PREFIX	"EXYNOS-PD: "
 #define EXYNOS_PD_DBG_PREFIX	"EXYNOS-PD-DBG: "
 
-#ifndef pr_fmt
-#define pr_fmt(fmt) fmt
-#endif
-
-#ifdef CONFIG_EXYNOS_PM_DOMAIN_DEBUG
-#define DEBUG_PRINT_INFO(fmt, ...) printk(PM_DOMAIN_PREFIX pr_fmt(fmt), ##__VA_ARGS__)
-#else
-#define DEBUG_PRINT_INFO(fmt, ...)
-#endif
-
-/* In Exynos, the number of MAX_POWER_DOMAIN is less than 15 */
-#define MAX_PARENT_POWER_DOMAIN	15
-
 struct exynos_pm_domain;
+
+struct exynos_pd_stat {
+	u64 on_count;
+	ktime_t total_on_time;
+	ktime_t last_on_time;
+	ktime_t last_off_time;
+};
 
 struct exynos_pm_domain {
 	struct generic_pm_domain genpd;
@@ -69,7 +62,13 @@ struct exynos_pm_domain {
 	struct bcm_info *bcm;
 #endif
 	bool power_down_skipped;
+	/* Total number of descendants needing sync, including self */
+	atomic_t need_sync;
+	bool turn_off_on_sync;
 	unsigned int need_smc;
+	bool skip_idle_ip;
+	struct exynos_pd_stat pd_stat;
+	struct exynos_pm_domain *parent;
 };
 
 struct exynos_pd_dbg_info {

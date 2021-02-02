@@ -12,11 +12,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <soc/google/exynos-pd.h>
-#include <soc/google/bts.h>
-#include <soc/google/cal-if.h>
+#include <soc/samsung/exynos-pd.h>
+#include <soc/samsung/bts.h>
+#include <soc/samsung/cal-if.h>
+//#include <sound/samsung/abox.h>
 #include <linux/module.h>
-#include <soc/google/exynos-cpupm.h>
+#include <soc/samsung/exynos-cpupm.h>
 
 struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name)
 {
@@ -60,63 +61,48 @@ int exynos_pd_status(struct exynos_pm_domain *pd)
 }
 EXPORT_SYMBOL(exynos_pd_status);
 
-int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd, struct exynos_pd_stat *s)
-{
-	if (unlikely(!pd || !s))
-		return -EINVAL;
-
-	mutex_lock(&pd->access_lock);
-
-	s->on_count = pd->pd_stat.on_count;
-	s->last_on_time = pd->pd_stat.last_on_time;
-	s->last_off_time = pd->pd_stat.last_off_time;
-
-	/* If current state is on then include time elapsed since last on */
-	if (cal_pd_status(pd->cal_pdid) > 0) {
-		s->total_on_time =
-			ktime_add(pd->pd_stat.total_on_time,
-				  ktime_sub(ktime_get_boottime(),
-					    pd->pd_stat.last_on_time));
-	} else {
-		s->total_on_time = pd->pd_stat.total_on_time;
-	}
-
-	mutex_unlock(&pd->access_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(exynos_pd_get_pd_stat);
-
 /* Power domain on sequence.
  * on_pre, on_post functions are registered as notification handler at CAL code.
  */
 static void exynos_pd_power_on_pre(struct exynos_pm_domain *pd)
 {
-	if (!pd->skip_idle_ip)
-		exynos_update_ip_idle_status(pd->idle_ip_index, 0);
+//	if (!pd->skip_idle_ip)
+//		exynos_update_ip_idle_status(pd->idle_ip_index, 0);
 
 	if (pd->devfreq_index >= 0)
 		exynos_bts_scitoken_setting(true);
+}
 
-	if (pd->cal_pdid == HSI0_CAL_PDID)
-		exynos_usbdrd_ldo_manual_control(1);
+static void exynos_pd_power_on_post(struct exynos_pm_domain *pd)
+{
+#if defined(CONFIG_EXYNOS_BCM)
+	if (cal_pd_status(pd->cal_pdid) && pd->bcm)
+		bcm_pd_sync(pd->bcm, true);
+#endif
+}
+
+static void exynos_pd_power_off_pre(struct exynos_pm_domain *pd)
+{
+#if defined(CONFIG_EXYNOS_BCM)
+	if (cal_pd_status(pd->cal_pdid) && pd->bcm)
+		bcm_pd_sync(pd->bcm, false);
+#endif
+//	if (!strcmp(pd->name, "pd-dispaud"))
+//		abox_poweroff();
 }
 
 static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 {
-	if (!pd->skip_idle_ip)
-		exynos_update_ip_idle_status(pd->idle_ip_index, 1);
+//	if (!pd->skip_idle_ip)
+//		exynos_update_ip_idle_status(pd->idle_ip_index, 1);
 
 	if (pd->devfreq_index >= 0)
 		exynos_bts_scitoken_setting(false);
-
-	if (pd->cal_pdid == HSI0_CAL_PDID)
-		exynos_usbdrd_ldo_manual_control(0);
 }
 
 /**
- * returns 0 if the domain was already ON, 1 if was successfully turned ON or waiting for sync
- * and negative in case of error
+ * returns 0 if the domain was already ON, 1 if was successfully turned ON or
+ * waiting for sync and negative in case of error
  */
 static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
 {
@@ -131,8 +117,9 @@ static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
 	}
 
 	if (unlikely(!pd->pd_control)) {
-		pr_debug("%s is logical sub power domain, does not have power on control\n",
-			 pd->name);
+		pr_debug(
+			"%s is logical sub power domain, does not have power on control\n",
+			pd->name);
 		goto acc_unlock;
 	}
 
@@ -155,6 +142,8 @@ static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
 		ret = -EAGAIN;
 		goto acc_unlock;
 	}
+
+	exynos_pd_power_on_post(pd);
 
 	pd->pd_stat.on_count++;
 	pd->pd_stat.last_on_time = ktime_get_boottime();
@@ -182,15 +171,15 @@ EXPORT_SYMBOL(exynos_pd_power_on);
 static int genpd_power_on(struct generic_pm_domain *genpd)
 {
 	struct exynos_pm_domain *pd =
-	    container_of(genpd, struct exynos_pm_domain, genpd);
+		container_of(genpd, struct exynos_pm_domain, genpd);
 	int ret = exynos_pd_power_on(pd);
 
 	return ret < 0 ? ret : 0;
 }
 
 /**
- * returns 0 if the domain was already OFF, 1 if was successfully turned OFF or waiting for sync
- * and negative in case of error
+ * returns 0 if the domain was already OFF, 1 if was successfully turned OFF or
+ * waiting for sync and negative in case of error
  */
 static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 {
@@ -210,8 +199,9 @@ static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 	}
 
 	if (unlikely(!pd->pd_control)) {
-		pr_debug("%s is logical sub power domain, does not have power off control\n",
-			 pd->name);
+		pr_debug(
+			"%s is logical sub power domain, does not have power off control\n",
+			pd->name);
 		goto acc_unlock;
 	}
 
@@ -225,6 +215,8 @@ static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 		pr_debug("pd_power_off:(%s) is already OFF\n", pd->name);
 		goto acc_unlock;
 	}
+
+	exynos_pd_power_off_pre(pd);
 
 	ret = pd->pd_control(pd->cal_pdid, 0);
 
@@ -284,13 +276,31 @@ static int of_get_devfreq_sync_volt_idx(const struct device_node *device)
 	return val;
 }
 
-static bool exynos_pd_power_down_ok_usb(void)
+static bool exynos_pd_power_down_ok_aud(void)
 {
-#if IS_ENABLED(CONFIG_USB_DWC3_EXYNOS)
-	return !otg_is_connect();
+//#ifdef CONFIG_SND_SOC_SAMSUNG_ABOX
+//	return !abox_is_on();
+//#else
+	return true;
+//#endif
+}
+
+static bool exynos_pd_power_down_ok_vts(void)
+{
+#ifdef CONFIG_SND_SOC_SAMSUNG_VTS
+	return !vts_is_on();
 #else
 	return true;
 #endif
+}
+
+static bool exynos_pd_power_down_ok_usb(void)
+{
+//#if IS_ENABLED(CONFIG_USB_DWC3_EXYNOS)
+//	return !otg_is_connect();
+//#else
+	return true;
+//#endif
 }
 
 static void of_get_power_down_ok(struct exynos_pm_domain *pd)
@@ -304,6 +314,12 @@ static void of_get_power_down_ok(struct exynos_pm_domain *pd)
 		return;
 
 	switch (val) {
+	case PD_OK_AUD:
+		pd->power_down_ok = exynos_pd_power_down_ok_aud;
+		break;
+	case PD_OK_VTS:
+		pd->power_down_ok = exynos_pd_power_down_ok_vts;
+		break;
 	case PD_OK_USB:
 		pd->power_down_ok = exynos_pd_power_down_ok_usb;
 		break;
@@ -334,7 +350,8 @@ static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 
 static int exynos_pd_suspend_late(struct device *dev)
 {
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct platform_device *pdev =
+		container_of(dev, struct platform_device, dev);
 	struct exynos_pm_domain *data = platform_get_drvdata(pdev);
 
 	if (IS_ERR(&data->genpd))
@@ -351,8 +368,10 @@ static int exynos_pd_suspend_late(struct device *dev)
 
 static int exynos_pd_resume_early(struct device *dev)
 {
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct exynos_pm_domain *data = (struct exynos_pm_domain *)platform_get_drvdata(pdev);
+	struct platform_device *pdev =
+		container_of(dev, struct platform_device, dev);
+	struct exynos_pm_domain *data =
+		(struct exynos_pm_domain *)platform_get_drvdata(pdev);
 
 	if (IS_ERR(&data->genpd))
 		return 0;
@@ -360,7 +379,8 @@ static int exynos_pd_resume_early(struct device *dev)
 	/* Resume callback function might be registered if necessary */
 	if (of_property_read_bool(dev->of_node, "pd-always-on")) {
 		data->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
-		dev_info(dev, "    %-9s - %s\n", data->genpd.name, "on,  always");
+		dev_info(dev, "    %-9s - %s\n", data->genpd.name,
+			 "on,  always");
 	}
 
 	return 0;
@@ -453,7 +473,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		dev_info(dev, " - %s\n", "on,  always");
 	} else {
-		dev_info(dev, " - %-3s\n", pd->genpd.name,
+		dev_info(dev, " - %-3s\n",
 			 cal_pd_status(pd->cal_pdid) ? "on" : "off");
 	}
 
@@ -465,13 +485,15 @@ static int exynos_pd_probe(struct platform_device *pdev)
 			if (parent_pd) {
 				if (pm_genpd_add_subdomain(&parent_pd->genpd,
 							   &pd->genpd)) {
-					dev_err(&parent_pd_pdev->dev, "cannot add subdomain %s\n",
+					dev_err(&parent_pd_pdev->dev,
+						"cannot add subdomain %s\n",
 						pd->name);
 				} else {
 					pd->parent = parent_pd;
 					atomic_add(atomic_read(&pd->need_sync),
 						   &parent_pd->need_sync);
-					dev_info(&parent_pd_pdev->dev, "has new subdomain %s\n",
+					dev_info(&parent_pd_pdev->dev,
+						 "has new subdomain %s\n",
 						 pd->name);
 				}
 			}
@@ -496,7 +518,8 @@ static void exynos_pd_sync_state(struct exynos_pm_domain *pd)
 		goto sync_unlock;
 
 	if (need_sync == 0) {
-		pr_info("%s sync_state: turn_off = %d\n", pd->name, pd->turn_off_on_sync);
+		pr_info("%s sync_state: turn_off = %d\n", pd->name,
+			pd->turn_off_on_sync);
 		if (pd->turn_off_on_sync)
 			__exynos_pd_power_off(pd);
 		if (pd->parent)
@@ -524,8 +547,8 @@ static const struct of_device_id of_exynos_pd_match[] = {
 MODULE_DEVICE_TABLE(of, of_exynos_pd_match);
 
 static const struct dev_pm_ops exynos_pd_pm_ops = {
-	.suspend_late	= exynos_pd_suspend_late,
-	.resume_early	= exynos_pd_resume_early,
+	.suspend_late = exynos_pd_suspend_late,
+	.resume_early = exynos_pd_resume_early,
 };
 
 static const struct platform_device_id exynos_pd_ids[] = {
@@ -540,8 +563,8 @@ static struct platform_driver exynos_pd_driver = {
 		.sync_state = dev_sync_state,
 		.pm = &exynos_pd_pm_ops
 	},
-	.probe		= exynos_pd_probe,
-	.id_table	= exynos_pd_ids,
+	.probe = exynos_pd_probe,
+	.id_table = exynos_pd_ids,
 };
 
 static int exynos_pd_init(void)
