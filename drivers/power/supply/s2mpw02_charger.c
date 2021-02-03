@@ -276,7 +276,7 @@ enum {
 /* charger input regulation voltage setting */
 static void s2mpw02_set_mivr_level(struct s2mpw02_charger_data *charger)
 {
-	int mivr = S2MPW02_MIVR_4600MV;
+	int mivr = S2MPW02_MIVR_4200MV;
 
 	s2mpw02_update_reg(charger->client,
 			S2MPW02_CHG_REG_CTRL5, mivr << IVR_V_SEL_SHIFT, IVR_V_SEL_MASK);
@@ -675,7 +675,8 @@ static void s2mpw02_muic_init_detect(struct work_struct *work)
 #endif
 		} else {
 			pr_info("%s: Wireless TA connected\n", __func__);
-			//charger->muic_dev = ATTACHED_DEV_WIRELESS_TA_MUIC;
+			charger->muic_dev = ATTACHED_DEV_WIRELESS_TA_MUIC;
+			muic_notifier_attach_attached_dev(charger->muic_dev);
 		}
 	}
 }
@@ -806,7 +807,7 @@ static void s2mpw02_muic_detect_handler(struct s2mpw02_charger_data *charger, bo
 #endif
 				} else {
 					pr_info("%s: Wireless TA connected\n", __func__);
-					//charger->muic_dev = ATTACHED_DEV_WIRELESS_TA_MUIC;
+					charger->muic_dev = ATTACHED_DEV_WIRELESS_TA_MUIC;
 				}
 
 				muic_notifier_attach_attached_dev(charger->muic_dev);
@@ -1051,6 +1052,7 @@ static int s2mpw02_charger_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_parse_dt;
 
+	s2mpw02_set_regulation_voltage(charger, charger->pdata->chg_float_voltage);
 	platform_set_drvdata(pdev, charger);
 
 	if (charger->pdata->charger_name == NULL)

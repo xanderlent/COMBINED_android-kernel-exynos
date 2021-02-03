@@ -81,6 +81,7 @@ int muic_notifier_register(struct notifier_block *nb, notifier_fn_t notifier,
 
 	return ret;
 }
+EXPORT_SYMBOL(muic_notifier_register);
 
 int muic_notifier_unregister(struct notifier_block *nb)
 {
