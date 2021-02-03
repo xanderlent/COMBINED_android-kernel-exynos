@@ -4,7 +4,6 @@
 
 menuconfig EXYNOS_BTS
 	bool "BTS device driver support"
-	default y
 	help
 	  Enables BTS(Bus Traffic Shaper) device driver support
 	  BTS device driver will set BTS and request DVFS for

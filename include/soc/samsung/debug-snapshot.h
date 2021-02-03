@@ -104,6 +104,8 @@ extern struct item##_log *dss_get_first_##item##_log(void);		\
 extern struct item##_log *dss_get_##item##_log_by_idx(int idx);		\
 extern struct item##_log *dss_get_##item##_log_iter(int idx);		\
 extern unsigned long dss_get_vaddr_##item##_log(void)
+
+static inline void dbg_snapshot_spin_func(void) { do { wfi(); } while (1); }
 #else /* CONFIG_DEBUG_SNAPSHOT */
 #define dbg_snapshot_irq_var(v)			v = 0
 #define dbg_snapshot_task(a, b)			do { } while (0)
@@ -189,7 +191,7 @@ static inline unsigned long dss_get_vaddr_##item##_log_by_cpu(int cpu) {\
 	return 0;							\
 }
 
-#define dss_static inline_get_log(item)					\
+#define dss_extern_get_log(item)					\
 static inline long dss_get_len_##item##_log(void) {			\
 	return -1;							\
 }									\
@@ -215,8 +217,8 @@ static inline unsigned long dss_get_vaddr_##item##_log(void) {		\
 	return 0;							\
 }
 
+#define dbg_snapshot_spin_func()		do { } while (0)
 #endif /* CONFIG_DEBUG_SNAPSHOT */
-static inline void dbg_snapshot_spin_func(void) { do { wfi(); } while (1); }
 
 #define for_each_item_in_dss_by_cpu(item, cpu, start, len, direction)	\
 	for (item = dss_get_##item##_log_by_cpu_iter(cpu, start);	\
