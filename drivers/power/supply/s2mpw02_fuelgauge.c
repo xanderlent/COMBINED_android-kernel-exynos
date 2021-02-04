@@ -35,7 +35,6 @@ static enum power_supply_property s2mpw02_fuelgauge_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_AMBIENT,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
-	POWER_SUPPLY_PROP_CHARGE_TYPE,
 };
 
 static int s2mpw02_fg_write_reg_byte(struct i2c_client *client, int reg, u8 data)
@@ -813,9 +812,6 @@ static int s2mpw02_fg_set_property(struct power_supply *psy,
 			__func__, fuelgauge->capacity_max, val->intval);
 		fuelgauge->capacity_max = s2mpw02_fg_check_capacity_max(fuelgauge, val->intval);
 		fuelgauge->initial_update_of_soc = true;
-		break;
-	case POWER_SUPPLY_PROP_CHARGE_TYPE:
-		/* s2mpw02_fg_reset_capacity_by_jig_connection(fuelgauge->i2c); */
 		break;
 	case POWER_SUPPLY_PROP_CALIBRATE:
 		dev_info(&fuelgauge->i2c->dev,

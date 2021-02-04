@@ -90,7 +90,6 @@ static enum power_supply_property s2mpw02_charger_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CHARGING_ENABLED,
-	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
 };
 
 static int s2mpw02_get_charging_health(struct s2mpw02_charger_data *charger);
