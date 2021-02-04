@@ -204,7 +204,6 @@ struct hl6111_charger{
     struct device                   *dev;
     struct power_supply             *psy_chg;
     struct mutex                    i2c_lock;
-    struct wakeup_source            wake_lock;
     struct hl6111_platform_data     *pdata;
     struct i2c_client               *client;
     struct delayed_work             rx_work;

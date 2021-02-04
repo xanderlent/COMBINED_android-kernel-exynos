@@ -733,7 +733,6 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
         chg->online = true;
 
         hl6111_get_chip_info(chg);
-        __pm_stay_awake(&chg->wake_lock);
 
         hl6111_device_init(chg);
 
@@ -743,7 +742,6 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
         LOG_DBG("TX is not connected!! \r\n");
         chg->online = false;
 
-        __pm_relax(&chg->wake_lock);
     }
 
     power_supply_changed(chg->psy_chg);
@@ -840,7 +838,6 @@ static void hl6111_work_func(struct work_struct *work)
         hl6111_get_chip_info(chg);
         hl6111_device_init(chg);
 
-        __pm_stay_awake(&chg->wake_lock);
     }
 
     //check status of isr bits
@@ -857,7 +854,6 @@ I2C_FAIL:
         LOG_DBG("TX is not connected!! \r\n");
         disable_irq(chg->pdata->irq);
         chg->online = false;
-        __pm_relax(&chg->wake_lock);
     }
     schedule_delayed_work(&chg->rx_work, msecs_to_jiffies(100));
 }
@@ -880,7 +876,6 @@ static void hl6111_chok_pin_work(struct work_struct *work)
             disable_irq(chg->pdata->irq);
             LOG_DBG("TX is not connected!! \r\n");
             chg->online = false;
-            __pm_relax(&chg->wake_lock);
             chg->retry_cnt = 0;
         } else {
             LOG_DBG("CHG off -> on but i2c doesn't work\n");
@@ -911,7 +906,6 @@ static void hl6111_chok_pin_work(struct work_struct *work)
             chg->online = true;
 
             hl6111_get_chip_info(chg);
-            __pm_stay_awake(&chg->wake_lock);
 
             hl6111_device_init(chg);
             chg->retry_cnt = 0;
@@ -1533,7 +1527,6 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
     }
 
     mutex_init(&charger->i2c_lock);
-    wakeup_source_init(&charger->wake_lock, "hl6111-monitor");
 
    if (pdata->int_gpio >= 0){
         ret = hl6111_irq_init(charger, client);
@@ -1558,7 +1551,6 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
             charger->online = true;
 
             hl6111_get_chip_info(charger);
-            __pm_stay_awake(&charger->wake_lock);
 
             hl6111_device_init(charger);
             enable_irq(charger->pdata->irq);
@@ -1586,7 +1578,6 @@ FAIL_DEBUGFS:
     free_irq(charger->pdata->int_gpio, NULL);
 FAIL_IRQ:
     power_supply_unregister(charger->psy_chg);
-    wakeup_source_trash(&charger->wake_lock);
     devm_kfree(&client->dev, charger);
     devm_kfree(&client->dev, pdata);
     mutex_destroy(&charger->i2c_lock);
@@ -1604,8 +1595,6 @@ static int hl6111_charger_remove(struct i2c_client *client)
         free_irq(client->irq, charger);
         gpio_free(charger->pdata->int_gpio);
     }
-
-    wakeup_source_trash(&charger->wake_lock);
 
     if(charger->psy_chg)
         power_supply_unregister(charger->psy_chg);
@@ -1627,8 +1616,6 @@ static void hl6111_charger_shutdown(struct i2c_client *client)
         free_irq(client->irq, charger);
         gpio_free(charger->pdata->int_gpio);
     }
-
-    wakeup_source_trash(&charger->wake_lock);
 
     if(charger->psy_chg)
         power_supply_unregister(charger->psy_chg);
