@@ -32,6 +32,24 @@
 #define DMIC_MCU_MESSAGE_VERSION 1
 #define DMIC_MCU_MESSAGE_MIC_ON 0x01
 #define DMIC_MCU_MESSAGE_SAMPLE_RATE_KHZ 0x02
+#define DMIC_MCU_MESSAGE_CHANNEL 0x03
+
+enum dmic_mcu_channel {
+	DMIC_MCU_CHANNEL_LEFT,
+	DMIC_MCU_CHANNEL_RIGHT,
+};
+
+static const char *const mcu_dmic_channel_enum_texts[] = {
+	"Left",
+	"Right",
+};
+static const unsigned int mcu_dmic_channel_enum_values[] = {
+	DMIC_MCU_CHANNEL_LEFT,
+	DMIC_MCU_CHANNEL_RIGHT,
+};
+SOC_VALUE_ENUM_SINGLE_DECL(mcu_dmic_channel_enum, SND_SOC_NOPM, 0, 0,
+			   mcu_dmic_channel_enum_texts,
+			   mcu_dmic_channel_enum_values);
 
 extern ssize_t nanohub_send_message(int channel_id, const char *buffer,
 				    size_t length);
@@ -39,7 +57,71 @@ extern ssize_t nanohub_send_message(int channel_id, const char *buffer,
 struct mcu_mic_codec_data {
 	int mic_on;
 	int sample_rate_hz;
+	enum dmic_mcu_channel channel;
 };
+
+// The callback that is called when ASOC needs to fetch the value of the
+// property 'DMIC_MCU Channel'.
+static int dmic_mcu_channel_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct mcu_mic_codec_data *codec_data =
+		snd_soc_component_get_drvdata(component);
+
+	dev_info(component->dev, "Called dmic_mcu_channel_get\n");
+
+	ucontrol->value.integer.value[0] = codec_data->channel;
+
+	dev_info(component->dev, "mcu_mic_channel: %d (%s)\n", codec_data->channel,
+		 mcu_dmic_channel_enum_texts[codec_data->channel]);
+
+	return 0;
+}
+
+// The callback that is called when ASOC needs to set the value of the
+// property 'DMIC_MCU Channel'.
+static int dmic_mcu_channel_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct mcu_mic_codec_data *codec_data =
+		snd_soc_component_get_drvdata(component);
+	int value = ucontrol->value.integer.value[0];
+
+	char buffer[3];
+	ssize_t bytes;
+
+	dev_info(component->dev, "Called dmic_mcu_channel_put\n");
+
+	if (value != DMIC_MCU_CHANNEL_LEFT && value != DMIC_MCU_CHANNEL_RIGHT) {
+		dev_info(component->dev,
+			 "Invalid value: %d, it must be %d or %d.\n", value,
+			 DMIC_MCU_CHANNEL_LEFT, DMIC_MCU_CHANNEL_RIGHT);
+		return -EINVAL;
+	}
+
+	buffer[0] = DMIC_MCU_MESSAGE_VERSION; // version
+	buffer[1] = DMIC_MCU_MESSAGE_CHANNEL; // message identifier
+	buffer[2] = value;
+
+	bytes = nanohub_send_message(NANOHUB_AUDIO_CHANNEL_ID, buffer,
+				     sizeof(buffer));
+	if (bytes != sizeof(buffer)) {
+		dev_err(component->dev, "Bytes sent expected = %zd, actual = %zd\n",
+			sizeof(buffer), bytes);
+		return -EIO;
+	}
+
+	codec_data->channel = value;
+	dev_info(component->dev, "new mcu_mic_channel: %d (%s)\n",
+		 codec_data->channel,
+		 mcu_dmic_channel_enum_texts[codec_data->channel]);
+
+	return 0;
+}
 
 // The callback that is called when ASOC needs to fetch the value of the
 // property 'DMIC_MCU Sample Rate'.
@@ -168,6 +250,8 @@ static const struct snd_kcontrol_new snd_controls[] = {
 		       dmic_mcu_on_put),
 	SOC_SINGLE_EXT("DMIC_MCU Sample Rate", SND_SOC_NOPM, 0, 48000, 0,
 		       dmic_mcu_sample_rate_get, dmic_mcu_sample_rate_put),
+	SOC_VALUE_ENUM_EXT("DMIC_MCU Channel", mcu_dmic_channel_enum,
+			   dmic_mcu_channel_get, dmic_mcu_channel_put),
 };
 
 static int mcu_codec_probe(struct snd_soc_component *component)
@@ -223,6 +307,7 @@ static int mcu_mic_probe(struct platform_device *pdev)
 	}
 	codec_data->mic_on = 0;
 	codec_data->sample_rate_hz = 48000;
+	codec_data->channel = DMIC_MCU_CHANNEL_LEFT;
 	platform_set_drvdata(pdev, codec_data);
 
 	ret = snd_soc_register_component(&pdev->dev,
