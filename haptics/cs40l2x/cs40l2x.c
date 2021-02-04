@@ -28,8 +28,8 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/platform_data/cs40l2x.h>
-#include <linux/mfd/cs40l2x.h>
+#include "linux/platform_data/cs40l2x.h"
+#include "linux/mfd/cs40l2x.h"
 
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 #include "../staging/android/timed_output.h"

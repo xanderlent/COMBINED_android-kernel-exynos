@@ -17,7 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/firmware.h>
-#include <linux/platform_data/cs40l2x.h>
+#include "../platform_data/cs40l2x.h"
 
 #define CS40L2X_FIRSTREG		0x00000000
 #define CS40L2X_LASTREG			0x03804FE8
