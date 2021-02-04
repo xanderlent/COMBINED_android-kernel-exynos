@@ -33,7 +33,8 @@
                               reg = <0x0 0x9BD00000 0xc0000>;
                 };
 
-		cp_rmem: cp_rmem {
+		/* TODO(b/179395386): rename modem_if back to cp_rmem after fixing bootloader to check compatible */
+		cp_rmem: modem_if {
 			compatible = "exynos,modem_if";
 			reg = <0x0 0x90c00000 0x05C00000>;
 			rmem_index = <0>;
