@@ -1008,7 +1008,7 @@ void Boot_Update_Firmware(struct work_struct *work)
 	if (ret < 0) {	// read firmware checksum failed
 		NVT_ERR("read firmware checksum failed\n");
 		Update_Firmware();
-	} else if ((ret == 0) && (Check_FW_Ver() == 0)) {	// (fw checksum not match) && (bin fw version >= ic fw version)
+	} else if (ret == 0) {	// fw checksum not match
 		NVT_LOG("firmware version not match\n");
 		Update_Firmware();
 	} else if (nvt_check_flash_end_flag()) {
