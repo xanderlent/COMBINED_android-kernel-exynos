@@ -24,7 +24,7 @@
 #include <asm/cpuidle.h>
 #include <asm/topology.h>
 
-#include <soc/samsung/exynos-powermode.h>
+#include <soc/samsung/exynos-cpupm.h>
 
 #include "dt_idle_states.h"
 
