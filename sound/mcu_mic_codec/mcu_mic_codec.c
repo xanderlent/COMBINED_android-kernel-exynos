@@ -33,6 +33,7 @@
 #define DMIC_MCU_MESSAGE_MIC_ON 0x01
 #define DMIC_MCU_MESSAGE_SAMPLE_RATE_KHZ 0x02
 #define DMIC_MCU_MESSAGE_CHANNEL 0x03
+#define DMIC_MCU_MESSAGE_GAIN 0x04
 
 enum dmic_mcu_channel {
 	DMIC_MCU_CHANNEL_LEFT,
@@ -58,7 +59,79 @@ struct mcu_mic_codec_data {
 	int mic_on;
 	int sample_rate_hz;
 	enum dmic_mcu_channel channel;
+	int gain;
 };
+
+static int dmic_mcu_send_message(struct snd_soc_component *component,
+				 char mcu_message_id, char data)
+{
+	char buffer[3];
+	ssize_t bytes;
+
+	buffer[0] = DMIC_MCU_MESSAGE_VERSION; // version
+	buffer[1] = mcu_message_id;	      // message identifier
+	buffer[2] = data;
+
+	bytes = nanohub_send_message(NANOHUB_AUDIO_CHANNEL_ID, buffer,
+				     sizeof(buffer));
+	if (bytes != sizeof(buffer)) {
+		dev_err(component->dev, "Bytes sent expected = %zd, actual = %zd\n",
+			sizeof(buffer), bytes);
+		return -EIO;
+	}
+	return 0;
+}
+
+// The callback that is called when ASOC needs to fetch the value of the
+// property 'DMIC_MCU Input Gain'.
+static int dmic_mcu_input_gain_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct mcu_mic_codec_data *codec_data =
+		snd_soc_component_get_drvdata(component);
+
+	dev_info(component->dev, "Called dmic_mcu_input_gain_get\n");
+
+	ucontrol->value.integer.value[0] = codec_data->gain;
+
+	dev_info(component->dev, "mcu_input_gain: %d\n", codec_data->gain);
+
+	return 0;
+}
+
+// The callback that is called when ASOC needs to set the value of the
+// property 'DMIC_MCU Input Gain'.
+static int dmic_mcu_input_gain_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct mcu_mic_codec_data *codec_data =
+		snd_soc_component_get_drvdata(component);
+	int value = ucontrol->value.integer.value[0];
+	int ret;
+
+	dev_info(component->dev, "Called dmic_mcu_input_gain_put\n");
+
+	if (value < 0 || value > 63) {
+		dev_info(component->dev,
+			 "Invalid value: %d, it must be between 0 and 63\n",
+			 value);
+		return -EINVAL;
+	}
+
+	ret = dmic_mcu_send_message(component, DMIC_MCU_MESSAGE_GAIN, value);
+	if (ret != 0) {
+		return ret;
+	}
+
+	codec_data->gain = value;
+	dev_info(component->dev, "new mcu_input_gain: %d\n", codec_data->gain);
+
+	return 0;
+}
 
 // The callback that is called when ASOC needs to fetch the value of the
 // property 'DMIC_MCU Channel'.
@@ -90,9 +163,7 @@ static int dmic_mcu_channel_put(struct snd_kcontrol *kcontrol,
 	struct mcu_mic_codec_data *codec_data =
 		snd_soc_component_get_drvdata(component);
 	int value = ucontrol->value.integer.value[0];
-
-	char buffer[3];
-	ssize_t bytes;
+	int ret;
 
 	dev_info(component->dev, "Called dmic_mcu_channel_put\n");
 
@@ -103,16 +174,9 @@ static int dmic_mcu_channel_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	buffer[0] = DMIC_MCU_MESSAGE_VERSION; // version
-	buffer[1] = DMIC_MCU_MESSAGE_CHANNEL; // message identifier
-	buffer[2] = value;
-
-	bytes = nanohub_send_message(NANOHUB_AUDIO_CHANNEL_ID, buffer,
-				     sizeof(buffer));
-	if (bytes != sizeof(buffer)) {
-		dev_err(component->dev, "Bytes sent expected = %zd, actual = %zd\n",
-			sizeof(buffer), bytes);
-		return -EIO;
+	ret = dmic_mcu_send_message(component, DMIC_MCU_MESSAGE_CHANNEL, value);
+	if (ret != 0) {
+		return ret;
 	}
 
 	codec_data->channel = value;
@@ -149,9 +213,7 @@ static int dmic_mcu_sample_rate_put(struct snd_kcontrol *kcontrol,
 	struct mcu_mic_codec_data *codec_data =
 		snd_soc_component_get_drvdata(component);
 	int value = ucontrol->value.integer.value[0];
-
-	char buffer[3];
-	ssize_t bytes;
+	int ret;
 
 	dev_info(component->dev, "Called dmic_mcu_sample_rate_put\n");
 
@@ -161,21 +223,14 @@ static int dmic_mcu_sample_rate_put(struct snd_kcontrol *kcontrol,
 			 value);
 		return -EINVAL;
 	}
-	buffer[0] = DMIC_MCU_MESSAGE_VERSION;	      // version
-	buffer[1] = DMIC_MCU_MESSAGE_SAMPLE_RATE_KHZ; // message identifier
-	buffer[2] = value / 1000;		      // Sample rate in KHz
 
-	bytes = nanohub_send_message(NANOHUB_AUDIO_CHANNEL_ID, buffer,
-				     sizeof(buffer));
-	if (bytes != sizeof(buffer)) {
-		dev_err(component->dev,
-			"Bytes sent expected = %zd, actual = %zd\n",
-			sizeof(buffer), bytes);
-		return -EIO;
+	ret = dmic_mcu_send_message(component, DMIC_MCU_MESSAGE_SAMPLE_RATE_KHZ,
+				    value / 1000);
+	if (ret != 0) {
+		return ret;
 	}
 
 	codec_data->sample_rate_hz = value;
-
 	dev_info(component->dev, "new mcu_mic_sample_rate: %d\n",
 		 codec_data->sample_rate_hz);
 
@@ -211,9 +266,7 @@ static int dmic_mcu_on_put(struct snd_kcontrol *kcontrol,
 	struct mcu_mic_codec_data *codec_data =
 		snd_soc_component_get_drvdata(component);
 	int value = ucontrol->value.integer.value[0];
-
-	char buffer[3];
-	ssize_t bytes;
+	int ret;
 
 	dev_info(component->dev, "Called static int dmic_mcu_on_put\n");
 
@@ -223,17 +276,10 @@ static int dmic_mcu_on_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	buffer[0] = DMIC_MCU_MESSAGE_VERSION; // version
-	buffer[1] = DMIC_MCU_MESSAGE_MIC_ON;  // message identifier
-	buffer[2] = value ? 1 : 0;
-
-	bytes = nanohub_send_message(NANOHUB_AUDIO_CHANNEL_ID, buffer,
-				     sizeof(buffer));
-	if (bytes != sizeof(buffer)) {
-		dev_err(component->dev,
-			"Bytes sent expected = %zd, actual = %zd\n",
-			sizeof(buffer), bytes);
-		return -EIO;
+	ret = dmic_mcu_send_message(component, DMIC_MCU_MESSAGE_MIC_ON,
+				    value ? 1 : 0);
+	if (ret != 0) {
+		return ret;
 	}
 
 	codec_data->mic_on = value;
@@ -252,6 +298,11 @@ static const struct snd_kcontrol_new snd_controls[] = {
 		       dmic_mcu_sample_rate_get, dmic_mcu_sample_rate_put),
 	SOC_VALUE_ENUM_EXT("DMIC_MCU Channel", mcu_dmic_channel_enum,
 			   dmic_mcu_channel_get, dmic_mcu_channel_put),
+	// Input Gain is mapped from [-32, 31] to [0, 63]. This is because
+	// tinymix does not accept negative numbers. It processes the
+	// negative sign as an argument option prefix.
+	SOC_SINGLE_EXT("DMIC_MCU Input Gain", SND_SOC_NOPM, 0, 63, 0,
+		       dmic_mcu_input_gain_get, dmic_mcu_input_gain_put),
 };
 
 static int mcu_codec_probe(struct snd_soc_component *component)
@@ -308,6 +359,8 @@ static int mcu_mic_probe(struct platform_device *pdev)
 	codec_data->mic_on = 0;
 	codec_data->sample_rate_hz = 48000;
 	codec_data->channel = DMIC_MCU_CHANNEL_LEFT;
+	// gain is offset by 32. Therefore 32 means 0 gain
+	codec_data->gain = 32;
 	platform_set_drvdata(pdev, codec_data);
 
 	ret = snd_soc_register_component(&pdev->dev,
