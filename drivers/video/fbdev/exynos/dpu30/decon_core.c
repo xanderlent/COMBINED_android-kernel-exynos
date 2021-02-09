@@ -1027,7 +1027,6 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 #endif
 	switch (blank_mode) {
 	case FB_BLANK_POWERDOWN:
-	case FB_BLANK_NORMAL:
 		DPU_EVENT_LOG(DPU_EVT_BLANK, &decon->sd, ktime_set(0, 0));
 		ret = decon_update_pwr_state(decon, DISP_PWR_OFF);
 		if (ret) {
@@ -1036,6 +1035,7 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 		}
 		lcd_status_notifier(LCD_OFF);
 		break;
+	case FB_BLANK_NORMAL:
 	case FB_BLANK_UNBLANK:
 		DPU_EVENT_LOG(DPU_EVT_UNBLANK, &decon->sd, ktime_set(0, 0));
 		lcd_status_notifier(LCD_ON);

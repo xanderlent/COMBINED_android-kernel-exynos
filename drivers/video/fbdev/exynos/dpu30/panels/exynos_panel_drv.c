@@ -16,6 +16,8 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 //#include "panel_i2c.h"
 #include "exynos_panel_drv.h"
@@ -70,10 +72,45 @@ static const struct backlight_ops exynos_backlight_ops = {
 	.update_status	= exynos_backlight_update_status,
 };
 
+/* Helper functions to leverage devres infrastructure */
+static void devm_gpio_export_release(struct device *dev, void *res)
+{
+	unsigned int *gpio = res;
+
+	gpio_unexport(*gpio);
+	gpio_free(*gpio);
+}
+
+static int devm_gpio_export(struct device *dev, unsigned int gpio,
+		bool direction_may_change)
+{
+	unsigned int *dr;
+	int rc;
+
+	dr = devres_alloc(devm_gpio_export_release, sizeof(unsigned int),
+			GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	rc = gpio_export(gpio, direction_may_change);
+	if (rc) {
+		devres_free(dr);
+		dev_err(dev, "GPIO export error code: %d\n", rc);
+		return rc;
+	}
+
+	*dr = gpio;
+	devres_add(dev, dr);
+
+	return 0;
+}
+
 static int exynos_panel_parse_gpios(struct exynos_panel_device *panel)
 {
+	struct device *dev = panel->dev;
 	struct device_node *n = panel->dev->of_node;
 	struct exynos_panel_resources *res = &panel->res;
+	int mux_select, mux_output_enable;
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 
@@ -96,6 +133,41 @@ static int exynos_panel_parse_gpios(struct exynos_panel_device *panel)
 		}
 	}
 
+	mux_select = of_get_named_gpio(n, "mux-gpios", 0);
+	if (mux_select < 0) {
+		dev_err(dev, "Couldn't find mux select GPIO\n");
+	} else {
+		// Set mux select GPIO to high so that the
+		// DSI lines are connected to AP
+		if (devm_gpio_request_one(dev, mux_select,
+		      GPIOF_OUT_INIT_HIGH, "mux_select") < 0) {
+			dev_err(dev, "Failed to get mux select GPIO\n");
+			return -ENODEV;
+		}
+		if (devm_gpio_export(dev, mux_select, 0)) {
+			dev_err(dev, "Failed to export mux select GPIO\n");
+			return -ENODEV;
+		}
+		if (gpio_export_link(dev, "mux_select", mux_select)) {
+			dev_err(dev, "Failed to create link for mux select GPIO\n");
+			return -ENODEV;
+		}
+	}
+	mux_output_enable = of_get_named_gpio(n, "mux-gpios", 1);
+	if (mux_output_enable < 0) {
+		dev_err(dev, "Couldn't find mux output enable GPIO\n");
+	} else {
+		if (devm_gpio_request_one(dev, mux_output_enable,
+		      GPIOF_OUT_INIT_LOW, "mux_output_enable") < 0) {
+			dev_err(dev, "Failed to get mux output enable GPIO\n");
+			return -ENODEV;
+		}
+		if (devm_gpio_export(dev, mux_output_enable, 0)) {
+			dev_err(dev, "Failed to export output enable GPIO\n");
+			return -ENODEV;
+		}
+	}
+
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
 }
@@ -112,7 +184,7 @@ static int exynos_panel_parse_regulators(struct exynos_panel_device *panel)
 		str_regulator[i] = NULL;
 	}
 
-	if(!of_property_read_string(dev->of_node, "regulator_1p8v",
+	if (!of_property_read_string(dev->of_node, "regulator_1p8v",
 				(const char **)&str_regulator[0])) {
 		res->regulator[0] = regulator_get_exclusive(dev, str_regulator[0]);
 		if (IS_ERR(res->regulator[0])) {
@@ -121,7 +193,7 @@ static int exynos_panel_parse_regulators(struct exynos_panel_device *panel)
 		}
 	}
 
-	if(!of_property_read_string(dev->of_node, "regulator_3p3v",
+	if (!of_property_read_string(dev->of_node, "regulator_3p3v",
 				(const char **)&str_regulator[1])) {
 		res->regulator[1] = regulator_get_exclusive(dev, str_regulator[1]);
 		if (IS_ERR(res->regulator[1])) {
@@ -546,12 +618,8 @@ static void exynos_panel_parse_lcd_info(struct exynos_panel_device *panel,
 
 static void exynos_panel_list_up(void)
 {
-	panel_list[0] = &panel_s6e3ha8_ops;
-	panel_list[1] = &panel_s6e3ha9_ops;
-	panel_list[2] = &panel_s6e3fa0_ops;
-	panel_list[3] = &panel_ea8076_ops;
-	panel_list[4] = &panel_td4150_ops;
-	panel_list[5] = &panel_s6e36w4x01_ops;
+	panel_list[0] = &panel_wf012fbm_ops;
+	panel_list[1] = &panel_hb120blx01_ops;
 }
 
 static int exynos_panel_register_ops(struct exynos_panel_device *panel)
@@ -584,28 +652,19 @@ static int exynos_panel_register_ops(struct exynos_panel_device *panel)
 
 static int exynos_panel_register(struct exynos_panel_device *panel, u32 id)
 {
-//	struct device_node *n = panel->dev->of_node;
+	struct device_node *n = panel->dev->of_node;
 	struct device_node *np;
 	struct property *prop;
 	int panel_id, i;
 	const __be32 *cur;
 
 	for (i = 0; i < MAX_PANEL_SUPPORT; ++i) {
-//		np = of_parse_phandle(n, "lcd_info", i);
-		np = of_find_node_by_name(NULL, "s6e36w4x01");
+		np = of_parse_phandle(n, "lcd_info", i);
 		DPU_INFO_PANEL("np value in panel_register = %x", np);
-		if (!np) {
-			DPU_INFO_PANEL("panel is not matched\n");
-			return -EINVAL;
-		}
 
 		of_property_for_each_u32(np, "id", prop, cur, panel_id) {
 			DPU_INFO_PANEL("finding... %s(0x%x)\n", np->name, panel_id);
 
-			/*
-			 * TODO: The mode(video or command) should be compared
-			 * for distinguishing panel DT information which has same DDI ID
-			 */
 			if (id == panel_id) {
 				panel->found = true;
 				DPU_INFO_PANEL("matched panel is found(%s:0x%x)\n",
@@ -621,7 +680,7 @@ static int exynos_panel_register(struct exynos_panel_device *panel, u32 id)
 			}
 		}
 
-		if(panel->found == true)
+		if (panel->found == true)
 			break;
 	}
 
@@ -636,7 +695,7 @@ static void exynos_panel_find_id(struct exynos_panel_device *panel)
 
 	panel->found = false;
 
-	if(of_property_read_u32(n, "ddi_id", &id)) {
+	if (of_property_read_u32(n, "ddi_id", &id)) {
 		DPU_INFO_PANEL("connected panel id is not defined in DT\n");
 		return;
 	}
@@ -879,6 +938,7 @@ static struct platform_driver exynos_panel_driver = {
 static int __init exynos_panel_init(void)
 {
 	int ret = platform_driver_register(&exynos_panel_driver);
+
 	if (ret)
 		pr_err("exynos_panel_driver register failed\n");
 

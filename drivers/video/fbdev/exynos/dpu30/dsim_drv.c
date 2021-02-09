@@ -1081,8 +1081,6 @@ static int _dsim_disable(struct dsim_device *dsim, enum dsim_state state)
 	if (IS_DSIM_OFF_STATE(dsim)) {
 		dsim_warn("%s dsim already off(%s)\n",
 				__func__, dsim_state_names[dsim->state]);
-		if (state == DSIM_STATE_OFF)
-			dsim_set_panel_power(dsim, 0);
 		dsim->state = state;
 		return 0;
 	}

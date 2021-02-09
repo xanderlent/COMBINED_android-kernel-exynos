@@ -51,12 +51,8 @@ extern int dpu_panel_log_level;
 #define DEFAULT_BRIGHTNESS	127
 
 extern struct exynos_panel_device *panel_drvdata;
-extern struct exynos_panel_ops panel_s6e3ha9_ops;
-extern struct exynos_panel_ops panel_s6e3ha8_ops;
-extern struct exynos_panel_ops panel_s6e3fa0_ops;
-extern struct exynos_panel_ops panel_ea8076_ops;
-extern struct exynos_panel_ops panel_td4150_ops;
-extern struct exynos_panel_ops panel_s6e36w4x01_ops;
+extern struct exynos_panel_ops panel_wf012fbm_ops;
+extern struct exynos_panel_ops panel_hb120blx01_ops;
 
 struct exynos_panel_resources {
 	int lcd_reset;
