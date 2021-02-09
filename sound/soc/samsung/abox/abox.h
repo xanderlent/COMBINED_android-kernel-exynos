@@ -660,7 +660,7 @@ struct abox_data {
 			SET_MIXER_SAMPLE_RATE + 1];
 #endif
 	unsigned int erap_status[ERAP_TYPE_COUNT];
-	struct work_struct register_component_work;
+	struct delayed_work register_component_work;
 	struct abox_component components[16];
 	struct list_head irq_actions;
 	bool enabled;
@@ -684,6 +684,7 @@ struct abox_data {
 	unsigned int bootargs_offset;
 	const char *bootargs;
 	atomic_t suspend_state;
+	int cmpnt_reg_cnt;
 };
 /*
 struct abox_compr_data {

@@ -144,6 +144,7 @@ static void update_mask_value(void __iomem *sfr,
 #define IPC_TIMEOUT_US			(10000)
 #define BOOT_DONE_TIMEOUT_MS		(10000)
 #define IPC_RETRY			(10)
+#define CMPNT_REGISTER_TRY_CNT		(10)
 
 #define ERAP(wname, wcontrols, event_fn, wparams) \
 {	.id = snd_soc_dapm_dai_link, .name = wname, \
@@ -4859,13 +4860,27 @@ struct snd_kcontrol_new abox_component_kcontrols[] = {
 
 static void abox_register_component_work_func(struct work_struct *work)
 {
-	struct abox_data *data = container_of(work, struct abox_data,
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct abox_data *data = container_of(dwork, struct abox_data,
 			register_component_work);
 	struct device *dev = data->dev;
 	struct abox_component *component;
 	int i;
 
 	dev_dbg(dev, "%s\n", __func__);
+
+	if (!data->cmpnt) {
+		if (data->cmpnt_reg_cnt < CMPNT_REGISTER_TRY_CNT) {
+			dev_dbg(dev, "%s cmpnt_reg_cnt(%d)\n", __func__,
+					data->cmpnt_reg_cnt);
+			data->cmpnt_reg_cnt++;
+			schedule_delayed_work(
+				&data->register_component_work, 1000);
+			return;
+		}
+		dev_err(dev, "%s is not register cmpnt\n", __func__);
+		return;
+	}
 
 	for (component = data->components; ((component - data->components) <
 			ARRAY_SIZE(data->components)); component++) {
@@ -4906,7 +4921,8 @@ static void abox_register_component_work_func(struct work_struct *work)
 		component->registered = true;
 	}
 }
-
+static DECLARE_DELAYED_WORK(abox_register_component_work,
+		abox_register_component_work_func);
 
 static int abox_register_component(struct device *dev,
 		struct ABOX_COMPONENT_DESCRIPTIOR *desc)
@@ -4938,7 +4954,7 @@ static int abox_register_component(struct device *dev,
 		}
 		INIT_LIST_HEAD(&com->value_list);
 		WRITE_ONCE(com->desc, temp);
-		schedule_work(&data->register_component_work);
+		schedule_delayed_work(&data->register_component_work, 1);
 		break;
 	}
 
@@ -5606,7 +5622,6 @@ static void abox_request_extra_firmware(struct abox_data *data)
 
 }
 
-#if 0
 static void abox_download_extra_firmware(struct abox_data *data)
 {
 	struct device *dev = data->dev;
@@ -5654,9 +5669,6 @@ static void abox_download_extra_firmware(struct abox_data *data)
 				ext_fw->name, ext_fw->area, ext_fw->offset);
 	}
 }
-#else
-#define abox_download_extra_firmware(data) do { } while (0)
-#endif
 
 static int abox_request_firmware(struct device *dev,
 		const struct firmware **fw, const char *name)
@@ -6460,6 +6472,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	p_abox_data = data;
 
 	atomic_set(&data->suspend_state, 0);
+	data->cmpnt_reg_cnt = 0;
 
 	abox_probe_quirks(data, np);
 	init_waitqueue_head(&data->ipc_wait_queue);
@@ -6481,7 +6494,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	INIT_WORK(&data->change_big_freq_work, abox_change_big_freq_work_func);
 	INIT_WORK(&data->change_hmp_boost_work,
 			abox_change_hmp_boost_work_func);
-	INIT_WORK(&data->register_component_work,
+	INIT_DELAYED_WORK(&data->register_component_work,
 			abox_register_component_work_func);
 	INIT_WORK(&data->boot_done_work, abox_boot_done_work_func);
 	INIT_WORK(&data->l2c_work, abox_l2c_work_func);
