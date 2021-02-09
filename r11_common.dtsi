@@ -19,22 +19,11 @@
 	/* Enable vss again */
 	#address-cells = <2>;
 	#size-cells = <1>;
-	samsung,abox-bootargs = "init=ab0x vss=1";
+	samsung,abox-bootargs = "init=ab0x vss=1 offload=1";
 	abox_vss@0 {
 		compatible = "samsung,abox-vss";
 		magic_offset = <0x300000>;
 		reg = <0x0 0x0 0x0>;
-	};
-	// Disable external firmware: we don't have binaries for them.
-	// According to the SOC provider, abox should work without them.
-	ext_bin@0 {
-		status = "disabled";
-	};
-	ext_bin@1 {
-		status = "disabled";
-	};
-	ext_bin@2 {
-		status = "disabled";
 	};
 };
 
