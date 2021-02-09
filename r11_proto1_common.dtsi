@@ -25,18 +25,6 @@
 #include "r11_proto1_crown.dtsi"
 #include "r11_novatek_touchscreen.dtsi"
 
-&dsim_0 {
-	status = "disabled";
-};
-
-&panel_0 {
-	status = "disabled";
-};
-
-&decon_f {
-	status = "disabled";
-};
-
 &regulators {
 	ldo15_reg: LDO15 {
 		regulator-name = "vdd_ldo15";

@@ -24,18 +24,6 @@
 #include "r11_dev1_crown.dtsi"
 #include "r11_adc.dtsi"
 
-&dsim_0 {
-	status = "disabled";
-};
-
-&panel_0 {
-	status = "disabled";
-};
-
-&decon_f {
-	status = "disabled";
-};
-
 &regulators {
 	ldo22_reg: LDO22 {
 		regulator-name = "vdd_ldo22";

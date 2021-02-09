@@ -1,15 +1,16 @@
 #include <dt-bindings/gpio/gpio.h>
 
-&dsim_0 {
+&panel_0 {
+	ddi_id = <0x1>;
 	lcd_info = <&wf012fbm>;
-	/* reset */
+	/* reset, power */
 	gpios = <&gpc1 1 GPIO_ACTIVE_LOW>, <&gpm14 0 GPIO_ACTIVE_HIGH>;
 	mux-gpios = <&gpm10 0 GPIO_ACTIVE_HIGH>, <&gpm11 0 GPIO_ACTIVE_LOW>;
 	regulator_1p8v = "vdd_ldo21";
 	regulator_3p3v = "vdd_ldo20";
 
 	wf012fbm: wf012fbm {
-		panel_name = "wf012fbm";
+		id = <0x1>;
 		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 		mode = <2>;
 		resolution = <384 384>;
@@ -17,9 +18,35 @@
 		timing,refresh = <60>;
 		timing,dsi-hs-clk = <386>;
 		timing,pmsk = <0x2 0xEE 0x3 0x89D9>;
-		timing,dsi-escape-clk = <16>;
+
+		timing,h-porch = <8 40 384>; /* dsim H porch : hbp, hfp, hsa */
+		timing,v-porch = <8 22 384>; /* dsim V porch : VBP, VFP, VSA */
+
+		timing,dsi-escape-clk = <12>;
 		data_lane = <1>;
 		type_of_ddi = <2>;
+
+		/* Rest of parameters copied from exynos9110-display-lcd.dtsi */
+		mic_en = <0>; /* 0: Disable, 1: Enable */
+		mic_ratio = <2>; /* 0: 1/2 mic, 1: 1/3 mic */
+		mic_ver = <2>; /* 0: mic v1.1, 1: v1.2, 2: v2.0 */
+		dsc_en = <0>; /* 0: Disable, 1: Enable */
+		dsc_cnt = <2>; /* used DSC count */
+		dsc_slice_num = <2>; /* count of dsc slice */
+		dsc_slice_h = <40>; /* height of dsc slice */
+		cmd_underrun_lp_ref = <1625>; /* for underrun detect*/
+		mres_en = <0>;
+		mres_number = <1>;
+		mres_width = <720>;
+		mres_height = <1280>;
+		mres_dsc_width = <360>;
+		mres_dsc_height = <74>;
+		mres_dsc_en = <0>;
+		hdr_num = <0>;			/* not support */
+		hdr_type = <0 0 0 0>;	/* not support */
+		hdr_max_luma = <0>;		/* not support */
+		hdr_max_avg_luma = <0>;	/* not support */
+		hdr_min_luma = <0>;		/* not support */
 	};
 
 };
