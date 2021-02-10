@@ -220,6 +220,8 @@
 	hsi2c_1: hsi2c@11D10000 {
 		compatible = "samsung,exynos5-hsi2c";
 		samsung,check-transdone-int;
+		samsung,usi-phandle = <&sysreg_cmgp_usi>;
+		samsung,usi-offset = <0x4>;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D10000 0x1000>;
 		interrupts = <0 INTREQ_USI_CMGP_00_I2C IRQ_TYPE_LEVEL_HIGH>;
@@ -262,6 +264,8 @@
 	hsi2c_3: hsi2c@11D30000 {
 		compatible = "samsung,exynos5-hsi2c";
 		samsung,check-transdone-int;
+		samsung,usi-phandle = <&sysreg_cmgp_usi>;
+		samsung,usi-offset = <0x14>;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D30000 0x1000>;
 		interrupts = <0 INTREQ_USI_CMGP_01_I2C IRQ_TYPE_LEVEL_HIGH>;
@@ -304,6 +308,8 @@
 	hsi2c_5: hsi2c@11D50000 {
 		compatible = "samsung,exynos5-hsi2c";
 		samsung,check-transdone-int;
+		samsung,usi-phandle = <&sysreg_cmgp_usi>;
+		samsung,usi-offset = <0x24>;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D50000 0x1000>;
 		interrupts = <0 INTREQ_USI_CMGP_02_I2C IRQ_TYPE_LEVEL_HIGH>;
@@ -346,6 +352,8 @@
 	hsi2c_7: hsi2c@11D70000 {
 		compatible = "samsung,exynos5-hsi2c";
 		samsung,check-transdone-int;
+		samsung,usi-phandle = <&sysreg_cmgp_usi>;
+		samsung,usi-offset = <0x34>;
 		default-clk = <200000000>;
 		reg = <0x0 0x11D70000 0x1000>;
 		interrupts = <0 INTREQ_USI_CMGP_03_I2C IRQ_TYPE_LEVEL_HIGH>;
@@ -366,6 +374,8 @@
 	hsi2c_8: hsi2c@138A0000 {
 		compatible = "samsung,exynos5-hsi2c";
 		samsung,check-transdone-int;
+		samsung,usi-phandle = <&sysreg_peri_usi>;
+		samsung,usi-offset = <0x20>;
 		default-clk = <200000000>;
 		reg = <0x0 0x138A0000 0x1000>;
 		interrupts = <0 INTREQ_USI_I2C_00 IRQ_TYPE_LEVEL_HIGH>;
@@ -408,6 +418,8 @@
 	hsi2c_10: hsi2c@13910000 {
 		compatible = "samsung,exynos5-hsi2c";
 		samsung,check-transdone-int;
+		samsung,usi-phandle = <&sysreg_peri_usi>;
+		samsung,usi-offset = <0x44>;
 		default-clk = <200000000>;
 		reg = <0x0 0x13910000 0x1000>;
 		interrupts = <0 INTREQ_USI_00_I2C IRQ_TYPE_LEVEL_HIGH>;
@@ -521,6 +533,8 @@
 		compatible = "samsung,exynos-spi";
 		reg = <0x0 0x13940000 0x100>;
 		samsung,spi-fifosize = <64>;
+		samsung,usi-phandle = <&sysreg_peri_usi>;
+		samsung,usi-offset = <0x30>;
 		interrupts = <0 INTREQ_USI_SPI IRQ_TYPE_LEVEL_HIGH>;
 /*
 		dma-mode;
