@@ -16,7 +16,7 @@
 #include "r11_common.dtsi"
 #include "r11_adc.dtsi"
 #include "r11_bcm430132_bluetooth.dtsi"
-/* #include "r11_bcm430132_wifi.dtsi" */
+#include "r11_bcm430132_wifi.dtsi"
 #include "r11_bcm47765_gnss.dtsi"
 #include "r11_dev1_audio_haptics.dtsi"
 #include "r11_dev1_wlc.dtsi"
