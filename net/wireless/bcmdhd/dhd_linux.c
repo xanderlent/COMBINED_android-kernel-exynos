@@ -118,7 +118,9 @@
 
 #ifdef CONFIG_ARCH_EXYNOS
 #ifndef SUPPORT_EXYNOS7420
+#ifdef CONFIG_BCMDHD_PCIE
 #include <linux/exynos-pci-ctrl.h>
+#endif /* CONFIG_BCMDHD_PCIE */
 #endif /* SUPPORT_EXYNOS7420 */
 #endif /* CONFIG_ARCH_EXYNOS */
 

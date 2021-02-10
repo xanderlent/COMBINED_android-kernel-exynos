@@ -8434,22 +8434,22 @@ wl_cfgvendor_tx_power_scenario(struct wiphy *wiphy,
 	switch (sar_tx_power_val) {
 		case WIFI_POWER_SCENARIO_VOICE_CALL:
 		case WIFI_POWER_SCENARIO_DEFAULT:
-			wifi_tx_power_mode = HEAD_SAR_BACKOFF_ENABLE;
+			wifi_tx_power_mode = (wifi_power_scenario)HEAD_SAR_BACKOFF_ENABLE;
 			break;
 		case WIFI_POWER_SCENARIO_ON_HEAD_CELL_OFF:
-			wifi_tx_power_mode = GRIP_SAR_BACKOFF_DISABLE;
+			wifi_tx_power_mode = (wifi_power_scenario)GRIP_SAR_BACKOFF_DISABLE;
 			break;
 		case WIFI_POWER_SCENARIO_ON_BODY_CELL_OFF:
-			wifi_tx_power_mode = GRIP_SAR_BACKOFF_ENABLE;
+			wifi_tx_power_mode = (wifi_power_scenario)GRIP_SAR_BACKOFF_ENABLE;
 			break;
 		case WIFI_POWER_SCENARIO_ON_BODY_BT:
-			wifi_tx_power_mode = NR_mmWave_SAR_BACKOFF_ENABLE;
+			wifi_tx_power_mode = (wifi_power_scenario)NR_mmWave_SAR_BACKOFF_ENABLE;
 			break;
 		case WIFI_POWER_SCENARIO_ON_HEAD_CELL_ON:
-			wifi_tx_power_mode = NR_Sub6_SAR_BACKOFF_DISABLE;
+			wifi_tx_power_mode = (wifi_power_scenario)NR_Sub6_SAR_BACKOFF_DISABLE;
 			break;
 		case WIFI_POWER_SCENARIO_ON_BODY_CELL_ON:
-			wifi_tx_power_mode = NR_Sub6_SAR_BACKOFF_ENABLE;
+			wifi_tx_power_mode = (wifi_power_scenario)NR_Sub6_SAR_BACKOFF_ENABLE;
 			break;
 		default:
 			WL_ERR(("invalid wifi tx power scenario = %d\n",

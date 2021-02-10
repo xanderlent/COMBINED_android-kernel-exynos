@@ -30,7 +30,7 @@ DHDCFLAGS += $(KCFLAGS)
 #####################
 
 DHDCFLAGS += -DBCMUTILS_ERR_CODES -DUSE_NEW_RSPEC_DEFS
-DHDCFLAGS += -Wall -Wunused-but-set-variable -Wstrict-prototypes -Dlinux -DLINUX -DBCMDRIVER            \
+DHDCFLAGS += -Wall -Wstrict-prototypes -Wno-parentheses-equality -Dlinux -DLINUX -DBCMDRIVER            \
 	-DBCMDONGLEHOST -DUNRELEASEDCHIP -DBCMDMA32 -DBCMFILEIMAGE            \
 	-DDHDTHREAD -DSHOW_EVENTS -DWLP2P                            \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT                                \

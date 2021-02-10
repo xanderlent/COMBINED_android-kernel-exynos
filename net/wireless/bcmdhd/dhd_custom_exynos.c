@@ -1,7 +1,7 @@
 /*
  * Platform Dependent file for Samsung Exynos
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2021, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,155 +21,97 @@
  * <<Broadcom-WL-IPTag/Open:>>
  *
  * $Id$
+ *
  */
-#include <linux/device.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
-#include <linux/poll.h>
-#include <linux/miscdevice.h>
-#include <linux/sched.h>
-#include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/list.h>
-#include <linux/io.h>
-#include <linux/workqueue.h>
-#include <linux/unistd.h>
-#include <linux/bug.h>
-#include <linux/skbuff.h>
+
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/gpio.h>
+#include <linux/skbuff.h>
+#include <linux/fcntl.h>
+#include <linux/fs.h>
+#include <linux/of_gpio.h>
+#ifdef CONFIG_WIFI_CONTROL_FUNC
 #include <linux/wlan_plat.h>
-#if defined(CONFIG_SOC_EXYNOS8895) || defined(CONFIG_SOC_EXYNOS9810) || \
-    defined(CONFIG_SOC_EXYNOS9820) || defined(CONFIG_SOC_EXYNOS9830)
-#include <linux/exynos-pci-ctrl.h>
-#endif /* CONFIG_SOC_EXYNOS8895 || CONFIG_SOC_EXYNOS9810 ||
-	* CONFIG_SOC_EXYNOS9820 || CONFIG_SOC_EXYNOS9830
-	*/
+#else
+#include <dhd_plat.h>
+#endif /* CONFIG_WIFI_CONTROL_FUNC */
+#include <dhd_dbg.h>
+#include <dhd.h>
 
-#if defined(CONFIG_64BIT)
-#include <asm-generic/gpio.h>
-#endif /* CONFIG_64BIT */
-
-#if defined(CONFIG_SEC_SYSFS)
-#include <linux/sec_sysfs.h>
-#elif defined(CONFIG_DRV_SAMSUNG)
-#include <linux/sec_class.h>
-#endif /* CONFIG_SEC_SYSFS */
-
-#if defined(CONFIG_MACH_A7LTE) || defined(CONFIG_NOBLESSE)
-#define PINCTL_DELAY 150
-#endif /* CONFIG_MACH_A7LTE || CONFIG_NOBLESSE */
+#ifdef DHD_COREDUMP
+#include <linux/platform_data/sscoredump.h>
+#endif /* DHD_COREDUMP */
 
 #ifdef CONFIG_BROADCOM_WIFI_RESERVED_MEM
 extern int dhd_init_wlan_mem(void);
 extern void *dhd_wlan_mem_prealloc(int section, unsigned long size);
 #endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
 
-#define WIFI_TURNON_DELAY	200
-static int wlan_pwr_on = -1;
+static int wlan_reg_on = -1;
+#define DHD_DT_COMPAT_ENTRY		"android,bcmdhd_wlan"
+#define WIFI_WL_REG_ON_PROPNAME		"wl_reg_on"
 
+static int wlan_host_wake_up = -1;
 #ifdef CONFIG_BCMDHD_OOB_HOST_WAKE
 static int wlan_host_wake_irq = 0;
-EXPORT_SYMBOL(wlan_host_wake_irq);
-static unsigned int wlan_host_wake_up = -1;
 #endif /* CONFIG_BCMDHD_OOB_HOST_WAKE */
-
-#if defined(CONFIG_MACH_A7LTE) || defined(CONFIG_NOBLESSE)
-extern struct device *mmc_dev_for_wlan;
-#endif /* CONFIG_MACH_A7LTE || CONFIG_NOBLESSE */
+#define WIFI_WLAN_HOST_WAKE_PROPNAME		"wl_host_wake"
 
 #ifdef CONFIG_BCMDHD_PCIE
-#if defined(CONFIG_MACH_UNIVERSAL7420) || defined(CONFIG_MACH_EXSOM7420)
-#define SAMSUNG_PCIE_CH_NUM 1
-#else
-#define SAMSUNG_PCIE_CH_NUM 0
-#endif /* PCIE RC CH# by Platform defines */
-extern void exynos_pcie_pm_resume(int);
+#if defined(CONFIG_SOC_EXYNOS9810) || defined(CONFIG_SOC_EXYNOS9820) || \
+	defined(CONFIG_SOC_GS101)
+#define EXYNOS_PCIE_RC_ONOFF
+extern int pcie_ch_num;
+extern int exynos_pcie_pm_resume(int);
 extern void exynos_pcie_pm_suspend(int);
+#endif /* CONFIG_SOC_EXYNOS9810 || CONFIG_SOC_EXYNOS9820 || CONFIG_SOC_GS101 */
 #endif /* CONFIG_BCMDHD_PCIE */
 
-#if defined(CONFIG_SOC_EXYNOS7870) || defined(CONFIG_SOC_EXYNOS9110)
-extern struct mmc_host *wlan_mmc;
-extern void mmc_ctrl_power(struct mmc_host *host, bool onoff);
-#endif /* SOC_EXYNOS7870 || CONFIG_SOC_EXYNOS9110 */
-
-static int
-dhd_wlan_power(int onoff)
-{
-#if defined(CONFIG_MACH_A7LTE) || defined(CONFIG_NOBLESSE)
-	struct pinctrl *pinctrl = NULL;
-#endif /* CONFIG_MACH_A7LTE || ONFIG_NOBLESSE */
-
-	printk(KERN_INFO"%s Enter: power %s\n", __FUNCTION__, onoff ? "on" : "off");
-
-#if defined(CONFIG_MACH_A7LTE) || defined(CONFIG_NOBLESSE)
-	if (onoff) {
-		pinctrl = devm_pinctrl_get_select(mmc_dev_for_wlan, "sdio_wifi_on");
-		if (IS_ERR(pinctrl))
-			printk(KERN_INFO "%s WLAN SDIO GPIO control error\n", __FUNCTION__);
-		msleep(PINCTL_DELAY);
-	}
-#endif /* CONFIG_MACH_A7LTE || CONFIG_NOBLESSE */
-
-	if (gpio_direction_output(wlan_pwr_on, onoff)) {
-		printk(KERN_ERR "%s failed to control WLAN_REG_ON to %s\n",
-			__FUNCTION__, onoff ? "HIGH" : "LOW");
-		return -EIO;
-	}
-
-#if defined(CONFIG_MACH_A7LTE) || defined(CONFIG_NOBLESSE)
-	if (!onoff) {
-		pinctrl = devm_pinctrl_get_select(mmc_dev_for_wlan, "sdio_wifi_off");
-		if (IS_ERR(pinctrl))
-			printk(KERN_INFO "%s WLAN SDIO GPIO control error\n", __FUNCTION__);
-	}
-#endif /* CONFIG_MACH_A7LTE || CONFIG_NOBLESSE */
-
-#if defined(CONFIG_SOC_EXYNOS7870) || defined(CONFIG_SOC_EXYNOS9110)
-	if (wlan_mmc)
-		mmc_ctrl_power(wlan_mmc, onoff);
-#endif /* SOC_EXYNOS7870 || CONFIG_SOC_EXYNOS9110 */
-	return 0;
-}
-
-static int
-dhd_wlan_reset(int onoff)
-{
-	return 0;
-}
-
-#ifndef CONFIG_BCMDHD_PCIE
+#ifdef BCMSDIO
 extern void (*notify_func_callback)(void *dev_id, int state);
 extern void *mmc_host_dev;
-#endif /* !CONFIG_BCMDHD_PCIE */
+#endif /* BCMSDIO */
 
-static int
-dhd_wlan_set_carddetect(int val)
+#ifdef DHD_COREDUMP
+#define DEVICE_NAME "wlan"
+
+static void sscd_release(struct device *dev);
+static struct sscd_platform_data sscd_pdata;
+static struct platform_device sscd_dev = {
+	.name            = DEVICE_NAME,
+	.driver_override = SSCD_NAME,
+	.id              = -1,
+	.dev             = {
+		.platform_data = &sscd_pdata,
+		.release       = sscd_release,
+		},
+};
+
+static void sscd_release(struct device *dev)
 {
-#ifndef CONFIG_BCMDHD_PCIE
-	pr_err("%s: notify_func=%p, mmc_host_dev=%p, val=%d\n",
-		__FUNCTION__, notify_func_callback, mmc_host_dev, val);
+	DHD_INFO(("%s: enter\n", __FUNCTION__));
+}
 
-	if (notify_func_callback) {
-		notify_func_callback(mmc_host_dev, val);
-	} else {
-		pr_warning("%s: Nobody to notify\n", __FUNCTION__);
-	}
-#else
-	if (val) {
-		exynos_pcie_pm_resume(SAMSUNG_PCIE_CH_NUM);
-	} else {
-		exynos_pcie_pm_suspend(SAMSUNG_PCIE_CH_NUM);
-	}
-#endif /* CONFIG_BCMDHD_PCIE */
+/* trigger coredump */
+static int
+dhd_set_coredump(const char *buf, int buf_len, const char *info)
+{
+	struct sscd_platform_data *pdata = dev_get_platdata(&sscd_dev.dev);
+	struct sscd_segment seg;
 
+	if (pdata->sscd_report) {
+		memset(&seg, 0, sizeof(seg));
+		seg.addr = (void *) buf;
+		seg.size = buf_len;
+		pdata->sscd_report(&sscd_dev, &seg, 1, 0, info);
+	}
 	return 0;
 }
+#endif /* DHD_COREDUMP */
 
 #ifdef GET_CUSTOM_MAC_ENABLE
 
@@ -245,68 +187,222 @@ dhd_wlan_init_mac_addr(void)
 }
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
+#ifdef SUPPORT_MULTIPLE_NVRAM
+
+#define CMDLINE_REVISION_KEY "androidboot.revision="
+#define CMDLINE_SKU_KEY "androidboot.hardware.sku="
+
+char val_revision[MAX_HW_INFO_LEN] = {0};
+char val_sku[MAX_HW_INFO_LEN] = {0};
+
+int
+dhd_wlan_init_hardware_info(void)
+{
+
+	struct device_node *node;
+	char *cp;
+	const char *command_line = NULL;
+	char match_str[MAX_HW_INFO_LEN] = {0};
+	size_t len;
+
+	node = of_find_node_by_path("/chosen");
+	if (!node) {
+		DHD_ERROR(("Node not created under chosen\n"));
+		return -ENODEV;
+	} else {
+
+		of_property_read_string(node, "bootargs", &command_line);
+		len = strlen(command_line);
+
+		cp = strnstr(command_line, CMDLINE_REVISION_KEY, len);
+		if (cp) {
+			sscanf(cp, CMDLINE_REVISION_KEY"%s", val_revision);
+		}
+
+		cp = strnstr(command_line, CMDLINE_SKU_KEY, len);
+		if (cp) {
+			sscanf(cp, CMDLINE_SKU_KEY"%s", match_str);
+			if (strcmp(match_str, "G9S9B") == 0 ||
+				strcmp(match_str, "G8V0U") == 0 ||
+				strcmp(match_str, "GFQM1") == 0) {
+				strcpy(val_sku, "MMW");
+			} else if (strcmp(match_str, "GR1YH") == 0 ||
+				strcmp(match_str, "GF5KQ") == 0 ||
+				strcmp(match_str, "GPQ72") == 0) {
+				strcpy(val_sku, "JPN");
+			} else if (strcmp(match_str, "GB7N6") == 0 ||
+				strcmp(match_str, "GLU0G") == 0 ||
+				strcmp(match_str, "GNA8F") == 0) {
+				strcpy(val_sku, "ROW");
+			} else {
+				strcpy(val_sku, "NA");
+			}
+		}
+	}
+
+	return 0;
+}
+#endif /* SUPPORT_MULTIPLE_NVRAM */
+
 int
 dhd_wlan_init_gpio(void)
 {
-	const char *wlan_node = "samsung,brcm-wlan";
+	int gpio_reg_on_val;
+	/* ========== WLAN_PWR_EN ============ */
+	char *wlan_node = DHD_DT_COMPAT_ENTRY;
 	struct device_node *root_node = NULL;
-	struct device *wlan_dev;
-
-	wlan_dev = sec_device_create(NULL, "wlan");
 
 	root_node = of_find_compatible_node(NULL, NULL, wlan_node);
 	if (!root_node) {
-		WARN(1, "failed to get device node of bcm4354\n");
+		DHD_ERROR(("failed to get device node of BRCM WLAN\n"));
+		return -ENODEV;
+	}
+
+	wlan_reg_on = of_get_named_gpio(root_node, WIFI_WL_REG_ON_PROPNAME, 0);
+	if (!gpio_is_valid(wlan_reg_on)) {
+		DHD_ERROR(("Invalid gpio pin : %d\n", wlan_reg_on));
 		return -ENODEV;
 	}
 
 	/* ========== WLAN_PWR_EN ============ */
-	wlan_pwr_on = of_get_gpio(root_node, 0);
-	if (!gpio_is_valid(wlan_pwr_on)) {
-		WARN(1, "Invalied gpio pin : %d\n", wlan_pwr_on);
-		return -ENODEV;
+	DHD_INFO(("%s: gpio_wlan_power : %d\n", __FUNCTION__, wlan_reg_on));
+
+#ifdef EXYNOS_PCIE_RC_ONOFF
+	if (of_property_read_u32(root_node, "ch-num", &pcie_ch_num)) {
+		DHD_ERROR(("%s: Failed to parse the channel number\n", __FUNCTION__));
+		return -EINVAL;
+	}
+	/* ========== WLAN_PCIE_NUM ============ */
+	DHD_INFO(("%s: pcie_ch_num : %d\n", __FUNCTION__, pcie_ch_num));
+#endif /* EXYNOS_PCIE_RC_ONOFF */
+
+	/*
+	 * For reg_on, gpio_request will fail if the gpio is configured to output-high
+	 * in the dts using gpio-hog, so do not return error for failure.
+	 */
+	if (gpio_request_one(wlan_reg_on, GPIOF_OUT_INIT_HIGH, "WL_REG_ON")) {
+		DHD_ERROR(("%s: Failed to request gpio %d for WL_REG_ON, "
+			"might have configured in the dts\n",
+			__FUNCTION__, wlan_reg_on));
+	} else {
+		DHD_INFO(("%s: gpio_request WL_REG_ON done - WLAN_EN: GPIO %d\n",
+			__FUNCTION__, wlan_reg_on));
 	}
 
-	if (gpio_request(wlan_pwr_on, "WLAN_REG_ON")) {
-		WARN(1, "fail to request gpio(WLAN_REG_ON)\n");
-		return -ENODEV;
+	gpio_reg_on_val = gpio_get_value(wlan_reg_on);
+	DHD_INFO(("%s: Initial WL_REG_ON: [%d]\n",
+		__FUNCTION__, gpio_get_value(wlan_reg_on)));
+
+	if (gpio_reg_on_val == 0) {
+		DHD_INFO(("%s: WL_REG_ON is LOW, drive it HIGH\n", __FUNCTION__));
+		if (gpio_direction_output(wlan_reg_on, 1)) {
+			DHD_ERROR(("%s: WL_REG_ON is failed to pull up\n", __FUNCTION__));
+			return -EIO;
+		}
 	}
-#ifdef CONFIG_BCMDHD_PCIE
-	gpio_direction_output(wlan_pwr_on, 1);
+
+	DHD_INFO(("%s: WL_REG_ON is pulled up\n", __FUNCTION__));
+
+	/* Wait for WIFI_TURNON_DELAY due to power stability */
 	msleep(WIFI_TURNON_DELAY);
-#else
-	gpio_direction_output(wlan_pwr_on, 0);
-#endif /* CONFIG_BCMDHD_PCIE */
-	gpio_export(wlan_pwr_on, 1);
-	if (wlan_dev)
-		gpio_export_link(wlan_dev, "WLAN_REG_ON", wlan_pwr_on);
 
-#ifdef CONFIG_BCMDHD_PCIE
-	exynos_pcie_pm_resume(SAMSUNG_PCIE_CH_NUM);
-#endif /* CONFIG_BCMDHD_PCIE */
+#ifdef EXYNOS_PCIE_RC_ONOFF
+	if (exynos_pcie_pm_resume(pcie_ch_num)) {
+		DHD_WARN(1, "pcie link up failure\n");
+		return -ENODEV;
+	}
+#endif /* EXYNOS_PCIE_RC_ONOFF */
 
 #ifdef CONFIG_BCMDHD_OOB_HOST_WAKE
 	/* ========== WLAN_HOST_WAKE ============ */
-	wlan_host_wake_up = of_get_gpio(root_node, 1);
-	if (!gpio_is_valid(wlan_host_wake_up)) {
-		WARN(1, "Invalied gpio pin : %d\n", wlan_host_wake_up);
-		return -ENODEV;
+	wlan_host_wake_up = of_get_named_gpio(root_node,
+		WIFI_WLAN_HOST_WAKE_PROPNAME, 0);
+	DHD_INFO(("%s: gpio_wlan_host_wake : %d\n", __FUNCTION__, wlan_host_wake_up));
+
+	if (gpio_request_one(wlan_host_wake_up, GPIOF_IN, "WLAN_HOST_WAKE")) {
+		DHD_ERROR(("%s: Failed to request gpio %d for WLAN_HOST_WAKE\n",
+			__FUNCTION__, wlan_host_wake_up));
+			return -ENODEV;
+	} else {
+		DHD_INFO(("%s: gpio_request WLAN_HOST_WAKE done"
+			" - WLAN_HOST_WAKE: GPIO %d\n",
+			__FUNCTION__, wlan_host_wake_up));
 	}
 
-	if (gpio_request(wlan_host_wake_up, "WLAN_HOST_WAKE")) {
-		WARN(1, "fail to request gpio(WLAN_HOST_WAKE)\n");
-		return -ENODEV;
+	if (gpio_direction_input(wlan_host_wake_up)) {
+		DHD_ERROR(("%s: Failed to set WL_HOST_WAKE gpio direction\n", __FUNCTION__));
 	}
-	gpio_direction_input(wlan_host_wake_up);
-	gpio_export(wlan_host_wake_up, 1);
-	if (wlan_dev)
-		gpio_export_link(wlan_dev, "WLAN_HOST_WAKE", wlan_host_wake_up);
 
 	wlan_host_wake_irq = gpio_to_irq(wlan_host_wake_up);
 #endif /* CONFIG_BCMDHD_OOB_HOST_WAKE */
 
 	return 0;
 }
+
+static int
+dhd_wlan_power(int onoff)
+{
+	DHD_INFO(("------------------------------------------------\n"));
+	DHD_INFO(("------------------------------------------------\n"));
+	DHD_INFO(("%s Enter: power %s\n", __func__, onoff ? "on" : "off"));
+
+	if (onoff) {
+		if (gpio_direction_output(wlan_reg_on, 1)) {
+			DHD_ERROR(("%s: WL_REG_ON is failed to pull up\n", __FUNCTION__));
+			return -EIO;
+		}
+		if (gpio_get_value(wlan_reg_on)) {
+			DHD_INFO(("WL_REG_ON on-step-2 : [%d]\n",
+				gpio_get_value(wlan_reg_on)));
+		} else {
+			DHD_ERROR(("[%s] gpio value is 0. We need reinit.\n", __func__));
+			if (gpio_direction_output(wlan_reg_on, 1)) {
+				DHD_ERROR(("%s: WL_REG_ON is "
+					"failed to pull up\n", __func__));
+			}
+		}
+	} else {
+		if (gpio_direction_output(wlan_reg_on, 0)) {
+			DHD_ERROR(("%s: WL_REG_ON is failed to pull up\n", __FUNCTION__));
+			return -EIO;
+		}
+		if (gpio_get_value(wlan_reg_on)) {
+			DHD_INFO(("WL_REG_ON on-step-2 : [%d]\n",
+				gpio_get_value(wlan_reg_on)));
+		}
+	}
+	return 0;
+}
+
+static int
+dhd_wlan_reset(int onoff)
+{
+	return 0;
+}
+
+static int
+dhd_wlan_set_carddetect(int val)
+{
+#ifdef BCMSDIO
+	DHD_INFO(("%s: notify_func=%p, mmc_host_dev=%p, val=%d\n",
+		__FUNCTION__, notify_func_callback, mmc_host_dev, val));
+
+	if (notify_func_callback) {
+		notify_func_callback(mmc_host_dev, val);
+	} else {
+		DHD_ERROR(("%s: Nobody to notify\n", __FUNCTION__));
+	}
+#endif /* BCMSDIO */
+
+	return 0;
+}
+
+#ifdef BCMSDIO
+static int dhd_wlan_get_wake_irq(void)
+{
+	return gpio_to_irq(wlan_host_wake_up);
+}
+#endif /* BCMSDIO */
 
 #if defined(CONFIG_BCMDHD_OOB_HOST_WAKE) && defined(CONFIG_BCMDHD_GET_OOB_STATE)
 int
@@ -320,14 +416,10 @@ EXPORT_SYMBOL(dhd_get_wlan_oob_gpio);
 
 struct resource dhd_wlan_resources = {
 	.name	= "bcmdhd_wlan_irq",
-	.start	= 0,
-	.end	= 0,
+	.start	= 0, /* Dummy */
+	.end	= 0, /* Dummy */
 	.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE |
-#ifdef CONFIG_BCMDHD_PCIE
 	IORESOURCE_IRQ_HIGHEDGE,
-#else
-	IORESOURCE_IRQ_HIGHLEVEL,
-#endif /* CONFIG_BCMDHD_PCIE */
 };
 EXPORT_SYMBOL(dhd_wlan_resources);
 
@@ -335,12 +427,18 @@ struct wifi_platform_data dhd_wlan_control = {
 	.set_power	= dhd_wlan_power,
 	.set_reset	= dhd_wlan_reset,
 	.set_carddetect	= dhd_wlan_set_carddetect,
+#ifdef DHD_COREDUMP
+	.set_coredump = dhd_set_coredump,
+#endif /* DHD_COREDUMP */
 #ifdef CONFIG_BROADCOM_WIFI_RESERVED_MEM
 	.mem_prealloc	= dhd_wlan_mem_prealloc,
 #endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
 #ifdef GET_CUSTOM_MAC_ENABLE
 	.get_mac_addr = dhd_wlan_get_mac_addr,
 #endif /* GET_CUSTOM_MAC_ENABLE */
+#ifdef BCMSDIO
+	.get_wake_irq	= dhd_wlan_get_wake_irq,
+#endif /* BCMSDIO */
 };
 EXPORT_SYMBOL(dhd_wlan_control);
 
@@ -349,11 +447,16 @@ dhd_wlan_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "%s: START.......\n", __FUNCTION__);
+	DHD_INFO(("%s: START.......\n", __FUNCTION__));
+
+#ifdef DHD_COREDUMP
+	platform_device_register(&sscd_dev);
+#endif /* DHD_COREDUMP */
+
 	ret = dhd_wlan_init_gpio();
 	if (ret < 0) {
-		printk(KERN_ERR "%s: failed to initiate GPIO, ret=%d\n",
-			__FUNCTION__, ret);
+		DHD_ERROR(("%s: failed to initiate GPIO, ret=%d\n",
+			__FUNCTION__, ret));
 		goto fail;
 	}
 
@@ -365,8 +468,9 @@ dhd_wlan_init(void)
 #ifdef CONFIG_BROADCOM_WIFI_RESERVED_MEM
 	ret = dhd_init_wlan_mem();
 	if (ret < 0) {
-		printk(KERN_ERR "%s: failed to alloc reserved memory,"
-			" ret=%d\n", __FUNCTION__, ret);
+		DHD_ERROR(("%s: failed to alloc reserved memory,"
+					" ret=%d\n", __FUNCTION__, ret));
+		goto fail;
 	}
 #endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
 
@@ -374,30 +478,33 @@ dhd_wlan_init(void)
 	dhd_wlan_init_mac_addr();
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
+#ifdef SUPPORT_MULTIPLE_NVRAM
+	dhd_wlan_init_hardware_info();
+#endif /* SUPPORT_MULTIPLE_NVRAM */
+
 fail:
+	DHD_INFO(("%s: FINISH.......\n", __FUNCTION__));
 	return ret;
 }
 
 int
 dhd_wlan_deinit(void)
 {
-	gpio_free(wlan_host_wake_up);
-	gpio_free(wlan_pwr_on);
+	if (gpio_is_valid(wlan_host_wake_up)) {
+		gpio_free(wlan_host_wake_up);
+	}
+	if (gpio_is_valid(wlan_reg_on)) {
+		gpio_free(wlan_reg_on);
+	}
+
+#ifdef DHD_COREDUMP
+	platform_device_unregister(&sscd_dev);
+#endif /* DHD_COREDUMP */
 
 	return 0;
 }
 
 #ifndef BCMDHD_MODULAR
 /* Required only for Built-in DHD */
-#if defined(CONFIG_MACH_UNIVERSAL7420) || defined(CONFIG_SOC_EXYNOS8890) || \
-	defined(CONFIG_SOC_EXYNOS8895) || defined(CONFIG_SOC_EXYNOS9810) || \
-	defined(CONFIG_SOC_EXYNOS9820) || defined(CONFIG_SOC_EXYNOS9830)
-#if defined(CONFIG_DEFERRED_INITCALLS)
-deferred_module_init(dhd_wlan_init);
-#else
-late_initcall(dhd_wlan_init);
-#endif /* CONFIG_DEFERRED_INITCALLS */
-#else
 device_initcall(dhd_wlan_init);
-#endif /* CONFIG Exynos PCIE Platforms */
 #endif /* BCMDHD_MODULAR */

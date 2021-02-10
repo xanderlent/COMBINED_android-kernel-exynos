@@ -36,6 +36,7 @@
 
 #ifdef SHOW_LOGTRACE
 extern dhd_pub_t* g_dhd_pub;
+#if defined(DEBUGABILITY) || defined(EWP_ECNTRS_LOGGING) || defined(EWP_RTT_LOGGING)
 static int dhd_ring_proc_open(struct inode *inode, struct file *file);
 ssize_t dhd_ring_proc_read(struct file *file, char *buffer, size_t tt, loff_t *loff);
 
@@ -97,6 +98,7 @@ exit:
 	}
 	return ret;
 }
+#endif /* DEBUGABILITY || EWP_ECNTRS_LOGGING || EWP_RTT_LOGGING */
 
 void
 dhd_dbg_ring_proc_create(dhd_pub_t *dhdp)
