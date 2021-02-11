@@ -267,6 +267,7 @@ enum decon_state {
 	DECON_STATE_DOZE_SUSPEND,
 	DECON_STATE_OFF,
 	DECON_STATE_TUI,
+	DECON_STATE_INVALID, /* Display is absent */
 };
 
 /* To find a proper CLOCK ratio */
@@ -1454,7 +1455,8 @@ static inline bool IS_DECON_OFF_STATE(struct decon_device *decon)
 {
 	return decon->state == DECON_STATE_HIBER ||
 		decon->state == DECON_STATE_DOZE_SUSPEND ||
-		decon->state == DECON_STATE_OFF;
+		decon->state == DECON_STATE_OFF ||
+		decon->state == DECON_STATE_INVALID;
 }
 
 static inline bool IS_DECON_HIBER_STATE(struct decon_device *decon)

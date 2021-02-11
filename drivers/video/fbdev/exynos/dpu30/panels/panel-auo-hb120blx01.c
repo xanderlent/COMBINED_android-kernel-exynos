@@ -94,11 +94,24 @@ static int hb120blx01_doze_suspend(struct exynos_panel_device *panel)
 	return hb120blx01_doze(panel);
 }
 
+static int hb120blx01_set_light(struct exynos_panel_device *panel, u32 br_val)
+{
+	u8 data = 0;
+	struct dsim_device *dsim = get_dsim_drvdata(panel->id);
+	mutex_lock(&panel->ops_lock);
+	/* WRDISBV(8bit): 1st DBV[7:0] */
+	data = br_val & 0xFF;
+	dsim_write_data_seq(dsim, false, 0x51, data);
+	mutex_unlock(&panel->ops_lock);
+	return 0;
+}
+
 struct exynos_panel_ops panel_hb120blx01_ops = {
 	.id		= {0x2, 0xffffff, 0xffffff},
 	.suspend	= hb120blx01_suspend,
 	.displayon	= hb120blx01_displayon,
 	.doze		= hb120blx01_doze,
 	.doze_suspend	= hb120blx01_doze_suspend,
+	.set_light	= hb120blx01_set_light,
 };
 

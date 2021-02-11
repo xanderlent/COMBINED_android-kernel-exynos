@@ -1021,6 +1021,10 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 		return 0;
 	}
 
+	if (decon->state == DECON_STATE_INVALID) {
+		decon_info("Display invalid, not processing blank event\n");
+		return 0;
+	}
 	decon_hiber_block_exit(decon);
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 	mutex_lock(&decon->esd.lock);
@@ -4119,7 +4123,12 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	decon_reg_start(decon->id, &psr);
 	decon_reg_set_int(decon->id, &psr, 1);
 	dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DISPLAYON, NULL);
-	decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
+	if (decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC) == -ETIMEDOUT) {
+		decon_err("Didn't receive vsync, marking display as invalid\n");
+		decon->state = DECON_STATE_INVALID;
+		return 0;
+	}
+
 	if (decon_reg_wait_update_done_and_mask(decon->id, &psr,
 				SHADOW_UPDATE_TIMEOUT) < 0)
 		decon_err("%s: wait_for_update_timeout\n", __func__);
