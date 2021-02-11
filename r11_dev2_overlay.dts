@@ -24,8 +24,8 @@
 /* #include "r11_st54_ese.dtsi" */
 #include "r11_cp.dtsi"
 #include "r11_dev1_common.dtsi"
-/* #include "r11_auo_display_lcd.dtsi" */
-/* #include "r11_raydium_touchscreen.dtsi" */
+#include "r11_auo_display_lcd.dtsi"
+#include "r11_raydium_touchscreen.dtsi"
 
 / {
 	compatible = "google,r11";
