@@ -32,6 +32,7 @@
 #include <linux/muic/muic.h>
 #include <linux/alarmtimer.h>
 #include <linux/thermal.h>
+#include <linux/debugfs.h>
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/muic_notifier.h>
@@ -191,6 +192,12 @@ struct battery_info {
 	struct thermal_cooling_device *tcd;
 	struct thermal_zone_device *wlc_tzd;
 	int thermal_level;
+
+	/* DEBUG props */
+	struct dentry *debug_root;
+	int charging_state_override;
+	int charging_current_override;
+
 };
 
 static int calculate_cc_index(struct battery_info *battery, int temp_index, int voltage_index) {
@@ -278,6 +285,14 @@ static int check_charging_current(struct battery_info *battery)
 	cc_i = calculate_cc_index(battery, battery->temp_index, v_i);
 	charging_current = battery->pdata->cc_limits[cc_i];
 
+	if (battery->charging_current_override) {
+		if (battery->charging_current_override <= charging_current) {
+			charging_current = battery->charging_current_override;
+		} else {
+			dev_info(battery->dev, "Charging current override too high. t=%d, v=%d, override=%d, max current=%d\n",
+					battery->temperature, battery->voltage_now, battery->charging_current_override, battery->charging_current);
+		}
+	}
 	// Actually change charger parameters
 	mutex_lock(&battery->iolock);
 	// Update charging current if necessary
@@ -393,6 +408,11 @@ static int set_battery_status(struct battery_info *battery,
 		int ret;
 
 	pr_info("%s: current status = %d, new status = %d\n", __func__, battery->status, status);
+
+	if (battery->charging_state_override && status == POWER_SUPPLY_STATUS_CHARGING) {
+		status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+	}
+
 	if (battery->status == status)
 		return 0;
 
@@ -1310,6 +1330,84 @@ static const struct thermal_cooling_device_ops wlc_cooling_ops = {
 	.set_cur_state = set_charge_cntl_limit,
 };
 
+static int charging_override_get(void *data, u64 *val)
+{
+	struct battery_info *battery = data;
+	*val = battery->charging_state_override;
+	return 0;
+}
+
+static int charging_override_set(void *data, u64 val)
+{
+	struct battery_info *battery = data;
+	if (val != 0 && val != 1) {
+		return -EINVAL;
+	}
+	battery->charging_state_override = val;
+	set_bat_status_by_cable(battery);
+	return 0;
+}
+
+static int current_override_get(void *data, u64 *val)
+{
+	struct battery_info *battery = data;
+	if (battery->charging_current < battery->charging_current_override) {
+		dev_info(battery->dev, "Set current over safe charging current");
+		*val = battery->charging_current;
+	} else {
+		*val = battery->charging_current_override;
+	}
+	return 0;
+}
+
+static int current_override_set(void *data, u64 val)
+{
+	struct battery_info *battery = data;
+	if (val < 0 || val > 300) {
+		return -EINVAL;
+	}
+	battery->charging_current_override = val;
+	// Reset current tracking indices so that current will be recalculated
+	battery->temp_index = -1;
+	battery->voltage_index = -1;
+	battery->charging_current = -1;
+	alarm_cancel(&battery->monitor_alarm);
+	wake_lock(&battery->monitor_wake_lock);
+	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(charging_debug_ops, charging_override_get, charging_override_set, "%lld\n");
+DEFINE_SIMPLE_ATTRIBUTE(current_debug_ops, current_override_get, current_override_set, "%lld\n");
+
+static int battery_create_debugfs_entries(struct battery_info *battery)
+{
+	struct dentry *ent;
+	int ret = 0;
+
+	battery->debug_root = debugfs_create_dir("google-battery", NULL);
+	if (!battery->debug_root) {
+		dev_err(battery->dev, "Couldn't create debug dir\n");
+		ret = -ENOENT;
+	} else {
+		battery->charging_state_override = 0;
+		ent = debugfs_create_file("charging_disable", S_IFREG | S_IWUSR | S_IRUGO,
+				battery->debug_root, battery, &charging_debug_ops);
+		if (!ent) {
+			dev_err(battery->dev, "Couldn't create charging debug file\n");
+			ret = -ENOENT;
+		}
+		battery->charging_current_override = 0;
+		ent = debugfs_create_file("charging_current", S_IFREG | S_IWUSR | S_IRUGO,
+				battery->debug_root, battery, &current_debug_ops);
+		if (!ent) {
+			dev_err(battery->dev, "Couldn't create current debug file\n");
+			ret = -ENOENT;
+		}
+	}
+	return ret;
+}
+
 static int google_battery_probe(struct platform_device *pdev)
 {
 	struct battery_info *battery;
@@ -1479,6 +1577,10 @@ static int google_battery_probe(struct platform_device *pdev)
 			}
 		}
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	battery_create_debugfs_entries(battery);
+#endif
 
 	/* Kick off monitoring thread */
 	pr_info("%s: start battery monitoring work\n", __func__);
