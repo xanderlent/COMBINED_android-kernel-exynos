@@ -56,6 +56,7 @@ struct s3c_rtc {
 
 struct s3c_rtc_data {
 	int max_user_freq;
+	bool needs_clk;
 	bool needs_src_clk;
 
 	void (*irq_handler) (struct s3c_rtc *info, int mask);
@@ -76,14 +77,17 @@ static int s3c_rtc_enable_clk(struct s3c_rtc *info)
 	spin_lock_irqsave(&info->alarm_clk_lock, irq_flags);
 
 	if (info->clk_disabled) {
-		ret = clk_enable(info->rtc_clk);
-		if (ret)
-			goto out;
+		if (info->data->needs_clk) {
+			ret = clk_enable(info->rtc_clk);
+			if (ret)
+				goto out;
+		}
 
 		if (info->data->needs_src_clk) {
 			ret = clk_enable(info->rtc_src_clk);
 			if (ret) {
-				clk_disable(info->rtc_clk);
+				if (info->data->needs_clk)
+					clk_disable(info->rtc_clk);
 				goto out;
 			}
 		}
@@ -104,7 +108,8 @@ static void s3c_rtc_disable_clk(struct s3c_rtc *info)
 	if (!info->clk_disabled) {
 		if (info->data->needs_src_clk)
 			clk_disable(info->rtc_src_clk);
-		clk_disable(info->rtc_clk);
+		if (info->data->needs_clk)
+			clk_disable(info->rtc_clk);
 		info->clk_disabled = true;
 	}
 	spin_unlock_irqrestore(&info->alarm_clk_lock, irq_flags);
@@ -472,7 +477,8 @@ static int s3c_rtc_remove(struct platform_device *pdev)
 
 	if (info->data->needs_src_clk)
 		clk_unprepare(info->rtc_src_clk);
-	clk_unprepare(info->rtc_clk);
+	if (info->data->needs_clk)
+		clk_unprepare(info->rtc_clk);
 
 	return 0;
 }
@@ -531,18 +537,20 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->base))
 		return PTR_ERR(info->base);
 
-	info->rtc_clk = devm_clk_get(&pdev->dev, "rtc");
-	if (IS_ERR(info->rtc_clk)) {
-		ret = PTR_ERR(info->rtc_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to find rtc clock\n");
-		else
-			dev_dbg(&pdev->dev, "probe deferred due to missing rtc clk\n");
-		return ret;
+	if (info->data->needs_clk) {
+		info->rtc_clk = devm_clk_get(&pdev->dev, "rtc");
+		if (IS_ERR(info->rtc_clk)) {
+			ret = PTR_ERR(info->rtc_clk);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "failed to find rtc clock\n");
+			else
+				dev_dbg(&pdev->dev, "probe deferred due to missing rtc clk\n");
+			return ret;
+		}
+		ret = clk_prepare_enable(info->rtc_clk);
+		if (ret)
+			return ret;
 	}
-	ret = clk_prepare_enable(info->rtc_clk);
-	if (ret)
-		return ret;
 
 	if (info->data->needs_src_clk) {
 		info->rtc_src_clk = devm_clk_get(&pdev->dev, "rtc_src");
@@ -621,7 +629,8 @@ err_nortc:
 	if (info->data->needs_src_clk)
 		clk_disable_unprepare(info->rtc_src_clk);
 err_src_clk:
-	clk_disable_unprepare(info->rtc_clk);
+	if (info->data->needs_clk)
+		clk_disable_unprepare(info->rtc_clk);
 
 	return ret;
 }
@@ -802,6 +811,7 @@ static void s3c6410_rtc_restore_tick_cnt(struct s3c_rtc *info)
 
 static struct s3c_rtc_data const s3c2410_rtc_data = {
 	.max_user_freq		= 128,
+	.needs_clk		= true,
 	.irq_handler		= s3c24xx_rtc_irq,
 	.set_freq		= s3c2410_rtc_setfreq,
 	.enable_tick		= s3c24xx_rtc_enable_tick,
@@ -813,6 +823,7 @@ static struct s3c_rtc_data const s3c2410_rtc_data = {
 
 static struct s3c_rtc_data const s3c2416_rtc_data = {
 	.max_user_freq		= 32768,
+	.needs_clk		= true,
 	.irq_handler		= s3c24xx_rtc_irq,
 	.set_freq		= s3c2416_rtc_setfreq,
 	.enable_tick		= s3c24xx_rtc_enable_tick,
@@ -825,6 +836,7 @@ static struct s3c_rtc_data const s3c2416_rtc_data = {
 
 static struct s3c_rtc_data const s3c2443_rtc_data = {
 	.max_user_freq		= 32768,
+	.needs_clk		= true,
 	.irq_handler		= s3c24xx_rtc_irq,
 	.set_freq		= s3c2443_rtc_setfreq,
 	.enable_tick		= s3c24xx_rtc_enable_tick,
@@ -837,7 +849,19 @@ static struct s3c_rtc_data const s3c2443_rtc_data = {
 
 static struct s3c_rtc_data const s3c6410_rtc_data = {
 	.max_user_freq		= 32768,
+	.needs_clk		= true,
 	.needs_src_clk		= true,
+	.irq_handler		= s3c6410_rtc_irq,
+	.set_freq		= s3c6410_rtc_setfreq,
+	.enable_tick		= s3c6410_rtc_enable_tick,
+	.save_tick_cnt		= s3c6410_rtc_save_tick_cnt,
+	.restore_tick_cnt	= s3c6410_rtc_restore_tick_cnt,
+	.enable			= s3c24xx_rtc_enable,
+	.disable		= s3c6410_rtc_disable,
+};
+
+static struct s3c_rtc_data const exynos8_rtc_data = {
+	.max_user_freq		= 32768,
 	.irq_handler		= s3c6410_rtc_irq,
 	.set_freq		= s3c6410_rtc_setfreq,
 	.enable_tick		= s3c6410_rtc_enable_tick,
@@ -863,6 +887,9 @@ static const struct of_device_id s3c_rtc_dt_match[] = {
 	}, {
 		.compatible = "samsung,exynos3250-rtc",
 		.data = &s3c6410_rtc_data,
+	}, {
+		.compatible = "samsung,exynos8-rtc",
+		.data = &exynos8_rtc_data,
 	},
 	{ /* sentinel */ },
 };
