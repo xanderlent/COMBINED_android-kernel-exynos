@@ -117,7 +117,7 @@ static void hsuart_power(int on)
 int bluesleep_can_sleep(void)
 {
 	/* check if WAKE_BT_GPIO and BT_WAKE_GPIO are both deasserted */
-	pr_info("bt_wake %d, host_wake %d, uport %p",
+	pr_debug("bt_wake %d, host_wake %d, uport %p",
 		gpiod_get_value(bsi->ext_wake),
 		gpiod_get_value(bsi->host_wake),
 		bsi->uport);
@@ -184,7 +184,7 @@ static void bluesleep_stop(void)
 {
 	unsigned long irq_flags;
 
-	pr_debug("bluesleep_stop\n");
+	pr_info("bluesleep_stop\n");
 	spin_lock_irqsave(&rw_lock, irq_flags);
 
 	if (!test_bit(BT_PROTO, &flags)) {
@@ -302,13 +302,13 @@ static ssize_t bluesleep_write_proc_lpm(struct file *file,
 {
 	char b;
 
-	pr_info("bluesleep_write_proc_lpm\n");
+	pr_debug("bluesleep_write_proc_lpm\n");
 	if (count < 1)
 		return -EINVAL;
 
 	if (copy_from_user(&b, buffer, 1))
 		return -EFAULT;
-	pr_info("bluesleep_write_proc_lpm_b=%d\n", b);
+	pr_debug("bluesleep_write_proc_lpm_b=%d\n", b);
 	if (b == '0') {
 		/* HCI_DEV_UNREG */
 		bluesleep_stop();
@@ -328,7 +328,7 @@ static ssize_t bluesleep_write_proc_lpm(struct file *file,
 
 static int lpm_proc_show(struct seq_file *m, void *v)
 {
-	pr_info("bluesleep_read_proc_lpm\n");
+	pr_debug("bluesleep_read_proc_lpm\n");
 	seq_puts(m, "unsupported to read\n");
 
 	return 0;
@@ -344,16 +344,16 @@ static ssize_t bluesleep_write_proc_btwrite(struct file *file,
 {
 	char b;
 
-	pr_info("bluesleep_write_proc_btwrite");
+	pr_debug("bluesleep_write_proc_btwrite");
 	if (count < 1)
 		return -EINVAL;
-	pr_info("bluesleep_write_proc_btwrite11");
+	pr_debug("bluesleep_write_proc_btwrite11");
 	if (is_bt_stopped == 1)
 		return count;
-	pr_info("bluesleep_write_proc_btwrite22");
+	pr_debug("bluesleep_write_proc_btwrite22");
 	if (copy_from_user(&b, buffer, 1))
 		return -EFAULT;
-	pr_info("bluesleep_write_proc_btwrite=%c", b);
+	pr_debug("bluesleep_write_proc_btwrite=%c", b);
 
 	/* HCI_DEV_WRITE */
 	if (b == '1')
@@ -374,7 +374,7 @@ static ssize_t bluesleep_write_proc_btwrite(struct file *file,
 
 static int btwrite_proc_show(struct seq_file *m, void *v)
 {
-	pr_info("bluesleep_read_proc_lpm\n");
+	pr_debug("bluesleep_read_proc_lpm\n");
 	seq_puts(m, "unsupported to read\n");
 
 	return 0;
@@ -391,18 +391,18 @@ static int bluesleep_open_proc_btwrite(struct inode *inode, struct file *file)
  */
 static void bluesleep_tx_timer_expire(struct timer_list *data)
 {
-	pr_info("bluesleep_tx_timer_expire\n");
+	pr_debug("bluesleep_tx_timer_expire\n");
 	gpiod_set_value(bsi->ext_wake, 1);
 	if (bsi->uport == NULL){
-		pr_info("bluesleep_tx_timer_expire is NULL\n");
+		pr_debug("bluesleep_tx_timer_expire is NULL\n");
 		return;
 	}
 	if (bsi->uport->ops->tx_empty(bsi->uport)) {
-		pr_info("empty");
+		pr_debug("empty");
 		gpiod_set_value(bsi->ext_wake, 0);
 		wake_unlock(&bsi->bt_wakelock);
 	} else {
-		pr_info("not empty");
+		pr_debug("not empty");
 		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL*HZ));
 	}
 }
@@ -418,10 +418,10 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev_id)
 	/* schedule a tasklet to handle the change in the host wake line */
 	int ext_wake, host_wake;
 
-	pr_info("bluesleep_hostwake_isr\n");
+	pr_debug("bluesleep_hostwake_isr\n");
 	ext_wake = gpiod_get_value(bsi->ext_wake);
 	host_wake = gpiod_get_value(bsi->host_wake);
-	pr_info("ext_wake : %d, host_wake : %d", ext_wake, host_wake);
+	pr_debug("ext_wake : %d, host_wake : %d", ext_wake, host_wake);
 	if (host_wake == 0) {
 		wake_lock(&bsi->host_wakelock);
 		irq_set_irq_type(irq, IRQF_TRIGGER_HIGH);
@@ -431,7 +431,7 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev_id)
 	}
 
 	if (host_wake == 0)
-		pr_info("bluesleep_hostwake_isr: Register workqueue\n");
+		pr_debug("bluesleep_hostwake_isr: Register workqueue\n");
 
 	return IRQ_HANDLED;
 }
@@ -450,7 +450,7 @@ static ssize_t bluepower_write_proc_btwake(struct file *file,
 {
 	char *buf;
 
-	pr_info("bluepower_write_proc_btwake\n11111");
+	pr_debug("bluepower_write_proc_btwake\n11111");
 	if (count < 1)
 		return -EINVAL;
 
@@ -467,14 +467,14 @@ static ssize_t bluepower_write_proc_btwake(struct file *file,
 		if (bsi->has_ext_wake == 1)
 		{
 			gpiod_set_value(bsi->ext_wake, 0);
-			pr_info("bluepower_write_proc_btwake down\n");
+			pr_debug("bluepower_write_proc_btwake down\n");
 		}
 		clear_bit(BT_EXT_WAKE, &flags);
 	} else if (buf[0] == '1') {
 		if (bsi->has_ext_wake == 1)
 		{
 			gpiod_set_value(bsi->ext_wake, 1);
-			pr_info("bluepower_write_proc_btwake up\n");
+			pr_debug("bluepower_write_proc_btwake up\n");
 		}
 		set_bit(BT_EXT_WAKE, &flags);
 	} else {
@@ -537,11 +537,11 @@ static ssize_t bluesleep_write_proc_proto(struct file *filp,
 {
 	char proto;
 
-	pr_info("bluesleep_write_proc_proto\n");
+	pr_debug("bluesleep_write_proc_proto\n");
 	if (count > 0) {
 		if (copy_from_user(&proto, buff, 1))
 			return -EFAULT;
-		pr_info("write proto %c", proto);
+		pr_debug("write proto %c", proto);
 		if (proto == '0')
 			bluesleep_stop();
 		else
