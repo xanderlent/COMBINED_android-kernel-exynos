@@ -20,6 +20,8 @@
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
+
 static struct gpio_desc *bt_power;
 
 static int bluetooth_set_power(void *data, bool blocked)

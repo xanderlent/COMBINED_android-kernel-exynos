@@ -34,6 +34,7 @@
 #include <linux/workqueue.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <linux/of_device.h>
 
 #define VERSION			"1.1"
 #define PROC_DIR		"bluetooth/sleep"
@@ -98,8 +99,8 @@ static void bluesleep_sleep_work(struct work_struct *work);
 DECLARE_DELAYED_WORK(sleep_workqueue, bluesleep_sleep_work);
 
 /* Transmission timer */
-static void bluesleep_tx_timer_expire(unsigned long data);
-static DEFINE_TIMER(tx_timer, bluesleep_tx_timer_expire, 0, 0);
+static void bluesleep_tx_timer_expire(struct timer_list *data);
+static DEFINE_TIMER(tx_timer, bluesleep_tx_timer_expire);
 
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -388,7 +389,7 @@ static int bluesleep_open_proc_btwrite(struct inode *inode, struct file *file)
  * Handles transmission timer expiration.
  * @param data Not used.
  */
-static void bluesleep_tx_timer_expire(unsigned long data)
+static void bluesleep_tx_timer_expire(struct timer_list *data)
 {
 	pr_info("bluesleep_tx_timer_expire\n");
 	gpiod_set_value(bsi->ext_wake, 1);
@@ -681,9 +682,7 @@ static int bluesleep_probe(struct platform_device *pdev)
 
 	flags = 0;
 	spin_lock_init(&rw_lock);
-	init_timer(&tx_timer);
-	tx_timer.function = bluesleep_tx_timer_expire;
-	tx_timer.data = 0;
+	timer_setup(&tx_timer, bluesleep_tx_timer_expire, 0);
 
 	if (bsi == NULL)
 		return 0;
