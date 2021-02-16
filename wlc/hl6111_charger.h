@@ -116,6 +116,8 @@
 
 #define REG_VOUT_RANGE_SEL                  0x30
 #define BITS_VOUT_RNG_SEL                   BITS(7,6)
+#define VOUT_RANGE_SEL_MASK                 0xC0
+#define VOUT_RANGE_SEL_SHIFT                6
 
 #define REG_LDOP_REF                        0x31
 #define BITS_LDOP_REF                       BITS(1,0)
@@ -188,6 +190,7 @@ struct hl6111_platform_data{
     unsigned int ldop;
     unsigned int vout_range;
     unsigned int trgt_vout;
+    unsigned int trgt_vout_override;
     unsigned int trgt_vrect;
     unsigned int temp_limit;
 };

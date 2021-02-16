@@ -133,6 +133,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
         pdata->trgt_vout = temp;
         LOG_DBG("trgt_vout[%d]\n", pdata->trgt_vout);
     }
+    pdata->trgt_vout_override = 0;
     /* VRECT TARGET */
     rc = of_property_read_u32(np, "halo,trgt-vrect", &temp);
     if (rc) {
@@ -450,6 +451,49 @@ static void hl6111_target_vout_ctrl(struct hl6111_charger *chg, u8 update)
     hl6111_get_target_vout(chg); //to update chg->trgt_vout;
 }
 
+static void target_vout_set_voltage(struct hl6111_charger *chg, int voltage) {
+    int reg_value, range, ret;
+    int base, step, new_voltage;
+    ret =  hl6111_read_reg(chg, REG_VOUT_RANGE_SEL, &range);
+    if (ret < 0){
+        LOG_DBG("Failed to read addr=%X\r\n ", REG_VOUT_RANGE_SEL);
+        return;
+    }
+    range = (range & VOUT_RANGE_SEL_MASK) >> VOUT_RANGE_SEL_SHIFT;
+
+    switch(range) {
+        case VOUT_RANGE_20MV:
+            base = 4940;
+            step = 20;
+            break;
+        case VOUT_RANGE_30MV:
+            base = 7410;
+            step = 30;
+            break;
+        case VOUT_RANGE_40MV:
+            base = 9880;
+            step = 40;
+            break;
+        case VOUT_RANGE_16MV:
+            base = 3952;
+            step = 16;
+            break;
+    }
+    // Add step - 1 so that we round up instead of down
+    reg_value = (voltage + (step - 1) - base) / step;
+
+    if (reg_value < 0 || reg_value > 0xff) {
+        new_voltage = base + reg_value * step;
+        dev_err(chg->dev, "Invalid Target Vout Value:%d, reg=[%x]\n", new_voltage, reg_value);
+        return;
+    }
+    if (chg->pdata->trgt_vout != reg_value) {
+        dev_info(chg->dev, "Setting Target Vout to %d, reg=[%x]\n", voltage, reg_value);
+        chg->pdata->trgt_vout = reg_value;
+        hl6111_target_vout_ctrl(chg, (u8) reg_value);
+    }
+}
+
 static void hl6111_get_target_vrect(struct hl6111_charger *chg)
 {
     int ret;
@@ -601,7 +645,11 @@ static void hl6111_device_init(struct hl6111_charger *chg)
     /* VOUT Range setting to select lowest voltage range which from 3.952 to 8.040V*/
     hl6111_update_reg(chg, REG_VOUT_RANGE_SEL, BITS_VOUT_RNG_SEL, (chg->pdata->vout_range << 6));
     /* Vout == 4.304V 16mV/step*/
-    hl6111_target_vout_ctrl(chg, chg->pdata->trgt_vout);
+    if (chg->pdata->trgt_vout_override) {
+       hl6111_target_vout_ctrl(chg, chg->pdata->trgt_vout_override);
+    } else {
+       hl6111_target_vout_ctrl(chg, chg->pdata->trgt_vout);
+    }
     hl6111_target_vrect_ctrl(chg, chg->pdata->trgt_vrect);
     hl6111_set_templim(chg, chg->pdata->temp_limit);
 
@@ -693,6 +741,9 @@ static int hl6111_psy_set_property(struct power_supply *psy, enum power_supply_p
 
             hl6111_set_ioutlim(chg, update);
             LOG_DBG("output current limit:  value[%d], update[0x%x] \r\n", val->intval, update);
+            break;
+        case POWER_SUPPLY_PROP_ENERGY_AVG: //target vout
+            target_vout_set_voltage(chg, val->intval);
             break;
 
         default:
@@ -1016,7 +1067,7 @@ static int target_vout_set(void *data, u64 val)
         return -EAGAIN;
     }
 
-    chg->pdata->trgt_vout = val;
+    chg->pdata->trgt_vout_override = val;
     hl6111_target_vout_ctrl(chg, val);
 
     return 0;

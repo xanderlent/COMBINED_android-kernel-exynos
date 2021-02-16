@@ -110,6 +110,8 @@ typedef struct battery_platform_data {
 	s32 *volt_limits;
 	s32 *cc_limits;
 	int topoff_current;
+	int wlc_vout_headroom;
+	int wlc_vout_min;
 
 	/* full check */
 	unsigned int full_check_count;
@@ -162,6 +164,7 @@ struct battery_info {
 	bool is_recharging;
 	bool wlc_connected;
 	struct mutex wlc_state_lock;
+	int wlc_vout_setting;
 
 	bool battery_valid;
 	int status;
@@ -310,7 +313,6 @@ static int check_charging_current(struct battery_info *battery)
 			pr_err("%s: Fail to execute property CURRENT_NOW\n", __func__);
 		battery->charging_current = charging_current;
 	}
-
 	// Update Float Voltage if necessary
 	if (battery->voltage_index != v_i) {
 		dev_info(battery->dev, "%s: voltage_index(%d to %d)\n", __func__,
@@ -341,10 +343,35 @@ static int check_charging_current(struct battery_info *battery)
 			pr_err("%s: Fail to execute property CURRENT_FULL\n", __func__);
 		battery->topoff_current = topoff_current;
 	}
+
 charger_fail:
 	mutex_unlock(&battery->iolock);
 	return ret;
 }
+
+static int check_wlc_vout(struct battery_info *battery)
+{
+	union power_supply_propval value;
+	struct power_supply *psy;
+	int ret = 0;
+	int wlc_vout;
+	wlc_vout = battery->voltage_now + battery->pdata->wlc_vout_headroom;
+	if (wlc_vout < battery->pdata->wlc_vout_min) {
+		wlc_vout = battery->pdata->wlc_vout_min;
+	}
+	if (wlc_vout != battery->wlc_vout_setting) {
+		psy = power_supply_get_by_name(battery->pdata->wlc_name);
+		if (!psy)
+			return -EINVAL;
+		value.intval = wlc_vout;
+		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ENERGY_AVG, &value);
+		if (ret < 0)
+			pr_err("%s: Fail to execute WLC VOUT property\n", __func__);
+		power_supply_put(psy);
+	}
+	return 0;
+}
+
 
 /*
  * set_charger_mode(): charger_mode must have one of following values.
@@ -1055,6 +1082,7 @@ static void bat_monitor_work(struct work_struct *work)
 		container_of(work, struct battery_info, monitor_work.work);
 	union power_supply_propval value;
 	struct power_supply *psy;
+	int old_charging_current;
 	int ret;
 
 	dev_dbg(battery->dev, "%s: start monitoring\n", __func__);
@@ -1076,8 +1104,11 @@ static void bat_monitor_work(struct work_struct *work)
 	get_battery_info(battery);
 
 	check_health(battery);
-
+	old_charging_current = battery->charging_current;
 	ret = check_charging_current(battery);
+	if (battery->charging_current == old_charging_current) {
+		check_wlc_vout(battery);
+	}
 	if (ret < 0)
 		pr_err("%s: Fail to check charging current\n", __func__);
 	check_charging_full(battery);
@@ -1214,6 +1245,20 @@ static int google_battery_parse_dt(struct device *dev,
 	if (ret) {
 		pr_debug("%s : Topoff current is empty\n", __func__);
 		return -EINVAL;
+	}
+
+	ret = of_property_read_u32(np, "battery,wlc_vout_headroom",
+			&pdata->wlc_vout_headroom);
+	if (ret) {
+		pr_debug("%s : WLC VOUT headroom is empty\n", __func__);
+		pdata->wlc_vout_headroom = 200;
+	}
+
+	ret = of_property_read_u32(np, "battery,wlc_vout_min",
+			&pdata->wlc_vout_min);
+	if (ret) {
+		pr_debug("%s : WLC VOUT min is empty\n", __func__);
+		pdata->wlc_vout_min = 4200;
 	}
 
 	ret = of_property_read_u32(np, "battery,full_check_condition_soc",
