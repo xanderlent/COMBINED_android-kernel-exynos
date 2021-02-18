@@ -1,0 +1,39 @@
+#include <dt-bindings/pinctrl/samsung.h>
+
+&i2c_1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok"; /* Enable I2C1 */
+	hl6111@25 {
+		compatible = "halo,hl6111";
+		reg = <0x25>;
+		halo,int-gpio = <&gpa1 3 0>;
+		halo,det-gpio = <&gpm21 0 0>;
+		halo,clm-vth = <0x07>;
+		halo,bypass = <0x00>;		//5.0V
+		halo,ldop = <0x00>;		//1.8V
+		halo,vout-range = <0x03>; //16mV step
+		halo,trgt-vout = <0x26>; //4.56V
+		halo,trgt-vrect = <0x02>; //6V
+		halo,temp-limit = <0x17>; // default
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlc_irq &wlc_det>;
+	};
+};
+
+&pinctrl_0 {
+	wlc_irq: wlc_irq {
+		samsung,pins = "gpa1-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&pinctrl_1 {
+	wlc_det: wlc_det {
+		samsung,pins = "gpm21-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};

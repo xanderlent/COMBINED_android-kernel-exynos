@@ -16,14 +16,15 @@
 #include "r11_common.dtsi"
 #include "r11_adc.dtsi"
 #include "r11_bcm430132_bluetooth.dtsi"
-/* #include "r11_bcm430132_wifi.dtsi" */
+#include "r11_bcm430132_wifi.dtsi"
 #include "r11_bcm47765_gnss.dtsi"
 #include "r11_proto1_audio_haptics.dtsi"
 #include "r11_boe_display_lcd.dtsi"
-#include "r11_proto1_wlc.dtsi"
-#include "r11_spi0_nanohub.dtsi"
+#include "r11_evt1_wlc.dtsi"
+#include "r11_spi4_nanohub.dtsi"
 #include "r11_proto1_crown.dtsi"
 #include "r11_novatek_touchscreen.dtsi"
+#include "r11_adc.dtsi"
 
 &regulators {
 	ldo15_reg: LDO15 {
