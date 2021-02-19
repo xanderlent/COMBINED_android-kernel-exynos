@@ -109,7 +109,7 @@
 		cirrus,asp-slot-num = <2>;
 		cirrus,asp-slot-width = <16>;
 		cirrus,asp-samp-width = <16>;
-		cirrus,fw-id-remap = <0x1400CF>;
+		cirrus,fw-id-remap = <0x1400CB>;
 		status = "ok";
 	};
 };
