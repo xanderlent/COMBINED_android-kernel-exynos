@@ -1210,9 +1210,11 @@
 		status = "disabled";
 	};
 
-	/* TODO (mullerf): b/159257766 */
-	rfkill: rfkill {
-	};
-	bluesleep: bluesleep {
+	/* ODM overlay */
+	odm: odm {
+		compatible = "simple-bus";
+		ranges;
+
+		/* reserved for overlay by ODM */
 	};
 };
