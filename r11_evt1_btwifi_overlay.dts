@@ -43,6 +43,7 @@
 			};
 			/include/ "r11_evt1_battery_root.dtsi"
 			/include/ "r11_common_root.dtsi"
+			/include/ "r11_evt1_sound_root.dtsi"
 		};
 	};
 };

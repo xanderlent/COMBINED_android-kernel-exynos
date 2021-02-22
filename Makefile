@@ -3,6 +3,7 @@ dtbo-y += r11_dev2_no_nfc_overlay.dtbo
 dtbo-y += r11_dev2_boe_overlay.dtbo
 dtbo-y += r11_dev2_no_nfc_boe_overlay.dtbo
 dtbo-y += r11_dev2_btwifi_overlay.dtbo
+dtbo-y += r11_dev2_swap_audio_no_nfc_boe_overlay.dtbo
 dtbo-y += r11_proto1_overlay.dtbo
 dtbo-y += r11_proto1_btwifi_overlay.dtbo
 dtbo-y += r11_proto11_no_nfc_overlay.dtbo

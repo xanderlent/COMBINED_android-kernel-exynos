@@ -45,6 +45,7 @@
 			};
 			/include/ "r11_dev1_battery_root.dtsi"
 			/include/ "r11_common_root.dtsi"
+			/include/ "r11_proto1_sound_root.dtsi"
 		};
 	};
 };

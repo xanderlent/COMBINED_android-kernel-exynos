@@ -1,0 +1,189 @@
+/* The whole sound block was copied from the reference platform without
+ *  changes. We likely don't need most of it, as most of it are dummy
+ *  codecs/dais. Most probably the only useful subnode is uaif@0.
+ *  TODO(bsp team): Delete whatever we don't need here.
+ */
+sound {
+	status = "okay";
+	compatible = "samsung,exynos9110-sound-r11";
+
+	clock-names = "xclkout";
+	/* OSCCLK_AUD =  (CLK_CLKOUT_BASE + 1), where CLK_CLKOUT_BASE = 415*/
+	clocks = <&clock 416>;
+
+	samsung,routing = "VOUTPUT", "ABOX UAIF0 Playback",
+		"ABOX UAIF0 Capture", "VINPUT1",
+		"VOUTPUTCALL", "ABOX SIFS0 Playback",
+		"ABOX SIFS0 Capture", "VINPUTCALL";
+	samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4>;
+	samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX", "VTS";
+	/* samsung,aux = <&abox_effect>; */
+	rdma@0 {
+		dai_link = "RDMA0";
+		cpu {
+			sound-dai = <&abox 0>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@1 {
+		dai_link = "RDMA1";
+		cpu {
+			sound-dai = <&abox 1>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@2 {
+		dai_link = "RDMA2";
+		cpu {
+			sound-dai = <&abox 2>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@3 {
+		dai_link = "RDMA3";
+		cpu {
+			sound-dai = <&abox 3>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@4 {
+		dai_link = "RDMA4";
+		cpu {
+			sound-dai = <&abox 4>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@5 {
+		dai_link = "RDMA5";
+		cpu {
+			sound-dai = <&abox 5>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@6 {
+		dai_link = "RDMA6";
+		cpu {
+			sound-dai = <&abox 6>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	rdma@7 {
+		dai_link = "RDMA7";
+		cpu {
+			sound-dai = <&abox 7>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@0 {
+		dai_link = "WDMA0";
+		cpu {
+			sound-dai = <&abox 8>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@1 {
+		dai_link = "WDMA1";
+		cpu {
+			sound-dai = <&abox 9>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@2 {
+		dai_link = "WDMA2";
+		cpu {
+			sound-dai = <&abox 10>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@3 {
+		dai_link = "WDMA3";
+		cpu {
+			sound-dai = <&abox 11>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	wdma@4 {
+		dai_link = "WDMA4";
+		cpu {
+			sound-dai = <&abox 12>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	uaif@0 {
+		dai_link = "UAIF0";
+		format = "i2s";
+		cpu {
+			sound-dai = <&abox_uaif_0>;
+		};
+		codec {
+			sound-dai = <&cs35l41>;
+		};
+	};
+	uaif@1 {
+		dai_link = "UAIF1";
+		format = "i2s";
+		cpu {
+			sound-dai = <&abox_uaif_1>;
+		};
+		codec {
+			sound-dai = <&mcu_mic_codec>;
+		};
+	};
+	uaif@4 {
+		dai_link = "UAIF4";
+		format = "i2s";
+		bitclock-master;
+		frame-master;
+		cpu {
+			sound-dai = <&abox_uaif_4>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	vts@0 {
+		dai_link = "VTS-Trigger";
+		cpu {
+			sound-dai = <&vts 0>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	vts@1 {
+		dai_link = "VTS-Record";
+		cpu {
+			sound-dai = <&vts 1>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+};
+
