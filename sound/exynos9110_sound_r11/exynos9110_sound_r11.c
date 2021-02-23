@@ -42,6 +42,10 @@
 #define SOUND_AUX_MAX			2
 #define NUM_SIFS			3
 
+// Index of UAIF0 and UAIF1 within exynos9110_dai array.
+#define UAIF0_INDEX 13
+#define UAIF1_INDEX 14
+
 enum FLL_ID { FLL1, FLL2, FLL3, FLLAO };
 enum CLK_ID { SYSCLK, ASYNCCLK, DSPCLK, OPCLK, OUTCLK };
 
@@ -170,7 +174,7 @@ static struct snd_soc_pcm_stream sound_amp_params[] = {
 	},
 };
 
-static struct snd_soc_dai_link_component uaif1_codecs[] = {
+static struct snd_soc_dai_link_component uaif1_preevt_codecs[] = {
 	{
 		/* Capture */
 		.dai_name = "mcu-mic-codec-dai",
@@ -190,7 +194,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -202,7 +207,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -214,7 +220,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -226,7 +233,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -238,7 +246,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -250,7 +259,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -262,7 +272,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -274,7 +285,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -286,7 +298,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -298,7 +311,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -310,7 +324,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -322,7 +337,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -334,7 +350,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE, SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
+			    SND_SOC_DPCM_TRIGGER_PRE_POST},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -343,8 +360,9 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.stream_name = "UAIF0",
 		.cpu_dai_name = "UAIF0",
 		.platform_name = "snd-soc-dummy",
-		.codec_dai_name = "cod9005x-aif",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS,
+		.codec_dai_name = "cs35l41-pcm",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBS_CFS,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -358,9 +376,9 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.stream_name = "UAIF1",
 		.cpu_dai_name = "UAIF1",
 		.platform_name = "snd-soc-dummy",
-		.codecs = uaif1_codecs,
-		.num_codecs = ARRAY_SIZE(uaif1_codecs),
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM,
+		.codec_dai_name = "mcu-mic-codec-dai",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBM_CFM,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -376,7 +394,8 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.platform_name = "snd-soc-dummy",
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBM_CFM,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -568,6 +587,19 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 	drvdata->dev = card->dev;
 
 	dev_info(&pdev->dev, "Called r11_sound_card probe\n");
+
+	if (of_property_read_bool(np, "preevt-routing")) {
+		// preevt board
+		dev_info(&pdev->dev, "Applying PRE-EVT Audio Routing\n");
+		exynos9110_dai[UAIF0_INDEX].codec_dai_name = "cod9005x-aif";
+		exynos9110_dai[UAIF0_INDEX].codecs = 0;
+		exynos9110_dai[UAIF0_INDEX].num_codecs = 0;
+
+		exynos9110_dai[UAIF1_INDEX].codecs = uaif1_preevt_codecs;
+		exynos9110_dai[UAIF1_INDEX].num_codecs =
+			ARRAY_SIZE(uaif1_preevt_codecs);
+		exynos9110_dai[UAIF1_INDEX].codec_dai_name = 0;
+	}
 
 	snd_soc_card_set_drvdata(card, drvdata);
 
