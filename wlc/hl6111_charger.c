@@ -151,7 +151,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
         LOG_DBG("temp_limit[%d]\n", pdata->temp_limit);
     }
 
-    return rc;
+    return 0;
 }
 
 #else
@@ -603,7 +603,6 @@ static void hl6111_device_init(struct hl6111_charger *chg)
     /* Vout == 4.304V 16mV/step*/
     hl6111_target_vout_ctrl(chg, chg->pdata->trgt_vout);
     hl6111_target_vrect_ctrl(chg, chg->pdata->trgt_vrect);
-    hl6111_get_templim(chg);
     hl6111_set_templim(chg, chg->pdata->temp_limit);
 
 #if 1
@@ -703,22 +702,6 @@ static int hl6111_psy_set_property(struct power_supply *psy, enum power_supply_p
     return 0;
 }
 
-#ifdef HL6111_ENABLE_CHOK
-static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
-{
-    struct hl6111_charger *chg = data;
-
-    //LOG_DBG("START!, irq_handled=%d, irq_none=%d\n", IRQ_HANDLED, IRQ_NONE);
-
-    if (chg->retry_cnt == 0)
-        schedule_delayed_work(&chg->chok_work, msecs_to_jiffies(HL6111_CHOK_START_DELAY_T));
-    else{
-        LOG_DBG("previous request is not finished yet!\n");
-    }
-
-    return IRQ_HANDLED;
-}
-#else
 static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
 {
     struct hl6111_charger *chg = data;
@@ -747,7 +730,6 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
     power_supply_changed(chg->psy_chg);
     return IRQ_HANDLED;
 }
-#endif
 
 static int hl6111_irq_init(struct hl6111_charger *chg, struct i2c_client *client)
 {
@@ -792,15 +774,9 @@ static int hl6111_irq_det_init(struct hl6111_charger *chg)
     if (pdata->det_gpio > 0) {
         irq_det = gpio_to_irq(pdata->det_gpio);
 
-#ifdef HL6111_ENABLE_CHOK
-        ret = request_threaded_irq(irq_det, NULL, hl6111_pad_detect_handler,
-                              IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-                              "wireless-det-irq", chg);
-#else
         ret = request_threaded_irq(irq_det, NULL, hl6111_pad_detect_handler,
                               IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
                               "wireless-det-irq", chg);
-#endif
         if(ret < 0)
             goto fail_irq_det;
         pdata->irq_det = irq_det;
@@ -814,108 +790,6 @@ fail_irq_det:
     gpio_free(pdata->det_gpio);
     return ret;
 }
-
-static void hl6111_work_func(struct work_struct *work)
-{
-    struct hl6111_charger *chg = container_of(work, struct hl6111_charger, rx_work.work);
-    int ret = 0;
-    unsigned int r_reg00, r_reg07;
-
-    ret =  hl6111_read_reg(chg, REG_LATCHED_STATUS, &r_reg00);
-    if (ret < 0)
-        goto I2C_FAIL;
-
-    ret = hl6111_read_reg(chg, REG_STATUS, &r_reg07);
-    if (ret < 0)
-        goto I2C_FAIL;
-
-    if(!chg->online){
-        hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);
-        enable_irq(chg->pdata->irq);
-        chg->online = true;
-        LOG_DBG("LATCHED STATUS REG :: [0x%x]\n", r_reg00);
-        LOG_DBG("REG_STATUS REG :: [0x%x]\n", r_reg07);
-        hl6111_get_chip_info(chg);
-        hl6111_device_init(chg);
-
-    }
-
-    //check status of isr bits
-    //hl6111_isr_check(chg, r_reg00);
-
-    //hl6111_read_reg(chg, REG_INTERRUPT_ENABLE, &r_val);
-    //LOG_DBG("REG_INT :: [0x%x]\n", r_val);
-
-    schedule_delayed_work(&chg->rx_work, msecs_to_jiffies(100));
-    return;
-
-I2C_FAIL:
-    if (chg->online){
-        LOG_DBG("TX is not connected!! \r\n");
-        disable_irq(chg->pdata->irq);
-        chg->online = false;
-    }
-    schedule_delayed_work(&chg->rx_work, msecs_to_jiffies(100));
-}
-
-#ifdef HL6111_ENABLE_CHOK
-static void hl6111_chok_pin_work(struct work_struct *work)
-{
-    struct hl6111_charger *chg = container_of(work, struct hl6111_charger, chok_work.work);
-    int reg07;
-    int ret = 0;
-    union power_supply_propval value;
-    struct power_supply *psy = chg->psy_chg;
-
-    LOG_DBG("START! retry_cnt[%d]!, irq_det[%d]\n", chg->retry_cnt, chg->pdata->irq_det);
-
-    disable_irq(chg->pdata->irq_det);
-    ret = hl6111_read_reg(chg, REG_STATUS, &reg07);
-    if (ret < 0) {
-        if (chg->online) {
-            disable_irq(chg->pdata->irq);
-            LOG_DBG("TX is not connected!! \r\n");
-            chg->online = false;
-            chg->retry_cnt = 0;
-        } else {
-            LOG_DBG("CHG off -> on but i2c doesn't work\n");
-            chg->retry_cnt++;
-            if (chg->retry_cnt < HL6111_CHOK_MAX_RETRY_CNT)
-                schedule_delayed_work(&chg->chok_work, msecs_to_jiffies(HL6111_CHOK_RETRY_DELAY_T));
-            else{
-                chg->retry_cnt = 0;
-                LOG_DBG("tried 3times but doesn't work! there is no TX\n");
-            }
-        }
-    } else {
-        if (chg->online) {
-            /* try to check i2c again */
-            chg->retry_cnt++;
-            if (chg->retry_cnt < HL6111_CHOK_MAX_RETRY_CNT)
-                schedule_delayed_work(&chg->chok_work, msecs_to_jiffies(HL6111_CHOK_RETRY_DELAY_T));
-            else{
-                chg->retry_cnt = 0;
-                hl6111_device_init(chg);
-                LOG_DBG("tried 3 times, i2c still works, tx is OK\n")
-            }
-        }else {
-            //hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);
-            enable_irq(chg->pdata->irq);
-
-            LOG_DBG("TX is connected!! \r\n");
-            chg->online = true;
-
-            hl6111_get_chip_info(chg);
-
-            hl6111_device_init(chg);
-            chg->retry_cnt = 0;
-        }
-    }
-
-    power_supply_changed(chg->psy_chg);
-    enable_irq(chg->pdata->irq_det);
-}
-#endif
 
 static void hl6111_regmap_init(struct hl6111_charger *chg)
 {
@@ -1537,14 +1411,8 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
     }
 
     if (pdata->det_gpio < 0){
-        INIT_DELAYED_WORK(&charger->rx_work, hl6111_work_func);
-        schedule_delayed_work(&charger->rx_work, msecs_to_jiffies(100));
+        dev_info(&client->dev, "No detection GPIO, driver won't do anything\n");
     }else {
-#ifdef HL6111_ENABLE_CHOK
-        INIT_DELAYED_WORK(&charger->chok_work, hl6111_chok_pin_work);
-        charger->retry_cnt = 0;
-        schedule_delayed_work(&charger->chok_work, msecs_to_jiffies(100));
-#else
         if (gpio_get_value(charger->pdata->det_gpio) == 0){
 
             LOG_DBG("TX is connected!! \r\n");
@@ -1564,7 +1432,6 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
             goto FAIL_IRQ;
         }
         power_supply_changed(charger->psy_chg);
-#endif
     }
 
     ret = hl6111_create_debugfs_entries(charger);

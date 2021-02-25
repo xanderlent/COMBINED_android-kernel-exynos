@@ -136,13 +136,6 @@
 
 #define HL6111_I2C_NAME "hl6111"
 
-//#define HL6111_ENABLE_CHOK
-#ifdef HL6111_ENABLE_CHOK
-#define HL6111_CHOK_START_DELAY_T           500         //500ms
-#define HL6111_CHOK_RETRY_DELAY_T           100         //100ms
-#define HL6111_CHOK_MAX_RETRY_CNT           3
-#endif
-
 enum hl6111_ept_reason {
     internal,
     sys_fault,
