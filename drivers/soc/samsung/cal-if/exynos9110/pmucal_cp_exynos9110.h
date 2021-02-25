@@ -42,6 +42,10 @@ struct pmucal_seq cp_reset_release[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_S", 0x11860000, 0x0034, (0x1 << 3), (0x1 << 3), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WAIT, "CENTRAL_SEQ_CP_STATUS", 0x11860000, 0x0284, (0xff << 16), (0x0 << 16), 0x11860000, 0x0284, (0xff << 16), (0x0 << 16)),
 	PMUCAL_SEQ_DESC(PMUCAL_WAIT, "INTERRUPT_SET_PENDING", 0x10700000, 0x1228, (0x1 << 13), (0x1 << 13), 0x10700000, 0x1228, (0x1 << 13), (0x1 << 13)),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__MASK_PWR_REQ", 0x11860000,
+			0x0030, (0x1 << 15), (0x0 << 15), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__MASK_TCXO_REQ", 0x11860000,
+			0x0030, (0x1 << 20), (0x0 << 20), 0, 0, 0xffffffff, 0),
 };
 struct pmucal_seq cp_enable_dump_pc_no_pg[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CP_CTRL_NS__SET_SW_PWR_REQ", 0x11860000, 0x0030, (0x1 << 14), (0x1 << 14), 0, 0, 0xffffffff, 0),
