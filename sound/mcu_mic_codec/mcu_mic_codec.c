@@ -46,12 +46,13 @@ struct mcu_mic_codec_data {
 static int dmic_mcu_sample_rate_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
 	struct mcu_mic_codec_data *codec_data =
-		snd_soc_codec_get_drvdata(codec);
-	dev_info(codec->dev, "Called dmic_mcu_sample_rate_get\n");
+		snd_soc_component_get_drvdata(component);
+	dev_info(component->dev, "Called dmic_mcu_sample_rate_get\n");
 	ucontrol->value.integer.value[0] = codec_data->sample_rate_hz;
-	dev_info(codec->dev, "mcu_mic_sample_rate: %d\n",
+	dev_info(component->dev, "mcu_mic_sample_rate: %d\n",
 		 codec_data->sample_rate_hz);
 	return 0;
 }
@@ -61,18 +62,19 @@ static int dmic_mcu_sample_rate_get(struct snd_kcontrol *kcontrol,
 static int dmic_mcu_sample_rate_put(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
 	struct mcu_mic_codec_data *codec_data =
-		snd_soc_codec_get_drvdata(codec);
+		snd_soc_component_get_drvdata(component);
 	int value = ucontrol->value.integer.value[0];
 
 	char buffer[3];
 	ssize_t bytes;
 
-	dev_info(codec->dev, "Called dmic_mcu_sample_rate_put\n");
+	dev_info(component->dev, "Called dmic_mcu_sample_rate_put\n");
 
 	if (value != 8000 && value != 16000 && value != 48000) {
-		dev_info(codec->dev,
+		dev_info(component->dev,
 			 "Invalid Sample Rate: %d. (Valid rates: 8000, 16000, 48000 Hertz)\n",
 			 value);
 		return -EINVAL;
@@ -84,14 +86,15 @@ static int dmic_mcu_sample_rate_put(struct snd_kcontrol *kcontrol,
 	bytes = nanohub_send_message(NANOHUB_AUDIO_CHANNEL_ID, buffer,
 				     sizeof(buffer));
 	if (bytes != sizeof(buffer)) {
-		dev_err(codec->dev, "Bytes sent expected = %zd, actual = %zd\n",
+		dev_err(component->dev,
+			"Bytes sent expected = %zd, actual = %zd\n",
 			sizeof(buffer), bytes);
 		return -EIO;
 	}
 
 	codec_data->sample_rate_hz = value;
 
-	dev_info(codec->dev, "new mcu_mic_sample_rate: %d\n",
+	dev_info(component->dev, "new mcu_mic_sample_rate: %d\n",
 		 codec_data->sample_rate_hz);
 
 	return 0;
@@ -102,15 +105,16 @@ static int dmic_mcu_sample_rate_put(struct snd_kcontrol *kcontrol,
 static int dmic_mcu_on_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
 	struct mcu_mic_codec_data *codec_data =
-		snd_soc_codec_get_drvdata(codec);
+		snd_soc_component_get_drvdata(component);
 
-	dev_info(codec->dev, "Called dmic_mcu_on_get\n");
+	dev_info(component->dev, "Called dmic_mcu_on_get\n");
 
 	ucontrol->value.integer.value[0] = codec_data->mic_on;
 
-	dev_info(codec->dev, "mcu_mic_on: %d\n", codec_data->mic_on);
+	dev_info(component->dev, "mcu_mic_on: %d\n", codec_data->mic_on);
 
 	return 0;
 }
@@ -120,19 +124,20 @@ static int dmic_mcu_on_get(struct snd_kcontrol *kcontrol,
 static int dmic_mcu_on_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
 	struct mcu_mic_codec_data *codec_data =
-		snd_soc_codec_get_drvdata(codec);
+		snd_soc_component_get_drvdata(component);
 	int value = ucontrol->value.integer.value[0];
 
 	char buffer[3];
 	ssize_t bytes;
 
-	dev_info(codec->dev, "Called static int dmic_mcu_on_put\n");
+	dev_info(component->dev, "Called static int dmic_mcu_on_put\n");
 
 	if (value != 0 && value != 1) {
-		dev_info(codec->dev, "Invalid value: %d, it must be 1 or 0.\n",
-			 value);
+		dev_info(component->dev,
+			 "Invalid value: %d, it must be 1 or 0.\n", value);
 		return -EINVAL;
 	}
 
@@ -143,13 +148,14 @@ static int dmic_mcu_on_put(struct snd_kcontrol *kcontrol,
 	bytes = nanohub_send_message(NANOHUB_AUDIO_CHANNEL_ID, buffer,
 				     sizeof(buffer));
 	if (bytes != sizeof(buffer)) {
-		dev_err(codec->dev, "Bytes sent expected = %zd, actual = %zd\n",
+		dev_err(component->dev,
+			"Bytes sent expected = %zd, actual = %zd\n",
 			sizeof(buffer), bytes);
 		return -EIO;
 	}
 
 	codec_data->mic_on = value;
-	dev_info(codec->dev, "new mcu_mic_on: %d\n", codec_data->mic_on);
+	dev_info(component->dev, "new mcu_mic_on: %d\n", codec_data->mic_on);
 
 	return 0;
 }
@@ -164,30 +170,23 @@ static const struct snd_kcontrol_new snd_controls[] = {
 		       dmic_mcu_sample_rate_get, dmic_mcu_sample_rate_put),
 };
 
-static int mcu_codec_probe(struct snd_soc_codec *codec)
+static int mcu_codec_probe(struct snd_soc_component *component)
 {
-	dev_info(codec->dev, "Called mcu_codec_probe.\n");
+	dev_info(component->dev, "Called mcu_codec_probe.\n");
 
 	return 0;
 }
 
-static int mcu_codec_remove(struct snd_soc_codec *codec)
+static void mcu_codec_remove(struct snd_soc_component *component)
 {
-	dev_info(codec->dev, "Called mcu_codec_remove.\n");
-
-	return 0;
+	dev_info(component->dev, "Called mcu_codec_remove.\n");
 }
 
-static struct snd_soc_codec_driver mcu_mic_soc_codec_driver = {
+static struct snd_soc_component_driver mcu_mic_soc_component_driver = {
 	.probe = mcu_codec_probe,
 	.remove = mcu_codec_remove,
-	.ignore_pmdown_time = true,
-	.idle_bias_off = true,
-
-	.component_driver = {
-			.controls = snd_controls,
-			.num_controls = ARRAY_SIZE(snd_controls),
-		},
+	.controls = snd_controls,
+	.num_controls = ARRAY_SIZE(snd_controls),
 };
 
 /*
@@ -226,8 +225,9 @@ static int mcu_mic_probe(struct platform_device *pdev)
 	codec_data->sample_rate_hz = 48000;
 	platform_set_drvdata(pdev, codec_data);
 
-	ret = snd_soc_register_codec(&pdev->dev, &mcu_mic_soc_codec_driver,
-				     &mcu_mic_soc_dai_driver, 1);
+	ret = snd_soc_register_component(&pdev->dev,
+					 &mcu_mic_soc_component_driver,
+					 &mcu_mic_soc_dai_driver, 1);
 
 	dev_info(&pdev->dev, "mcu_mic_probe ret: %d\n", ret);
 
@@ -238,7 +238,7 @@ static int mcu_mic_remove(struct platform_device *pdev)
 {
 	dev_info(&pdev->dev, "Called mcu_mic_remove\n");
 
-	snd_soc_unregister_codec(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }
