@@ -607,6 +607,11 @@ static int decon_enable(struct decon_device *decon)
 	enum decon_state next_state = DECON_STATE_ON;
 
 	mutex_lock(&decon->lock);
+	if (decon->state == DECON_STATE_INVALID) {
+		decon_info("Display invalid, not processing enable event\n");
+		goto out;
+	}
+
 	if (decon->state == next_state) {
 		decon_warn("decon-%d %s already %s state\n", decon->id,
 				__func__, decon_state_names[decon->state]);
@@ -641,6 +646,11 @@ static int decon_doze(struct decon_device *decon)
 	if (decon->lcd_info->mode != DECON_MIPI_COMMAND_MODE) {
 		decon_warn("decon-%d %s is operating only MIPI COMMAND MODE\n",
 				decon->id, __func__);
+		goto out;
+	}
+
+	if (decon->state == DECON_STATE_INVALID) {
+		decon_info("Display invalid, not processing doze event\n");
 		goto out;
 	}
 
@@ -824,6 +834,11 @@ static int decon_disable(struct decon_device *decon)
 	enum decon_state prev_state = decon->state;
 	enum decon_state next_state = DECON_STATE_OFF;
 
+	if (decon->state == DECON_STATE_INVALID) {
+		decon_info("Display invalid, not processing disable event\n");
+		goto out;
+	}
+
 	if (decon->state == next_state) {
 		decon_warn("decon-%d %s already %s state\n", decon->id,
 				__func__, decon_state_names[decon->state]);
@@ -864,6 +879,11 @@ static int decon_doze_suspend(struct decon_device *decon)
 	if (decon->lcd_info->mode != DECON_MIPI_COMMAND_MODE) {
 		decon_warn("decon-%d %s is operating only MIPI COMMAND MODE\n",
 				decon->id, __func__);
+		goto out;
+	}
+
+	if (decon->state == DECON_STATE_INVALID) {
+		decon_info("Display invalid, not processing doze suspend event\n");
 		goto out;
 	}
 
@@ -1039,7 +1059,6 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 		}
 		lcd_status_notifier(LCD_OFF);
 		break;
-	case FB_BLANK_NORMAL:
 	case FB_BLANK_UNBLANK:
 		DPU_EVENT_LOG(DPU_EVT_UNBLANK, &decon->sd, ktime_set(0, 0));
 		lcd_status_notifier(LCD_ON);
@@ -1053,7 +1072,10 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 			wake_up_process(decon->esd.thread);
 #endif
 		break;
+	case FB_BLANK_NORMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
+		ret = 0;
+		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 	default:
 		ret = -EINVAL;
@@ -2567,11 +2589,11 @@ static int decon_set_win_config(struct decon_device *decon,
 		decon->state == DECON_STATE_TUI ||
 		IS_ENABLED(CONFIG_EXYNOS_VIRTUAL_DISPLAY)) {
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
-		decon_warn("decon-%d skip win_config(state:%s, bypass:%s)\n",
+		decon_dbg("decon-%d skip win_config(state:%s, bypass:%s)\n",
 				decon->id, decon_state_names[decon->state],
 				decon_is_bypass(decon) ? "on" : "off");
 #else
-		decon_warn("decon-%d skip win_config(state:%s)\n",
+		decon_dbg("decon-%d skip win_config(state:%s)\n",
 				decon->id, decon_state_names[decon->state]);
 #endif
 		win_data->retire_fence = decon_create_fence(decon, &sync_file);
@@ -4051,9 +4073,15 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	}
 
 	decon_to_init_param(decon, &p);
-	if (decon_reg_init(decon->id, decon->dt.out_idx[0], &p) < 0)
+	if (decon_reg_init(decon->id, decon->dt.out_idx[0], &p) < 0) {
+		if (decon_wait_for_vsync(decon,
+					VSYNC_TIMEOUT_MSEC) == -ETIMEDOUT) {
+			decon_err("Didn't receive vsync, marking display as invalid\n");
+			decon->state = DECON_STATE_INVALID;
+			return 0;
+		}
 		goto decon_init_done;
-
+	}
 	memset(&win_regs, 0, sizeof(struct decon_window_regs));
 	win_regs.wincon = wincon(decon->dt.dft_win);
 	win_regs.start_pos = win_start_pos(0, 0);

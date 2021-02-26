@@ -1106,9 +1106,6 @@ static int _dsim_disable(struct dsim_device *dsim, enum dsim_state state)
 	/* HACK */
 	dsim_phy_power_off(dsim);
 
-	if (state == DSIM_STATE_OFF)
-		dsim_set_panel_power(dsim, 0);
-
 	pm_runtime_put_sync(dsim->dev);
 
 #ifdef CONFIG_DPHY_APB_CONTROL
