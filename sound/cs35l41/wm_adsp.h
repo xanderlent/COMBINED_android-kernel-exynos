@@ -54,40 +54,20 @@ struct wm_adsp_alg_region {
 
 struct wm_adsp_compr;
 struct wm_adsp_compr_buf;
-
-struct wm_adsp_buffer_region_def {
-	unsigned int mem_type;
-	unsigned int base_offset;
-	unsigned int size_offset;
-};
-
-struct wm_adsp_fw_caps {
-	u32 id;
-	struct snd_codec_desc desc;
-	int num_regions;
-	struct wm_adsp_buffer_region_def *region_defs;
-};
-
-struct wm_adsp_fw_defs {
-	const char *file;
-	const char *binfile;
-	bool fullname;
-	int compr_direction;
-	int num_caps;
-	struct wm_adsp_fw_caps *caps;
-	bool voice_trigger;
-};
+struct wm_adsp_ops;
 
 struct wm_adsp {
 	const char *part;
+	const char *name;
+	const char *fwf_name;
 	int rev;
 	int num;
 	int type;
-	bool ao_dsp;
-	const char *suffix;
 	struct device *dev;
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
+
+	struct wm_adsp_ops *ops;
 
 	unsigned int base;
 	unsigned int base_sysinfo;
@@ -107,26 +87,23 @@ struct wm_adsp {
 	int fw;
 	int fw_ver;
 
+	bool no_preloader;
 	bool preloaded;
 	bool booted;
 	bool running;
-
-	int num_firmwares;
-	struct wm_adsp_fw_defs *firmwares;
-	struct snd_kcontrol_new fw_ctrl;
-	struct soc_enum fw_enum;
+	bool fatal_error;
+	bool tuning_has_prefix;
 
 	struct list_head ctl_list;
 
 	struct work_struct boot_work;
 
-	struct wm_adsp_compr *compr;
-	struct wm_adsp_compr_buf *buffer;
+	struct list_head compr_list;
+	struct list_head buffer_list;
 
 	struct mutex pwr_lock;
 
 	unsigned int lock_regions;
-	bool unlock_all;
 
 	unsigned int n_rx_channels;
 	unsigned int n_tx_channels;
@@ -140,7 +117,41 @@ struct wm_adsp {
 	char *wmfw_file_name;
 	char *bin_file_name;
 #endif
+	unsigned int data_word_mask;
+	int data_word_size;
 };
+
+struct wm_adsp_ops {
+	unsigned int sys_config_size;
+
+	bool (*validate_version)(struct wm_adsp *dsp, unsigned int version);
+	unsigned int (*parse_sizes)(struct wm_adsp *dsp,
+				    const char * const file,
+				    unsigned int pos,
+				    const struct firmware *firmware);
+	int (*setup_algs)(struct wm_adsp *dsp);
+	unsigned int (*region_to_reg)(struct wm_adsp_region const *mem,
+				      unsigned int offset);
+
+	void (*show_fw_status)(struct wm_adsp *dsp);
+	void (*stop_watchdog)(struct wm_adsp *dsp);
+
+	int (*enable_memory)(struct wm_adsp *dsp);
+	void (*disable_memory)(struct wm_adsp *dsp);
+	int (*lock_memory)(struct wm_adsp *dsp, unsigned int lock_regions);
+
+	int (*enable_core)(struct wm_adsp *dsp);
+	void (*disable_core)(struct wm_adsp *dsp);
+
+	int (*start_core)(struct wm_adsp *dsp);
+	void (*stop_core)(struct wm_adsp *dsp);
+};
+
+#define WM_ADSP_PRELOADER(wname, num, event_fn) \
+{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
+	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
+	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }
 
 #define WM_ADSP1(wname, num) \
 	SND_SOC_DAPM_PGA_E(wname, SND_SOC_NOPM, num, 0, NULL, 0, \
@@ -152,58 +163,54 @@ struct wm_adsp {
 
 #define WM_ADSP2(wname, num, event_fn) \
 	SND_SOC_DAPM_SPK(wname " Preload", NULL), \
-{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
-	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
-	.subseq = (100), /* Ensure we run after SYSCLK supply widget */ }, \
+	WM_ADSP_PRELOADER(wname, num, event_fn), \
 {	.id = snd_soc_dapm_out_drv, .name = wname, \
-	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp2_event, \
+	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
 
 #define WM_HALO(wname, num, event_fn) \
-	SND_SOC_DAPM_SPK(wname " Preload", NULL), \
-{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
-	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
-	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }, \
-{	.id = snd_soc_dapm_out_drv, .name = wname, \
-	.reg = SND_SOC_NOPM, .shift = num, .event = wm_halo_event, \
-	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
+	WM_ADSP2(wname, num, event_fn)
 
-extern const struct snd_kcontrol_new wm_adsp_fw_controls[];
+#define WM_ADSP_FW_CONTROL(dspname, num) \
+	SOC_ENUM_EXT(dspname " Firmware", wm_adsp_fw_enum[num], \
+		     wm_adsp_fw_get, wm_adsp_fw_put)
+
+extern const struct soc_enum wm_adsp_fw_enum[];
 
 int wm_adsp1_init(struct wm_adsp *dsp);
 int wm_adsp2_init(struct wm_adsp *dsp);
 void wm_adsp2_remove(struct wm_adsp *dsp);
-int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec);
-int wm_adsp2_codec_remove(struct wm_adsp *dsp, struct snd_soc_codec *codec);
+int wm_adsp2_component_probe(struct wm_adsp *dsp, struct snd_soc_component *component);
+int wm_adsp2_component_remove(struct wm_adsp *dsp, struct snd_soc_component *component);
 void wm_adsp_queue_boot_work(struct wm_adsp *dsp);
-int wm_vpu_setup_algs(struct wm_adsp *vpu);
-void wm_vpu_init(struct wm_adsp *vpu);
+int wm_vpu_init(struct wm_adsp *vpu);
 int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock);
+
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
-int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event,
-			 unsigned int freq);
+int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol, int event);
 
-int wm_adsp2_lock(struct wm_adsp *adsp, unsigned int regions);
 irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
 irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp);
+irqreturn_t wm_halo_wdt_expire(int irq, void *data);
 
-int wm_adsp2_event(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol, int event);
+int wm_adsp_event(struct snd_soc_dapm_widget *w,
+		  struct snd_kcontrol *kcontrol, int event);
+int wm_vpu_event(struct snd_soc_dapm_widget *w,
+		 struct snd_kcontrol *kcontrol, int event);
 
-int wm_halo_early_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event);
-int wm_halo_event(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol, int event);
+int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq);
 
 int wm_adsp2_preloader_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol);
 int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol);
+int wm_adsp_fw_get(struct snd_kcontrol *kcontrol,
+		   struct snd_ctl_elem_value *ucontrol);
+int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
+		   struct snd_ctl_elem_value *ucontrol);
 
 int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream);
 int wm_adsp_compr_free(struct snd_compr_stream *stream);
@@ -223,4 +230,3 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, void *buf,
 		     size_t len);
 
 #endif
-
