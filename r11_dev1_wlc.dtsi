@@ -8,7 +8,6 @@
 		compatible = "halo,hl6111";
 		reg = <0x25>;
 		halo,int-gpio = <&gpa1 3 0>;
-		halo,det-gpio = <&gpa1 4 0>;
 		halo,clm-vth = <0x07>;
 		halo,bypass = <0x00>;		//5.0V
 		halo,ldop = <0x00>;		//1.8V
