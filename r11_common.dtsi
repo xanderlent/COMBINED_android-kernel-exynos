@@ -46,6 +46,10 @@
 	status = "okay";
 };
 
+&uart4_bus_single  {
+	samsung,pins = "gpm12-0", "gpm13-0";
+};
+
 /* uart4 */
 &usi_03_cmgp {
 	usi_v2_mode = "uart";

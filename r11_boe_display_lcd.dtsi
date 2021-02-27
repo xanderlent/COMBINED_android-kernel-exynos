@@ -9,6 +9,9 @@
 	regulator_1p8v = "vdd_ldo21";
 	regulator_3p3v = "vdd_ldo20";
 
+	pinctrl-names = "default";
+	pinctrl-0 = <&disp_power>;
+
 	wf012fbm: wf012fbm {
 		id = <0x1>;
 		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
@@ -49,4 +52,12 @@
 		hdr_min_luma = <0>;		/* not support */
 	};
 
+};
+
+&pinctrl_2 {
+	disp_power: disp_power {
+		samsung,pins = "gpm14-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
 };
