@@ -373,6 +373,13 @@ struct dw_mci_board {
 
 	enum dw_mci_cd_types cd_type;
 	struct reset_control *rstc;
+
+	int (*ext_cd_init)(void (*notify_func)
+			(void *dev_id, int state),
+			void *dev_id, struct mmc_host *mmc);
+	int (*ext_cd_cleanup)(void (*notify_func)
+			(void *dev_id, int state), void *dev_id);
+
 	struct dw_mci_dma_ops *dma_ops;
 	struct dma_pdata *data;
 	struct block_settings *blk_settings;

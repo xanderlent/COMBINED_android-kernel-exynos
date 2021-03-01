@@ -2805,8 +2805,14 @@ void mmc_start_host(struct mmc_host *host)
 			mmc_power_up(host, host->ocr_avail);
 			mmc_release_host(host);
 		}
-		mmc_gpiod_request_cd_irq(host);
-		_mmc_detect_change(host, 0, false);
+
+		if (host->caps2 & MMC_CAP2_SKIP_INIT_SCAN)
+			dev_info(mmc_dev(host), "%s skip mmc detect change\n",
+				mmc_hostname(host));
+		else {
+			mmc_gpiod_request_cd_irq(host);
+			_mmc_detect_change(host, 0, false);
+		}
 	}
 }
 

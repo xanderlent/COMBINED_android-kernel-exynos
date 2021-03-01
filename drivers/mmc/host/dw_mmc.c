@@ -3607,6 +3607,27 @@ static void dw_mci_timeout_timer(struct timer_list *t)
 	}
 }
 
+static void dw_mci_notify_change(void *dev, int state)
+{
+	struct dw_mci *host = (struct dw_mci *)dev;
+	unsigned long flags;
+
+	if (host) {
+		spin_lock_irqsave(&host->lock, flags);
+		if (state) {
+			dev_err(host->dev, "card inserted\n");
+			host->pdata->quirks |=
+				DW_MCI_QUIRK_BROKEN_CARD_DETECTION;
+		} else {
+			dev_err(host->dev, "card removed\n");
+			host->pdata->quirks &=
+				~DW_MCI_QUIRK_BROKEN_CARD_DETECTION;
+		}
+		queue_work(host->card_workqueue, &host->card_work);
+		spin_unlock_irqrestore(&host->lock, flags);
+	}
+}
+
 #ifdef CONFIG_OF
 /* given a slot, find out the device node representing that slot */
 static struct device_node *dw_mci_of_find_slot_node(struct dw_mci_slot *slot)
@@ -4074,6 +4095,10 @@ static int dw_mci_init_slot(struct dw_mci *host, struct platform_device *pdev)
 	/* Card initially undetected */
 	slot->last_detect_state = 0;
 
+	if (host->pdata->cd_type == DW_MCI_CD_EXTERNAL)
+		host->pdata->ext_cd_init(&dw_mci_notify_change,
+			(void *)host, mmc);
+
 	return 0;
 
 err_host_allocated:
@@ -4445,6 +4470,38 @@ static struct dw_mci_of_quirks {
 	.quirk = "card-init-hwacg-ctrl",.id = DW_MCI_QUIRK_HWACG_CTRL,}, {
 .quirk = "enable-ulp-mode",.id = DW_MCI_QUIRK_ENABLE_ULP,},};
 
+void (*notify_func_callback)(void *dev_id, int state);
+void *mmc_host_dev;
+static DEFINE_MUTEX(notify_mutex_lock);
+EXPORT_SYMBOL_GPL(notify_func_callback);
+EXPORT_SYMBOL_GPL(mmc_host_dev);
+
+struct mmc_host *wlan_mmc;
+EXPORT_SYMBOL_GPL(wlan_mmc);
+static int ext_cd_init_callback(
+	void (*notify_func)(void *dev_id, int state),
+	void *dev_id, struct mmc_host *mmc)
+{
+	mutex_lock(&notify_mutex_lock);
+	WARN_ON(notify_func_callback);
+	notify_func_callback = notify_func;
+	mmc_host_dev = dev_id;
+	wlan_mmc = mmc;
+	mutex_unlock(&notify_mutex_lock);
+	return 0;
+}
+
+static int ext_cd_cleanup_callback(
+	void (*notify_func)(void *dev_id, int state), void *dev_id)
+{
+	mutex_lock(&notify_mutex_lock);
+	WARN_ON(notify_func_callback);
+	notify_func_callback = NULL;
+	mmc_host_dev = NULL;
+	mutex_unlock(&notify_mutex_lock);
+	return 0;
+}
+
 static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 {
 	struct dw_mci_board *pdata;
@@ -4542,6 +4599,15 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 		host->has_cqe = true;
 		if (!of_property_read_bool(np, "disable-cqe-dcmd"))
 			pdata->caps2 |= MMC_CAP2_CQE_DCMD;
+	}
+
+	if (of_find_property(np, "pm-ignore-notify", NULL))
+		pdata->pm_caps |= MMC_PM_IGNORE_PM_NOTIFY;
+
+	if (of_find_property(np, "card-detect-type-external", NULL)) {
+		pdata->cd_type = DW_MCI_CD_EXTERNAL;
+		pdata->ext_cd_init = ext_cd_init_callback;
+		pdata->ext_cd_cleanup = ext_cd_cleanup_callback;
 	}
 
 	return pdata;
@@ -4923,6 +4989,10 @@ void dw_mci_remove(struct dw_mci *host)
 
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
 	mci_writel(host, INTMASK, 0); /* disable all mmc interrupt first */
+
+	if (host->pdata->cd_type == DW_MCI_CD_EXTERNAL)
+		host->pdata->ext_cd_cleanup(
+			&dw_mci_notify_change, (void *)host);
 
 	/* disable clock to CIU */
 	mci_writel(host, CLKENA, 0);
