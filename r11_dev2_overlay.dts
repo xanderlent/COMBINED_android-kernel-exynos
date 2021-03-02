@@ -40,7 +40,7 @@
 			model = "Google R11 Dev2";
 
 			chosen {
-				bootargs = "console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
+				bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
 			};
 			/include/ "r11_dev1_battery_root.dtsi"
 			/include/ "r11_common_root.dtsi"
