@@ -104,7 +104,7 @@
 
 		abox_rdma_5: abox_rdma@14A51500 {
 			compatible = "samsung,abox-rdma";
-			reg = <0x0 0x14A51500 0x100>, <0x0 0x14B00600 0x70>;
+			reg = <0x0 0x14A51500 0x100>, <0x0 0x14B30600 0x70>;
 			reg-names = "sfr";
 			samsung,id = <5>;
 			samsung,type = "compress";
@@ -252,18 +252,18 @@
 
 		ext_bin_0: ext_bin@0 {
 			status = "okay";
-			samsung,name = "APDV_AUDIO_SLSI.bin";
+			samsung,name = "AP_Rx_AUDIO_SLSI.bin";
 			samsung,area = <1>; /* 0:SRAM, 1:DRAM, 2:VSS */
 			samsung,offset = <0x502000>;
 		};
 		ext_bin_1: ext_bin@1 {
 			status = "okay";
-			samsung,name = "APSV_AUDIO_SLSI.bin";
+			samsung,name = "AP_Tx_AUDIO_SLSI.bin";
 			samsung,area = <1>;
 			samsung,offset = <0x50C000>;
 		};
 		ext_bin_2: ext_bin@2 {
-			status = "okay";
+			status = "disabled";
 			samsung,name = "AP_AUDIO_SLSI.bin";
 			samsung,area = <1>;
 			samsung,offset = <0x510000>;
