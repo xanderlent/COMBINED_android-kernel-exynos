@@ -53,6 +53,7 @@
 #define WAKEUP_INTERRUPT	1
 #define WAKEUP_TIMEOUT_MS	1000
 #define SUSPEND_TIMEOUT_MS	100
+#define RETRY_INT_WIDTH_US      50
 #define KTHREAD_ERR_TIME_NS	(60LL * NSEC_PER_SEC)
 #define KTHREAD_ERR_CNT		70
 #define KTHREAD_WARN_CNT	10
@@ -461,8 +462,10 @@ int nanohub_wakeup_eom(struct nanohub_data *data, bool repeat)
 	spin_lock(&data->wakeup_wait.lock);
 	if (mcu_wakeup_gpio_is_locked(data)) {
 		mcu_wakeup_gpio_set_value(data, 1);
-		if (repeat)
+		if (repeat) {
+			udelay(RETRY_INT_WIDTH_US);
 			mcu_wakeup_gpio_set_value(data, 0);
+		}
 		ret = 0;
 	}
 	spin_unlock(&data->wakeup_wait.lock);
