@@ -65,3 +65,8 @@
 &ese_spi0 {
 	status = "ok";
 };
+
+&ldo16_reg {
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+};
