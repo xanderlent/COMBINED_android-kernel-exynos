@@ -783,6 +783,12 @@ static long exynos_panel_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *a
 	case EXYNOS_PANEL_IOC_SET_LIGHT:
 		call_panel_ops(panel, set_light, panel, *(int *)arg);
 		break;
+	case EXYNOS_PANEL_IOC_HBM_ON:
+		call_panel_ops(panel, enter_hbm, panel);
+		break;
+	case EXYNOS_PANEL_IOC_HBM_OFF:
+		call_panel_ops(panel, exit_hbm, panel);
+		break;
 	default:
 		DPU_ERR_PANEL("not supported ioctl by panel driver\n");
 		ret = -EINVAL;

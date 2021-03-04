@@ -96,12 +96,42 @@ static int wf012fbm_doze_suspend(struct exynos_panel_device *panel)
 static int wf012fbm_set_light(struct exynos_panel_device *panel, u32 br_val)
 {
 	u8 data;
-	struct dsim_device *dsim = get_dsim_drvdata(panel->id);
+	struct dsim_device *dsim = get_dsim_drvdata(0);
 	mutex_lock(&panel->ops_lock);
 	/* WRDISBV(8bit): 1st DBV[7:0] */
 	data = br_val & 0xFF;
 	dsim_write_data_seq(dsim, false, 0x51, data);
 	mutex_unlock(&panel->ops_lock);
+	return 0;
+}
+
+static int wf012fbm_enter_hbm(struct exynos_panel_device *panel)
+{
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+	DPU_INFO_PANEL("%s +\n", __func__);
+	mutex_lock(&panel->ops_lock);
+	/* Page select */
+	dsim_write_data_seq(dsim, false, 0xff, 0x10);
+	/* Enter High Brightness Mode */
+	dsim_write_data_seq(dsim, false, 0x66, 0x02);
+
+	mutex_unlock(&panel->ops_lock);
+	DPU_INFO_PANEL("%s -\n", __func__);
+	return 0;
+}
+
+static int wf012fbm_exit_hbm(struct exynos_panel_device *panel)
+{
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+	DPU_INFO_PANEL("%s +\n", __func__);
+	mutex_lock(&panel->ops_lock);
+	/* Page select */
+	dsim_write_data_seq(dsim, false, 0xff, 0x10);
+	/* Exit High Brightness Mode */
+	dsim_write_data_seq(dsim, false, 0x66, 0x00);
+
+	mutex_unlock(&panel->ops_lock);
+	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
 }
 
@@ -112,5 +142,7 @@ struct exynos_panel_ops panel_wf012fbm_ops = {
 	.doze		= wf012fbm_doze,
 	.doze_suspend	= wf012fbm_doze_suspend,
 	.set_light	= wf012fbm_set_light,
+	.enter_hbm	= wf012fbm_enter_hbm,
+	.exit_hbm	= wf012fbm_exit_hbm,
 };
 

@@ -254,6 +254,8 @@ struct dsim_device {
 #endif
 	unsigned int ddi_seq_size;
 	unsigned char ddi_seq[512];
+	u8 reg_rd_addr;
+	u8 reg_rd_size;
 
 	int continuous_underrun_max;
 	int continuous_underrun_cnt;

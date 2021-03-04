@@ -1063,8 +1063,7 @@ static int dsim_doze(struct dsim_device *dsim)
 				dsim->id, dsim_state_names[next_state], ret);
 		goto out;
 	}
-	if (prev_state == DSIM_STATE_OFF)
-		dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DOZE, NULL);
+	dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DOZE, NULL);
 
 	dsim_info("dsim-%d %s - (state:%s -> %s)\n", dsim->id, __func__,
 			dsim_state_names[prev_state],
@@ -1826,6 +1825,252 @@ int dsim_create_irq_err_sysfs(struct dsim_device *dsim)
 }
 #endif
 
+static ssize_t hbm_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long cmd;
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+
+	ret = kstrtoul(buf, 0, &cmd);
+	if (ret)
+		return ret;
+
+	switch (cmd) {
+	case 0:
+		dsim_info("Dsim write command, HBM off!!\n");
+		ret = dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_HBM_OFF, NULL);
+		break;
+	case 1:
+		dsim_info("Dsim write command, HBM on!!\n");
+		ret = dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_HBM_ON, NULL);
+		break;
+	}
+
+	return count;
+}
+
+static ssize_t display_power_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long cmd;
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+
+	ret = kstrtoul(buf, 0, &cmd);
+	if (ret)
+		return ret;
+
+	if (cmd == 0) {
+		dsim_info("Dsim write command, Display power off!!\n");
+		ret = dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_SUSPEND, NULL);
+		dsim_set_panel_power(dsim, 0);
+	} else {
+		dsim_err("Invalid display power command!\n");
+	}
+
+	return count;
+}
+
+static ssize_t dsim_reg_parse_long_write(const char *buf, u8 *data_arr)
+{
+	int i = 0, ret = 0;
+
+	// Data starts at offset 15
+	char *dup_str = kstrdup(buf, GFP_KERNEL);
+	char *data_str = dup_str + 15;
+	char *end = dup_str + 15;
+
+	while (data_str != NULL) {
+		strsep(&end, " ");
+		dsim_info("data_str: %s\n", data_str);
+		ret = kstrtou8(data_str, 0, &data_arr[i]);
+		if (ret) {
+			dsim_err("failed to convert str %s to u8\n", data_str);
+			break;
+		}
+		dsim_info("data[%d] = 0x%X\n", i, data_arr[i]);
+		data_str = end;
+		i++;
+	}
+
+	kfree(dup_str);
+
+	return ret;
+}
+
+static ssize_t display_reg_rw_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+
+	ssize_t argc;
+	char cmd_buf[5], addr_buf[5], size_buf[5], data_buf[5];
+	u8 cmd_id, addr, size, data;
+
+	// 1 addr byte and upto 16 data bytes for long write
+	u8 data_arr[17];
+
+	argc = sscanf(buf, "%4s %4s %4s %4s", cmd_buf, addr_buf,
+			size_buf, data_buf);
+
+	if (argc < 3) {
+		dsim_err("Invalid args\n");
+		return -EINVAL;
+	}
+
+	dsim_info("cmd_buf: %s\naddr_buf: %s\nsize_buf: %s\ndata_buf: %s\n\n",
+			cmd_buf, addr_buf, size_buf, data_buf);
+
+	ret = kstrtou8(cmd_buf, 0, &cmd_id);
+	if (ret) {
+		dsim_err("failed to convert cmd_buf str %s to u8\n", cmd_buf);
+		return ret;
+	}
+	ret = kstrtou8(addr_buf, 0, &addr);
+	if (ret) {
+		dsim_err("failed to convert addr_buf str %s to u8\n", addr_buf);
+		return ret;
+	}
+	ret = kstrtou8(size_buf, 0, &size);
+	if (ret) {
+		dsim_err("failed to convert size_buf str %s to u8\n", size_buf);
+		return ret;
+	}
+
+	if ((size < 0x1) || (size > 0x10)) {
+		dsim_err("Invalid size arg - Range 0x01 - 0x10\n");
+		return -EINVAL;
+	}
+
+	if ((cmd_id == MIPI_DSI_DCS_SHORT_WRITE) ||
+			(cmd_id == MIPI_DSI_DCS_SHORT_WRITE_PARAM)) {
+		ret = kstrtou8(data_buf, 0, &data);
+		if (ret) {
+			dsim_err("failed to convert data_buf str %s to u8\n",
+					data_buf);
+			return ret;
+		}
+	}
+
+	dsim_info("Reg write:\ncmd_id: 0x%X\naddr: 0x%X\nsize: 0x%X\ndata: 0x%X\n",
+			cmd_id, addr, size, data);
+
+	switch(cmd_id) {
+	case MIPI_DSI_DCS_SHORT_WRITE:
+		if (dsim_write_data(dsim, cmd_id, addr, 0, false) < 0)
+			dsim_err("failed to send 0x%X cmd\n", cmd_id);
+		break;
+	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
+		if (dsim_write_data(dsim, cmd_id, addr, data, false) < 0)
+			dsim_err("failed to send 0x%X cmd\n", cmd_id);
+		break;
+	case MIPI_DSI_GENERIC_LONG_WRITE:
+	case MIPI_DSI_DCS_LONG_WRITE:
+		data_arr[0] = addr;
+		ret = dsim_reg_parse_long_write(buf, &data_arr[1]);
+		if (ret)
+			return ret;
+
+		if (dsim_write_data(dsim, cmd_id, (unsigned long)data_arr,
+					(size + 1) * sizeof(char), true) < 0)
+			dsim_err("failed to send 0x%X cmd\n", cmd_id);
+		break;
+	case MIPI_DSI_DCS_READ:
+		dsim->reg_rd_addr = addr;
+		dsim->reg_rd_size = size;
+		break;
+	default:
+		dsim_err("Invalid cmd_id:0x%X\n", cmd_id);
+	}
+
+	return count;
+}
+
+static ssize_t display_reg_read_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+	struct dsim_device *dsim = dev_get_drvdata(dev);
+	u8 data_buf[16];
+	char *temp = buf;
+
+	if (dsim->reg_rd_size < 0x1) {
+		dsim_err("Invalid size - Range 0x01 - 0x10\n");
+		return -EINVAL;
+	}
+
+	dsim_info("Reg read:\ncmd_id: 0x%X\naddr: 0x%X\nsize: 0x%X\n\n",
+			MIPI_DSI_DCS_READ, dsim->reg_rd_addr,
+			dsim->reg_rd_size);
+	ret = dsim_rd_data(dsim->id, MIPI_DSI_DCS_READ, dsim->reg_rd_addr,
+			dsim->reg_rd_size, data_buf);
+
+	if (ret < 0) {
+		dsim_err("failed to send reg rd\n");
+	} else {
+		int i = 0;
+		ret = 0;
+
+		while (i < dsim->reg_rd_size) {
+			dsim_info("Display reg read: data_buf[%d] = 0x%X\n",
+								i, data_buf[i]);
+			ret += sprintf(temp, "%.2X", data_buf[i]);
+
+			i++;
+			temp += 2;
+			if (i < dsim->reg_rd_size) {
+				*temp++ = ' ';
+				ret++;
+			}
+		}
+
+		*temp++ = '\n';
+		*temp = '\0';
+		ret++;
+	}
+
+	dsim_info("Display reg read: %s\n", buf);
+
+	return ret;
+}
+
+
+static DEVICE_ATTR_WO(hbm);
+static DEVICE_ATTR_WO(display_power);
+static DEVICE_ATTR_WO(display_reg_rw);
+static DEVICE_ATTR_RO(display_reg_read);
+
+int dsim_create_sysfs(struct dsim_device *dsim)
+{
+	int ret = 0;
+
+	ret = device_create_file(dsim->dev, &dev_attr_cmd_rw);
+	if (ret)
+		dsim_err("failed to create display on_off sysfs\n");
+
+	ret = device_create_file(dsim->dev, &dev_attr_hbm);
+	if (ret)
+		dsim_err("failed to create high brightness mode sysfs\n");
+
+	ret = device_create_file(dsim->dev, &dev_attr_display_power);
+	if (ret)
+		dsim_err("failed to create display power sysfs\n");
+
+	ret = device_create_file(dsim->dev, &dev_attr_display_reg_rw);
+	if (ret)
+		dsim_err("failed to create display register read write sysfs\n");
+
+	ret = device_create_file(dsim->dev, &dev_attr_display_reg_read);
+	if (ret)
+		dsim_err("failed to create display register read sysfs\n");
+
+	return ret;
+}
+
+
+
 static int dsim_parse_dt(struct dsim_device *dsim, struct device *dev)
 {
 	if (IS_ERR_OR_NULL(dev->of_node)) {
@@ -2101,6 +2346,7 @@ static int dsim_probe(struct platform_device *pdev)
 	/* dsim_dump(dsim); */
 
 	dsim_create_cmd_rw_sysfs(dsim);
+	dsim_create_sysfs(dsim);
 
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 	dsim->esd_recovering = false;
