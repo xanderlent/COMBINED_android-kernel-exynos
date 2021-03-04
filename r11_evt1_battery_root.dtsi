@@ -56,7 +56,7 @@ wlc_cool_dev: wlc_cool_dev {
 tsmab104_ntc: thermal-sensor {
 	compatible = "google,ntc-thermal";
 	#thermal-sensor-cells = <1>;
-	io-channels = <&exynos_adc 0>, <&exynos_adc 1>, <&exynos_adc 2>, <&exynos_adc 4>, <&exynos_adc 6>;
+	io-channels = <&exynos_adc 0>, <&exynos_adc 1>, <&exynos_adc 5>, <&exynos_adc 4>, <&exynos_adc 6>;
 	io-channel-names = "soc-ntc", "batt-ntc", "lte-ntc", "audio-ntc", "ppg-ntc";
 	enable-gpio = <&gpg2 0 0>;
 	ref-voltage = <1800000>;
