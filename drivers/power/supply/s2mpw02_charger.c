@@ -766,15 +766,22 @@ static void s2mpw02_muic_attach_detect(struct work_struct *work)
 
 static void s2mpw02_muic_detect_handler(struct s2mpw02_charger_data *charger, bool is_on)
 {
-	unsigned char chg_sts2, chg_sts4;
+	unsigned char pmic_sts1, chg_sts2, chg_sts4;
 
 	if(is_on) {
 		charger->onoff = 1;
 
+		s2mpw02_read_reg(charger->iodev->pmic, S2MPW02_PMIC_REG_STATUS1,
+		    &pmic_sts1);
 		s2mpw02_read_reg(charger->client, S2MPW02_CHG_REG_STATUS2, &chg_sts2);
 		s2mpw02_read_reg(charger->client, S2MPW02_CHG_REG_STATUS4, &chg_sts4);
 		pr_info("%s:sts2 : 0x%x,  rid irq stat4: 0x%x\n", __func__, chg_sts2, chg_sts4);
 
+		if (!(pmic_sts1 & ACOK_STATUS_MASK)) {
+			pr_info("%s:ACOK already down, not attaching devs. pmic_sts1: 0x%x\n",
+					__func__, pmic_sts1);
+			return;
+		}
 		if (charger->dev_id < EVT_1) {
 			/* detach with RID W/A EVT0 only */
 			if(chg_sts4 & UART_CABLE_MASK) {
