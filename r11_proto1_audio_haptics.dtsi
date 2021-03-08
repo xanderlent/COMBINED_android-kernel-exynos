@@ -96,6 +96,7 @@
 		cirrus,boost-ind-nanohenry = <1000>;
 		cirrus,boost-cap-microfarad = <4>;
 		cirrus,boost-ipk-milliamp = <4500>;
+		cirrus,boost-clab-millivolt = <5000>; /* 5V */
 		cirrus,boost-ctl-millivolt = <5000>; /* 5V */
 		cirrus,boost-ovp-millivolt = <9000>; /* 9V */
 
