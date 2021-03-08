@@ -202,11 +202,6 @@ struct hl6111_charger{
     struct mutex                    i2c_lock;
     struct hl6111_platform_data     *pdata;
     struct i2c_client               *client;
-    struct delayed_work             rx_work;
-#ifdef HL6111_ENABLE_CHOK
-    struct delayed_work             chok_work;
-    unsigned int retry_cnt;
-#endif
 
     struct dentry                   *debug_root;
 

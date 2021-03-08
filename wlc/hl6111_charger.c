@@ -685,7 +685,6 @@ static irqreturn_t hl6111_interrupt_handler(int irg, void *data)
     disable_irq_nosync(chg->pdata->irq);
 
     //hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0x00);
-    //schedule_delayed_work(&chg->rx_work, msecs_to_jiffies(100));
 
     ret = hl6111_isr_check(chg);
     if (ret < 0)
@@ -1518,7 +1517,6 @@ static int hl6111_charger_remove(struct i2c_client *client)
         power_supply_unregister(charger->psy_chg);
 
     if (charger->pdata->det_gpio){
-        cancel_delayed_work(&charger->rx_work);
         gpio_free(charger->pdata->det_gpio);
     }
 
@@ -1539,7 +1537,6 @@ static void hl6111_charger_shutdown(struct i2c_client *client)
         power_supply_unregister(charger->psy_chg);
 
     if (charger->pdata->det_gpio){
-        cancel_delayed_work(&charger->rx_work);
         gpio_free(charger->pdata->det_gpio);
     }
 }
@@ -1547,23 +1544,11 @@ static void hl6111_charger_shutdown(struct i2c_client *client)
 #if defined (CONFIG_PM)
 static int hl6111_charger_resume(struct device *dev)
 {
-    struct hl6111_charger *charger = dev_get_drvdata(dev);
-
-    if ((charger->pdata->det_gpio < 0) && (!charger->online))
-        schedule_delayed_work(&charger->rx_work, msecs_to_jiffies(100));
-
     return 0;
 }
 
 static int hl6111_charger_suspend(struct device *dev)
 {
-    struct hl6111_charger *charger = dev_get_drvdata(dev);
-
-    LOG_DBG("Start!!\r\n");
-
-    if ((charger->pdata->det_gpio < 0) && (!charger->online))
-        cancel_delayed_work(&charger->rx_work);
-
     return 0;
 }
 #else
