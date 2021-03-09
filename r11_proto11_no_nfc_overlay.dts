@@ -34,7 +34,7 @@
 			model = "Google R11 Proto1.1 no NFC";
 
 			chosen {
-				bootargs = "console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
+				bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
 			};
 			/include/ "r11_proto1_battery_root.dtsi"
 			/include/ "r11_common_root.dtsi"
