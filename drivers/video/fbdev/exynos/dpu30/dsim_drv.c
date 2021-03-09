@@ -2046,10 +2046,6 @@ int dsim_create_sysfs(struct dsim_device *dsim)
 {
 	int ret = 0;
 
-	ret = device_create_file(dsim->dev, &dev_attr_cmd_rw);
-	if (ret)
-		dsim_err("failed to create display on_off sysfs\n");
-
 	ret = device_create_file(dsim->dev, &dev_attr_hbm);
 	if (ret)
 		dsim_err("failed to create high brightness mode sysfs\n");
