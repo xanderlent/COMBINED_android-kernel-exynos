@@ -122,6 +122,7 @@
 
 	dsim_dphy_apb: dsim_dphy_apb@0x14470000 {
 		compatible = "samsung,dphy-apb";
+		power-domains = <&pd_is>;
 	};
 
 	dsim_0: dsim@0x148E0000 {

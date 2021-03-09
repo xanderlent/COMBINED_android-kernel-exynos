@@ -2597,6 +2597,9 @@ static void dsim_print_hex_dump(void __iomem *regs, const void *buf, size_t len)
 
 void __dsim_dump(u32 id, struct dsim_regs *regs)
 {
+#ifdef CONFIG_DPHY_APB_CONTROL
+	struct dsim_device *dsim = get_dsim_drvdata(id);
+#endif
 	/* change to updated register read mode (meaning: SHADOW in DECON) */
 	dsim_info("=== DSIM %d LINK SFR DUMP ===\n", id);
 	dsim_reg_enable_shadow_read(id, 0);

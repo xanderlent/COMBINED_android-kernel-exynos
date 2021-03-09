@@ -261,6 +261,9 @@ struct dsim_device {
 	int continuous_underrun_cnt;
 };
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+int dsim_dphy_apb_enable(struct dsim_device *dsim, u32 en);
+#endif
 int dsim_call_panel_ops(struct dsim_device *dsim, u32 cmd, void *arg);
 int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1, bool wait_empty);
 int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf);

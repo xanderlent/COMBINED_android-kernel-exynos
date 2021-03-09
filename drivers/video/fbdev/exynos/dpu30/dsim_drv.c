@@ -76,7 +76,7 @@ static int dsim_runtime_suspend(struct device *dev);
 static int dsim_runtime_resume(struct device *dev);
 
 #ifdef CONFIG_DPHY_APB_CONTROL
-static int dsim_dphy_apb_enable(struct dsim_device *dsim, u32 en)
+int dsim_dphy_apb_enable(struct dsim_device *dsim, u32 en)
 {
 /* cam power control
  * dphy apb is located in IS BLK

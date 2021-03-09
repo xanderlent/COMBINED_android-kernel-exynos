@@ -147,6 +147,11 @@ config EXYNOS_DPU_TC_SYSFS_ITF
 	depends on EXYNOS_DPU30
 	depends on EXYNOS_DPU_SYSTRACE
 	default y
+
+config DPHY_APB_CONTROL
+	bool "Control DPHY APB access"
+	depends on EXYNOS_DPU30
+	default y
 endif
 
 source "drivers/video/fbdev/exynos/dpu30/panels/Kconfig"
