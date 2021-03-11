@@ -454,10 +454,12 @@ static void hl6111_target_vout_ctrl(struct hl6111_charger *chg, u8 update)
 static void target_vout_set_voltage(struct hl6111_charger *chg, int voltage) {
     int reg_value, range, ret;
     int base, step, new_voltage;
-    ret =  hl6111_read_reg(chg, REG_VOUT_RANGE_SEL, &range);
-    if (ret < 0){
-        LOG_DBG("Failed to read addr=%X\r\n ", REG_VOUT_RANGE_SEL);
-        return;
+    if (chg->online) {
+        ret =  hl6111_read_reg(chg, REG_VOUT_RANGE_SEL, &range);
+        if (ret < 0){
+            LOG_DBG("Failed to read addr=%X\r\n ", REG_VOUT_RANGE_SEL);
+            return;
+        }
     }
     range = (range & VOUT_RANGE_SEL_MASK) >> VOUT_RANGE_SEL_SHIFT;
 
@@ -490,7 +492,9 @@ static void target_vout_set_voltage(struct hl6111_charger *chg, int voltage) {
     if (chg->pdata->trgt_vout != reg_value) {
         dev_info(chg->dev, "Setting Target Vout to %d, reg=[%x]\n", voltage, reg_value);
         chg->pdata->trgt_vout = reg_value;
-        hl6111_target_vout_ctrl(chg, (u8) reg_value);
+        if (chg->online) {
+            hl6111_target_vout_ctrl(chg, (u8) reg_value);
+        }
     }
 }
 
@@ -1516,7 +1520,7 @@ static int hl6111_charger_remove(struct i2c_client *client)
     if(charger->psy_chg)
         power_supply_unregister(charger->psy_chg);
 
-    if (charger->pdata->det_gpio){
+    if (charger->pdata->det_gpio >= 0){
         gpio_free(charger->pdata->det_gpio);
     }
 
@@ -1536,7 +1540,7 @@ static void hl6111_charger_shutdown(struct i2c_client *client)
     if(charger->psy_chg)
         power_supply_unregister(charger->psy_chg);
 
-    if (charger->pdata->det_gpio){
+    if (charger->pdata->det_gpio >= 0){
         gpio_free(charger->pdata->det_gpio);
     }
 }
