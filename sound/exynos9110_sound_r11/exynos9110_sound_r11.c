@@ -1,20 +1,10 @@
 /*
- * R11 specific sound card (ASOC machine driver).
+ *  exynos9110_sound.c
  *
- * The file originally is based on
- * private/exynos-google-cw/sound/soc/samsung/exynos9110_sound.c.
- *
- *
- * Copyright 2020 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  This program is free software; you can redistribute  it and/or modify it
+ *  under  the terms of  the GNU General  Public License as published by the
+ *  Free Software Foundation;  either version 2 of the  License, or (at your
+ *  option) any later version.
  */
 
 #include <linux/module.h>
@@ -41,10 +31,6 @@
 #define SOUND_CODEC_MAX			10
 #define SOUND_AUX_MAX			2
 #define NUM_SIFS			3
-
-// Index of UAIF0 and UAIF1 within exynos9110_dai array.
-#define UAIF0_INDEX 13
-#define UAIF1_INDEX 14
 
 enum FLL_ID { FLL1, FLL2, FLL3, FLLAO };
 enum CLK_ID { SYSCLK, ASYNCCLK, DSPCLK, OPCLK, OUTCLK };
@@ -173,18 +159,6 @@ static struct snd_soc_pcm_stream sound_amp_params[] = {
 		.channels_max = 1,
 	},
 };
-
-static struct snd_soc_dai_link_component uaif1_preevt_codecs[] = {
-	{
-		/* Capture */
-		.dai_name = "mcu-mic-codec-dai",
-	},
-	{
-		/* Playback */
-		.dai_name = "cs35l41-pcm",
-	},
-};
-
 static struct snd_soc_dai_link exynos9110_dai[] = {
 	{
 		.name = "RDMA0",
@@ -194,8 +168,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -207,8 +180,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -220,8 +192,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -233,8 +204,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -246,8 +216,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -259,8 +228,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -272,8 +240,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -285,8 +252,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &rdma_ops,
 		.dpcm_playback = 1,
 	},
@@ -298,8 +264,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -311,8 +276,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -324,8 +288,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -337,8 +300,7 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
@@ -350,19 +312,17 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.dynamic = 1,
 		.ignore_suspend = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST_PRE,
-			    SND_SOC_DPCM_TRIGGER_PRE_POST},
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_PRE},
 		.ops = &wdma_ops,
 		.dpcm_capture = 1,
 	},
 	{
 		.name = "UAIF0",
 		.stream_name = "UAIF0",
-		.cpu_dai_name = "UAIF0",
 		.platform_name = "snd-soc-dummy",
-		.codec_dai_name = "cs35l41-pcm",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			   SND_SOC_DAIFMT_CBS_CFS,
+		//.codec_dai_name = "snd-soc-dummy-dai",
+		//.codec_dai_name = "cod9005x-aif",
+		//.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -374,11 +334,10 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 	{
 		.name = "UAIF1",
 		.stream_name = "UAIF1",
-		.cpu_dai_name = "UAIF1",
 		.platform_name = "snd-soc-dummy",
-		.codec_dai_name = "mcu-mic-codec-dai",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			   SND_SOC_DAIFMT_CBM_CFM,
+		//.codec_name = "snd-soc-dummy",
+		//.codec_dai_name = "snd-soc-dummy-dai",
+		//.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -390,12 +349,10 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 	{
 		.name = "UAIF4",
 		.stream_name = "UAIF4",
-		.cpu_dai_name = "UAIF4",
 		.platform_name = "snd-soc-dummy",
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			   SND_SOC_DAIFMT_CBM_CFM,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM,
 		.no_pcm = 1,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -403,6 +360,28 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 		.ops = &uaif_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+	},
+	{
+		.name = "VTS-Trigger",
+		.stream_name = "VTS-Trigger",
+		.cpu_dai_name = "vts-tri",
+		.platform_name = "11110000.vts:vts_dma@0",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.capture_only = true,
+	},
+	{
+		.name = "VTS-Record",
+		.stream_name = "VTS-Record",
+		.cpu_dai_name = "vts-rec",
+		.platform_name = "11110000.vts:vts_dma@1",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.capture_only = true,
 	},
 	{
 		.name = "SIFS0",
@@ -453,6 +432,15 @@ static const char * const vts_output_texts[] = {
         "DMIC1",
 };
 
+static const struct soc_enum vts_output_enum =
+        SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(vts_output_texts),
+                        vts_output_texts);
+
+
+static const struct snd_kcontrol_new vts_output_mux[] = {
+        SOC_DAPM_ENUM("VTS Virtual Output Mux", vts_output_enum),
+};
+
 static const struct snd_kcontrol_new exynos9110_controls[] = {
 };
 
@@ -462,12 +450,16 @@ static struct snd_soc_dapm_widget exynos9110_widgets[] = {
 	SND_SOC_DAPM_INPUT("VINPUT2"),
 	SND_SOC_DAPM_OUTPUT("VOUTPUTCALL"),
 	SND_SOC_DAPM_INPUT("VINPUTCALL"),
+	SND_SOC_DAPM_OUTPUT("VTS Virtual Output"),
+	SND_SOC_DAPM_MUX("VTS Virtual Output Mux", SND_SOC_NOPM, 0, 0,
+                      &vts_output_mux[0]),
 };
 
 //static struct snd_soc_codec_conf codec_conf[] = {
 //	{.name_prefix = "ABOX", },
 //	{.name_prefix = "ABOX", },
 //	{.name_prefix = "ABOX", },
+/*	{.name_prefix = "VTS", },*/
 //};
 
 static struct snd_soc_codec_conf codec_conf[SOUND_CODEC_MAX];
@@ -495,11 +487,9 @@ static struct snd_soc_card exynos9110_sound = {
 	.aux_dev = aux_dev,
 	.num_aux_devs = ARRAY_SIZE(aux_dev),
 };
-
-static int read_dai_from_device_tree(
-    struct device_node *np, const char * const prop,
-	const char * const sound_dai_prop,
-	struct device_node **dai, const char **name)
+/*
+static int read_dai(struct device_node *np, const char * const prop,
+			      struct device_node **dai, const char **name)
 {
 	int ret = 0;
 
@@ -507,14 +497,14 @@ static int read_dai_from_device_tree(
 	if (!np)
 		return -ENOENT;
 
-	*dai = of_parse_phandle(np, sound_dai_prop, 0);
+	*dai = of_parse_phandle(np, "sound-dai", 0);
 	if (!*dai) {
 		ret = -ENODEV;
 		goto out;
 	}
 
 	if (*name == NULL) {
-		/* Ignoring the return as we don't register DAIs to the platform */
+		// Ignoring the return as we don't register DAIs to the platform
 		ret = snd_soc_of_get_dai_name(np, name);
 		if (ret && !*name)
 			return ret;
@@ -524,40 +514,7 @@ out:
 
 	return ret;
 }
-
-static int read_dai(struct device_node *np, const char * const prop,
-			      struct device_node **dai, const char **name)
-{
-	return read_dai_from_device_tree(np, prop, "sound-dai", dai, name);
-}
-
-// The device tree node for multicodec sound dai have format:
-// sound-dai-X, for example: sound-dai-1. 13 characters should be plenty to
-// support 99 codecs, which is more than enough.
-#define SOUND_DAI_MULTI_MAX_LEN 13
-
-static int read_multi_codec_dai(struct device_node *np,
-	struct snd_soc_dai_link_component* codecs,
-	int codec_index)
-{
-	char dai_prop_name[SOUND_DAI_MULTI_MAX_LEN];
-	struct device_node **dai = &codecs[codec_index].of_node;
-	const char **name = &codecs[codec_index].dai_name;
-
-	// sound-dai-X in device tree are expected to be 1-based. So, for example
-	// for codec_index 0, the dai will be in the node sound-dai-1.
-	int format_return = snprintf(
-		dai_prop_name, SOUND_DAI_MULTI_MAX_LEN, "sound-dai-%d", codec_index + 1);
-
-	if (format_return < 0 || format_return >= SOUND_DAI_MULTI_MAX_LEN) {
-		pr_info("Error creating dai_prop_name for codec_index: %d. "
-				"snprintf returned: %d.\n", codec_index, format_return);
-		return -EINVAL;
-	}
-
-	return read_dai_from_device_tree(np, "codec", dai_prop_name, dai, name);
-}
-
+*/
 static struct clk *xclkout;
 
 static void control_xclkout(bool on)
@@ -569,37 +526,94 @@ static void control_xclkout(bool on)
 	}
 }
 
+static int read_platform(struct device_node *np, const char * const prop,
+		struct device_node **dai)
+{
+	int ret = 0;
+
+	np = of_get_child_by_name(np, prop);
+	if (!np)
+		return -ENOENT;
+
+	*dai = of_parse_phandle(np, "sound-dai", 0);
+	if (!*dai) {
+		ret = -ENODEV;
+		goto out;
+	}
+out:
+	of_node_put(np);
+
+	return ret;
+}
+
+static int read_cpu(struct device_node *np, struct device *dev,
+		struct snd_soc_dai_link *dai_link)
+{
+	int ret = 0;
+
+	np = of_get_child_by_name(np, "cpu");
+	if (!np)
+		return -ENOENT;
+
+	dai_link->cpu_of_node = of_parse_phandle(np, "sound-dai", 0);
+	if (!dai_link->cpu_of_node) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	if (dai_link->cpu_dai_name == NULL) {
+		// Ignoring the return as we don't register DAIs to the platform
+		ret = snd_soc_of_get_dai_name(np, &dai_link->cpu_dai_name);
+		if (ret)
+			goto out;
+	}
+out:
+	of_node_put(np);
+
+	return ret;
+}
+
+static int read_codec(struct device_node *np, struct device *dev,
+		struct snd_soc_dai_link *dai_link)
+{
+	np = of_get_child_by_name(np, "codec");
+	if (!np)
+		return -ENOENT;
+
+	return snd_soc_of_get_dai_link_codecs(dev, np, dai_link);
+}
+
+static void exynos9110_register_card_work_func(struct work_struct *work)
+{
+	struct snd_soc_card *card = &exynos9110_sound;
+	int ret;
+
+	dev_info(card->dev, "%s\n", __func__);
+
+	ret = devm_snd_soc_register_card(card->dev, card);
+	if (ret)
+		dev_err(card->dev, "sound card register failed: %d\n", ret);
+}
+DECLARE_WORK(exynos9110_register_card_work, exynos9110_register_card_work_func);
+
 static int exynos9110_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &exynos9110_sound;
 	struct sound_drvdata *drvdata = card->drvdata;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *dai;
-	int nlink = 0;
-	bool found_some_dai = false;
+	struct snd_soc_dai_link *link;
+	int nlink = card->num_links - 1;
 	int rc, ret;
 	unsigned int i;
 	const char *cur = NULL;
 	struct property *p;
 
-	nlink = card->num_links - NUM_SIFS - 1;
+//	nlink = card->num_links - NUM_SIFS - 1;
 	card->dev = &pdev->dev;
 	drvdata->dev = card->dev;
 
-	dev_info(&pdev->dev, "Called r11_sound_card probe\n");
-
-	if (of_property_read_bool(np, "preevt-routing")) {
-		// preevt board
-		dev_info(&pdev->dev, "Applying PRE-EVT Audio Routing\n");
-		exynos9110_dai[UAIF0_INDEX].codec_dai_name = "cod9005x-aif";
-		exynos9110_dai[UAIF0_INDEX].codecs = 0;
-		exynos9110_dai[UAIF0_INDEX].num_codecs = 0;
-
-		exynos9110_dai[UAIF1_INDEX].codecs = uaif1_preevt_codecs;
-		exynos9110_dai[UAIF1_INDEX].num_codecs =
-			ARRAY_SIZE(uaif1_preevt_codecs);
-		exynos9110_dai[UAIF1_INDEX].codec_dai_name = 0;
-	}
+	dev_info(&pdev->dev, "%s\n", __func__);
 
 	snd_soc_card_set_drvdata(card, drvdata);
 
@@ -631,12 +645,78 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 	}
 
 	for_each_child_of_node(np, dai) {
-		bool found_dai = false;
-		/* search dai_link */
+
+		link = &exynos9110_dai[nlink];
+		dev_info(drvdata->dev, "%s - (%s)(%s)\n", __func__,
+				link->name, dai->name);
+
+		if (!link->name)
+			link->name = dai->name;
+		if (!link->stream_name)
+			link->stream_name = dai->name;
+
+		if (!link->cpu_name) {
+			ret = read_cpu(dai, card->dev, link);
+			if (ret) {
+				dev_err(card->dev, "Failed to parse cpu DAI for %s: %d\n",
+						dai->name, ret);
+				return ret;
+			}
+		}
+
+		if (!link->platform_name) {
+			ret = read_platform(dai, "platform",
+					&link->platform_of_node);
+			if (ret) {
+				link->platform_of_node = link->cpu_of_node;
+				dev_info(card->dev, "Cpu node is used as platform for %s: %d\n",
+						dai->name, ret);
+			}
+		}
+
+		if (!link->codec_name) {
+			ret = read_codec(dai, card->dev, link);
+			if (ret) {
+				dev_warn(card->dev, "Failed to parse codec DAI for %s: %d\n",
+						dai->name, ret);
+				link->codec_name = "snd-soc-dummy";
+				link->codec_dai_name = "snd-soc-dummy-dai";
+				ret = 0;
+			}
+			dev_info(card->dev, "# codecs: %d\n", link->num_codecs);
+			for (i = 0; i < link->num_codecs; i++) {
+				dev_info(card->dev, "num: %d, dai_name: %s\n",
+					i, link->codecs[i].dai_name);
+			}
+
+//			if (link->codecs && strstr(link->codecs[0].dai_name,
+//						"cs35l41"))
+//				link->ops = &cs35l41_ops;
+		}
+
+		if (strstr(dai->name, "left-amp")) {
+			link->params = sound_amp_params;
+			drvdata->left_amp_dai = nlink;
+		} else if (strstr(dai->name, "right-amp")) {
+			link->params = sound_amp_params;
+			drvdata->right_amp_dai = nlink;
+		}
+
+		link->dai_fmt = snd_soc_of_parse_daifmt(dai, NULL, NULL,
+				NULL);
+
+		if (nlink-- == 0)
+			break;
+	}
+
+/*
+		// search dai_link
 		for (nlink = 0; nlink < card->num_links; nlink++) {
 			const char *dai_link_name;
 			ret = of_property_read_string(dai, "dai_link",
 					&dai_link_name);
+			dev_info(drvdata->dev, "(%d) (%s)\n", nlink,
+					dai_link_name);
 			if (ret < 0)
 				continue;
 
@@ -648,20 +728,13 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 					nlink,
 					dai_link_name,
 					exynos9110_dai[nlink].name);
-				found_dai = true;
-				found_some_dai = true;
 
 				break;
 			}
 		}
 
-		if (!found_dai) {
-			continue;
-		}
-
 		if (!exynos9110_dai[nlink].name)
 			exynos9110_dai[nlink].name = dai->name;
-
 		if (!exynos9110_dai[nlink].stream_name)
 			exynos9110_dai[nlink].stream_name = dai->name;
 
@@ -698,8 +771,7 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 			}
 		}
 
-		if (!exynos9110_dai[nlink].codec_name &&
-			exynos9110_dai[nlink].num_codecs <= 1) {
+		if (!exynos9110_dai[nlink].codec_name) {
 			ret = read_dai(dai, "codec",
 					&exynos9110_dai[nlink].codec_of_node,
 					&exynos9110_dai[nlink].codec_dai_name);
@@ -709,18 +781,6 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 					dai->name, ret);
 				return ret;
 			}
-		}
-		if (exynos9110_dai[nlink].codecs &&
-			exynos9110_dai[nlink].num_codecs > 1) {
-		  for (i = 0; i < exynos9110_dai[nlink].num_codecs; i++) {
-			ret = read_multi_codec_dai(dai, exynos9110_dai[nlink].codecs, i);
-			if (ret) {
-				dev_err(card->dev,
-					  "Failed to parse multi codec DAI for %s: %d\n",
-					  dai->name, ret);
-				return ret;
-			}
-		  }
 		}
 
 		if (strstr(dai->name, "left-amp")) {
@@ -734,9 +794,12 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 		exynos9110_dai[nlink].dai_fmt =
 				snd_soc_of_parse_daifmt(dai, NULL, NULL, NULL);
 
+		if (--nlink < 0) // card->num_links)
+			break;
 	}
-
-	if (!found_some_dai) {
+*/
+	/* if (!nlink) { */
+	if (nlink < -1) {
 		dev_err(card->dev, "No DAIs specified\n");
 		return -EINVAL;
 	}
@@ -768,9 +831,7 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_snd_soc_register_card(card->dev, card);
-	if (ret)
-		dev_err(card->dev, "snd_soc_register_card() failed:%d\n", ret);
+	schedule_work(&exynos9110_register_card_work);
 
 	return ret;
 }
@@ -799,4 +860,3 @@ module_platform_driver(exynos9110_audio_driver);
 MODULE_DESCRIPTION("ALSA SoC R11 sound driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:exynos9110-sound-r11");
-
