@@ -15,128 +15,152 @@ sound {
 		"ABOX UAIF0 Capture", "VINPUT1",
 		"VOUTPUTCALL", "ABOX SIFS0 Playback",
 		"ABOX SIFS0 Capture", "VINPUTCALL";
-	samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_4>;
-	samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX", "VTS";
 	/* samsung,aux = <&abox_effect>; */
-	rdma@0 {
-		dai_link = "RDMA0";
+
+	rdma0 {
 		cpu {
-			sound-dai = <&abox 0>;
+			sound-dai = <&abox_rdma_0 0>;
+		};
+		platform {
+			sound-dai = <&abox_rdma_0 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	rdma@1 {
-		dai_link = "RDMA1";
+	rdma1 {
 		cpu {
-			sound-dai = <&abox 1>;
+			sound-dai = <&abox_rdma_1 0>;
+		};
+		platform {
+			sound-dai = <&abox_rdma_1 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	rdma@2 {
-		dai_link = "RDMA2";
+	rdma2 {
 		cpu {
-			sound-dai = <&abox 2>;
+			sound-dai = <&abox_rdma_2 0>;
+		};
+		platform {
+			sound-dai = <&abox_rdma_2 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	rdma@3 {
-		dai_link = "RDMA3";
+	rdma3 {
 		cpu {
-			sound-dai = <&abox 3>;
+			sound-dai = <&abox_rdma_3 0>;
+		};
+		platform {
+			sound-dai = <&abox_rdma_3 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	rdma@4 {
-		dai_link = "RDMA4";
+	rdma4 {
 		cpu {
-			sound-dai = <&abox 4>;
+			sound-dai = <&abox_rdma_4 0>;
+		};
+		platform {
+			sound-dai = <&abox_rdma_4 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	rdma@5 {
-		dai_link = "RDMA5";
+	rdma5 {
 		cpu {
-			sound-dai = <&abox 5>;
+			sound-dai = <&abox_rdma_5 0>;
+		};
+		platform {
+			sound-dai = <&abox_rdma_5 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	rdma@6 {
-		dai_link = "RDMA6";
+	rdma6 {
 		cpu {
-			sound-dai = <&abox 6>;
+			sound-dai = <&abox_rdma_6 0>;
+		};
+		platform {
+			sound-dai = <&abox_rdma_6 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	rdma@7 {
-		dai_link = "RDMA7";
+	rdma7 {
 		cpu {
-			sound-dai = <&abox 7>;
+			sound-dai = <&abox_rdma_7 0>;
+		};
+		platform {
+			sound-dai = <&abox_rdma_7 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	wdma@0 {
-		dai_link = "WDMA0";
+	wdma0 {
 		cpu {
-			sound-dai = <&abox 8>;
+			sound-dai = <&abox_wdma_0 0>;
+		};
+		platform {
+			sound-dai = <&abox_wdma_0 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	wdma@1 {
-		dai_link = "WDMA1";
+	wdma1 {
 		cpu {
-			sound-dai = <&abox 9>;
+			sound-dai = <&abox_wdma_1 0>;
+		};
+		platform {
+			sound-dai = <&abox_wdma_1 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	wdma@2 {
-		dai_link = "WDMA2";
+	wdma2 {
 		cpu {
-			sound-dai = <&abox 10>;
+			sound-dai = <&abox_wdma_2 0>;
+		};
+		platform {
+			sound-dai = <&abox_wdma_2 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	wdma@3 {
-		dai_link = "WDMA3";
+	wdma3 {
 		cpu {
-			sound-dai = <&abox 11>;
+			sound-dai = <&abox_wdma_3 0>;
+		};
+		platform {
+			sound-dai = <&abox_wdma_3 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	wdma@4 {
-		dai_link = "WDMA4";
+	wdma4 {
 		cpu {
-			sound-dai = <&abox 12>;
+			sound-dai = <&abox_wdma_4 0>;
+		};
+		platform {
+			sound-dai = <&abox_wdma_4 0>;
 		};
 		codec {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	uaif@0 {
-		dai_link = "UAIF0";
+	uaif0 {
 		format = "i2s";
 		cpu {
 			sound-dai = <&abox_uaif_0>;
@@ -145,8 +169,7 @@ sound {
 			sound-dai = <&cs35l41>;
 		};
 	};
-	uaif@1 {
-		dai_link = "UAIF1";
+	uaif1 {
 		format = "i2s";
 		cpu {
 			sound-dai = <&abox_uaif_1>;
@@ -155,8 +178,7 @@ sound {
 			sound-dai = <&mcu_mic_codec>;
 		};
 	};
-	uaif@4 {
-		dai_link = "UAIF4";
+	uaif4 {
 		format = "i2s";
 		bitclock-master;
 		frame-master;
@@ -167,8 +189,7 @@ sound {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	vts@0 {
-		dai_link = "VTS-Trigger";
+	vts0 {
 		cpu {
 			sound-dai = <&vts 0>;
 		};
@@ -176,8 +197,7 @@ sound {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	vts@1 {
-		dai_link = "VTS-Record";
+	vts1 {
 		cpu {
 			sound-dai = <&vts 1>;
 		};
@@ -185,5 +205,28 @@ sound {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
+	sifs0 {
+		cpu {
+			sound-dai = <&abox 13>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	sifs1 {
+		cpu {
+			sound-dai = <&abox 14>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
+	sifs2 {
+		cpu {
+			sound-dai = <&abox 15>;
+		};
+		codec {
+			sound-dai = <&dummy_audio_codec>;
+		};
+	};
 };
-

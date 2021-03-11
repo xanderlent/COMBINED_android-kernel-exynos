@@ -25,6 +25,7 @@ dummy_audio_codec: audio_codec_dummy {
 };
 
 mcu_mic_codec: audio_codec {
+	#sound-dai-cells = <0>;
 	status = "okay";
 	compatible = "google,mcu_mic_codec";
 };
