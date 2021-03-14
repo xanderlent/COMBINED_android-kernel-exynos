@@ -18,6 +18,7 @@
 	non-removable;
 	pm-ignore-notify;
 	card-detect-type-external;
+	keep-power-in-suspend;
 	cap-sd-highspeed;
 	cap-mmc-highspeed;
 	supports-4bit;
