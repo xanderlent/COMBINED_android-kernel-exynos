@@ -112,7 +112,7 @@ static void s2mpw02_test_read(struct i2c_client *i2c)
 		sprintf(str+strlen(str), "0x%02x:0x%02x, ", i, data);
 	}
 
-	pr_err("[CHG]%s: %s\n", __func__, str);
+	pr_debug("[CHG]%s: %s\n", __func__, str);
 }
 
 static void s2mpw02_enable_charger_switch(struct s2mpw02_charger_data *charger,
@@ -322,11 +322,12 @@ static int s2mpw02_get_charging_status(struct s2mpw02_charger_data *charger)
 	if (ret < 0)
 		return status;
 	ret = s2mpw02_read_reg(charger->iodev->pmic, S2MPW02_PMIC_REG_STATUS1, &pmic_sts);
-	dev_info(charger->dev, "%s : charger status : 0x%x, pmic status : 0x%x\n",
+	dev_dbg(charger->dev, "%s : charger status : 0x%x, pmic status : 0x%x\n",
 			__func__, chg_sts, pmic_sts);
 
 	if (charger->full_charged) {
-			dev_info(charger->dev, "%s : POWER_SUPPLY_STATUS_FULL : 0x%x\n", __func__, chg_sts);
+			dev_dbg(charger->dev, "%s : POWER_SUPPLY_STATUS_FULL : 0x%x\n",
+					__func__, chg_sts);
 			return POWER_SUPPLY_STATUS_FULL;
 	}
 
@@ -339,9 +340,6 @@ static int s2mpw02_get_charging_status(struct s2mpw02_charger_data *charger)
 	else if ((chg_sts & CHGSTS_STATUS_MASK) && (chg_sts & CHG_DONE_STATUS_MASK))
 		status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 
-#if EN_TEST_READ
-	s2mpw02_test_read(charger->client);
-#endif
 	return status;
 }
 
@@ -386,17 +384,17 @@ static int s2mpw02_get_charging_health(struct s2mpw02_charger_data *charger)
 	int ret;
 	u8 chg_sts1;
 
-	pr_info("[%s] \n " , __func__);
 	ret = s2mpw02_read_reg(charger->client, S2MPW02_CHG_REG_STATUS1, &chg_sts1);
 
-	pr_info("[%s] chg_status1: 0x%x\n " , __func__, chg_sts1);
+	dev_dbg(charger->dev, "[%s] chg_status1: 0x%x\n " , __func__, chg_sts1);
 	if (ret < 0)
 		return POWER_SUPPLY_HEALTH_UNKNOWN;
 
 	if (chg_sts1 & CHG_ACOK_STATUS_MASK) {
 		charger->ovp = false;
 		charger->unhealth_cnt = 0;
-		pr_info("[%s] POWER_SUPPLY_HEALTH_GOOD\n", __func__);
+		dev_dbg(charger->dev, "[%s] POWER_SUPPLY_HEALTH_GOOD\n",
+				__func__);
 		return POWER_SUPPLY_HEALTH_GOOD;
 	}
 
@@ -507,9 +505,6 @@ static int s2mpw02_chg_set_property(struct power_supply *psy,
 		dev_info(dev, "%s() set current[%d]\n", __func__, val->intval);
 		charger->charging_current = val->intval;
 		s2mpw02_set_fast_charging_current(charger->client, charger->charging_current);
-#if EN_TEST_READ
-		s2mpw02_test_read(charger->client);
-#endif
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		dev_info(dev, "%s() float voltage(%d)\n", __func__, val->intval);

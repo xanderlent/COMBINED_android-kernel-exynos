@@ -150,7 +150,7 @@ static void s2mpw02_fg_test_read(struct i2c_client *i2c)
 
 	s2mpw02_fg_read_reg_byte(i2c, S2MPW02_FG_REG_OTP67, &data);
 	sprintf(str+strlen(str), "0x%02x:0x%02x, ", 0x2C, data);
-	pr_err("[FG]:%s: %s\n", __func__, str);
+	dev_dbg(&i2c->dev, "[FG]:%s: %s\n", __func__, str);
 }
 
 static void s2mpw02_restart_gauging(struct s2mpw02_fuelgauge_data *fuelgauge)
@@ -406,7 +406,8 @@ static int s2mpw02_get_current(struct s2mpw02_fuelgauge_data *fuelgauge)
 		curr = (curr * (-1000)) >> 12;
 	}
 
-	dev_info(&fuelgauge->i2c->dev, "%s: current (%d)mA (0x%4x)\n", __func__, curr, compliment);
+	dev_dbg(&fuelgauge->i2c->dev, "%s: current (%d)mA (0x%4x)\n",
+	    __func__, curr, compliment);
 	return curr;
 }
 
@@ -453,7 +454,8 @@ static int s2mpw02_get_vbat(struct s2mpw02_fuelgauge_data *fuelgauge)
 	vbat = ((data[0] + (data[1] << 8)) * 1000) >> 13;
 	compliment = (data[1] << 8) | (data[0]);
 
-	dev_info(&fuelgauge->i2c->dev, "%s: vbat (%d, 0x%4x)\n", __func__, vbat, compliment);
+	dev_dbg(&fuelgauge->i2c->dev, "%s: vbat (%d, 0x%4x)\n",
+	    __func__, vbat, compliment);
 	s2mpw02_fg_test_read(fuelgauge->i2c);
 
 	if (vbat >= 4400) {
@@ -494,7 +496,7 @@ static int s2mpw02_get_avgvbat(struct s2mpw02_fuelgauge_data *fuelgauge)
 
 	mutex_unlock(&fuelgauge->fg_lock);
 
-	dev_info(&fuelgauge->i2c->dev, "%s: avgvbat (%d)\n", __func__, old_vbat);
+	dev_dbg(&fuelgauge->i2c->dev, "%s: avgvbat (%d)\n", __func__, old_vbat);
 	return old_vbat;
 }
 
@@ -576,9 +578,9 @@ static int s2mpw02_fg_calculate_dynamic_scale(
 	union power_supply_propval raw_soc_val;
 	raw_soc_val.intval = s2mpw02_get_rawsoc(fuelgauge) / 10;
 
-	dev_info(fuelgauge->dev, "%s: raw_soc_val.intval(%d), capacity(%d)\n",
+	dev_dbg(fuelgauge->dev, "%s: raw_soc_val.intval(%d), capacity(%d)\n",
 			__func__, raw_soc_val.intval, capacity);
-	dev_info(fuelgauge->dev, "capacity_max(%d), capacity_max_margin(%d), fuelgauge->capacity_max (%d)\n",
+	dev_dbg(fuelgauge->dev, "capacity_max(%d), capacity_max_margin(%d), fuelgauge->capacity_max (%d)\n",
 			fuelgauge->pdata->capacity_max, fuelgauge->pdata->capacity_max_margin, fuelgauge->capacity_max);
 
 	if (raw_soc_val.intval <
@@ -612,7 +614,7 @@ static int s2mpw02_fg_calculate_dynamic_scale(
 	/* update capacity_old for sec_fg_get_atomic_capacity algorithm */
 	fuelgauge->capacity_old = capacity;
 
-	dev_info(fuelgauge->dev, "%s: %d is used for capacity_max\n",
+	dev_dbg(fuelgauge->dev, "%s: %d is used for capacity_max\n",
 			__func__, fuelgauge->capacity_max);
 
 	return fuelgauge->capacity_max;
@@ -670,8 +672,6 @@ static int s2mpw02_fg_get_property(struct power_supply *psy,
 {
 	struct s2mpw02_fuelgauge_data *fuelgauge =
 		power_supply_get_drvdata(psy);
-
-	pr_info("%s %d psp=%d\n",__FUNCTION__, __LINE__ ,psp);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -772,13 +772,13 @@ static int s2mpw02_fg_set_property(struct power_supply *psy,
 	struct s2mpw02_fuelgauge_data *fuelgauge =
 		power_supply_get_drvdata(psy);
 
-	dev_info(&fuelgauge->i2c->dev, "%s:psp[%d]\n", __func__, psp);
+	dev_dbg(&fuelgauge->i2c->dev, "%s:psp[%d]\n", __func__, psp);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		dev_info(&fuelgauge->i2c->dev, "capacity_calculation_type[%d]\n",
+		dev_dbg(&fuelgauge->i2c->dev, "capacity_calculation_type[%d]\n",
 			fuelgauge->pdata->capacity_calculation_type);
 		if (fuelgauge->pdata->capacity_calculation_type &
 				SEC_FUELGAUGE_CAPACITY_TYPE_DYNAMIC_SCALE) {
