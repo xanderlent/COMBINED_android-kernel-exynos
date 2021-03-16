@@ -460,9 +460,10 @@ static void target_vout_set_voltage(struct hl6111_charger *chg, int voltage) {
             LOG_DBG("Failed to read addr=%X\r\n ", REG_VOUT_RANGE_SEL);
             return;
         }
+        range = (range & VOUT_RANGE_SEL_MASK) >> VOUT_RANGE_SEL_SHIFT;
+    } else {
+        range = chg->pdata->vout_range;
     }
-    range = (range & VOUT_RANGE_SEL_MASK) >> VOUT_RANGE_SEL_SHIFT;
-
     switch(range) {
         case VOUT_RANGE_20MV:
             base = 4940;
@@ -721,12 +722,14 @@ static int hl6111_psy_set_property(struct power_supply *psy, enum power_supply_p
             break;
         case POWER_SUPPLY_PROP_STATUS:
             LOG_DBG("STATUS:\r\n");
-            if (val->intval == POWER_SUPPLY_STATUS_FULL){
-                LOG_DBG("Fully charged!!\r\n");
-                hl6111_send_ept(chg, fully_charged);
-            } else if (val->intval == POWER_SUPPLY_STATUS_NOT_CHARGING){
-                LOG_DBG("Stop charging!!\r\n");
-                hl6111_send_ept(chg, sys_fault);
+            if (chg->online) {
+                if (val->intval == POWER_SUPPLY_STATUS_FULL){
+                    LOG_DBG("Fully charged!!\r\n");
+                    hl6111_send_ept(chg, fully_charged);
+                } else if (val->intval == POWER_SUPPLY_STATUS_NOT_CHARGING){
+                    LOG_DBG("Stop charging!!\r\n");
+                    hl6111_send_ept(chg, sys_fault);
+                }
             }
             break;
         case POWER_SUPPLY_PROP_PRESENT:
