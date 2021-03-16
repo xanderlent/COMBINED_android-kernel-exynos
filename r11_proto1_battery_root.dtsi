@@ -26,13 +26,14 @@ google_battery: battery {
 	battery,vendor = "Desay";
 	battery,chg_volt_limits = <4200 4300>;
 	battery,chg_cc_limits = <
-						90		30
-						150		90
-						300		210
-						240		150
+						75  		35
+						150		75
+						300		200
+						250		150
 						150		150
-						90		0
+						75		0
 	>;
+	battery,chg_cv_headroom = <15>;
 	battery,chg_temp_limits = <0 100 200 420 460 480 550>;
 	battery,topoff_current = <30>;
 	battery,wlc_vout_headroom = <300>;
