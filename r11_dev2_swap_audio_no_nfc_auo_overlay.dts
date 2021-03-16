@@ -1,0 +1,46 @@
+/*
+ * Google R11 DTSO file
+ *
+ * Copyright 2020 Google LLC
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/exynos9110.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/exynos9110.h>
+
+#include "r11_cp.dtsi"
+#include "r11_dev1_common.dtsi"
+#include "r11_auo_display_lcd.dtsi"
+#include "r11_raydium_touchscreen.dtsi"
+
+/ {
+	compatible = "google,r11";
+	board_id = <0x010101>;
+	board_rev = <0x010109>;
+
+	fragment@common {
+		target-path = "/";
+		__overlay__ {
+			model = "Google R11 Dev2 no NFC AUO EVT Audio Routing";
+
+			chosen {
+			        bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
+			};
+			/include/ "r11_dev1_battery_root.dtsi"
+			/include/ "r11_common_root.dtsi"
+			/include/ "r11_evt1_sound_root.dtsi"
+		};
+	};
+};
