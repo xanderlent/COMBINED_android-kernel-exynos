@@ -1057,11 +1057,22 @@ static int dsim_doze(struct dsim_device *dsim)
 	}
 
 	dsim_info("dsim-%d %s +\n", dsim->id, __func__);
+	if (prev_state == DSIM_STATE_OFF) {
+		ret = _dsim_enable(dsim, DSIM_STATE_ON);
+		if (ret < 0) {
+			dsim_err("dsim-%d failed to set %s (ret %d)\n",
+			    dsim->id, dsim_state_names[DSIM_STATE_ON], ret);
+			goto out;
+		}
+	}
 	ret = _dsim_enable(dsim, next_state);
 	if (ret < 0) {
 		dsim_err("dsim-%d failed to set %s (ret %d)\n",
 				dsim->id, dsim_state_names[next_state], ret);
 		goto out;
+	}
+	if (prev_state == DSIM_STATE_OFF) {
+		dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DISPLAYON, NULL);
 	}
 	dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DOZE, NULL);
 
@@ -1158,10 +1169,21 @@ static int dsim_doze_suspend(struct dsim_device *dsim)
 				__func__, dsim_state_names[dsim->state]);
 		return 0;
 	}
+	if (prev_state == DSIM_STATE_OFF) {
+		ret = _dsim_enable(dsim, DSIM_STATE_ON);
+		if (ret < 0) {
+			dsim_err("dsim-%d failed to set %s (ret %d)\n",
+			    dsim->id, dsim_state_names[DSIM_STATE_ON], ret);
+			goto out;
+		}
+	}
+	ret = _dsim_enable(dsim, next_state);
 
 	dsim_info("dsim-%d %s +\n", dsim->id, __func__);
+	if (prev_state == DSIM_STATE_OFF) {
+		dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DISPLAYON, NULL);
+	}
 	dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DOZE_SUSPEND, NULL);
-	ret = _dsim_disable(dsim, next_state);
 	if (ret < 0) {
 		dsim_err("dsim-%d failed to set %s (ret %d)\n",
 				dsim->id, dsim_state_names[next_state], ret);
