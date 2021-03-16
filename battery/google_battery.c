@@ -109,6 +109,7 @@ typedef struct battery_platform_data {
 	s32 *temp_limits;
 	s32 *volt_limits;
 	s32 *cc_limits;
+	int cv_headroom;
 	int topoff_current;
 	int wlc_vout_headroom;
 	int wlc_vout_min;
@@ -212,7 +213,7 @@ static int check_charging_current(struct battery_info *battery)
 	union power_supply_propval value;
 	struct power_supply *psy;
 	int ret = 0;
-	int t_i, v_i, cc_i, check_cc_i, charging_current, topoff_current;
+	int t_i, v_i, cc_i, check_cc_i, charging_current, topoff_current, volt_threshold;
 	int temp_diff, volt_diff;
 	// Calculate temp index
 	for (t_i = 0; t_i < battery->pdata->num_temp_limits; t_i++) {
@@ -223,7 +224,8 @@ static int check_charging_current(struct battery_info *battery)
 	}
 	// Calculate voltage index, do not pass final index
 	for (v_i = 0; v_i < battery->pdata->num_volt_limits - 1; v_i++) {
-		if (battery->voltage_now < battery->pdata->volt_limits[v_i]) {
+		volt_threshold = battery->pdata->volt_limits[v_i] - battery->pdata->cv_headroom;
+		if (battery->voltage_now < volt_threshold) {
 			break;
 		}
 	}
@@ -455,10 +457,6 @@ static int set_battery_status(struct battery_info *battery,
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 
-		// Recalculate charging current
-		battery->temp_index = -1;
-		battery->voltage_index = -1;
-		ret = check_charging_current(battery);
 		if (ret < 0)
 			pr_err("%s: Fail to check charging current\n", __func__);
 
@@ -478,6 +476,10 @@ static int set_battery_status(struct battery_info *battery,
 			pr_err("%s: Fail to execute property\n", __func__);
 
 		set_charger_mode(battery, BAT_CHG_MODE_CHARGING_OFF);
+		battery->temp_index = -1;
+		battery->voltage_index = -1;
+		battery->charging_current = 0;
+		battery->topoff_current = 0;
 		break;
 
 	case POWER_SUPPLY_STATUS_NOT_CHARGING:
@@ -487,16 +489,18 @@ static int set_battery_status(struct battery_info *battery,
 		/* to recover charger configuration when heath is recovered */
 		battery->temp_index = -1;
 		battery->voltage_index = -1;
-		battery->charging_current = -1;
+		battery->charging_current = 0;
 		battery->topoff_current = 0;
 		set_wlc_status(battery, status);
 		break;
 
 	case POWER_SUPPLY_STATUS_FULL:
 		// battery full
+		set_charger_mode(battery, BAT_CHG_MODE_CHARGING_OFF);
 		battery->temp_index = -1;
 		battery->voltage_index = -1;
-		set_charger_mode(battery, BAT_CHG_MODE_CHARGING_OFF);
+		battery->charging_current = 0;
+		battery->topoff_current = 0;
 		set_wlc_status(battery, status);
 		break;
 	}
@@ -1104,10 +1108,12 @@ static void bat_monitor_work(struct work_struct *work)
 	get_battery_info(battery);
 
 	check_health(battery);
-	old_charging_current = battery->charging_current;
-	ret = check_charging_current(battery);
-	if (battery->charging_current == old_charging_current) {
-		check_wlc_vout(battery);
+	if (battery->status == POWER_SUPPLY_STATUS_CHARGING) {
+		old_charging_current = battery->charging_current;
+		ret = check_charging_current(battery);
+		if (battery->charging_current == old_charging_current) {
+			check_wlc_vout(battery);
+		}
 	}
 	if (ret < 0)
 		pr_err("%s: Fail to check charging current\n", __func__);
@@ -1237,6 +1243,13 @@ static int google_battery_parse_dt(struct device *dev,
 	if (ret < 0) {
 		pr_err("%s: cannot read chg_cc_limits table, ret=%d\n", __func__,
 			 ret);
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32(np, "battery,chg_cv_headroom",
+			&pdata->cv_headroom);
+	if (ret) {
+		pr_debug("%s : CV headroom is empty\n", __func__);
 		return -EINVAL;
 	}
 
