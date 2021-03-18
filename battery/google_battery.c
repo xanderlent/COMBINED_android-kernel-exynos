@@ -177,7 +177,6 @@ struct battery_info {
 
 	int voltage_now;
 	int voltage_avg;
-	int voltage_ocv;
 
 	unsigned int capacity;
 	unsigned int max_rawsoc;
@@ -186,8 +185,8 @@ struct battery_info {
 	unsigned int charge_full;         /* last known full battery capacity (uAh) */
 
 	int current_now;        /* current (mA) */
-	int current_avg;        /* average current (mA) */
-	int current_max;        /* input current limit (mA) */
+	int wlc_current;	/* current (mA) */
+	int wlc_voltage;	/* voltage (mV) */
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 	struct notifier_block cable_check;
@@ -195,6 +194,9 @@ struct battery_info {
 
 	/* temperature check */
 	int temperature;
+	int wlc_temperature;
+	/* thermistor voltage reading from the wlc chip */
+	int wlc_thermistor;
 	int temp_high;
 	int temp_high_recovery;
 	int temp_low;
@@ -260,7 +262,7 @@ static int check_charging_current(struct battery_info *battery)
 				temp_diff = battery->pdata->temp_limits[t_i] - battery->temperature;
 			if (temp_diff < battery->pdata->temp_hysteresis) {
 				t_i = battery->temp_index;
-				dev_info(battery->dev, "Temp hysteresis, keeping temp_index %d\n", t_i);
+				dev_dbg(battery->dev, "Temp hysteresis, keeping temp_index %d\n", t_i);
 			}
 		}
 	}
@@ -271,7 +273,7 @@ static int check_charging_current(struct battery_info *battery)
 		volt_diff = battery->pdata->volt_limits[v_i] - battery->voltage_now;
 		if (v_i < battery->voltage_index && volt_diff < battery->pdata->voltage_hysteresis) {
 			v_i = battery->voltage_index;
-			dev_info(battery->dev, "Voltage hysteresis, keeping volt_index %d\n", v_i);
+			dev_dbg(battery->dev, "Voltage hysteresis, keeping volt_index %d\n", v_i);
 		}
 	}
 
@@ -280,7 +282,7 @@ static int check_charging_current(struct battery_info *battery)
 		check_cc_i = calculate_cc_index(battery, t_i, v_i);
 		if (battery->pdata->cc_limits[check_cc_i] == 0) {
 			v_i = v_i - 1;
-			dev_info(battery->dev, "0 Charging current, moving down volt_index to %d\n", v_i);
+			dev_dbg(battery->dev, "0 Charging current, moving down volt_index to %d\n", v_i);
 		} else {
 			break;
 		}
@@ -290,7 +292,7 @@ static int check_charging_current(struct battery_info *battery)
 		// Want to stay in same CC index as last check
 		return 0;
 	}
-	dev_info(battery->dev, "%s: temp_index(%d to %d), volt_index(%d to %d)\n", __func__,
+	dev_dbg(battery->dev, "%s: temp_index(%d to %d), volt_index(%d to %d)\n", __func__,
 			battery->temp_index, t_i, battery->voltage_index, v_i);
 	battery->temp_index = t_i;
 	// Calculate final new CC index
@@ -320,11 +322,12 @@ static int check_charging_current(struct battery_info *battery)
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property CURRENT_NOW\n", __func__);
+		power_supply_put(psy);
 		battery->charging_current = charging_current;
 	}
 	// Update Float Voltage if necessary
 	if (battery->voltage_index != v_i) {
-		dev_info(battery->dev, "%s: voltage_index(%d to %d)\n", __func__,
+		dev_dbg(battery->dev, "%s: voltage_index(%d to %d)\n", __func__,
 			battery->voltage_index, v_i);
 		value.intval = battery->pdata->volt_limits[v_i];
 		psy = power_supply_get_by_name(battery->pdata->charger_name);
@@ -335,6 +338,7 @@ static int check_charging_current(struct battery_info *battery)
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property VOLTAGE_MAX\n", __func__);
+		power_supply_put(psy);
 		battery->voltage_index = v_i;
 	}
 
@@ -350,6 +354,7 @@ static int check_charging_current(struct battery_info *battery)
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_FULL, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property CURRENT_FULL\n", __func__);
+		power_supply_put(psy);
 		battery->topoff_current = topoff_current;
 	}
 
@@ -377,6 +382,7 @@ static int check_wlc_vout(struct battery_info *battery)
 		if (ret < 0)
 			pr_err("%s: Fail to execute WLC VOUT property\n", __func__);
 		power_supply_put(psy);
+		battery->wlc_vout_setting = wlc_vout;
 	}
 	return 0;
 }
@@ -415,6 +421,7 @@ static int set_charger_mode(
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
 
+	power_supply_put(psy);
 	return 0;
 }
 
@@ -443,7 +450,8 @@ static int set_battery_status(struct battery_info *battery,
 	struct power_supply *psy;
 		int ret;
 
-	pr_info("%s: current status = %d, new status = %d\n", __func__, battery->status, status);
+	dev_info(battery->dev, "%s: current status = %s, new status = %s\n", __func__,
+			bat_status_str[battery->status], bat_status_str[status]);
 
 	if (battery->charging_state_override && status == POWER_SUPPLY_STATUS_CHARGING) {
 		status = POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -461,6 +469,7 @@ static int set_battery_status(struct battery_info *battery,
 		if (!psy)
 			return -EINVAL;
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+		power_supply_put(psy);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 
@@ -479,6 +488,7 @@ static int set_battery_status(struct battery_info *battery,
 		if (!psy)
 			return -EINVAL;
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+		power_supply_put(psy);
 		if (ret < 0)
 			pr_err("%s: Fail to execute property\n", __func__);
 
@@ -520,6 +530,7 @@ static int set_battery_status(struct battery_info *battery,
 	if (!psy)
 		return -EINVAL;
 	ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
+	power_supply_put(psy);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
 
@@ -548,8 +559,6 @@ static int battery_get_property(struct power_supply *psy,
 {
 	struct battery_info *battery =  power_supply_get_drvdata(psy);
 	int ret = 0;
-
-	dev_dbg(battery->dev, "prop: %d\n", psp);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -602,7 +611,6 @@ static int battery_set_property(struct power_supply *psy,
 	struct battery_info *battery = power_supply_get_drvdata(psy);
 	int ret = 0;
 
-	dev_dbg(battery->dev, "prop: %d\n", psp);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		set_battery_status(battery, val->intval);
@@ -678,11 +686,11 @@ static int battery_handle_notification(struct notifier_block *nb,
 		break;
 	}
 
-	pr_info("%s: current_power_supply_type(%d) former power_supply_type(%d) battery_valid(%d)\n",
+	dev_info(battery->dev, "%s: current_power_supply_type(%d) former power_supply_type(%d) battery_valid(%d)\n",
 			__func__, power_supply_type, battery->power_supply_type,
 			battery->battery_valid);
 	if (battery->battery_valid == false)
-		pr_info("%s: Battery is disconnected\n", __func__);
+		dev_info(battery->dev, "%s: Battery is disconnected\n", __func__);
 
 	battery->power_supply_type = power_supply_type;
 
@@ -694,7 +702,7 @@ static int battery_handle_notification(struct notifier_block *nb,
 			set_battery_status(battery, POWER_SUPPLY_STATUS_CHARGING);
 	}
 
-	pr_info(
+	dev_dbg(battery->dev,
 			"%s: Status(%s), Health(%s), Power Supply Type(%d), Recharging(%d))"
 			"\n", __func__,
 			bat_status_str[battery->status],
@@ -729,8 +737,10 @@ static void get_battery_capacity(struct battery_info *battery)
 	value.intval = 1;
 
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
+	if (ret < 0) {
+		pr_err("%s: Fail to execute capacity property\n", __func__);
+		return;
+	}
 	raw_soc = value.intval;
 
 	if (battery->status == POWER_SUPPLY_STATUS_FULL)
@@ -740,7 +750,8 @@ static void get_battery_capacity(struct battery_info *battery)
 	if (battery->capacity > 100)
 		battery->capacity = 100;
 
-	dev_info(battery->dev, "%s: SOC(%u), rawsoc(%d), max_rawsoc(%u), \
+	power_supply_put(psy);
+	dev_dbg(battery->dev, "%s: SOC(%u), rawsoc(%d), max_rawsoc(%u), \
 		 charge_full(%u).\n",__func__, battery->capacity, raw_soc,
 		 battery->max_rawsoc, battery->charge_full);
 }
@@ -762,27 +773,24 @@ static int get_battery_info(struct battery_info *battery)
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
-	battery->voltage_now = value.intval;
+	else
+		battery->voltage_now = value.intval;
 
 	// Selection of voltage reading mode
 	value.intval = BATTERY_VOLTAGE_AVERAGE;
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_AVG, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
-	battery->voltage_avg = value.intval;
+	else
+		battery->voltage_avg = value.intval;
 
 	// Selection of current reading mode
 	value.intval = BATTERY_CURRENT_MA;
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
-	battery->current_now = value.intval;
-
-	value.intval = BATTERY_CURRENT_MA;
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_AVG, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-	battery->current_avg = value.intval;
+	else
+		battery->current_now = value.intval;
 
 	/* Get temperature info */
 	tzd = thermal_zone_get_zone_by_name(battery->pdata->bat_tz_name);
@@ -800,39 +808,8 @@ static int get_battery_info(struct battery_info *battery)
 		}
 	}
 
+	power_supply_put(psy);
 	get_battery_capacity(battery);
-
-	/*Get charger psy*/
-	psy = power_supply_get_by_name(battery->pdata->charger_name);
-	if (!psy)
-		return -EINVAL;
-
-	/* Get input current limit */
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-	battery->current_max = value.intval;
-
-	/* Get charger status*/
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
-	if (ret < 0)
-		pr_err("%s: Fail to execute property\n", __func__);
-
-	if (battery->status != value.intval)
-		pr_err("%s: battery status = %d, charger status = %d\n",
-				__func__, battery->status, value.intval);
-
-	dev_dbg(battery->dev,
-			"%s:Vnow(%dmV),Inow(%dmA),Imax(%dmA),SOC(%d%%),Tbat(%d)"
-			"\n", __func__,
-			battery->voltage_now, battery->current_now,
-			battery->current_max, battery->capacity,
-			battery->temperature
-			);
-	dev_dbg(battery->dev,
-			"%s,Vavg(%dmV),Vocv(%dmV),Iavg(%dmA)\n",
-			battery->battery_valid ? "Connected" : "Disconnected",
-			battery->voltage_avg, battery->voltage_ocv, battery->current_avg);
 
 	return 0;
 }
@@ -851,8 +828,9 @@ static int get_battery_health(struct battery_info *battery)
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_HEALTH, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
-
-	health = value.intval;
+	else
+		health = value.intval;
+	power_supply_put(psy);
 
 	return health;
 }
@@ -897,9 +875,6 @@ static void check_health(struct battery_info *battery)
 	temperature_health = get_temperature_health(battery);
 
 	if (battery_health >= 0)
-		dev_dbg(battery->dev, "%s: T = %d, bat_health(%s), T_health(%s), Charging(%s)\n",
-		__func__, battery->temperature, health_str[battery_health],
-		health_str[temperature_health], bat_status_str[battery->status]);
 
 	/* If battery & temperature both are normal,			 *
 	 *	set battery->health GOOD and recover battery->status */
@@ -954,8 +929,6 @@ static void check_charging_full(
 	int ret;
 	unsigned int raw_soc = 0;
 
-	pr_info("%s Start\n", __func__);
-
 	if ((battery->status == POWER_SUPPLY_STATUS_DISCHARGING) ||
 			(battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING)) {
 		dev_dbg(battery->dev,
@@ -967,34 +940,39 @@ static void check_charging_full(
 	if (battery->status == POWER_SUPPLY_STATUS_FULL &&
 			battery->voltage_now < battery->pdata->chg_recharge_vcell &&
 			!battery->is_recharging) {
-		pr_info("%s: Recharging start\n", __func__);
+		dev_info(battery->dev, "%s: Recharging start\n", __func__);
 		set_battery_status(battery, POWER_SUPPLY_STATUS_CHARGING);
 		battery->is_recharging = true;
 	}
 
 	/* Full charged check */
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
-	if (!psy)
+	if (!psy) {
+		pr_err("%s: Could not get charger psy\n", __func__);
 		return;
+	}
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("%s: Fail to execute property\n", __func__);
+		return;
+	}
+	power_supply_put(psy);
 
 	if ((battery->status != value.intval
 				&& value.intval == POWER_SUPPLY_STATUS_FULL)) {
 		if (battery->capacity
 				< battery->pdata->full_check_condition_soc) {
-			pr_info("%s: below full check SOC.\n", __func__);
+			dev_info(battery->dev, "%s: below full check SOC.\n", __func__);
 			return;
 		}
 
 		battery->full_check_cnt++;
-		pr_info("%s: Full Check Cnt (%d)\n",
+		dev_info(battery->dev, "%s: Full Check Cnt (%d)\n",
 				__func__, battery->full_check_cnt);
 	} else if (battery->full_check_cnt != 0) {
 		/* Reset full check cnt when it is out of full condition */
 		battery->full_check_cnt = 0;
-		pr_info("%s: Reset Full Check Cnt\n", __func__);
+		dev_info(battery->dev, "%s: Reset Full Check Cnt\n", __func__);
 	}
 
 	/* If full charged, turn off charging. */
@@ -1002,7 +980,7 @@ static void check_charging_full(
 		battery->full_check_cnt = 0;
 		battery->is_recharging = false;
 		set_battery_status(battery, POWER_SUPPLY_STATUS_FULL);
-		pr_info("%s: Full charged, charger off\n", __func__);
+		dev_info(battery->dev, "%s: Full charged, charger off\n", __func__);
 
 		/* Read raw SOC value from the fuel gauge */
 		psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
@@ -1024,60 +1002,66 @@ static void check_charging_full(
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to set charge_full property\n", __func__);
+		power_supply_put(psy);
 	}
 }
 
-static void battery_print_wlc_debug_info(struct battery_info* battery) {
+static void get_wlc_info(struct battery_info* battery) {
 	int ret;
 	union power_supply_propval value;
 	struct power_supply *wlc_psy;
-	wlc_psy = power_supply_get_by_name(battery->pdata->wlc_name);
-	if (!wlc_psy) {
-		pr_err("Failed to get WLC PSY\n");
-		return;
-	}
-	ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ONLINE, &value);
-	if (ret < 0) {
-		pr_err("%s: Fail to execute property\n", __func__);
-		goto wlc_info_fail;
-	}
-	if (value.intval) {
-		dev_info(battery->dev, "WLC connected\n");
-		dev_info(battery->dev, "WLC properties:\n");
+	int temp;
 
-		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ENERGY_NOW, &value);
+	if (battery->wlc_tzd) {
+		ret = thermal_zone_get_temp(battery->wlc_tzd, &temp);
 		if (ret < 0) {
-			pr_err("%s: Fail to execute property\n", __func__);
+			pr_err("%s: Fail to get temp from thermal zone\n", __func__);
+			battery->wlc_temperature = -1;
 		} else {
-			dev_info(battery->dev, "VRECT: %d\n", value.intval);
+			// Keep unit consistency with battery temperature measurement
+			// It is 1/10 of a degree C
+			battery->wlc_temperature = temp / 100;
 		}
+	} else {
+		// No WLC temperature support
+		battery->wlc_temperature = -1;
+	}
 
-		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ENERGY_AVG, &value);
-		if (ret < 0) {
-			pr_err("%s: Fail to execute property\n", __func__);
-		} else {
-			dev_info(battery->dev, "VOUT: %d\n", value.intval);
+	battery->wlc_current = 0;
+	battery->wlc_voltage = 0;
+	battery->wlc_thermistor = 0;
+	if (battery->wlc_connected && battery->status == POWER_SUPPLY_STATUS_CHARGING) {
+
+		wlc_psy = power_supply_get_by_name(battery->pdata->wlc_name);
+		if (!wlc_psy) {
+			pr_err("Failed to get WLC PSY\n");
+			return;
 		}
 
 		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_CURRENT_AVG, &value);
 		if (ret < 0) {
 			pr_err("%s: Fail to execute property\n", __func__);
 		} else {
-			dev_info(battery->dev, "IOUT: %d\n", value.intval);
+			// Convert uA to mA
+			battery->wlc_current = value.intval / 1000;
+		}
+
+		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ENERGY_AVG, &value);
+		if (ret < 0) {
+			pr_err("%s: Fail to execute property\n", __func__);
+		} else {
+			// Conver uA to mA
+			battery->wlc_voltage = value.intval / 1000;
 		}
 
 		ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_TEMP_AMBIENT, &value);
 		if (ret < 0) {
 			pr_err("%s: Fail to execute property\n", __func__);
 		} else {
-			dev_info(battery->dev, "NTC_TEMP: %d\n", value.intval);
+			battery->wlc_thermistor = value.intval;
 		}
-
-	} else {
-		dev_info(battery->dev, "WLC disconnected\n");
+		power_supply_put(wlc_psy);
 	}
-wlc_info_fail:
-	power_supply_put(wlc_psy);
 }
 
 static void battery_external_power_changed(struct power_supply *psy) {
@@ -1097,11 +1081,12 @@ static void battery_external_power_changed(struct power_supply *psy) {
 	} else {
 		if (value.intval) {
 			battery->wlc_connected = true;
+			dev_info(battery->dev, "WLC connected\n");
 		} else {
 			battery->wlc_connected = false;
+			dev_info(battery->dev, "WLC disconnected\n");
 		}
 	}
-	battery_print_wlc_debug_info(battery);
 external_power_changed_fail:
 	power_supply_put(wlc_psy);
 	mutex_unlock(&battery->wlc_state_lock);
@@ -1113,25 +1098,28 @@ static void bat_monitor_work(struct work_struct *work)
 		container_of(work, struct battery_info, monitor_work.work);
 	union power_supply_propval value;
 	struct power_supply *psy;
-	int old_charging_current;
+	int old_charging_current, old_temp_index, old_capacity, old_health;
 	int ret;
 
-	dev_dbg(battery->dev, "%s: start monitoring\n", __func__);
-
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
-	if (!psy)
+	if (!psy) {
+		pr_err("%s: Fail to get charger psy\n", __func__);
 		goto continue_monitor;
+	}
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_PRESENT, &value);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("%s: Fail to execute property\n", __func__);
-
-	if (!value.intval) {
-		battery->battery_valid = false;
-		dev_dbg(battery->dev, "%s: There is no battery, skip monitoring.\n", __func__);
-		goto continue_monitor;
-	} else
-		battery->battery_valid = true;
-
+	} else {
+		if (!value.intval) {
+			battery->battery_valid = false;
+			dev_dbg(battery->dev, "%s: There is no battery, skip monitoring.\n", __func__);
+			goto continue_monitor;
+		} else
+			battery->battery_valid = true;
+	}
+	old_capacity = battery->capacity;
+	old_health = battery->health;
+	old_temp_index = battery->temp_index;
 	get_battery_info(battery);
 
 	check_health(battery);
@@ -1142,22 +1130,35 @@ static void bat_monitor_work(struct work_struct *work)
 			check_wlc_vout(battery);
 		}
 	}
+	get_wlc_info(battery);
 	if (ret < 0)
 		pr_err("%s: Fail to check charging current\n", __func__);
 	check_charging_full(battery);
 
-	power_supply_changed(battery->psy_battery);
+	if (old_capacity != battery->capacity ||
+			old_health != battery->health ||
+			old_temp_index != battery->temp_index) {
+		power_supply_changed(battery->psy_battery);
+	}
 
 continue_monitor:
-	dev_info(battery->dev,
-		 "%s: Status(%s), Health(%s), Power Supply Type(%d), Recharging(%d))"
-		 "\n", __func__,
-		 bat_status_str[battery->status],
-		 health_str[battery->health],
-		 battery->power_supply_type,
-		 battery->is_recharging
-		 );
+	dev_dbg(battery->dev,
+			"%s: Battery sts=%s, vbat=%d, ichg=%d, ifg=%d, soc=%d, tbat=%d, tchg=%d, wlc=%s, iwlc=%d, twlc=%d, vwlc=%d\n",
+			__func__,
+			bat_status_str[battery->status],
+			battery->voltage_now,
+			battery->charging_current,
+			battery->current_now,
+			battery->capacity,
+			battery->temperature,
+			battery->wlc_temperature,
+			battery->wlc_connected ? "a" : "d",
+			battery->wlc_current,
+			battery->wlc_thermistor,
+			battery->wlc_voltage
+			);
 
+	power_supply_put(psy);
 	alarm_cancel(&battery->monitor_alarm);
 	alarm_start_relative(&battery->monitor_alarm, ktime_set(battery->monitor_alarm_interval, 0));
 	wake_unlock(&battery->monitor_wake_lock);
@@ -1389,30 +1390,36 @@ static int get_cur_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigne
 
 static int set_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned long lvl) {
 	struct battery_info *battery = (struct battery_info *) tcd->devdata;
+	bool first_trigger = false;
 	if (lvl < 0 || lvl > 1)
 		return -EINVAL;
 	if (lvl == 0 && battery->thermal_level == 0) {
 		// No update needed
 		return 0;
 	}
+	if (lvl == 1 && battery->thermal_level == 0) {
+		// Transition from 0->1
+		first_trigger = true;
+		dev_info(battery->dev, "Received cooling device limit: %lu. Last recorded temp: %d\n", lvl, battery->wlc_temperature);
+	}
 	battery->thermal_level = lvl;
-	dev_info(battery->dev, "Received cooling device limit: %lu\n", lvl);
-
-	mutex_lock(&battery->wlc_state_lock);
 
 	if (!battery->wlc_connected) {
-		// Only apply thermal throttling if WLC is connected
-		dev_info(battery->dev, "WLC not connected, won't throttle\n");
-		mutex_unlock(&battery->wlc_state_lock);
+		// Exit early; only apply thermal throttling if WLC is connected
+		if (first_trigger)
+			dev_info(battery->dev, "WLC not connected, won't throttle\n");
 		return 0;
 	}
 
-	if (battery->thermal_level == 1) {
+	if (battery->thermal_level == 1 && battery->status == POWER_SUPPLY_STATUS_CHARGING) {
 		dev_info(battery->dev, "%s: Temperature high: disable charging\n", __func__);
 		// Turn off WLC
 		set_wlc_status(battery, POWER_SUPPLY_STATUS_NOT_CHARGING);
+		// Immediately run a battery monitoring iteration
+		alarm_cancel(&battery->monitor_alarm);
+		wake_lock(&battery->monitor_wake_lock);
+		queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 	}
-	mutex_unlock(&battery->wlc_state_lock);
 	return 0;
 }
 
@@ -1574,16 +1581,20 @@ static int google_battery_probe(struct platform_device *pdev)
 	battery->power_supply_type = POWER_SUPPLY_TYPE_BATTERY;
 
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
-	if (!psy)
+	if (!psy) {
+		pr_err("%s: Fail to get charger psy\n", __func__);
 		return -EINVAL;
+	}
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_PRESENT, &value);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("%s: Fail to execute property\n", __func__);
-
-	if (!value.intval)
-		battery->battery_valid = false;
-	else
-		battery->battery_valid = true;
+	} else {
+		if (!value.intval)
+			battery->battery_valid = false;
+		else
+			battery->battery_valid = true;
+	}
+	power_supply_put(psy);
 
 	/* Register battery as "POWER_SUPPLY_TYPE_BATTERY" */
 	battery->psy_battery_desc.name = "battery";
@@ -1642,11 +1653,14 @@ static int google_battery_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_unreg_ac;
 	}
+	//read rawsoc only
+	value.intval = 1;
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute property\n", __func__);
-
-	battery->capacity = value.intval;
+	else
+		battery->capacity = value.intval;
+	power_supply_put(psy);
 #if defined(CONFIG_MUIC_NOTIFIER)
 	pr_info("%s: Register MUIC notifier\n", __func__);
 	muic_notifier_register(&battery->batt_nb, battery_handle_notification,
@@ -1710,15 +1724,14 @@ static int google_battery_prepare(struct device *dev)
 {
 	struct battery_info *battery = dev_get_drvdata(dev);
 
-	alarm_cancel(&battery->monitor_alarm);
-	wake_unlock(&battery->monitor_wake_lock);
 	/* If charger is connected, monitoring is required*/
 	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
+		alarm_cancel(&battery->monitor_alarm);
 		battery->monitor_alarm_interval = SLEEP_ALARM_INTERVAL;
-		pr_info("%s: Increase battery monitoring interval -> %d\n",
+		dev_info(battery->dev, "%s: Increase battery monitoring interval -> %d\n",
 				__func__, battery->monitor_alarm_interval);
 		alarm_start_relative(&battery->monitor_alarm,
-				ktime_set(battery->monitor_alarm_interval, 0));
+			ktime_set(battery->monitor_alarm_interval, 0));
 	}
 	return 0;
 }
@@ -1739,7 +1752,7 @@ static void google_battery_complete(struct device *dev)
 
 	if (battery->monitor_alarm_interval != DEFAULT_ALARM_INTERVAL) {
 		battery->monitor_alarm_interval = DEFAULT_ALARM_INTERVAL;
-		pr_info("%s: Recover battery monitoring interval -> %d\n",
+		dev_info(battery->dev, "%s: Recover battery monitoring interval -> %d\n",
 			__func__, battery->monitor_alarm_interval);
 	}
 	alarm_cancel(&battery->monitor_alarm);
