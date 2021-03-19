@@ -62,6 +62,7 @@ static struct nvt_ts_hw_info NT38350_hw_info = {
 
 #define NVT_ID_BYTE_MAX 6
 struct nvt_ts_trim_id_table {
+	const char name[10];
 	uint8_t id[NVT_ID_BYTE_MAX];
 	uint8_t mask[NVT_ID_BYTE_MAX];
 	const struct nvt_ts_mem_map *mmap;
@@ -69,6 +70,6 @@ struct nvt_ts_trim_id_table {
 };
 
 static const struct nvt_ts_trim_id_table trim_id_table[] = {
-	{.id = {0xFF, 0xFF, 0xFF, 0x50, 0x83, 0x03}, .mask = {0, 0, 0, 1, 1, 1},
+	{"NT38350", .id = {0xFF, 0xFF, 0xFF, 0x50, 0x83, 0x03}, .mask = {0, 0, 0, 1, 1, 1},
 		.mmap = &NT38350_memory_map,  .hwinfo = &NT38350_hw_info},
 };

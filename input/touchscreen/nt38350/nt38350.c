@@ -1193,6 +1193,7 @@ static int8_t nvt_ts_check_chip_ver_trim(uint32_t chip_ver_trim_addr)
 
 			if (found_nvt_chip) {
 				NVT_LOG("This is NVT touch IC\n");
+				strcpy(ts->trimid, trim_id_table[list].name);
 				ts->mmap = trim_id_table[list].mmap;
 				ts->carrier_system = trim_id_table[list].hwinfo->carrier_system;
 				ret = 0;
