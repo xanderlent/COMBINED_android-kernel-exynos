@@ -73,6 +73,8 @@ static enum power_supply_property google_battery_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
 };
 
 static enum power_supply_property charging_props[] = {
@@ -123,6 +125,8 @@ typedef struct battery_platform_data {
 	int voltage_hysteresis;
 	/* Initial maximum raw SOC */
 	unsigned int max_rawsoc;
+	/* Max battery charge (in uAh) when battery is full */
+	unsigned int charge_full_design;
 
 	/* battery */
 	char *vendor;
@@ -177,6 +181,9 @@ struct battery_info {
 
 	unsigned int capacity;
 	unsigned int max_rawsoc;
+
+	unsigned int charge_full_design;  /* designed battery capacity (uAh) */
+	unsigned int charge_full;         /* last known full battery capacity (uAh) */
 
 	int current_now;        /* current (mA) */
 	int current_avg;        /* average current (mA) */
@@ -576,6 +583,12 @@ static int battery_get_property(struct power_supply *psy,
 				val->intval = battery->capacity;
 		}
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+		val->intval = battery->charge_full_design;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		val->intval = battery->charge_full;
+		break;
 	default:
 		ret = -ENODATA;
 	}
@@ -727,8 +740,9 @@ static void get_battery_capacity(struct battery_info *battery)
 	if (battery->capacity > 100)
 		battery->capacity = 100;
 
-	dev_info(battery->dev, "%s: SOC(%u), rawsoc(%d), max_rawsoc(%u).\n",
-		__func__, battery->capacity, raw_soc, battery->max_rawsoc);
+	dev_info(battery->dev, "%s: SOC(%u), rawsoc(%d), max_rawsoc(%u), \
+		 charge_full(%u).\n",__func__, battery->capacity, raw_soc,
+		 battery->max_rawsoc, battery->charge_full);
 }
 
 static int get_battery_info(struct battery_info *battery)
@@ -938,6 +952,7 @@ static void check_charging_full(
 	union power_supply_propval value;
 	struct power_supply *psy;
 	int ret;
+	unsigned int raw_soc = 0;
 
 	pr_info("%s Start\n", __func__);
 
@@ -989,14 +1004,26 @@ static void check_charging_full(
 		set_battery_status(battery, POWER_SUPPLY_STATUS_FULL);
 		pr_info("%s: Full charged, charger off\n", __func__);
 
-		/* Let fuelgauge update capacity max */
-		value.intval = battery->capacity;
+		/* Read raw SOC value from the fuel gauge */
 		psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
 		if (!psy)
 			return;
+		value.intval = 1;
+		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
+		if (ret < 0)
+			pr_err("%s: Fail to get capacity property\n", __func__);
+		raw_soc = value.intval;
+		/* Max battery charge is ( (raw_soc/100) * charge_full_design ) / 100
+		 * where raw_soc is in 0.01% units and charge_full_design is in uAh.
+		 * switching around to prevent int overflow and maintain precision:
+		 * (raw_soc * ( charge_full_design / 100 )) /100 */
+		battery->charge_full = (raw_soc * (battery->charge_full_design / 100)) / 100;
+
+		/* Let fuelgauge update charge_full */
+                value.intval = battery->charge_full;
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL, &value);
 		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
+			pr_err("%s: Fail to set charge_full property\n", __func__);
 	}
 }
 
@@ -1319,6 +1346,13 @@ static int google_battery_parse_dt(struct device *dev,
 		pdata->max_rawsoc = 10000;
 	}
 
+	ret = of_property_read_u32(np, "battery,charge_full_design",
+				   &pdata->charge_full_design);
+	if (ret) {
+		pr_info("%s : charge_full_design is empty\n", __func__);
+		pdata->charge_full_design = 300000;
+	}
+
 	pr_info("%s:DT parsing is done, vendor : %s\n",
 			__func__, pdata->vendor);
 	return ret;
@@ -1533,6 +1567,8 @@ static int google_battery_probe(struct platform_device *pdev)
 	battery->temp_low_recovery = battery->temp_low + battery->pdata->temp_hysteresis;
 
 	battery->max_rawsoc = battery->pdata->max_rawsoc;
+	battery->charge_full_design = battery->pdata->charge_full_design;
+	battery->charge_full = battery->charge_full_design;
 
 	battery->is_recharging = false;
 	battery->power_supply_type = POWER_SUPPLY_TYPE_BATTERY;
