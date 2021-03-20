@@ -1,9 +1,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 &panel_0 {
-	ddi_id = <0x2>;
-	lcd_info = <&hb120blx01>;
-	/* reset */
+	/* reset, power */
 	gpios = <&gpc1 1 GPIO_ACTIVE_LOW>, <&gpm14 0 GPIO_ACTIVE_HIGH>;
 	mux-gpios = <&gpm10 0 GPIO_ACTIVE_HIGH>, <&gpm11 0 GPIO_ACTIVE_LOW>;
 	regulator_1p8v = "vdd_ldo21";

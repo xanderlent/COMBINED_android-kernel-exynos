@@ -1,0 +1,60 @@
+&google_battery {
+	battery,wlc_tz_name = "PPG_NTC";
+	battery,wlc_cdev_name = "wlc_cool_dev";
+};
+
+&wlc_cool_dev {
+	#cooling-cells = <2>;
+};
+
+&tsmab104_ntc {
+	io-channels = <&exynos_adc 0>, <&exynos_adc 1>, <&exynos_adc 5>, <&exynos_adc 4>, <&exynos_adc 6>;
+	io-channel-names = "soc-ntc", "batt-ntc", "lte-ntc", "audio-ntc", "ppg-ntc";
+};
+
+&batt_ntc {
+	trips {
+		battery_shutdown: battery-shutdown {
+			temperature = <60000>;
+			hysteresis = <1000>;
+			type = "critical";
+		};
+	};
+};
+
+&lte_pa_ntc {
+	polling-delay = <15000>; /* milliseconds */
+	polling-delay-passive = <0>; /* milliseconds */
+	thermal-sensors = <&tsmab104_ntc 2>;
+};
+
+&audio_ntc {
+	polling-delay = <15000>; /* milliseconds */
+	polling-delay-passive = <0>; /* milliseconds */
+	thermal-sensors = <&tsmab104_ntc 3>;
+};
+
+&ppg_ntc {
+	polling-delay = <1000>; /* milliseconds */
+	polling-delay-passive = <0>; /* milliseconds */
+	thermal-sensors = <&tsmab104_ntc 4>;
+	governor = "bang_bang";
+	trips {
+		wlc_throttle: wlc-throttle {
+			temperature = <49000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		skin_backup_shutdown: skin-backup-shutdown {
+			temperature = <53000>;
+			hysteresis = <1000>;
+			type = "critical";
+		};
+	};
+	cooling-maps {
+		wireless-charge-disabled {
+			trip = <&wlc_throttle>;
+			cooling-device = <&wlc_cool_dev (~0) (~0) >; /* THERMAL_NO_LIMIT THERMAL_NO_LIMIT */
+		};
+	};
+};

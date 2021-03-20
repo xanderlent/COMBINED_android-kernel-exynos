@@ -12,21 +12,21 @@
 	#size-cells = <0>;
 	status = "ok";
 
-	pixart@75 {
+	pat9126: pat9126@75 {
 		compatible="pixart,pat9126";
-		status = "ok";
+		status = "disabled";
 		reg = <0x75>;
 		pixart,inverse-x;
 		interrupts-extended = <&gpa0 2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&ots_int_default>;
-		pinctrl-1 = <&ots_int_default>;
+		pinctrl-0 = <&pat9126_ots_int_default>;
+		pinctrl-1 = <&pat9126_ots_int_default>;
 	};
 };
 
 &pinctrl_0 {
 	/* OTS Interrupt Pinctrl */
-	ots_int_default: ots-int-default {
+	pat9126_ots_int_default: pat9126-ots-int-default {
 		samsung,pins = "gpa0-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;

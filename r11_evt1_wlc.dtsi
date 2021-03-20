@@ -4,9 +4,11 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "ok"; /* Enable I2C1 */
-	hl6111@25 {
+	evt1_hl6111: evt1-hl6111@25 {
 		compatible = "halo,hl6111";
 		reg = <0x25>;
+		status = "disabled";
+
 		halo,int-gpio = <&gpa1 3 0>;
 		halo,det-gpio = <&gpm21 0 0>;
 		halo,clm-vth = <0x07>;
@@ -18,12 +20,12 @@
 		halo,temp-limit = <0x17>; // default
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&wlc_irq &wlc_det>;
+		pinctrl-0 = <&evt1_wlc_irq &evt1_wlc_det>;
 	};
 };
 
 &pinctrl_0 {
-	wlc_irq: wlc_irq {
+	evt1_wlc_irq: evt1-wlc-irq {
 		samsung,pins = "gpa1-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -31,7 +33,7 @@
 };
 
 &pinctrl_1 {
-	wlc_det: wlc_det {
+	evt1_wlc_det: evt1-wlc-det {
 		samsung,pins = "gpm21-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;

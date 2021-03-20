@@ -12,20 +12,20 @@
 	#size-cells = <0>;
 	status = "ok";
 
-	pixart@75 {
+	pat9150: pat9150@75 {
 		compatible="pixart,pat9150";
-		status = "ok";
+		status = "disabled";
 		reg = <0x75>;
 		pixart,inverse-x;
 		interrupts-extended = <&gpa0 2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&ots_int_default>;
+		pinctrl-0 = <&pat9150_ots_int_default>;
 	};
 };
 
 &pinctrl_0 {
 	/* OTS Interrupt Pinctrl */
-	ots_int_default: ots-int-default {
+	pat9150_ots_int_default: pat9150-ots-int-default {
 		samsung,pins = "gpa0-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 	};

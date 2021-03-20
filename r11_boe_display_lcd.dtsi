@@ -1,8 +1,6 @@
 #include <dt-bindings/gpio/gpio.h>
 
 &panel_0 {
-	ddi_id = <0x1>;
-	lcd_info = <&wf012fbm>;
 	/* reset, power */
 	gpios = <&gpc1 1 GPIO_ACTIVE_LOW>, <&gpm14 0 GPIO_ACTIVE_HIGH>;
 	mux-gpios = <&gpm10 0 GPIO_ACTIVE_HIGH>, <&gpm11 0 GPIO_ACTIVE_LOW>;

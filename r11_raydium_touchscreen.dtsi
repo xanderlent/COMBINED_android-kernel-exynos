@@ -6,9 +6,11 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	raydium@39 {
+	raydium: raydium@39 {
 		compatible = "raydium,raydium-ts";
 		reg = <0x39>;
+		status = "disabled";
+
 		raydium,reset-gpio = <&gpp3 2 GPIO_ACTIVE_LOW>;
 		raydium,irq-gpio =<&gpa0 5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "pmx_ts_active";

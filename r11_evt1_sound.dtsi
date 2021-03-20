@@ -1,0 +1,17 @@
+#include <dt-bindings/clock/exynos9110.h>
+
+&sound {
+	clock-names = "xclkout";
+	clocks = <&clock OSCCLK_AUD>;
+
+	uaif0 {
+		codec {
+			sound-dai = <&cs35l41>;
+		};
+	};
+	uaif1 {
+		codec {
+			sound-dai = <&mcu_mic_codec>;
+		};
+	};
+};

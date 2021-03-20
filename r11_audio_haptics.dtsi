@@ -54,43 +54,18 @@
 	pinctrl-0 = <&haptics_refclk>;
 };
 
-&hsi2c_8 {
+&i2c_2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "ok";
 
-	cs35l41: cs35l41@40 {
-		#sound-dai-cells = <0>;
-		compatible = "cirrus,cs35l41";
-		reg = <0x40>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&smart_amp_rst>;
-		reset-gpios = <&gpg1 1 GPIO_ACTIVE_HIGH>;
-		interrupts-extended = <&gpa1 0 IRQ_TYPE_LEVEL_LOW>;
-
-		cirrus,boost-peak-milliamp = <1600>;
-		cirrus,boost-ind-nanohenry = <1000>;
-		cirrus,boost-cap-microfarad = <30>;
-		cirrus,boost-ctl-millivolt = <5500>;
-
-		// Mode 3: Hi-Z during unused slots and while all transmit channels disabled
-		cirrus,asp-sdout-hiz = <3>;
-		status = "ok";
-
-		// GPIO/INT pin configuration
-		cirrus,gpio-config2 {
-			// Mode 2: Open Drain INTB
-			cirrus,gpio-src-select = <2>;
-		};
-	};
-
-	r11_cs40l25: cs40l25@43 {
+	dev2_cs40l25: dev2-cs40l25@43 {
 		compatible = "cirrus,cs40l25";
 		pinctrl-names = "default";
 		pinctrl-0 = <&haptics_rst>;
 		reset-gpios = <&gpg7 0 GPIO_ACTIVE_HIGH>;
 		reg = <0x43>;
+		status = "disabled";
 		interrupts-extended = <&gpa1 0 IRQ_TYPE_LEVEL_LOW>;
 
 		cirrus,boost-ind-nanohenry = <1000>;
@@ -111,7 +86,66 @@
 		cirrus,asp-slot-width = <16>;
 		cirrus,asp-samp-width = <16>;
 		cirrus,fw-id-remap = <0x1400CB>;
-		status = "ok";
+	};
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";
+
+	cs35l41: cs35l41@40 {
+		compatible = "cirrus,cs35l41", "cirrus,cs35l40";
+		reg = <0x40>;
+		VA-supply = <&cs35l41_logic_voltage_regulator>;
+		VP-supply = <&cs35l41_speaker_power_regulator>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&smart_amp_rst>;
+		reset-gpios = <&gpg1 1 GPIO_ACTIVE_HIGH>;
+		interrupts-extended = <&gpa1 0 IRQ_TYPE_LEVEL_LOW>;
+
+		cirrus,boost-peak-milliamp = <1600>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <30>;
+		cirrus,boost-ctl-millivolt = <5500>;
+
+		// Mode 3: Hi-Z during unused slots and while all transmit channels disabled
+		cirrus,asp-sdout-hiz = <3>;
+
+		// GPIO/INT pin configuration
+		cirrus,gpio-config2 {
+			// Mode 2: Open Drain INTB
+			cirrus,gpio-src-select = <2>;
+		};
+	};
+
+	proto1_cs40l25: proto1-cs40l25@43 {
+		compatible = "cirrus,cs40l25";
+		pinctrl-names = "default";
+		pinctrl-0 = <&haptics_rst>;
+		reset-gpios = <&gpg7 0 GPIO_ACTIVE_HIGH>;
+		reg = <0x43>;
+		status = "disabled";
+		interrupts-extended = <&gpa1 0 IRQ_TYPE_LEVEL_LOW>;
+
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <4>;
+		cirrus,boost-ipk-milliamp = <4500>;
+		cirrus,boost-ctl-millivolt = <5000>; /* 5V */
+		cirrus,boost-ovp-millivolt = <9000>; /* 9V */
+
+		cirrus,f0-default = <2514000>; /* 153 Hz */
+		cirrus,redc-default = <327728>; /* 15 Ohm */
+
+		cirrus,refclk-gpio2;
+
+		cirrus,asp-fmt = <0>;
+		cirrus,asp-bclk-freq-hz = <3072000>;
+		cirrus,asp-slot-num = <2>;
+		cirrus,asp-slot-width = <16>;
+		cirrus,asp-samp-width = <16>;
+		cirrus,fw-id-remap = <0x1400CB>;
 	};
 };
 

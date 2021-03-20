@@ -6,10 +6,10 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	novatek@62 {
+	novatek: novatek@62 {
 		compatible = "novatek,NVT-ts";
 		reg = <0x62>;
-		status = "ok";
+		status = "disabled";
 
 		novatek,irq-gpio =<&gpa0 5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";

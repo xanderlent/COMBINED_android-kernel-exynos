@@ -20,12 +20,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 
-#include "r11_st21_nfc.dtsi"
-#include "r11_spi4_st54_ese.dtsi"
-#include "r11_cp.dtsi"
-#include "r11_dev1_common.dtsi"
-#include "r11_boe_display_lcd.dtsi"
-#include "r11_novatek_touchscreen.dtsi"
+#include "r11_dev2_battery.dtsi"
+#include "r11_proto1_sound.dtsi"
 
 / {
 	compatible = "google,r11";
@@ -35,16 +31,41 @@
 	fragment@common {
 		target-path = "/";
 		__overlay__ {
-			#address-cells = <2>;
-			#size-cells = <1>;
-			model = "Google R11 Dev2";
-
-			chosen {
-				bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
-			};
-			/include/ "r11_dev1_battery_root.dtsi"
-			/include/ "r11_common_root.dtsi"
-			/include/ "r11_proto1_sound_root.dtsi"
+			model = "Google R11 Dev2 BOE";
 		};
 	};
+};
+
+&panel_0 {
+	ddi_id = <0x1>;
+	lcd_info = <&wf012fbm>;
+};
+
+&pat9150 {
+	status = "ok";
+};
+
+&dev2_cs40l25 {
+	status = "ok";
+};
+
+&dev2_hl6111 {
+	status = "ok";
+};
+
+&novatek {
+	status = "ok";
+};
+
+&sensorhub_spi0 {
+	status = "ok";
+};
+
+&ese_spi4 {
+	status = "ok";
+};
+
+&ldo22_reg {
+	regulator-always-on;
+	regulator-initial-mode = <3>;
 };

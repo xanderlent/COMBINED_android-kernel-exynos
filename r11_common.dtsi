@@ -334,10 +334,18 @@
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 			};
+			ldo15_reg: LDO15 {
+				regulator-name = "vdd_ldo15";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <0>;
+			};
 			ldo16_reg: LDO16 {
 				regulator-name = "vdd_ldo16";
 				regulator-min-microvolt = <2450000>;
 				regulator-max-microvolt = <2450000>;
+				regulator-always-on;
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 			};
@@ -373,6 +381,13 @@
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 			};
+			ldo22_reg: LDO22 {
+				regulator-name = "vdd_ldo22";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3375000>;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <0>;
+			};
 			ldo25_reg: LDO25 {
 				regulator-name = "vdd_ldo25";
 				regulator-min-microvolt = <1800000>;
@@ -387,6 +402,27 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-ramp-delay = <12000>;
+			};
+			ldo28_reg: LDO28 {
+				regulator-name = "vdd_ldo28";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <0>;
+			};
+			ldo29_reg: LDO29 {
+				regulator-name = "vdd_ldo29";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3375000>;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <0>;
+			};
+			ldo30_reg: LDO30 {
+				regulator-name = "vdd_ldo30";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-ramp-delay = <12000>;
+				regulator-initial-mode = <0>;
 			};
 		};
 	};

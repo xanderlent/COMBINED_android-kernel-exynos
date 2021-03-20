@@ -1,0 +1,14 @@
+&sound {
+	mixer-paths = "mixer_paths_obsolete.xml";
+
+	uaif0 {
+		codec {
+			sound-dai = <&audio_codec_cod9005x>;
+		};
+	};
+	uaif1 {
+		codec {
+			sound-dai = <&mcu_mic_codec &cs35l41>;
+		};
+	};
+};

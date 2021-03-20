@@ -20,10 +20,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 
-#include "r11_st21_nfc.dtsi"
-#include "r11_spi4_st54_ese.dtsi"
-#include "r11_cp.dtsi"
-#include "r11_proto1_common.dtsi"
+#include "r11_proto1_battery.dtsi"
+#include "r11_proto1_sound.dtsi"
 
 / {
 	compatible = "google,r11";
@@ -34,13 +32,35 @@
 		target-path = "/";
 		__overlay__ {
 			model = "Google R11 Proto1";
-
-			chosen {
-				bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
-			};
-			/include/ "r11_proto1_battery_root.dtsi"
-			/include/ "r11_common_root.dtsi"
-			/include/ "r11_proto1_sound_root.dtsi"
 		};
 	};
+};
+
+&panel_0 {
+	ddi_id = <0x1>;
+	lcd_info = <&wf012fbm>;
+};
+
+&pat9126 {
+	status = "ok";
+};
+
+&proto1_cs40l25 {
+	status = "ok";
+};
+
+&proto1_hl6111 {
+	status = "ok";
+};
+
+&novatek {
+	status = "ok";
+};
+
+&sensorhub_spi0 {
+	status = "ok";
+};
+
+&ese_spi4 {
+	status = "ok";
 };

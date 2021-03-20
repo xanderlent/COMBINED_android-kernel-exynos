@@ -20,8 +20,6 @@ google_battery: battery {
 	battery,fuelgauge_name = "s2mpw02-fuelgauge";
 	battery,wlc_name = "hl6111-charger";
 	battery,bat_tz_name = "BATT_NTC";
-	battery,wlc_tz_name = "PPG_NTC";
-	battery,wlc_cdev_name = "wlc_cool_dev";
 
 	battery,vendor = "Desay";
 	battery,chg_volt_limits = <4200 4300>;
@@ -48,18 +46,15 @@ google_battery: battery {
 	battery,temp_hysteresis = <10>; // 1 degree
 	battery,voltage_hysteresis = <100>; // 100 mV
 	battery,max_rawsoc = <10000>; /* In units of 0.01% */
-        battery,charge_full_design = <300000>; /* 300000 uAh */
+	battery,charge_full_design = <300000>; /* 300000 uAh */
 };
 
 wlc_cool_dev: wlc_cool_dev {
-	#cooling-cells = <2>;
 };
 
 tsmab104_ntc: thermal-sensor {
 	compatible = "google,ntc-thermal";
 	#thermal-sensor-cells = <1>;
-	io-channels = <&exynos_adc 0>, <&exynos_adc 1>, <&exynos_adc 5>, <&exynos_adc 4>, <&exynos_adc 6>;
-	io-channel-names = "soc-ntc", "batt-ntc", "lte-ntc", "audio-ntc", "ppg-ntc";
 	enable-gpio = <&gpg2 0 0>;
 	ref-voltage = <1800000>;
 
@@ -232,58 +227,21 @@ tsmab104_ntc: thermal-sensor {
 		125000	46580 >;
 };
 
-thermal-zones {
-	SOC_NTC {
+thermal_zones: thermal-zones {
+	soc_ntc: SOC_NTC {
 		polling-delay = <15000>; /* milliseconds */
 		polling-delay-passive = <0>; /* milliseconds */
 		thermal-sensors = <&tsmab104_ntc 0>;
 	};
-	BATT_NTC {
+	batt_ntc: BATT_NTC {
 		polling-delay = <1000>; /* milliseconds */
 		polling-delay-passive = <0>; /* milliseconds */
 		thermal-sensors = <&tsmab104_ntc 1>;
-                trips {
-                	battery_shutdown: battery-shutdown {
-                        	temperature = <60000>;
-                                hysteresis = <1000>;
-                                type = "critical";
-                        };
-                };
 	};
-	LTE_PA_NTC {
-		polling-delay = <15000>; /* milliseconds */
-		polling-delay-passive = <0>; /* milliseconds */
-		thermal-sensors = <&tsmab104_ntc 2>;
+	lte_pa_ntc: LTE_PA_NTC {
 	};
-	AUDIO_NTC {
-		polling-delay = <15000>; /* milliseconds */
-		polling-delay-passive = <0>; /* milliseconds */
-		thermal-sensors = <&tsmab104_ntc 3>;
+	audio_ntc: AUDIO_NTC {
 	};
-	PPG_NTC {
-		polling-delay = <1000>; /* milliseconds */
-		polling-delay-passive = <0>; /* milliseconds */
-		thermal-sensors = <&tsmab104_ntc 4>;
-		governor = "bang_bang";
-		trips {
-			// TODO: Adjust these thresholds using EVT data
-			// Because the NTC location has changed
-			wlc_throttle: wlc-throttle {
-				temperature = <49000>;
-				hysteresis = <2000>;
-				type = "passive";
-			};
-			skin_backup_shutdown: skin-backup-shutdown {
-				temperature = <53000>;
-				hysteresis = <1000>;
-				type = "critical";
-			};
-		};
-		cooling-maps {
-			wireless-charge-disabled {
-				trip = <&wlc_throttle>;
-				cooling-device = <&wlc_cool_dev (~0) (~0) >; /* THERMAL_NO_LIMIT THERMAL_NO_LIMIT */
-			};
-		};
+	ppg_ntc: PPG_NTC {
 	};
 };

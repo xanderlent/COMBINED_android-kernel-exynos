@@ -20,10 +20,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 
-#include "r11_cp.dtsi"
-#include "r11_dev1_common.dtsi"
-#include "r11_auo_display_lcd.dtsi"
-#include "r11_raydium_touchscreen.dtsi"
+#include "r11_dev2_battery.dtsi"
+#include "r11_proto1_sound.dtsi"
 
 / {
 	compatible = "google,r11";
@@ -34,13 +32,40 @@
 		target-path = "/";
 		__overlay__ {
 			model = "Google R11 Dev2 no NFC";
-
-			chosen {
-			        bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0 androidboot.selinux=permissive";
-			};
-			/include/ "r11_dev1_battery_root.dtsi"
-			/include/ "r11_common_root.dtsi"
-			/include/ "r11_proto1_sound_root.dtsi"
 		};
 	};
+};
+
+&panel_0 {
+	ddi_id = <0x2>;
+	lcd_info = <&hb120blx01>;
+};
+
+&pat9150 {
+	status = "ok";
+};
+
+&dev2_cs40l25 {
+	status = "ok";
+};
+
+&dev2_hl6111 {
+	status = "ok";
+};
+
+&raydium {
+	status = "ok";
+};
+
+&sensorhub_spi0 {
+	status = "ok";
+};
+
+&st21nfc {
+	status = "disabled";
+};
+
+&ldo22_reg {
+	regulator-always-on;
+	regulator-initial-mode = <3>;
 };

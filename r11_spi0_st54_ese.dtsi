@@ -15,14 +15,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_bus &spi0_cs>;
 
-	ese: ese@0 {
+	ese_spi0: ese_spi0@0 {
 		compatible = "st,st54j_se";
 		reg = <0>;
 		spi-max-frequency = <8000000>;		/* Arbitrary SPI CLK FREQ */
 		esereset-gpios = <&gpg0 0 0x00>;	/* SOC_NFC_ESE_RST_L */
 		pinctrl-names = "default";
-		pinctrl-0 = <&ese_nreset>;
-		status = "ok";
+		pinctrl-0 = <&ese_spi0_nreset>;
+		status = "disabled";
 
 		controller-data {
 			cs-gpio = <&gpm3 0 0>;
@@ -34,7 +34,7 @@
 
 &pinctrl_5 {
 	/* SOC_NFC_ESE_RST_L */
-	ese_nreset: ese-nreset {
+	ese_spi0_nreset: ese-spi0-nreset {
 		samsung,pins = "gpg0-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;

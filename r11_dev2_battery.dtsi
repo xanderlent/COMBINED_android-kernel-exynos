@@ -1,0 +1,4 @@
+&tsmab104_ntc {
+	io-channels = <&exynos_adc 0>, <&exynos_adc 1>;
+	io-channel-names = "soc-ntc", "batt-ntc";
+};

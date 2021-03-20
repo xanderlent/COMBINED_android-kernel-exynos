@@ -11,7 +11,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_bus>;
 
-	sensorhub@0 {
+	sensorhub_spi0: sensorhub-spi0@0 {
 		compatible = "nanohub";
 		reg = <0>;
 		spi-max-frequency = <33333333>;
@@ -24,8 +24,8 @@
 		sensorhub,irq2-gpio = <&gpa0 6 0>;
 		sensorhub,spi-cs-gpio = <&gpm3 0 0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sensorhub_nreset &sensorhub_boot0 &sensorhub_wakeup &sensorhub_irq1 &sensorhub_irq2 &sensorhub_spi_cs>;
-		status = "ok";
+		pinctrl-0 = <&sensorhub_spi0_nreset &sensorhub_spi0_boot0 &sensorhub_spi0_wakeup &sensorhub_spi0_irq1 &sensorhub_spi0_irq2 &sensorhub_spi0_cs>;
+		status = "disabled";
 
 		controller-data {
 			samsung,spi-chip-select-mode = <0>;
@@ -34,12 +34,12 @@
 };
 
 &pinctrl_0 {
-	sensorhub_irq1: sensorhub-irq1 {
+	sensorhub_spi0_irq1: sensorhub-spi0-irq1 {
 		samsung,pins = "gpa0-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 	};
-	sensorhub_irq2: sensorhub-irq2 {
+	sensorhub_spi0_irq2: sensorhub-spi0-irq2 {
 		samsung,pins = "gpa0-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
@@ -47,7 +47,7 @@
 };
 
 &pinctrl_1 {
-	sensorhub_spi_cs: sensorhub-spi-cs {
+	sensorhub_spi0_cs: sensorhub-spi0-cs {
 		samsung,pins = "gpm3-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -58,7 +58,7 @@
 };
 
 &pinctrl_5 {
-	sensorhub_nreset: sensorhub-nreset {
+	sensorhub_spi0_nreset: sensorhub-spi0-nreset {
 		samsung,pins = "gpg3-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -66,7 +66,7 @@
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
-	sensorhub_wakeup: sensorhub-wakeup {
+	sensorhub_spi0_wakeup: sensorhub-spi0-wakeup {
 		samsung,pins = "gpg4-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -74,7 +74,7 @@
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
-	sensorhub_boot0: sensorhub-boot0 {
+	sensorhub_spi0_boot0: sensorhub-spi0-boot0 {
 		samsung,pins = "gpg7-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
