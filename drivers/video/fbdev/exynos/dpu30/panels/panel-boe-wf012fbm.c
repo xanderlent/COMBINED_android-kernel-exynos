@@ -48,8 +48,14 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 	/* Page Select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 
-	/* Sleep out , wait 70ms*/
-	dsim_write_data_seq_delay(dsim, 70, MIPI_DCS_EXIT_SLEEP_MODE);
+	/* Sleep out , wait 15ms*/
+	dsim_write_data_seq_delay(dsim, 15, MIPI_DCS_EXIT_SLEEP_MODE);
+
+	/* Set display to 30Hz, wait the rest of the 70ms after sleep out */
+	/* These values were provided from the vendor. Page select: */
+	dsim_write_data_seq(dsim, false, 0xff, 0x10);
+	/* Write 0x81 to register 0x6F to set 30Hz */
+	dsim_write_data_seq_delay(dsim, 55, 0x6F, 0x81);
 
 	/* Display on */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_SET_DISPLAY_ON);
