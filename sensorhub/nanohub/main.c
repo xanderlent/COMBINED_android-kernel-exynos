@@ -665,6 +665,35 @@ static ssize_t nanohub_time_sync(struct device *dev,
 	}
 }
 
+static ssize_t nanohub_mcu_wake_lock(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	uint8_t lock;
+	uint8_t result;
+	int ret;
+
+	if (count >= 1 && buf[0] == '0') {
+		lock = 0;
+	} else if (count >= 1 && buf[0] == '1') {
+		lock = 1;
+	} else {
+		return count;
+	}
+
+	if (request_wakeup(data))
+		return -ERESTARTSYS;
+
+	ret = nanohub_comms_tx_rx_retrans(
+		data, CMD_COMMS_MCU_WAKE_LOCK, ID_NANOHUB_COMMS,
+		(uint8_t *)&lock, sizeof(lock), NULL,
+		(uint8_t *)&result, sizeof(result), false, 10, 10);
+
+	release_wakeup(data);
+	return count;
+}
+
 static inline int nanohub_wakeup_lock(struct nanohub_data *data, int mode)
 {
 	int ret;
@@ -1061,6 +1090,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(app_info, 0440, nanohub_app_info, NULL),
 	__ATTR(firmware_version, 0440, nanohub_firmware_query, NULL),
 	__ATTR(time_sync, 0440, nanohub_time_sync, NULL),
+	__ATTR(wake_lock, 0220, NULL, nanohub_mcu_wake_lock),
 #ifdef CONFIG_NANOHUB_BL
 	__ATTR(download_bl, 0220, NULL, nanohub_download_bl),
 #endif

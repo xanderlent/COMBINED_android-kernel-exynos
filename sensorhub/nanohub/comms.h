@@ -77,6 +77,7 @@ int nanohub_comms_tx_rx_retrans(struct nanohub_data *, uint32_t, uint8_t,
 #define CMD_COMMS_GET_APP_VERSIONS	0x001001
 #define CMD_COMMS_QUERY_APP_INFO	0x001002
 #define CMD_COMMS_TIME_SYNC		0x001003
+#define CMD_COMMS_MCU_WAKE_LOCK		0x001004
 
 #define CMD_COMMS_START_KERNEL_UPLOAD	0x001040
 #define CMD_COMMS_KERNEL_CHUNK		0x001041
