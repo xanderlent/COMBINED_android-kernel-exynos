@@ -54,7 +54,8 @@ struct nanohub_data {
 	#define ID_NANOHUB_RENDER 18
 	#define ID_NANOHUB_DEBUG_LOG 19
 	#define ID_NANOHUB_METRICS 20
-	#define ID_NANOHUB_MAX 21
+	#define ID_NANOHUB_CONSOLE 21
+	#define ID_NANOHUB_MAX 22
 
 	struct iio_dev *iio_dev;
 	struct nanohub_io io[ID_NANOHUB_MAX];
