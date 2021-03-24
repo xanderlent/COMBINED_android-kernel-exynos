@@ -17,6 +17,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "ok";		/* Enable I2C0 */
+	samsung,i2c-max-bus-freq = <400000>;
 
 	/* NFC ST - st21nfc */
 	st21nfc: st21nfc@08 {		/* Default I2C address 0x08 */
