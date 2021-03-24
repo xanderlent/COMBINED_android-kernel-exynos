@@ -197,7 +197,7 @@
 			samsung,id = <0>;
 			clocks = <&clock DOUT_AUD_UAIF0>, <&clock GATE_ABOX_S_BCLK0>;
 			clock-names = "bclk", "bclk_gate";
-			pinctrl-names = "active", "idle";
+			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&aud_i2s0_bus>;
 			pinctrl-1 = <&aud_i2s0_idle>;
 			#sound-dai-cells = <0>;
@@ -211,7 +211,7 @@
 			samsung,id = <1>;
 			clocks = <&clock DOUT_AUD_UAIF1>, <&clock GATE_ABOX_S_BCLK1>;
 			clock-names = "bclk", "bclk_gate";
-			pinctrl-names = "active", "idle";
+			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&aud_i2s1_bus>;
 			pinctrl-1 = <&aud_i2s1_idle>;
 			#sound-dai-cells = <0>;
