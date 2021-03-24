@@ -603,7 +603,7 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *dai;
 	struct snd_soc_dai_link *link;
-	int nlink = card->num_links - 1;
+	int nlink = 0;
 	int rc, ret;
 	unsigned int i;
 	const char *cur = NULL;
@@ -705,7 +705,7 @@ static int exynos9110_audio_probe(struct platform_device *pdev)
 		link->dai_fmt = snd_soc_of_parse_daifmt(dai, NULL, NULL,
 				NULL);
 
-		if (nlink-- == 0)
+		if (++nlink == card->num_links)
 			break;
 	}
 
