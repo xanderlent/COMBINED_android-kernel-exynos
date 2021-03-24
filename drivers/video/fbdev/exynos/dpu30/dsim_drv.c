@@ -999,7 +999,11 @@ static int _dsim_enable(struct dsim_device *dsim, enum dsim_state state)
 	/* DPHY power on : iso release */
 	dsim_phy_power_on(dsim);
 
-	panel_ctrl = (state == DSIM_STATE_ON) ? true : false;
+	if (state == DSIM_STATE_ON || state == DSIM_STATE_DOZE ||
+			state == DSIM_STATE_DOZE_SUSPEND)
+		panel_ctrl = true;
+	else
+		panel_ctrl = false;
 	dsim_reg_init(dsim->id, &dsim->panel->lcd_info, &dsim->clks, panel_ctrl);
 	dsim_reg_start(dsim->id);
 
@@ -1057,14 +1061,6 @@ static int dsim_doze(struct dsim_device *dsim)
 	}
 
 	dsim_info("dsim-%d %s +\n", dsim->id, __func__);
-	if (prev_state == DSIM_STATE_OFF) {
-		ret = _dsim_enable(dsim, DSIM_STATE_ON);
-		if (ret < 0) {
-			dsim_err("dsim-%d failed to set %s (ret %d)\n",
-			    dsim->id, dsim_state_names[DSIM_STATE_ON], ret);
-			goto out;
-		}
-	}
 	ret = _dsim_enable(dsim, next_state);
 	if (ret < 0) {
 		dsim_err("dsim-%d failed to set %s (ret %d)\n",
@@ -1168,14 +1164,6 @@ static int dsim_doze_suspend(struct dsim_device *dsim)
 		dsim_warn("dsim-%d %s already %s state\n", dsim->id,
 				__func__, dsim_state_names[dsim->state]);
 		return 0;
-	}
-	if (prev_state == DSIM_STATE_OFF) {
-		ret = _dsim_enable(dsim, DSIM_STATE_ON);
-		if (ret < 0) {
-			dsim_err("dsim-%d failed to set %s (ret %d)\n",
-			    dsim->id, dsim_state_names[DSIM_STATE_ON], ret);
-			goto out;
-		}
 	}
 	ret = _dsim_enable(dsim, next_state);
 
