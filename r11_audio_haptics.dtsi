@@ -95,10 +95,9 @@
 	status = "ok";
 
 	cs35l41: cs35l41@40 {
-		compatible = "cirrus,cs35l41", "cirrus,cs35l40";
+		#sound-dai-cells = <0>;
+		compatible = "cirrus,cs35l41";
 		reg = <0x40>;
-		VA-supply = <&cs35l41_logic_voltage_regulator>;
-		VP-supply = <&cs35l41_speaker_power_regulator>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&smart_amp_rst>;
