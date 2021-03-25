@@ -350,5 +350,7 @@ gpio_keys {
 		label = "side_button";
 		linux,code = <114>;
 		gpios = <&gpm22 0 1>;
+		wakeup-source;
+		wakeup-event-action = <0>;
 	};
 };
