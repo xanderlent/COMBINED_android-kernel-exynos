@@ -5942,8 +5942,6 @@ static int abox_enable(struct device *dev)
 	unsigned int i, value;
 	bool has_reset = !abox_is_timer_set(data);
 	int ret = 0;
-	struct pinctrl *p;
-	struct pinctrl_state *s;
 
 	dev_info(dev, "%s\n", __func__);
 
@@ -5992,28 +5990,7 @@ static int abox_enable(struct device *dev)
 		goto error;
 	}
 
-	//abox_cfg_gpio(dev, "default");
-	p = pinctrl_get(dev);
-	if (IS_ERR(p)) {
-		dev_info(dev, "Failed to get pinctrl\n");
-		goto error;
-	}
-
-	s = pinctrl_lookup_state(p, "active");
-	if (IS_ERR(s)) {
-		dev_info(dev, "Failed to pinctrl lookup state\n");
-		pinctrl_put(p);
-		goto error;
-	}
-
-	ret = pinctrl_select_state(p, s);
-	if (ret < 0) {
-		dev_info(dev, "Failed to pinctrl select state\n");
-		pinctrl_put(p);
-		goto error;
-	}
-
-	pinctrl_put(p);
+	abox_cfg_gpio(dev, "default");
 
 	abox_restore_register(data);
 	if (!has_reset) {
