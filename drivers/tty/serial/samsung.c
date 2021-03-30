@@ -2212,6 +2212,10 @@ static int s3c24xx_serial_resume(struct device *dev)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
+		if (!IS_ERR(ourport->usi_reg))
+			regmap_update_bits(ourport->usi_reg,
+				ourport->usi_offset, USI_SW_CONF_MASK,
+				USI_UART_SW_CONF);
 
 		uart_resume_port(&s3c24xx_uart_drv, port);
 
@@ -2231,10 +2235,6 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
-		if (!IS_ERR(ourport->usi_reg))
-			regmap_update_bits(ourport->usi_reg, ourport->usi_offset,
-					USI_SW_CONF_MASK, USI_UART_SW_CONF);
-
 		/* restore IRQ mask */
 		if (s3c24xx_serial_has_interrupt_mask(port)) {
 			unsigned int uintm = 0xf;
