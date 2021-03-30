@@ -2630,11 +2630,12 @@ static int cs35l41_component_probe(struct snd_soc_component *component)
 		* otherwise sound will not be produced.
 		* NOTE: May look into moving the clock source selection and frequency into
 		*	DTS in the future. */
-		ret = snd_soc_component_set_sysclk(component,
-					/* clk_id    = */ CS35L41_PLLSRC_LRCLK,
-					/* source    = */ 0, /* ignored */
-					/* frequency = */ 48000,
-					/* dir       = */ 0 /* ignored */);
+		ret = snd_soc_component_set_sysclk(
+			component,
+			/* clk_id    = */ CS35L41_PLLSRC_LRCLK,
+			/* source    = */ 0, /* ignored */
+			/* frequency = */ cs35l41->sample_rate_hz,
+			/* dir       = */ 0 /* ignored */);
 		if (ret != 0)
 			dev_err(cs35l41->dev, "Failed to set SYS CLK: %d\n", ret);
 
@@ -2776,6 +2777,12 @@ static int cs35l41_handle_of_data(struct device *dev,
 	if (!np)
 		return 0;
 
+	cs35l41->sample_rate_hz = 48000;
+	ret = of_property_read_u32(np, "sample_rate_hz", &val);
+	if (ret >= 0)
+		cs35l41->sample_rate_hz = val;
+
+	dev_info(dev, "cs35l41 sample rate: %zu \n", cs35l41->sample_rate_hz);
 	ret = of_property_count_strings(np, "cirrus,fast-switch");
 	if (ret < 0) {
 		/*
