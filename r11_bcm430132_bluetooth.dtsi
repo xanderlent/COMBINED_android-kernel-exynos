@@ -41,9 +41,50 @@
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
 	};
+
+	/* UART USI_00 */
+	uart5_cts: uart5-cts {
+		samsung,pins = "gpc0-3";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <1>;      /* default 2 */
+		samsung,pin-con-pdn = <2>;
+		samsung,pin-pud-pdn = <3>;
+	};
+
+	/* UART USI_00 */
+	uart5_rts: uart5-rts {
+		samsung,pins = "gpc0-2";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <1>;      /* default 2 */
+		samsung,pin-con-pdn = <1>;
+		samsung,pin-pud-pdn = <0>;
+	};
+
+	/* UART USI_00 */
+	uart5_tx: uart5-tx {
+		samsung,pins = "gpc0-1";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <1>;      /* default 2 */
+		samsung,pin-con-pdn = <2>;
+		samsung,pin-pud-pdn = <3>;
+	};
+
+	/* UART USI_00 */
+	uart5_rx: uart5-rx {
+		samsung,pins = "gpc0-0";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <1>;      /* default 2 */
+		samsung,pin-con-pdn = <2>;
+		samsung,pin-pud-pdn = <3>;
+	};
 };
 
 &serial_5 {
+	pinctrl-0 = <&uart5_cts &uart5_rts &uart5_tx &uart5_rx>;
 	status = "okay";
 };
 
