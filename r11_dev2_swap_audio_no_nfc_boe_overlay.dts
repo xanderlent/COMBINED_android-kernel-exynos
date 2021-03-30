@@ -22,6 +22,7 @@
 
 #include "r11_dev2_battery.dtsi"
 #include "r11_evt1_sound.dtsi"
+#include "r11_evt1_speaker.dtsi"
 
 / {
 	compatible = "google,r11";
