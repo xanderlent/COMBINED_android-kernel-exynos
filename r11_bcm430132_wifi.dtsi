@@ -52,7 +52,7 @@
 		"fast-slew-rate-2x",
 		"fast-slew-rate-3x",
 		"fast-slew-rate-4x";
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4 &cfg_wlanen &cfg_wlanhostwake>;
 	pinctrl-1 = <&sd2_clk_fast_slew_rate_1x>;
 	pinctrl-2 = <&sd2_clk_fast_slew_rate_2x>;
 	pinctrl-3 = <&sd2_clk_fast_slew_rate_3x>;
@@ -68,8 +68,6 @@
 		compatible = "android,bcmdhd_wlan";
 		wl_reg_on = <&gpg5 0 0x1>; /* wlan reg_on pin */
 		wl_host_wake = <&gpm20 0 0x1>; /* wlan oob pin */
-		pinctrl-names = "default";
-		pinctrl-0 = <&cfg_wlanen &cfg_wlanhostwake>;
 		status = "okay";
 	};
 };
