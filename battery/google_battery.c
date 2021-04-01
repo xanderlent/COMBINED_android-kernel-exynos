@@ -63,6 +63,14 @@ static char *health_str[] = {
 	"UnderVoltage",
 };
 
+static char *power_supply_type_str[] = {
+	// Copied from drivers/power/supply/power_supply_sysfs.c
+	"Unknown", "Battery", "UPS", "Mains", "USB",
+	"USB_DCP", "USB_CDP", "USB_ACA", "USB_C",
+	"USB_PD", "USB_PD_DRP", "OTG", "HV_Mains",
+	"Prepare_TA", "SMART_NOTG", "Wireless"
+};
+
 static enum power_supply_property google_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -118,7 +126,7 @@ typedef struct battery_platform_data {
 
 	/* full check */
 	unsigned int full_check_count;
-	unsigned int chg_recharge_vcell;
+	unsigned int chg_recharge_vdrop;
 	int full_check_condition_soc;
 
 	int temp_hysteresis;
@@ -142,6 +150,8 @@ struct battery_info {
 	struct power_supply_desc psy_battery_desc;
 	struct power_supply *psy_ac;
 	struct power_supply_desc psy_ac_desc;
+	struct power_supply *psy_wireless;
+	struct power_supply_desc psy_wireless_desc;
 
 	struct mutex iolock;
 
@@ -158,6 +168,7 @@ struct battery_info {
 	int charging_current;
 	int topoff_current;
 	int power_supply_type;
+	int float_voltage;
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 	struct notifier_block batt_nb;
@@ -340,6 +351,7 @@ static int check_charging_current(struct battery_info *battery)
 			pr_err("%s: Fail to execute property VOLTAGE_MAX\n", __func__);
 		power_supply_put(psy);
 		battery->voltage_index = v_i;
+		battery->float_voltage = battery->pdata->volt_limits[v_i];
 	}
 
 	// Update topoff current if necessary
@@ -384,6 +396,27 @@ static int check_wlc_vout(struct battery_info *battery)
 		power_supply_put(psy);
 		battery->wlc_vout_setting = wlc_vout;
 	}
+	return 0;
+}
+
+static int set_wlc_online(struct battery_info *battery)
+{
+	union power_supply_propval value;
+	struct power_supply *psy;
+	int ret;
+	// Inform the WLC driver that we are receiving power
+	// It needs this to differentiate digital ping from actual power transfer
+	psy = power_supply_get_by_name(battery->pdata->wlc_name);
+	if (!psy)
+		return -EINVAL;
+	if (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS)
+		value.intval = 1;
+	else
+		value.intval = 0;
+	ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+	if (ret < 0)
+		pr_err("%s: Fail to execute WLC ONLINE property\n", __func__);
+	power_supply_put(psy);
 	return 0;
 }
 
@@ -470,11 +503,6 @@ static int set_battery_status(struct battery_info *battery,
 			return -EINVAL;
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
 		power_supply_put(psy);
-		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
-
-		if (ret < 0)
-			pr_err("%s: Fail to check charging current\n", __func__);
 
 		set_charger_mode(battery, BAT_CHG_MODE_CHARGING);
 		break;
@@ -489,8 +517,6 @@ static int set_battery_status(struct battery_info *battery,
 			return -EINVAL;
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
 		power_supply_put(psy);
-		if (ret < 0)
-			pr_err("%s: Fail to execute property\n", __func__);
 
 		set_charger_mode(battery, BAT_CHG_MODE_CHARGING_OFF);
 		battery->temp_index = -1;
@@ -539,19 +565,35 @@ static int set_battery_status(struct battery_info *battery,
 
 static void set_bat_status_by_cable(struct battery_info *battery)
 {
-	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY ||
-		battery->power_supply_type == POWER_SUPPLY_TYPE_UNKNOWN ||
-		battery->power_supply_type == POWER_SUPPLY_TYPE_OTG) {
-		battery->is_recharging = false;
-		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
-		return;
-	}
-	if (battery->status != POWER_SUPPLY_STATUS_FULL) {
-		set_battery_status(battery, POWER_SUPPLY_STATUS_CHARGING);
-		return;
+	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
+		// Power is disconnected
+		if (!battery->wlc_connected) {
+			// Physical charger disconnected
+			battery->is_recharging = false;
+			set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
+		} else {
+			// Physical WLC charger is still connected but lost power
+			if (battery->status != POWER_SUPPLY_STATUS_FULL) {
+				// If battery full, keep tracking that
+				set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
+			}
+		}
+	} else {
+		// Power is connected
+		if (battery->wlc_connected) {
+			if (battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING ||
+					battery->status == POWER_SUPPLY_STATUS_FULL) {
+				// Shut wireless charger back down
+				set_wlc_status(battery, battery->status);
+			}
+		}
+		if (battery->status != POWER_SUPPLY_STATUS_FULL) {
+			// Not fully charged
+			set_battery_status(battery, POWER_SUPPLY_STATUS_CHARGING);
+		}
 	}
 
-	dev_info(battery->dev, "%s: abnormal power_supply_type or status", __func__);
+	return;
 }
 
 static int battery_get_property(struct power_supply *psy,
@@ -652,10 +694,22 @@ static int ac_get_property(struct power_supply *psy,
 		val->intval = 0;
 		break;
 	}
-	/* TODO: move to wireless_get_property once we have wireless power supply type */
+
+	return 0;
+}
+
+static int wireless_get_property(struct power_supply *psy,
+		enum power_supply_property psp,
+		union power_supply_propval *val)
+{
+	struct battery_info *battery =  power_supply_get_drvdata(psy);
+
+	if (psp != POWER_SUPPLY_PROP_ONLINE)
+		return -EINVAL;
 	if (battery->wlc_connected)
 		val->intval = 1;
-
+	else
+		val->intval = 0;
 	return 0;
 }
 
@@ -663,6 +717,7 @@ static int ac_get_property(struct power_supply *psy,
 static int battery_handle_notification(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
+	muic_attached_dev_t attached_dev = *(muic_attached_dev_t *)data;
 	const char *cmd;
 	int power_supply_type;
 	struct battery_info *battery =
@@ -677,8 +732,11 @@ static int battery_handle_notification(struct notifier_block *nb,
 	case MUIC_NOTIFY_CMD_ATTACH:
 	case MUIC_NOTIFY_CMD_LOGICALLY_ATTACH:
 		cmd = "ATTACH";
-		// TODO: determine if wire or wireless. Need POWER_SUPPLY_TYPE_WIRELESS
-		power_supply_type = POWER_SUPPLY_TYPE_MAINS;
+		if (attached_dev == ATTACHED_DEV_WIRELESS_TA_MUIC) {
+			power_supply_type = POWER_SUPPLY_TYPE_WIRELESS;
+		} else {
+			power_supply_type = POWER_SUPPLY_TYPE_MAINS;
+		}
 		break;
 	default:
 		cmd = "ERROR";
@@ -686,28 +744,30 @@ static int battery_handle_notification(struct notifier_block *nb,
 		break;
 	}
 
-	dev_info(battery->dev, "%s: current_power_supply_type(%d) former power_supply_type(%d) battery_valid(%d)\n",
-			__func__, power_supply_type, battery->power_supply_type,
+	dev_info(battery->dev, "%s: current_power_supply_type(%s) former power_supply_type(%s) battery_valid(%d)\n",
+			__func__,
+			power_supply_type_str[power_supply_type],
+			power_supply_type_str[battery->power_supply_type],
 			battery->battery_valid);
 	if (battery->battery_valid == false)
 		dev_info(battery->dev, "%s: Battery is disconnected\n", __func__);
 
 	battery->power_supply_type = power_supply_type;
 
-	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
-		battery->is_recharging = false;
-		set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
-	} else {
-		if (battery->status != POWER_SUPPLY_STATUS_FULL)
-			set_battery_status(battery, POWER_SUPPLY_STATUS_CHARGING);
+	mutex_lock(&battery->wlc_state_lock);
+	set_bat_status_by_cable(battery);
+
+	if (battery->wlc_connected) {
+		set_wlc_online(battery);
 	}
+	mutex_unlock(&battery->wlc_state_lock);
 
 	dev_dbg(battery->dev,
-			"%s: Status(%s), Health(%s), Power Supply Type(%d), Recharging(%d))"
+			"%s: Status(%s), Health(%s), Power Supply Type(%s), Recharging(%d))"
 			"\n", __func__,
 			bat_status_str[battery->status],
 			health_str[battery->health],
-			battery->power_supply_type,
+			power_supply_type_str[battery->power_supply_type],
 			battery->is_recharging
 		  );
 
@@ -928,21 +988,30 @@ static void check_charging_full(
 	struct power_supply *psy;
 	int ret;
 	unsigned int raw_soc = 0;
-
-	if ((battery->status == POWER_SUPPLY_STATUS_DISCHARGING) ||
-			(battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING)) {
-		dev_dbg(battery->dev,
-				"%s: No Need to Check Full-Charged\n", __func__);
-		return;
+	int recharge_vcell;
+	if (!battery->wlc_connected) {
+		if ((battery->status == POWER_SUPPLY_STATUS_DISCHARGING) ||
+				(battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING)) {
+			dev_dbg(battery->dev,
+					"%s: No Need to Check Full-Charged\n", __func__);
+			return;
+		}
 	}
 
 	/* Recharging check */
-	if (battery->status == POWER_SUPPLY_STATUS_FULL &&
-			battery->voltage_now < battery->pdata->chg_recharge_vcell &&
-			!battery->is_recharging) {
-		dev_info(battery->dev, "%s: Recharging start\n", __func__);
-		set_battery_status(battery, POWER_SUPPLY_STATUS_CHARGING);
-		battery->is_recharging = true;
+	if (battery->status == POWER_SUPPLY_STATUS_FULL) {
+		recharge_vcell = battery->float_voltage - battery->pdata->chg_recharge_vdrop;
+		if (battery->voltage_now < recharge_vcell && !battery->is_recharging) {
+			dev_info(battery->dev, "%s: Recharging start\n", __func__);
+			mutex_lock(&battery->wlc_state_lock);
+			if (battery->wlc_connected && battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
+				set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
+			} else {
+				set_battery_status(battery, POWER_SUPPLY_STATUS_CHARGING);
+			}
+			battery->is_recharging = true;
+			mutex_unlock(&battery->wlc_state_lock);
+		}
 	}
 
 	/* Full charged check */
@@ -978,8 +1047,10 @@ static void check_charging_full(
 	/* If full charged, turn off charging. */
 	if (battery->full_check_cnt >= battery->pdata->full_check_count) {
 		battery->full_check_cnt = 0;
+		mutex_lock(&battery->wlc_state_lock);
 		battery->is_recharging = false;
 		set_battery_status(battery, POWER_SUPPLY_STATUS_FULL);
+		mutex_unlock(&battery->wlc_state_lock);
 		dev_info(battery->dev, "%s: Full charged, charger off\n", __func__);
 
 		/* Read raw SOC value from the fuel gauge */
@@ -998,7 +1069,7 @@ static void check_charging_full(
 		battery->charge_full = (raw_soc * (battery->charge_full_design / 100)) / 100;
 
 		/* Let fuelgauge update charge_full */
-                value.intval = battery->charge_full;
+		value.intval = battery->charge_full;
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL, &value);
 		if (ret < 0)
 			pr_err("%s: Fail to set charge_full property\n", __func__);
@@ -1075,7 +1146,7 @@ static void battery_external_power_changed(struct power_supply *psy) {
 		pr_err("Failed to get WLC PSY\n");
 		goto external_power_changed_fail;
 	}
-	ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_ONLINE, &value);
+	ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_PRESENT, &value);
 	if (ret < 0) {
 		pr_err("%s: Fail to execute property\n", __func__);
 	} else {
@@ -1083,6 +1154,10 @@ static void battery_external_power_changed(struct power_supply *psy) {
 			battery->wlc_connected = true;
 			dev_info(battery->dev, "WLC connected\n");
 		} else {
+			if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
+				battery->is_recharging = false;
+				set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
+			}
 			battery->wlc_connected = false;
 			dev_info(battery->dev, "WLC disconnected\n");
 		}
@@ -1126,7 +1201,7 @@ static void bat_monitor_work(struct work_struct *work)
 	if (battery->status == POWER_SUPPLY_STATUS_CHARGING) {
 		old_charging_current = battery->charging_current;
 		ret = check_charging_current(battery);
-		if (battery->charging_current == old_charging_current) {
+		if (battery->wlc_connected && battery->charging_current == old_charging_current) {
 			check_wlc_vout(battery);
 		}
 	}
@@ -1333,10 +1408,10 @@ static int google_battery_parse_dt(struct device *dev,
 	if (ret)
 		pr_info("%s : full_check_count is empty\n", __func__);
 
-	ret = of_property_read_u32(np, "battery,chg_recharge_vcell",
-			&pdata->chg_recharge_vcell);
+	ret = of_property_read_u32(np, "battery,chg_recharge_vdrop",
+			&pdata->chg_recharge_vdrop);
 	if (ret) {
-		pr_info("%s : chg_recharge_vcell is empty\n", __func__);
+		pr_info("%s : chg_recharge_vdrop is empty\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1612,6 +1687,13 @@ static int google_battery_probe(struct platform_device *pdev)
 	battery->psy_ac_desc.num_properties = ARRAY_SIZE(charging_props);
 	battery->psy_ac_desc.get_property = ac_get_property;
 
+	/* Register a wireless power supply for WLC power */
+	battery->psy_wireless_desc.name = "wireless";
+	battery->psy_wireless_desc.type = POWER_SUPPLY_TYPE_WIRELESS;
+	battery->psy_wireless_desc.properties = charging_props;
+	battery->psy_wireless_desc.num_properties = ARRAY_SIZE(charging_props);
+	battery->psy_wireless_desc.get_property = wireless_get_property;
+
 	/* Initialize work queue for periodic polling thread */
 	battery->monitor_wqueue =
 		create_singlethread_workqueue(dev_name(&pdev->dev));
@@ -1645,13 +1727,21 @@ static int google_battery_probe(struct platform_device *pdev)
 	}
 	pr_info("%s: Registered AC as power supply\n", __func__);
 
+	battery->psy_wireless = power_supply_register(&pdev->dev, &battery->psy_wireless_desc, &psy_cfg);
+	if (IS_ERR(battery->psy_wireless)) {
+		pr_err("%s: Failed to Register psy_ac\n", __func__);
+		ret = PTR_ERR(battery->psy_wireless);
+		goto err_unreg_ac;
+	}
+	pr_info("%s: Registered Wireless as power supply\n", __func__);
+
 	/* Initialize battery level*/
 	value.intval = 0;
 
 	psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
 	if (!psy) {
 		ret = -EINVAL;
-		goto err_unreg_ac;
+		goto err_unreg_wireless;
 	}
 	//read rawsoc only
 	value.intval = 1;
@@ -1696,6 +1786,8 @@ static int google_battery_probe(struct platform_device *pdev)
 
 	dev_info(battery->dev, "%s: Battery driver is loaded\n", __func__);
 	return 0;
+err_unreg_wireless:
+	power_supply_unregister(battery->psy_wireless);
 err_unreg_ac:
 	power_supply_unregister(battery->psy_ac);
 err_unreg_battery:

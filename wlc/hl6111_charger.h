@@ -189,6 +189,7 @@ struct hl6111_platform_data{
     unsigned int bypass;
     unsigned int ldop;
     unsigned int vout_range;
+    unsigned int trgt_vout_default;
     unsigned int trgt_vout;
     unsigned int trgt_vout_override;
     unsigned int trgt_vrect;
@@ -207,6 +208,7 @@ struct hl6111_charger{
 
     u32  debug_address;
     bool online;
+    bool tx_det;
 
     unsigned int vrect;
     unsigned int irect;

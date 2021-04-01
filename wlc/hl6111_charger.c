@@ -130,6 +130,7 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
         pr_err("Invalid TargetVout\n");
         pdata->trgt_vout = 0x15;
     }else{
+        pdata->trgt_vout_default = temp;
         pdata->trgt_vout = temp;
         LOG_DBG("trgt_vout[%d]\n", pdata->trgt_vout);
     }
@@ -197,10 +198,10 @@ static void hl6111_send_ept(struct hl6111_charger *chg, enum hl6111_ept_reason e
         hl6111_update_reg(chg, 0xED, 0x80, 0x80);
         LOG_DBG("internal!!\r\n");
     } else if (ept == sys_fault){
-        dev_info(chg->dev, "Sending EPT to TX\n");
+        dev_info(chg->dev, "Hot: Sending EPT to TX\n");
         hl6111_update_reg(chg, 0xED, 0x40, 0x40);
     }else if (ept == fully_charged){
-        LOG_DBG("fully_charged!!\r\n");
+        dev_info(chg->dev, "Full Charged: Sending EPT to TX\n");
         hl6111_update_reg(chg, 0xED, 0x20, 0x20);
     }else if (ept == over_temp){
         LOG_DBG("Over Temp\n");
@@ -637,7 +638,7 @@ static void hl6111_device_init(struct hl6111_charger *chg)
     int bypass = chg->pdata->bypass;
     int clm_vth = chg->pdata->clm_vth;
 
-    LOG_DBG("Start!!\r\n");
+    dev_info(chg->dev, "Sending initial WLC settings\n");
 
     hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);   //enable interrupt
 
@@ -712,24 +713,29 @@ static int hl6111_psy_set_property(struct power_supply *psy, enum power_supply_p
     LOG_DBG("Start!, prop==[%d], val==[%d]\n", psp, val->intval);
     switch(psp) {
         case POWER_SUPPLY_PROP_ONLINE:
-            LOG_DBG("ONLINE:\r\n");
-            if (val->intval == 0 ){      //charging off
+            dev_info(chg->dev, "Setting WLC online: %d\n", val->intval);
+            if (val->intval == 0 ) {      //charging off
                 chg->online = false;
-            }else{
+                disable_irq(chg->pdata->irq);
+            } else {
                 chg->online = true;
+                // Reset vout setting to default
+                chg->pdata->trgt_vout = chg->pdata->trgt_vout_default;
+                hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);
+                enable_irq(chg->pdata->irq);
+                hl6111_get_chip_info(chg);
+                hl6111_device_init(chg);
             }
 
             break;
         case POWER_SUPPLY_PROP_STATUS:
             LOG_DBG("STATUS:\r\n");
-            if (chg->online) {
-                if (val->intval == POWER_SUPPLY_STATUS_FULL){
-                    LOG_DBG("Fully charged!!\r\n");
-                    hl6111_send_ept(chg, fully_charged);
-                } else if (val->intval == POWER_SUPPLY_STATUS_NOT_CHARGING){
-                    LOG_DBG("Stop charging!!\r\n");
-                    hl6111_send_ept(chg, sys_fault);
-                }
+            if (val->intval == POWER_SUPPLY_STATUS_FULL){
+                LOG_DBG("Fully charged!!\r\n");
+                hl6111_send_ept(chg, fully_charged);
+            } else if (val->intval == POWER_SUPPLY_STATUS_NOT_CHARGING){
+                LOG_DBG("Stop charging!!\r\n");
+                hl6111_send_ept(chg, sys_fault);
             }
             break;
         case POWER_SUPPLY_PROP_PRESENT:
@@ -765,23 +771,12 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
     int sts;
 
     sts = gpio_get_value(chg->pdata->det_gpio);
-    if ((sts == 0) && (!chg->online)){
-        hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);
-        enable_irq(chg->pdata->irq);
-
-        LOG_DBG("TX is connected!! \r\n");
-        chg->online = true;
-
-        hl6111_get_chip_info(chg);
-
-        hl6111_device_init(chg);
-
-    }else if ((sts == 1) && (chg->online)){
-        disable_irq(chg->pdata->irq);
-
-        LOG_DBG("TX is not connected!! \r\n");
-        chg->online = false;
-
+    if (sts == 0){
+        dev_info(chg->dev, "TX connection detected\n");
+        chg->tx_det = true;
+    } else if (sts == 1) {
+        dev_info(chg->dev, "TX disconnection detected\n");
+        chg->tx_det = false;
     }
 
     power_supply_changed(chg->psy_chg);
@@ -888,6 +883,7 @@ static int hl6111_psy_get_property(struct power_supply *psy, enum power_supply_p
 
         case POWER_SUPPLY_PROP_PRESENT:
             LOG_DBG("PRESENT!!\r\n");
+            val->intval = chg->tx_det;
             break;
 
         case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT://output current limit
@@ -1472,16 +1468,12 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
     }else {
         if (gpio_get_value(charger->pdata->det_gpio) == 0){
 
-            LOG_DBG("TX is connected!! \r\n");
-            charger->online = true;
+            dev_info(charger->dev, "TX connection initially detected\n");
+            charger->tx_det = true;
 
-            hl6111_get_chip_info(charger);
-
-            hl6111_device_init(charger);
-            enable_irq(charger->pdata->irq);
         } else {
-            LOG_DBG("TX is not connected!! \r\n");
-            charger->online = false;
+            dev_info(charger->dev, "TX connection was not detected\n");
+            charger->tx_det = false;
         }
         ret = hl6111_irq_det_init(charger);
         if (ret < 0) {
@@ -1623,6 +1615,4 @@ module_exit(hl6111_charger_exit);
 
 MODULE_AUTHOR("luke.jang@halomicro.com");
 MODULE_LICENSE("GPL");
-
-
 
