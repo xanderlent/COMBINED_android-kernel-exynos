@@ -10,7 +10,7 @@
 		status = "disabled";
 
 		halo,int-gpio = <&gpa1 3 0>;
-		halo,det-gpio = <&gpm21 0 0>;
+		halo,det-gpio = <&gpm23 0 0>;
 		halo,clm-vth = <0x07>;
 		halo,bypass = <0x00>;		//5.0V
 		halo,ldop = <0x00>;		//1.8V
@@ -27,15 +27,15 @@
 &pinctrl_0 {
 	evt1_wlc_irq: evt1-wlc-irq {
 		samsung,pins = "gpa1-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
 
 &pinctrl_1 {
 	evt1_wlc_det: evt1-wlc-det {
-		samsung,pins = "gpm21-0";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pins = "gpm23-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
