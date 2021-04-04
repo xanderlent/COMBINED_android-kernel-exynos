@@ -489,3 +489,12 @@
 		bus-width = <8>;
 	};
 };
+
+/* disable unused reserved memory */
+&chub_rmem {
+	status = "disabled";
+};
+
+&gnss_rmem {
+	status = "disabled";
+};
