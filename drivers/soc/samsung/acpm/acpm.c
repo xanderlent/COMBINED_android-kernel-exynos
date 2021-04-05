@@ -401,7 +401,7 @@ static int __init exynos_acpm_init(void)
 {
 	return platform_driver_register(&samsung_acpm_driver);
 }
-arch_initcall_sync(exynos_acpm_init);
+subsys_initcall_sync(exynos_acpm_init);
 
 static int __init exynos_acpm_binary_update(void)
 {

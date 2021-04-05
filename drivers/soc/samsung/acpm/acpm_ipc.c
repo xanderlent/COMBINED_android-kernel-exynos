@@ -871,4 +871,4 @@ static int __init exynos_acpm_ipc_init(void)
 {
 	return platform_driver_register(&samsung_acpm_ipc_driver);
 }
-arch_initcall(exynos_acpm_ipc_init);
+subsys_initcall(exynos_acpm_ipc_init);
