@@ -125,6 +125,7 @@ int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 
 	return ret;
 }
+
 #if 0
 #if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp)
@@ -154,11 +155,13 @@ int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp)
 }
 #endif
 #endif
+
 static void acpm_noti_mif_callback(unsigned int *cmd, unsigned int size)
 {
 	pr_info("%s : req %d KHz\n", __func__, cmd[1]);
 	pm_qos_update_request(&mif_request_from_acpm, cmd[1]);
 }
+
 #if 0
 #if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 static int acpm_cpu_tmu_notifier(struct notifier_block *nb, unsigned long event, void *v)
@@ -260,6 +263,7 @@ static void acpm_dvfs_get_gpu_cold_temp_list(struct device *dev)
 }
 #endif
 #endif
+
 static int acpm_dvfs_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -275,7 +279,7 @@ static int acpm_dvfs_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	//pm_qos_add_request(&mif_request_from_acpm, PM_QOS_BUS_THROUGHPUT, 0);
+	pm_qos_add_request(&mif_request_from_acpm, PM_QOS_BUS_THROUGHPUT, 0);
 
 #if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 //	acpm_dvfs_get_cpu_cold_temp_list(dev);
