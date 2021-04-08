@@ -1,14 +1,16 @@
 #include <dt-bindings/gpio/gpio.h>
 
+&dsim_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&disp_power &disp_reset &mux_sel &mux_oe>;
+};
+
 &panel_0 {
 	/* reset, power */
 	gpios = <&gpc1 1 GPIO_ACTIVE_LOW>, <&gpm14 0 GPIO_ACTIVE_HIGH>;
 	mux-gpios = <&gpm10 0 GPIO_ACTIVE_HIGH>, <&gpm11 0 GPIO_ACTIVE_LOW>;
 	regulator_1p8v = "vdd_ldo21";
 	regulator_3p3v = "vdd_ldo20";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&disp_power>;
 
 	wf012fbm: wf012fbm {
 		id = <0x1>;
@@ -53,9 +55,35 @@
 };
 
 &pinctrl_2 {
-	disp_power: disp_power {
+	disp_power: disp-power {
 		samsung,pins = "gpm14-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	mux_sel: mux-sel {
+		samsung,pins = "gpm10-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	mux_oe: mux-oe {
+		samsung,pins = "gpm11-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&pinctrl_5 {
+	disp_reset: disp-reset {
+		samsung,pins = "gpc1-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
