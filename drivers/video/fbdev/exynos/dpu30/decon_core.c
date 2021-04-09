@@ -849,6 +849,7 @@ static int decon_disable(struct decon_device *decon)
 	int ret = 0;
 	enum decon_state prev_state = decon->state;
 	enum decon_state next_state = DECON_STATE_OFF;
+	struct dsim_device *dsim = v4l2_get_subdevdata(decon->out_sd[0]);
 
 	if (decon->state == DECON_STATE_INVALID) {
 		decon_info("Display invalid, not processing disable event\n");
@@ -877,6 +878,8 @@ static int decon_disable(struct decon_device *decon)
 	decon_info("decon-%d %s - (state:%s -> %s)\n", decon->id, __func__,
 			decon_state_names[prev_state],
 			decon_state_names[decon->state]);
+
+	dsim->hbm_enabled = false;
 
 out1:
 	mutex_unlock(&decon->lock);
@@ -924,6 +927,59 @@ static int decon_doze_suspend(struct decon_device *decon)
 out:
 	mutex_unlock(&decon->lock);
 	return ret;
+}
+
+static ssize_t decon_power_state_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct decon_device *decon = dev_get_drvdata(dev);
+	const char *statestr;
+	int cnt;
+	struct dsim_device *dsim = v4l2_get_subdevdata(decon->out_sd[0]);
+
+	switch (decon->state) {
+	case DECON_STATE_ON:
+		if (dsim->hbm_enabled) {
+			statestr = "HBM@60Hz";
+		} else {
+			statestr = "ON@60Hz";
+		}
+		break;
+	case DECON_STATE_OFF:
+		statestr = "OFF";
+		break;
+	case DECON_STATE_DOZE:
+	case DECON_STATE_DOZE_SUSPEND:
+		statestr = "LP@30Hz";
+		break;
+	default:
+		decon_err("decon-%d in invalid state %d\n",
+				decon->id, decon->state);
+	}
+
+	cnt = snprintf(buf, PAGE_SIZE, "%s\n", statestr);
+
+	return cnt;
+}
+
+static DEVICE_ATTR_RO(decon_power_state);
+
+int decon_create_power_state_sysfs(struct decon_device *decon)
+{
+	int ret = 0;
+
+	ret = device_create_file(decon->dev, &dev_attr_decon_power_state);
+
+	if (ret) {
+		decon_err("failed to create decon power state sysfs\n");
+	}
+
+	return ret;
+}
+
+static inline void pwr_state_changed(struct decon_device *decon)
+{
+	sysfs_notify(&decon->dev->kobj, NULL, "power_state");
 }
 
 struct disp_pwr_state decon_pwr_state[] = {
@@ -995,6 +1051,8 @@ int decon_update_pwr_state(struct decon_device *decon, enum disp_pwr_mode mode)
 				__func__, mode);
 		return ret;
 	}
+
+	pwr_state_changed(decon);
 
 	return 0;
 }
@@ -4235,6 +4293,8 @@ static int decon_probe(struct platform_device *pdev)
 	ret = decon_init_resources(decon, pdev, device_name);
 	if (ret)
 		goto err_res;
+
+	decon_create_power_state_sysfs(decon);
 
 	ret = decon_create_vsync_thread(decon);
 	if (ret)

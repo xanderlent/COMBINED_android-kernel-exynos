@@ -259,6 +259,8 @@ struct dsim_device {
 
 	int continuous_underrun_max;
 	int continuous_underrun_cnt;
+
+	bool hbm_enabled;
 };
 
 #ifdef CONFIG_DPHY_APB_CONTROL

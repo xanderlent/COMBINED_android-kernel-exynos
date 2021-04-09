@@ -45,6 +45,7 @@ static int exynos_backlight_update_status(struct backlight_device *bl)
 {
 	u32 brightness = bl->props.brightness;
 	struct dsim_device *dsim = get_dsim_drvdata(0);
+	struct exynos_panel_device *ctx = bl_get_data(bl);
 
 	DPU_INFO_PANEL("%s: brightness = %d\n", __func__, brightness);
 #if 0
@@ -57,6 +58,7 @@ static int exynos_backlight_update_status(struct backlight_device *bl)
 	if (brightness <= bl->props.max_brightness) {
 		/* brightness bit-depth and para order can be different */
 		dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_SET_LIGHT, &brightness);
+		sysfs_notify(&ctx->bl->dev.kobj, NULL, "brightness");
 	} else {
 		/* DO update brightness using dsim_wr_data */
 		/* backlight_off ??? */
@@ -64,7 +66,6 @@ static int exynos_backlight_update_status(struct backlight_device *bl)
 	}
 
 	return 0;
-
 }
 
 static const struct backlight_ops exynos_backlight_ops = {

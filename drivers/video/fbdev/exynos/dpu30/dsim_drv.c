@@ -1850,10 +1850,12 @@ static ssize_t hbm_store(struct device *dev,
 	case 0:
 		dsim_info("Dsim write command, HBM off!!\n");
 		ret = dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_HBM_OFF, NULL);
+		dsim->hbm_enabled = false;
 		break;
 	case 1:
 		dsim_info("Dsim write command, HBM on!!\n");
 		ret = dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_HBM_ON, NULL);
+		dsim->hbm_enabled = true;
 		break;
 	}
 
@@ -2335,6 +2337,7 @@ static int dsim_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dt;
 
+	dsim->hbm_enabled = false;
 	dsim->state = DSIM_STATE_INIT;
 	dsim_enable(dsim);
 
