@@ -219,9 +219,9 @@ static int exynos_panel_reset(struct exynos_panel_device *panel)
 		return -EINVAL;
 	}
 
-	usleep_range(5000, 6000);
+	usleep_range(10000, 11000);
 	gpio_set_value(res->lcd_reset, 0);
-	usleep_range(5000, 6000);
+	usleep_range(3000, 4000);
 	gpio_set_value(res->lcd_reset, 1);
 
 	gpio_free(res->lcd_reset);

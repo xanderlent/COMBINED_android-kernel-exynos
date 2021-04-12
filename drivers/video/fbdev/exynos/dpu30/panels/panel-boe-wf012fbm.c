@@ -22,7 +22,7 @@ static int wf012fbm_suspend(struct exynos_panel_device *panel)
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
-
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
 	/* Page Select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 
@@ -30,8 +30,9 @@ static int wf012fbm_suspend(struct exynos_panel_device *panel)
 	dsim_write_data_seq(dsim, false, MIPI_DCS_SET_DISPLAY_OFF);
 
 	/* Sleep In */
-	dsim_write_data_seq(dsim, false, MIPI_DCS_ENTER_SLEEP_MODE);
+	dsim_write_data_seq_delay(dsim, 70, MIPI_DCS_ENTER_SLEEP_MODE);
 
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
@@ -45,6 +46,15 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
+	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+			MIPI_DCS_GET_POWER_MODE, 3, buf);
+	if (ret < 0) {
+		dsim_err("Failed to read PM reg from panel\n");
+	} else {
+		dsim_info("=== Panel's PM Reg Value ===\n");
+		dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
+	}
 	/* Page Select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 
@@ -68,12 +78,12 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 	} else {
 		dsim_info("=== Panel's PM Reg Value ===\n");
 		dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
-		dsim_info("* 0x0A : buf[1] = %x\n", buf[1]);
 	}
 
 	/* Exit Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_IDLE_MODE);
 
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
@@ -85,10 +95,12 @@ static int wf012fbm_doze(struct exynos_panel_device *panel)
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
 	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 	/* Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_ENTER_IDLE_MODE);
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
@@ -116,11 +128,13 @@ static int wf012fbm_enter_hbm(struct exynos_panel_device *panel)
 	struct dsim_device *dsim = get_dsim_drvdata(0);
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
 	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 	/* Enter High Brightness Mode */
 	dsim_write_data_seq(dsim, false, 0x66, 0x02);
 
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
@@ -131,11 +145,13 @@ static int wf012fbm_exit_hbm(struct exynos_panel_device *panel)
 	struct dsim_device *dsim = get_dsim_drvdata(0);
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 1);
 	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 	/* Exit High Brightness Mode */
 	dsim_write_data_seq(dsim, false, 0x66, 0x00);
 
+	dsim_reg_set_cmd_transfer_mode(dsim->id, 0);
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
