@@ -54,7 +54,7 @@
 	status = "ok";
 };
 
-&novatek {
+&raydium {
 	status = "ok";
 };
 
