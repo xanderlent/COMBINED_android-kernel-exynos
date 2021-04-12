@@ -142,6 +142,11 @@ extern void *abox_iova_to_virt(struct device *dev, unsigned long iova);
 
 extern void abox_enable_mclk(unsigned int on);
 
+/**
+ * power off abox
+ */
+extern void abox_poweroff(void);
+
 #else /* !CONFIG_SND_SOC_SAMSUNG_ABOX */
 
 static inline bool abox_is_on(void)
@@ -195,6 +200,8 @@ static inline void *abox_iova_to_virt(struct device *dev, unsigned long iova)
 {
 	return ERR_PTR(-ENODEV);
 }
+
+static inline void abox_poweroff(void) {}
 
 #endif /* !CONFIG_SND_SOC_SAMSUNG_ABOX */
 

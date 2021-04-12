@@ -15,7 +15,7 @@
 #include <soc/samsung/exynos-pd.h>
 #include <soc/samsung/bts.h>
 #include <soc/samsung/cal-if.h>
-//#include <sound/samsung/abox.h>
+#include <sound/samsung/abox.h>
 #include <linux/module.h>
 #include <soc/samsung/exynos-cpupm.h>
 
@@ -87,8 +87,8 @@ static void exynos_pd_power_off_pre(struct exynos_pm_domain *pd)
 	if (cal_pd_status(pd->cal_pdid) && pd->bcm)
 		bcm_pd_sync(pd->bcm, false);
 #endif
-//	if (!strcmp(pd->name, "pd-dispaud"))
-//		abox_poweroff();
+	if (!strcmp(pd->name, "pd-dispaud"))
+		abox_poweroff();
 }
 
 static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)

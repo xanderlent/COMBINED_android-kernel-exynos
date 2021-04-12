@@ -6102,13 +6102,29 @@ static int abox_disable(struct device *dev)
 	return 0;
 }
 
+void abox_poweroff(void)
+{
+	struct device *dev = p_abox_data->dev;
+	struct abox_data *data = dev_get_drvdata(dev);
+
+	if (data->calliope_state == CALLIOPE_DISABLED) {
+		dev_dbg(dev, "already disabled\n");
+		return;
+	}
+	dev_info(dev, "%s\n", __func__);
+
+	abox_disable(dev);
+
+	exynos_sysmmu_control(dev, false);
+}
+
 static int abox_runtime_suspend(struct device *dev)
 {
 	dev_dbg(dev, "%s\n", __func__);
 
 	p_abox_data->enabled = false;
 
-	return abox_disable(dev);
+	return 0;
 }
 
 static int abox_runtime_resume(struct device *dev)
@@ -6862,11 +6878,12 @@ static int __init samsung_abox_late_initcall(void)
 {
 	pr_info("%s - sb\n", __func__);
 
-	if (p_abox_data && p_abox_data->dev)
-		pm_runtime_put_sync_suspend(p_abox_data->dev);
-	else
+	if (p_abox_data && p_abox_data->dev) {
+		if (!abox_test_quirk(p_abox_data, ABOX_QUIRK_OFF_ON_SUSPEND))
+			pm_runtime_put(p_abox_data->dev);
+	} else {
 		pr_err("%s: p_abox_data or dev is null", __func__);
-
+	}
 	return 0;
 }
 late_initcall(samsung_abox_late_initcall);
