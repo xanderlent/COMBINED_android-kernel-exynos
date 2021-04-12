@@ -25,7 +25,7 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges;
-		pinctrl-names = "active", "idle";
+		pinctrl-names = "default", "idle";
 		pinctrl-0 = <&aud_codec_mclk>;
 		pinctrl-1 = <&aud_codec_mclk_idle>;
 		quirks = "try to asrc off", "off on suspend", "use lsi codec";
