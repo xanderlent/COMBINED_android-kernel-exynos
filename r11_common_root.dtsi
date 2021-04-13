@@ -210,22 +210,6 @@ sound: sound {
 			sound-dai = <&dummy_audio_codec>;
 		};
 	};
-	vts0 {
-		cpu {
-			sound-dai = <&vts 0>;
-		};
-		codec {
-			sound-dai = <&dummy_audio_codec>;
-		};
-	};
-	vts1 {
-		cpu {
-			sound-dai = <&vts 1>;
-		};
-		codec {
-			sound-dai = <&dummy_audio_codec>;
-		};
-	};
 	sifs0 {
 		cpu {
 			sound-dai = <&abox 13>;
