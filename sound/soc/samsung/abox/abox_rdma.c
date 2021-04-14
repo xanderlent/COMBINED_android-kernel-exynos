@@ -2136,6 +2136,7 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 	}
 
 	if (data->type == PLATFORM_COMPRESS) {
+		data->dai_drv->compress_new = snd_soc_new_compress;
 		data->mailbox_base = devm_not_request_and_map(pdev, "mailbox",
 				1, NULL, NULL);
 		if (IS_ERR(data->mailbox_base))
