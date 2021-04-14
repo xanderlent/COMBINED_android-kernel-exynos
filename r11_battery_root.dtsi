@@ -39,8 +39,8 @@ google_battery: battery {
 
 	battery,full_check_type = <7>; // used by s2mpw02_charger
 	battery,full_check_type_2nd = <7>; // used by s2mpw02_charger
-	battery,full_check_count = <1>;
-	battery,chg_recharge_vdrop = <50>;
+	battery,full_check_count = <3>;
+	battery,chg_recharge_vdrop = <90>;
 	battery,full_check_condition_soc = <90>;
 
 	battery,temp_hysteresis = <10>; // 1 degree
