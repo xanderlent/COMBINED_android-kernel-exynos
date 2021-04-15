@@ -1848,10 +1848,10 @@ static void google_battery_complete(struct device *dev)
 		battery->monitor_alarm_interval = DEFAULT_ALARM_INTERVAL;
 		dev_info(battery->dev, "%s: Recover battery monitoring interval -> %d\n",
 			__func__, battery->monitor_alarm_interval);
+		alarm_cancel(&battery->monitor_alarm);
+		wake_lock(&battery->monitor_wake_lock);
+		queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 	}
-	alarm_cancel(&battery->monitor_alarm);
-	wake_lock(&battery->monitor_wake_lock);
-	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 }
 
 #else
