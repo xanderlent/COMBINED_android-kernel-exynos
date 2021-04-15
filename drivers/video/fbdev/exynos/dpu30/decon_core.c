@@ -979,7 +979,7 @@ int decon_create_power_state_sysfs(struct decon_device *decon)
 
 static inline void pwr_state_changed(struct decon_device *decon)
 {
-	sysfs_notify(&decon->dev->kobj, NULL, "power_state");
+	sysfs_notify(&decon->dev->kobj, NULL, "decon_power_state");
 }
 
 struct disp_pwr_state decon_pwr_state[] = {
