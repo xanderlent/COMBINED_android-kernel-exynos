@@ -11220,9 +11220,6 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 rrm_bcn_req_thrtl_win = RRM_BCNREQ_MAX_CHAN_TIME * 2;
 	uint32 rrm_bcn_req_max_off_chan_time = RRM_BCNREQ_MAX_CHAN_TIME;
 #endif /* WBTEXT && RRM_BCNREQ_MAX_CHAN_TIME */
-#ifdef AUTOCOUNTRY_ENABLE
-	uint32 autocountry = 1;
-#endif /* AUTOCOUNTRY_ENABLE */
 #ifdef PKT_FILTER_SUPPORT
 	dhd_pkt_filter_enable = TRUE;
 #ifdef APF
@@ -12575,14 +12572,6 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 		DHD_ERROR(("failed to set RRM BCN Request max_off_chan_time\n"));
 	}
 #endif /* WBTEXT && RRM_BCNREQ_MAX_CHAN_TIME */
-
-#ifdef AUTOCOUNTRY_ENABLE
-	ret = dhd_iovar(dhd, 0, "autocountry", (char *)&autocountry, sizeof(autocountry),
-			NULL, 0, TRUE);
-	if (ret < 0) {
-	    DHD_ERROR(("%s: Set autocountry failed, ret: %d\n", __FUNCTION__, ret));
-	}
-#endif /* AUTOCOUNTRY_ENABLE */
 
 #ifdef WL_MONITOR
 	if (FW_SUPPORTED(dhd, monitor)) {

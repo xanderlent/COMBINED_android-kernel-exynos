@@ -520,9 +520,6 @@ DHDCFLAGS += -DDISABLE_FRAMEBURST_VSDB
 # WPS
 DHDCFLAGS += -DWL_WPS_SYNC -DBCMCRYPTO_COMPONENT
 
-# Autocountry
-DHDCFLAGS += -DAUTOCOUNTRY_ENABLE
-
 # Path name to store the FW Debug symbol files
 DHDCFLAGS += -DPLATFORM_PATH="\"/data/misc/wifi/\""
 
