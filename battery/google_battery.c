@@ -41,7 +41,7 @@
 
 #define FAKE_BAT_LEVEL	50
 #define DEFAULT_ALARM_INTERVAL	10
-#define SLEEP_ALARM_INTERVAL	60
+#define SLEEP_ALARM_INTERVAL	300
 
 static char *bat_status_str[] = {
 	"Unknown",
@@ -128,6 +128,7 @@ typedef struct battery_platform_data {
 	/* full check */
 	unsigned int full_check_count;
 	unsigned int chg_recharge_vdrop;
+	unsigned int chg_recharge_soc;
 	int full_check_condition_soc;
 
 	int temp_hysteresis;
@@ -804,9 +805,6 @@ static void get_battery_capacity(struct battery_info *battery)
 	}
 	raw_soc = value.intval;
 
-	if (battery->status == POWER_SUPPLY_STATUS_FULL)
-		battery->max_rawsoc = raw_soc;
-
 	battery->capacity = (raw_soc*100)/battery->max_rawsoc;
 	if (battery->capacity > 100)
 		battery->capacity = 100;
@@ -1002,7 +1000,7 @@ static void check_charging_full(
 	/* Recharging check */
 	if (battery->status == POWER_SUPPLY_STATUS_FULL) {
 		recharge_vcell = battery->float_voltage - battery->pdata->chg_recharge_vdrop;
-		if (battery->voltage_now < recharge_vcell && !battery->is_recharging) {
+		if (battery->voltage_now < recharge_vcell &&  battery->capacity <= battery->pdata->chg_recharge_soc && !battery->is_recharging) {
 			dev_info(battery->dev, "%s: Recharging start\n", __func__);
 			mutex_lock(&battery->wlc_state_lock);
 			if (battery->wlc_connected && battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
@@ -1068,6 +1066,8 @@ static void check_charging_full(
 		 * switching around to prevent int overflow and maintain precision:
 		 * (raw_soc * ( charge_full_design / 100 )) /100 */
 		battery->charge_full = (raw_soc * (battery->charge_full_design / 100)) / 100;
+
+		battery->max_rawsoc = raw_soc;
 
 		/* Let fuelgauge update charge_full */
 		value.intval = battery->charge_full;
@@ -1414,6 +1414,13 @@ static int google_battery_parse_dt(struct device *dev,
 			&pdata->chg_recharge_vdrop);
 	if (ret) {
 		pr_info("%s : chg_recharge_vdrop is empty\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32(np, "battery,chg_recharge_soc",
+			&pdata->chg_recharge_soc);
+	if (ret) {
+		pr_info("%s : chg_recharge_soc is empty\n", __func__);
 		return -EINVAL;
 	}
 
