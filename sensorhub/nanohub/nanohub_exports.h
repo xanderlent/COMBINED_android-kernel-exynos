@@ -16,6 +16,8 @@
 #define NANOHUB_DEBUG_LOG_CHANNEL_ID 19
 #define NANOHUB_METRICS_CHANNEL_ID 20
 #define NANOHUB_CONSOLE_CHANNEL_ID 21
+#define NANOHUB_RPC0_CHANNEL_ID 22
+#define NANOHUB_RPC1_CHANNEL_ID 23
 
 /**
  * Sends a message over a nanohub channel.
