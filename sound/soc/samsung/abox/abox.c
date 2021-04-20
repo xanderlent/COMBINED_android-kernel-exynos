@@ -6104,11 +6104,16 @@ static int abox_disable(struct device *dev)
 
 static int abox_runtime_suspend(struct device *dev)
 {
+	int ret = 0;
+
 	dev_dbg(dev, "%s\n", __func__);
 
-	p_abox_data->enabled = false;
+	ret = abox_disable(dev);
+	if (!ret) {
+		exynos_sysmmu_control(dev, false);
+	}
 
-	return abox_disable(dev);
+	return ret;
 }
 
 static int abox_runtime_resume(struct device *dev)
@@ -6862,10 +6867,12 @@ static int __init samsung_abox_late_initcall(void)
 {
 	pr_info("%s - sb\n", __func__);
 
-	if (p_abox_data && p_abox_data->dev)
-		pm_runtime_put_sync_suspend(p_abox_data->dev);
-	else
+	if (p_abox_data && p_abox_data->dev) {
+		if (!abox_test_quirk(p_abox_data, ABOX_QUIRK_OFF_ON_SUSPEND))
+			pm_runtime_put(p_abox_data->dev);
+	} else {
 		pr_err("%s: p_abox_data or dev is null", __func__);
+	}
 
 	return 0;
 }
