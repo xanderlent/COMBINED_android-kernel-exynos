@@ -757,11 +757,11 @@ static int battery_handle_notification(struct notifier_block *nb,
 	battery->power_supply_type = power_supply_type;
 
 	mutex_lock(&battery->wlc_state_lock);
-	set_bat_status_by_cable(battery);
 
 	if (battery->wlc_connected) {
 		set_wlc_online(battery);
 	}
+	set_bat_status_by_cable(battery);
 	mutex_unlock(&battery->wlc_state_lock);
 
 	dev_dbg(battery->dev,

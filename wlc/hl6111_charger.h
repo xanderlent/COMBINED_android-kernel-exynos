@@ -145,13 +145,6 @@ enum hl6111_ept_reason {
     over_temp,
 };
 
-
-enum {
-    HL6111_WPC_DISCONNECTED,
-    HL6111_WPC_CONNECTED,
-};
-
-
 enum {
     OVER_V_TH_19_4V,
     OVER_V_TH_19_9V,
@@ -176,13 +169,24 @@ enum VOUT_RANGE {
     VOUT_RANGE_16MV,
 };
 
+enum {
+    TIMER_ID_NONE = 0,
+    TIMER_PRESET_AUTH,
+    TIMER_START_AUTH,
+    TIMER_END_AUTH,
+    TIMER_DETECT_LOW,
+    TIMER_GOOGLE_TX,
+};
+
 struct hl6111_platform_data{
     /* IRQ NUM */
     unsigned int irq;
     unsigned int irq_det;
+    unsigned int irq_auth;
     /* GPIO CTRL */
     int det_gpio;
     int int_gpio;
+    int auth_gpio;
 
     //dtsi
     unsigned int clm_vth;
@@ -203,12 +207,20 @@ struct hl6111_charger{
     struct mutex                    i2c_lock;
     struct hl6111_platform_data     *pdata;
     struct i2c_client               *client;
+    struct delayed_work             auth_work;
+    unsigned int                    timer_id;
+    unsigned int                    auth_retry;
+    unsigned long                   last_off_time;
 
     struct dentry                   *debug_root;
 
     u32  debug_address;
     bool online;
     bool tx_det;
+    bool tx_valid;
+    bool tx_authenticated;
+    bool auth_chok;
+    int irq_state;
 
     unsigned int vrect;
     unsigned int irect;
