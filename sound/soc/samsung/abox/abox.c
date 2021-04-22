@@ -5708,7 +5708,7 @@ static void abox_complete_sram_firmware_request(const struct firmware *fw,
 
 	dev_info(dev, "SRAM firmware loaded at %p (%zu)\n", fw->data, fw->size);
 
-	abox_request_firmware(dev, &data->firmware_dram, "calliope_dram.bin");
+	abox_request_firmware(dev, &data->firmware_dram, data->dram_name);
 	abox_request_extra_firmware(data);
 
 	if (abox_test_quirk(data, ABOX_QUIRK_OFF_ON_SUSPEND))
@@ -5726,7 +5726,7 @@ static int abox_download_firmware(struct platform_device *pdev)
 	if (unlikely(!data->firmware_sram)) {
 		request_firmware_nowait(THIS_MODULE,
 			FW_ACTION_HOTPLUG,
-			"calliope_sram.bin",
+			data->sram_name,
 			dev,
 			GFP_KERNEL,
 			pdev,
@@ -6692,6 +6692,22 @@ static int samsung_abox_probe(struct platform_device *pdev)
 
 	dev_info(dev, "bootargs[0x%x][%s]\n",
 				data->bootargs_offset, data->bootargs);
+
+	ret = of_property_read_string(np, "samsung,abox-sram-name",
+			&data->sram_name);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read %s: %d\n",
+				"samsung,abox-sram-name", ret);
+		return ret;
+	}
+
+	ret = of_property_read_string(np, "samsung,abox-dram-name",
+			&data->dram_name);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read %s: %d\n",
+				"samsung,abox-dram-name", ret);
+		return ret;
+	}
 
 //	if (abox_test_quirk(data, ABOX_QUIRK_SHARE_//VTS_SRAM)) {
 //		np_tmp = of_parse_phandle(np, "vts", 0);

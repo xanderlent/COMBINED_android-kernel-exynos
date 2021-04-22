@@ -685,6 +685,8 @@ struct abox_data {
 	const char *bootargs;
 	atomic_t suspend_state;
 	int cmpnt_reg_cnt;
+	const char *sram_name;
+	const char *dram_name;
 };
 /*
 struct abox_compr_data {
