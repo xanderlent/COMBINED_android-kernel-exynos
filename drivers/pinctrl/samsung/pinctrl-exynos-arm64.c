@@ -442,23 +442,23 @@ const struct samsung_pinctrl_of_match_data exynos7_of_data __initconst = {
 
 /* pin banks of exynos9110 pin-controller 0 (ALIVE) */
 static struct samsung_pin_bank_data exynos9110_pin_banks0[] = {
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x000, "gpa0", 0x00, 0x00),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 6, 0x020, "gpa1", 0x04, 0x08),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x000, "gpa0", 0, 0x00, 0x00),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 6, 0x020, "gpa1", 8, 0x04, 0x08),
 	EXYNOS9_PIN_BANK_EINTN(bank_type_7, 4, 0x040, "gpq0"),
 };
 
 /* pin banks of exynos9110 pin-controller 1 (CMGP_ALIVE) */
 static struct samsung_pin_bank_data exynos9110_pin_banks1[] = {
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x000, "gpm0", 0x00, 0x00),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x020, "gpm1", 0x04, 0x04),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x040, "gpm2", 0x08, 0x08),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x060, "gpm3", 0x0C, 0x0C),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x080, "gpm20", 0x10, 0x10),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x0A0, "gpm21", 0x14, 0x14),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x0C0, "gpm22", 0x18, 0x18),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x0E0, "gpm23", 0x1C, 0x1C),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x100, "gpm24", 0x20, 0x20),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x120, "gpm25", 0x24, 0x24),
+	EXYNOS9_PIN_BANK_EINTG(bank_type_7, 1, 0x000, "gpm0", 0x00, 0x00),
+	EXYNOS9_PIN_BANK_EINTG(bank_type_7, 1, 0x020, "gpm1", 0x04, 0x04),
+	EXYNOS9_PIN_BANK_EINTG(bank_type_7, 1, 0x040, "gpm2", 0x08, 0x08),
+	EXYNOS9_PIN_BANK_EINTG(bank_type_7, 1, 0x060, "gpm3", 0x0C, 0x0C),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x080, "gpm20", 40, 0x10, 0x10),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x0A0, "gpm21", 41, 0x14, 0x14),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x0C0, "gpm22", 42, 0x18, 0x18),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x0E0, "gpm23", 43, 0x1C, 0x1C),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x100, "gpm24", 44, 0x20, 0x20),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 1, 0x120, "gpm25", 45, 0x24, 0x24),
 };
 
 /* pin banks of exynos9110 pin-controller 2 (CMGP) */

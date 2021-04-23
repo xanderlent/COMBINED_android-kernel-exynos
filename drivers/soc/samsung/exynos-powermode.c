@@ -52,6 +52,8 @@ struct exynos_powermode_info {
 	 * While system boot, wakeup_mask and idle_ip_mask is intialized with
 	 * device tree. These are used by system power mode.
 	 */
+	unsigned int	num_eint_wakeup_mask;
+	unsigned int	*eint_wakeup_mask_offset;
 	unsigned int	num_wakeup_mask;
 	unsigned int	*wakeup_mask_offset;
 	unsigned int	*wakeup_mask[NUM_SYS_POWERDOWN];
@@ -617,18 +619,17 @@ attr_rw(sicd);
 /******************************************************************************
  *                              System power mode                             *
  ******************************************************************************/
-#define PMU_EINT_WAKEUP_MASK	0x60C
 static void exynos_set_wakeupmask(enum sys_powerdown mode)
 {
 	int i;
-//	u64 eintmask = exynos_get_eint_wake_mask();
-
-	/* Set external interrupt mask */
-//	exynos_pmu_write(PMU_EINT_WAKEUP_MASK, (u32)eintmask);
 
 	for (i = 0; i < pm_info->num_wakeup_mask; i++)
 		exynos_pmu_write(pm_info->wakeup_mask_offset[i],
 				pm_info->wakeup_mask[mode][i]);
+
+	for (i = 0; i < pm_info->num_eint_wakeup_mask; i++)
+		exynos_pmu_write(pm_info->eint_wakeup_mask_offset[i],
+			exynos_eint_wake_mask_array[i]);
 }
 
 int exynos_prepare_sys_powerdown(enum sys_powerdown mode)
@@ -815,6 +816,17 @@ static int __init dt_init(void)
 	ret = parsing_dt_wakeup_mask(np);
 	if (ret)
 		pr_warn("Fail to initialize the wakeup mask with err = %d\n", ret);
+
+	ret = of_property_count_u32_elems(np, "eint_wakeup_mask_offset");
+	if (!ret) {
+		pr_err("exynos-powermode: unabled to get eint_wakeup_mask_offset from DT\n");
+	} else if (ret > 0) {
+		pm_info->num_eint_wakeup_mask = ret;
+		pm_info->eint_wakeup_mask_offset =
+			kzalloc(sizeof(unsigned int) * ret, GFP_KERNEL);
+		of_property_read_u32_array(np, "eint_wakeup_mask_offset",
+			pm_info->eint_wakeup_mask_offset, ret);
+	}
 
 	if (of_property_read_u32(np, "cpd_residency", &pm_info->cpd_residency))
 		pr_warn("No matching property: cpd_residency\n");

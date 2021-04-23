@@ -185,6 +185,7 @@
 
 		fix-idle-ip = "acpm_dvfs";
 		fix-idle-ip-index = <96>;
+		eint_wakeup_mask_offset = <0x60C>, <0x644>;
 
 		idle_ip_mask {
 			sicd: SYS_SICD {

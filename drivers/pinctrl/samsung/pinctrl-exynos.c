@@ -386,23 +386,23 @@ err_domains:
 	return ret;
 }
 
-DECLARE_BITMAP(exynos_eint_wake_mask_bitmap, 96) = { [0 ... BITS_TO_LONGS(96) - 1] = ~0UL};
-u32 exynos_eint_wake_mask_array[3] = {~0U, ~0U, ~0U};
+/* Mask EINT0 - EINT13 and GPM20 - GPM25 */
+u32 exynos_eint_wake_mask_array[2] = {0x00003fff, 0x00003f00};
 EXPORT_SYMBOL(exynos_eint_wake_mask_array);
 
 static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
 	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	u32 mask = 0;
 	u32 bit = 0;
 
 	bit = bank->eint_num + irqd->hwirq;
+	mask = (1 << (bit & 0x1f));
 	if (!on)
-		exynos_eint_wake_mask_bitmap[BIT_WORD(bit)] |= BIT_MASK(bit);
+		exynos_eint_wake_mask_array[bit >> 5] |= mask;
 	else
-		exynos_eint_wake_mask_bitmap[BIT_WORD(bit)] &= ~BIT_MASK(bit);
-
-	bitmap_to_arr32(exynos_eint_wake_mask_array, exynos_eint_wake_mask_bitmap, 96);
+		exynos_eint_wake_mask_array[bit >> 5] &= ~mask;
 
 	dev_info(d->dev, "wake %s for irq %d\n", on ? "enabled" : "disabled",
 		 irqd->irq);
@@ -636,7 +636,10 @@ int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 		}
 
 		bank->irq_chip = irq_chip;
-		bank->eint_num = eint_num;
+		/* Assume eint numbers are sequential starting at zero
+		   unless otherwise specified */
+		if (!bank->eint_num)
+			bank->eint_num = eint_num;
 		eint_num = eint_num + bank->nr_pins;
 
 		if (!of_find_property(bank->of_node, "interrupts", NULL)) {

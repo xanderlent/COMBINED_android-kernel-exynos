@@ -69,9 +69,10 @@ static inline void s3c24xx_serial_fifo_wait(void) { }
 #endif
 
 #ifdef CONFIG_PINCTRL_EXYNOS
-extern u64 exynos_get_eint_wake_mask(void);
+extern u32 exynos_eint_wake_mask_array[2];
 #else
-static inline u64 exynos_get_eint_wake_mask(void) { return 0xffffffffL; }
+/* Mask EINT0 - EINT13 and GPM20 - GPM25 */
+u32 exynos_eint_wake_mask_array[2] = {0x00003fff, 0x00003f00};
 #endif
 
 /* SUPPORT HOTPLUG */

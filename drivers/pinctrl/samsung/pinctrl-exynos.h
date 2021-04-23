@@ -135,13 +135,14 @@
 		.name		= id			\
         }
 
-#define EXYNOS9_PIN_BANK_EINTW(types, pins, reg, id, offs, fltcon_offs) \
+#define EXYNOS9_PIN_BANK_EINTW(types, pins, reg, id, num, offs, fltcon_offs) \
 	{						\
 		.type		= &types,		\
 		.pctl_offset	= reg,			\
 		.nr_pins	= pins,			\
 		.eint_type	= EINT_TYPE_WKUP,	\
 		.eint_offset	= offs,			\
+		.eint_num       = num,			\
 		.fltcon_offset	= fltcon_offs,		\
 		.name		= id			\
         }
