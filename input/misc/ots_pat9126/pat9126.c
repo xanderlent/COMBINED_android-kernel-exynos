@@ -738,10 +738,6 @@ static int pat9126_suspend(struct device *dev)
 	flush_scheduled_work();
 
 	printk(KERN_DEBUG "[PAT9126]%s, start\n", __func__);
-	ret = pinctrl_pm_select_sleep_state(dev);
-	if (ret < 0)
-		dev_err(dev, "Could not set pin to sleep state %d\n", ret);
-
 	if(!is_initialized) {
 		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
 		/* disable write protect */
@@ -798,9 +794,6 @@ static int pat9126_resume(struct device *dev)
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
 	printk(KERN_DEBUG "[PAT9126]%s, start\n", __func__);
-	ret = pinctrl_pm_select_default_state(dev);
-	if (ret < 0)
-		dev_err(dev, "Could not set pin to active state %d\n", ret);
 	if(!is_initialized) {
 		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
 		/* disable write protect */
