@@ -598,6 +598,8 @@ static struct dhd_attr dhd_attr_macaddr =
 #define MEMDUMPINFO "/data/misc/wifi/.memdump.info"
 #elif defined(__ARM_ARCH_7A__)
 #define MEMDUMPINFO "/data/misc/wifi/.memdump.info"
+#elif defined(BOARD_EXYNOS)
+#define MEMDUMPINFO PLATFORM_PATH".memdump.info"
 #else
 #define MEMDUMPINFO_LIVE "/installmedia/.memdump.info"
 #define MEMDUMPINFO_INST "/data/.memdump.info"
@@ -736,6 +738,8 @@ static struct dhd_attr dhd_attr_memdump =
 #define ASSERTINFO PLATFORM_PATH".assert.info"
 #elif defined(BOARD_HIKEY)
 #define ASSERTINFO "/data/misc/wifi/.assert.info"
+#elif defined(BOARD_EXYNOS)
+#define ASSERTINFO PLATFORM_PATH".assert.info"
 #else
 #define ASSERTINFO "/installmedia/.assert.info"
 #endif /* CUSTOMER_HW4_DEBUG */

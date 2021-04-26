@@ -737,6 +737,8 @@ bool dhd_protocol_matches_profile(uint8 *p, int plen, const
 #define PATH_BANDLOCK_INFO "/data/misc/wifi/.bandlock.info"
 #elif defined(__ARM_ARCH_7A__)
 #define PATH_BANDLOCK_INFO "/data/misc/wifi/.bandlock.info"
+#elif defined(BOARD_EXYNOS)
+#define PATH_BANDLOCK_INFO PLATFORM_PATH".bandlock.info"
 #else
 #define PATH_BANDLOCK_INFO "/installmedia/.bandlock.info"
 #endif /* CUSTOMER_HW4_DEBUG */

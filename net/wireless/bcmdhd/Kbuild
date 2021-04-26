@@ -105,7 +105,7 @@ endif
 DHDCFLAGS += -DBCMASSERT_LOG
 
 # Enable Log Dump
-#DHDCFLAGS += -DDHD_LOG_DUMP
+DHDCFLAGS += -DDHD_LOG_DUMP
 # Enable log print rate limit
 DHDCFLAGS += -DDHD_LOG_PRINT_RATE_LIMIT
 
@@ -165,8 +165,8 @@ endif
 ifneq ($(CONFIG_FIB_RULES),)
 # Debugability
 # HAL File dump is supported only for iptable builds(brcm_wlan_iptables_defconfig)
-	DHDCFLAGS += -DDHD_FILE_DUMP_EVENT
-	DHDCFLAGS := $(filter-out -DDHD_DUMP_FILE_WRITE_FROM_KERNEL ,$(DHDCFLAGS))
+	#DHDCFLAGS += -DDHD_FILE_DUMP_EVENT
+	#DHDCFLAGS := $(filter-out -DDHD_DUMP_FILE_WRITE_FROM_KERNEL ,$(DHDCFLAGS))
 endif
 
 # CUSTOMER4 flags
@@ -701,6 +701,10 @@ endif
 
 ifneq ($(CONFIG_ARCH_HISI),)
 	DHDCFLAGS += -DBOARD_HIKEY
+endif
+
+ifneq ($(CONFIG_ARCH_EXYNOS),)
+	DHDCFLAGS += -DBOARD_EXYNOS
 endif
 
 EXTRA_CFLAGS += $(DHDCFLAGS) -DDHD_DEBUG

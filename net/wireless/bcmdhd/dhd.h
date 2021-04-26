@@ -859,6 +859,8 @@ extern void copy_debug_dump_time(char *dest, char *src);
 #define DHD_COMMON_DUMP_PATH	"/data/misc/wifi/"
 #elif defined(__ARM_ARCH_7A__)
 #define DHD_COMMON_DUMP_PATH	"/data/vendor/wifi/"
+#elif defined(BOARD_EXYNOS)
+#define DHD_COMMON_DUMP_PATH	PLATFORM_PATH
 #else
 #define DHD_COMMON_DUMP_PATH	"/installmedia/"
 #endif /* CUSTOMER_HW4 */
