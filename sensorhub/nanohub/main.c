@@ -1159,7 +1159,7 @@ static int nanohub_create_devices(struct nanohub_data *data)
 		"nanohub_metrics",
 		"nanohub_console",
 		"nanohub_rpc0",
-		"nanohub_rpc1"
+		"nanohub_rpc1",
 		"nanohub_brightness"
 	};
 	const uint8_t ids[] = {
