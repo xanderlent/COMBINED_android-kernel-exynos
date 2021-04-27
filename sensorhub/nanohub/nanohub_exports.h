@@ -18,6 +18,7 @@
 #define NANOHUB_CONSOLE_CHANNEL_ID 21
 #define NANOHUB_RPC0_CHANNEL_ID 22
 #define NANOHUB_RPC1_CHANNEL_ID 23
+#define NANOHUB_BRIGHTNESS_CHANNEL_ID 24
 
 /**
  * Sends a message over a nanohub channel.
