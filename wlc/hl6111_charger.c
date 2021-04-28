@@ -236,6 +236,14 @@ static int hl6111_parse_dt(struct device *dev, struct hl6111_platform_data *pdat
         pdata->temp_limit = temp;
         LOG_DBG("temp_limit[%d]\n", pdata->temp_limit);
     }
+    rc = of_property_read_u32(np, "halo,ioutlim", &temp);
+    if (rc) {
+        pr_err("Invalid Iout Limit\n");
+        pdata->ioutlim = 0x19;
+    }else{
+        pdata->ioutlim = temp;
+        LOG_DBG("iout_limit[%d]\n", pdata->ioutlim);
+    }
 
     return 0;
 }
@@ -364,6 +372,8 @@ static void hl6111_measure_vout(struct hl6111_charger *chg)
     int ret;
     int value;
 
+    chg->vout = 0;
+
     LOG_DBG("Start!!\r\n");
     ret =  hl6111_read_reg(chg, REG_VOUT_AVG, &value);
     if (ret < 0){
@@ -379,6 +389,8 @@ static void hl6111_measure_vheadroom(struct hl6111_charger *chg)
 {
     int ret;
     int value;
+
+    chg->vhead = 0;
 
     LOG_DBG("Start!!\r\n");
     ret =  hl6111_read_reg(chg, REG_VRECT_HEADROOM, &value);
@@ -407,6 +419,7 @@ static void hl6111_measure_vrect(struct hl6111_charger *chg)
 {
     int ret;
     int value;
+    chg->vrect = 0;
 
     LOG_DBG("Start!!\r\n");
     ret =  hl6111_read_reg(chg, REG_VRECT, &value);
@@ -423,6 +436,7 @@ static void hl6111_measure_irect(struct hl6111_charger *chg)
 {
     int ret;
     int value;
+    chg->irect = 0;
 
     LOG_DBG("Start!!");
     ret =  hl6111_read_reg(chg, REG_IRECT, &value);
@@ -439,7 +453,7 @@ static void hl6111_measure_tdie(struct hl6111_charger *chg)
 {
     int ret;
     int value;
-    //float temp;
+    chg->t_die = 0;
 
     LOG_DBG("Start!!");
     ret =  hl6111_read_reg(chg, REG_TEMP, &value);
@@ -448,7 +462,6 @@ static void hl6111_measure_tdie(struct hl6111_charger *chg)
         return;
     }
 
-//    temp = (220.09f - value)/0.6316f;
     chg->t_die = value;
 
     LOG_DBG("addr[0x%x], read[0x%x], tdie[0x%x] \r\n", REG_TEMP, value,  chg->t_die);
@@ -458,6 +471,8 @@ static void hl6111_measure_iout(struct hl6111_charger *chg)
 {
     int ret;
     int value;
+
+    chg->iout = 0;
 
     LOG_DBG("Start!!");
     ret =  hl6111_read_reg(chg, REG_IOUT_AVG, &value);
@@ -475,6 +490,8 @@ static void hl6111_measure_ntc_temp(struct hl6111_charger *chg)
 {
     int ret, ntc;
     int h_val, l_val;
+
+    chg->ntc_temp = 0;
 
     LOG_DBG("Start!!");
     ret = hl6111_read_reg(chg, REG_NTC_MEASURED_H, &h_val);
@@ -494,6 +511,8 @@ static void hl6111_get_target_vout(struct hl6111_charger *chg)
 {
     int ret;
     int vout, range;
+
+    chg->trgt_vout = 0;
 
     ret =  hl6111_read_reg(chg, REG_VOUT_TARGET, &vout);
     if (ret < 0){
@@ -589,6 +608,8 @@ static void hl6111_get_target_vrect(struct hl6111_charger *chg)
     int ret;
     int vrect;
 
+    chg->trgt_vrect = 0;
+
     ret = hl6111_read_reg(chg, REG_VRECT_TARGET, &vrect);
     if (ret < 0){
         LOG_DBG("Failed to read addr=%X\r\n ", REG_VRECT_TARGET);
@@ -619,13 +640,23 @@ static void hl6111_get_ioutlim(struct hl6111_charger *chg)
     int ret;
     int ilim;
 
+    chg->iout_lim = 0;
+
     ret =  hl6111_read_reg(chg, REG_IOUT_LIM_SEL, &ilim);
     if (ret < 0){
         LOG_DBG("Failed to read addr=%X\r\n ", REG_IOUT_LIM_SEL);
         return;
     }
 
-    chg->iout_lim = (((ilim >> 3) * 50) + 100) * 1000;
+    ilim = ilim >> 3;
+    if (ilim <= 0x12) {
+        chg->iout_lim = ((ilim * 50) + 100);
+    } else if (ilim == 0x13) {
+        chg->iout_lim = 1100;
+    } else {
+        pr_err("Unknown ioutlim value\n");
+        return;
+    }
 
     LOG_DBG("ioutlim:: [%d uA], ilim:[0x%x]\r\n", chg->iout_lim, ilim);
 }
@@ -649,6 +680,8 @@ static void hl6111_get_templim(struct hl6111_charger *chg)
 {
     int ret;
     int templim;
+
+    chg->temp_lim = 0;
 
     ret = hl6111_read_reg(chg, REG_TEMP_LIMIT, &templim);
     if (ret < 0){
@@ -677,6 +710,8 @@ static void hl6111_get_vout_bypass(struct hl6111_charger *chg)
 {
     int ret;
     int r_val;
+
+    chg->bypass = 0;
 
     ret =  hl6111_read_reg(chg, REG_VOUT_BYPASS, &r_val);
     if (ret < 0){
@@ -742,6 +777,7 @@ static void hl6111_device_init(struct hl6111_charger *chg)
     }
     hl6111_target_vrect_ctrl(chg, chg->pdata->trgt_vrect);
     hl6111_set_templim(chg, chg->pdata->temp_limit);
+    hl6111_set_ioutlim(chg, chg->pdata->ioutlim);
 
 #if 1
     hl6111_read_reg(chg, REG_VOUT_BYPASS, &rVal);
@@ -1460,6 +1496,7 @@ static int ioutlim_set(void *data, u64 val)
         return -EAGAIN;
     }
 
+    chg->pdata->ioutlim = val;
     hl6111_set_ioutlim(chg, (u8)val);
 
     return 0;
@@ -1867,11 +1904,17 @@ static void hl6111_charger_shutdown(struct i2c_client *client)
 #if defined (CONFIG_PM)
 static int hl6111_charger_resume(struct device *dev)
 {
+    struct i2c_client *client = to_i2c_client(dev);
+    struct hl6111_charger *charger = i2c_get_clientdata(client);
+    disable_irq_wake(charger->pdata->irq_det);
     return 0;
 }
 
 static int hl6111_charger_suspend(struct device *dev)
 {
+    struct i2c_client *client = to_i2c_client(dev);
+    struct hl6111_charger *charger = i2c_get_clientdata(client);
+    enable_irq_wake(charger->pdata->irq_det);
     return 0;
 }
 #else

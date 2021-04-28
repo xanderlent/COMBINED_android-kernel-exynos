@@ -198,6 +198,7 @@ struct hl6111_platform_data{
     unsigned int trgt_vout_override;
     unsigned int trgt_vrect;
     unsigned int temp_limit;
+    unsigned int ioutlim;
 };
 
 struct hl6111_charger{
