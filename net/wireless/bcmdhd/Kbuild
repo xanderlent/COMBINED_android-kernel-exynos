@@ -521,7 +521,7 @@ DHDCFLAGS += -DDISABLE_FRAMEBURST_VSDB
 DHDCFLAGS += -DWL_WPS_SYNC -DBCMCRYPTO_COMPONENT
 
 # Path name to store the FW Debug symbol files
-DHDCFLAGS += -DPLATFORM_PATH="\"/data/misc/wifi/\""
+DHDCFLAGS += -DPLATFORM_PATH="\"/data/vendor/log/wifi/\""
 
 ##########################
 # driver type
