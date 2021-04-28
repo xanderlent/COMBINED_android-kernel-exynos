@@ -1627,7 +1627,7 @@ static void dsim_reg_set_config(u32 id, struct exynos_panel_info *lcd_info,
 	/* set bta & lpdr timeout vlaues */
 	dsim_reg_set_timeout(id);
 
-	dsim_reg_set_cmd_transfer_mode(id, 0);
+	dsim_reg_set_cmd_transfer_mode(id, 1);
 	dsim_reg_set_stop_state_cnt(id);
 
 	if (lcd_info->mode == DECON_MIPI_COMMAND_MODE) {
@@ -2264,6 +2264,10 @@ void dsim_reg_recovery_process(struct dsim_device *dsim)
 {
 	dsim_info("%s +\n", __func__);
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 1);
+#endif
+
 	dsim_reg_clear_int(dsim->id, 0xffffffff);
 
 	/* 0. disable HS clock */
@@ -2284,6 +2288,9 @@ void dsim_reg_recovery_process(struct dsim_device *dsim)
 	/* 4. enable HS clock */
 	dsim_reg_set_hs_clock(dsim->id, 1);
 
+#ifdef CONFIG_DPHY_APB_CONTROL
+	dsim_dphy_apb_enable(dsim, 0);
+#endif
 	dsim_info("%s -\n", __func__);
 }
 
