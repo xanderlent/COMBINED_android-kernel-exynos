@@ -136,7 +136,7 @@ module_param(wl_reassoc_support, uint, 0660);
 
 static struct device *cfg80211_parent_dev = NULL;
 static struct bcm_cfg80211 *g_bcmcfg = NULL;
-u32 wl_dbg_level = WL_DBG_ERR | WL_DBG_P2P_ACTION | WL_DBG_INFO;
+u32 wl_dbg_level = WL_DBG_ERR;
 
 #define	MAX_VIF_OFFSET	15
 #define MAX_WAIT_TIME 1500
@@ -6852,7 +6852,7 @@ wl_conn_debug_info(struct bcm_cfg80211 *cfg, struct net_device *dev, wlcfg_assoc
 				(info->chan_cnt * sizeof(chanspec_t)));
 	} else {
 		/* Limited info */
-		WL_INFORM_MEM(("[%s] Connecting with " MACDBG " ssid_len:%d chan_cnt:%d",
+		WL_ERR(("[%s] Connecting with " MACDBG " ssid_len:%d chan_cnt:%d",
 			dev->name, MAC2STRDBG((u8*)(&info->bssid)),
 			info->ssid_len, info->chan_cnt));
 	}
@@ -16601,7 +16601,7 @@ wl_bss_connect_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		if (completed) {
 			LOG_TS(cfg, conn_cmplt);
 			LOG_TS(cfg, authorize_start);
-			WL_INFORM_MEM(("[%s] Report connect result - "
+			WL_ERR(("[%s] Report connect result - "
 				"connection succeeded\n", ndev->name));
 
 #ifdef BCMWAPI_WPI
@@ -17795,7 +17795,7 @@ wl_cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 	wdev = ndev_to_wdev(dev);
 	if (!wdev) {
-		WL_ERR(("wdev null. Do nothing\n"));
+		WL_INFORM(("wdev null. Do nothing\n"));
 		return NOTIFY_DONE;
 	}
 
@@ -18770,7 +18770,7 @@ wl_cfg80211_event(struct net_device *ndev, const wl_event_msg_t * e, void *data)
 	}
 
 	if (cfg->event_workq == NULL) {
-		WL_ERR(("Event handler is not created\n"));
+		WL_DBG(("Event handler is not created\n"));
 		return;
 	}
 
@@ -19340,7 +19340,7 @@ static s32 __wl_update_wiphybands(struct bcm_cfg80211 *cfg, bool notify)
 		WL_ERR(("error reading nmode (%d)\n", err));
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)) && !defined(CONFIG_BCM43013)
 	err = wldev_iovar_getint(dev, "vhtmode", &vhtmode);
 	if (unlikely(err)) {
 		WL_ERR(("error reading vhtmode (%d)\n", err));
@@ -19386,7 +19386,7 @@ static s32 __wl_update_wiphybands(struct bcm_cfg80211 *cfg, bool notify)
 
 	/* For nmode and vhtmode   check bw cap */
 	if (nmode ||
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)) && !defined(CONFIG_BCM43013)
 		vhtmode ||
 #endif
 		0) {
@@ -19560,7 +19560,6 @@ s32 wl_update_wiphybands(struct bcm_cfg80211 *cfg, bool notify)
 static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 {
 	s32 err = 0;
-	s32 ret = 0;
 
 	struct net_info *netinfo = NULL;
 	struct net_device *ndev = bcmcfg_to_prmry_ndev(cfg);
@@ -19571,7 +19570,10 @@ static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 #endif /* WLTDLS */
 	u16 wl_iftype = 0;
 	u16 wl_mode = 0;
+#ifndef CONFIG_BCM43013
+	s32 ret = 0;
 	u8 ioctl_buf[WLC_IOCTL_SMLEN];
+#endif /* CONFIG_BCM43013 */
 
 	WL_DBG(("In\n"));
 
@@ -19649,6 +19651,7 @@ static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 	cfg->wlc_ver.wlc_ver_major = dhd->wlc_ver_major;
 	cfg->wlc_ver.wlc_ver_minor = dhd->wlc_ver_minor;
 
+#ifndef CONFIG_BCM43013
 	if ((ret = wldev_iovar_getbuf(ndev, "scan_ver", NULL, 0,
 		ioctl_buf, sizeof(ioctl_buf), NULL) == BCME_OK)) {
 		WL_INFORM_MEM(("scan_params v2\n"));
@@ -19661,6 +19664,8 @@ static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 			WL_ERR(("get scan_ver err(%d)\n", ret));
 		}
 	}
+#endif /* CONFIG_BCM43013 */
+
 #ifdef DHD_LOSSLESS_ROAMING
 	if (timer_pending(&cfg->roam_timeout)) {
 		del_timer_sync(&cfg->roam_timeout);
@@ -20005,7 +20010,7 @@ s32 wl_cfg80211_up(struct net_device *net)
 	if (init_roam_cache(cfg, ioctl_version) == 0) {
 		/* Enable support for Roam cache */
 		cfg->rcc_enabled = true;
-		WL_ERR(("Roam channel cache enabled\n"));
+		WL_INFORM(("Roam channel cache enabled\n"));
 	} else {
 		WL_ERR(("Failed to enable RCC.\n"));
 	}
@@ -23407,6 +23412,9 @@ static void wl_cfg80211_wbtext_set_wnm_maxidle(struct bcm_cfg80211 *cfg, struct 
 		if (error < 0) {
 			WL_ERR(("failed to get wnm max idle period : %d\n", error));
 		}
+	} else {
+		WL_INFORM(("AP doesn't support, skip to set wnm max idle period\n"));
+		return;
 	}
 
 	WL_DBG(("wnm max idle period : %d\n", wnm_maxidle));

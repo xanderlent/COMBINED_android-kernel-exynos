@@ -2554,7 +2554,7 @@ void wl_cfg80211_scan_abort(struct bcm_cfg80211 *cfg)
 		err = wldev_ioctl_set(dev, WLC_SCAN, params, params_size);
 		if (err < 0) {
 			/* scan abort can fail if there is no outstanding scan */
-			WL_ERR(("scan engine not aborted ret(%d)\n", err));
+			WL_INFORM(("scan engine not aborted ret(%d)\n", err));
 		}
 		MFREE(cfg->osh, params, params_size);
 	}

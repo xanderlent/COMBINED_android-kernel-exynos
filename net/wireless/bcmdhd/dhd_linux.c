@@ -1714,7 +1714,7 @@ dhd_enable_packet_filter(int value, dhd_pub_t *dhd)
 {
 	int i;
 
-	DHD_ERROR(("%s: enter, value = %d\n", __FUNCTION__, value));
+	DHD_INFO(("%s: enter, value = %d\n", __FUNCTION__, value));
 	if ((dhd->op_mode & DHD_FLAG_HOSTAP_MODE) && value) {
 		DHD_ERROR(("%s: DHD_FLAG_HOSTAP_MODE\n", __FUNCTION__));
 		return;
@@ -10276,7 +10276,7 @@ dhd_get_preserve_log_numbers(dhd_pub_t *dhd, uint32 *logset_mask)
 	wl_el_set_type_t logset_type, logset_op;
 	wl_el_set_all_type_v1_t *logset_all_type_op = NULL;
 	bool use_logset_all_type = FALSE;
-	int ret = BCME_ERROR;
+	int ret = BCME_OK;
 	int err = 0;
 	uint8 i = 0;
 	int el_set_all_type_len;
@@ -10734,7 +10734,7 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 	 */
 	OSL_SMP_WMB();
 	dhd->event_log_max_sets_queried = TRUE;
-	DHD_ERROR(("%s: event_log_max_sets: %d ret: %d\n",
+	DHD_INFO(("%s: event_log_max_sets: %d ret: %d\n",
 		__FUNCTION__, dhd->event_log_max_sets, ret));
 
 #ifdef USE_WFA_CERT_CONF
@@ -11636,7 +11636,7 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* DISABLE_BCNLOSS_ROAM */
 	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_ROAM_TRIGGER, roam_trigger,
 		sizeof(roam_trigger), TRUE, 0)) < 0)
-		DHD_ERROR(("%s: roam trigger set failed %d\n", __FUNCTION__, ret));
+		DHD_INFO(("%s: roam trigger set failed %d\n", __FUNCTION__, ret));
 	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_ROAM_SCAN_PERIOD, roam_scan_period,
 		sizeof(roam_scan_period), TRUE, 0)) < 0)
 		DHD_ERROR(("%s: roam scan period set failed %d\n", __FUNCTION__, ret));
@@ -12631,12 +12631,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		sizeof(preinit_status), FALSE);
 
 	if (ret == BCME_OK) {
-		DHD_ERROR(("%s: preinit_status IOVAR present, use optimised preinit\n",
+		DHD_INFO(("%s: preinit_status IOVAR present, use optimised preinit\n",
 			__FUNCTION__));
 		dhd->fw_preinit = TRUE;
 		ret = dhd_optimised_preinit_ioctls(dhd);
 	} else if (ret == BCME_UNSUPPORTED) {
-		DHD_ERROR(("%s: preinit_status IOVAR not supported, use legacy preinit\n",
+		DHD_INFO(("%s: preinit_status IOVAR not supported, use legacy preinit\n",
 			__FUNCTION__));
 		dhd->fw_preinit = FALSE;
 		ret = dhd_legacy_preinit_ioctls(dhd);
@@ -15007,7 +15007,7 @@ int net_os_rxfilter_add_remove(struct net_device *dev, int add_remove, int num)
 #ifndef GAN_LITE_NAT_KEEPALIVE_FILTER
 	dhd_info_t *dhd = DHD_DEV_INFO(dev);
 
-	DHD_ERROR(("%s: add_remove = %d, num = %d\n", __FUNCTION__, add_remove, num));
+	DHD_INFO(("%s: add_remove = %d, num = %d\n", __FUNCTION__, add_remove, num));
 	if (!dhd || (num == DHD_UNICAST_FILTER_NUM)) {
 		return 0;
 	}
@@ -15060,7 +15060,7 @@ int net_os_enable_packet_filter(struct net_device *dev, int val)
 {
 	dhd_info_t *dhd = DHD_DEV_INFO(dev);
 
-	DHD_ERROR(("%s: val = %d\n", __FUNCTION__, val));
+	DHD_INFO(("%s: val = %d\n", __FUNCTION__, val));
 	return dhd_os_enable_packet_filter(&dhd->pub, val);
 }
 #endif /* PKT_FILTER_SUPPORT */
@@ -15797,7 +15797,7 @@ dhd_dev_set_whitelist_ssid(struct net_device *dev, wl_ssid_whitelist_t *ssid_whi
 			0, TRUE);
 	if (err != BCME_OK) {
 		if (err == BCME_UNSUPPORTED) {
-			DHD_ERROR(("%s : roam_exp_bssid_pref, UNSUPPORTED \n", __FUNCTION__));
+			DHD_INFO(("%s : roam_exp_bssid_pref, UNSUPPORTED \n", __FUNCTION__));
 		} else {
 			DHD_ERROR(("%s : Failed to execute roam_exp_bssid_pref %d\n",
 				__FUNCTION__, err));
@@ -21577,7 +21577,7 @@ int dhd_read_from_file(dhd_pub_t *dhd)
 	/* open file to read */
 	fd = dhd_os_open_image1(dhd, FILTER_IE_PATH);
 	if (!fd) {
-		DHD_ERROR(("No filter file(not an error), filter path%s\n", FILTER_IE_PATH));
+		DHD_INFO(("No filter file(not an error), filter path%s\n", FILTER_IE_PATH));
 		ret = BCME_EPERM;
 		goto exit;
 	}

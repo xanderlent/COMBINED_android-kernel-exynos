@@ -115,9 +115,9 @@ int log_print_threshold = 0;
 
 // TODO (mullerf): b/180659832: Revert DHD_PNO_VAL when done debugging
 /* For CUSTOMER_HW4/Hikey do not enable DHD_ERROR_MEM_VAL by default */
-int dhd_msg_level = DHD_ERROR_VAL | DHD_FWLOG_VAL | DHD_EVENT_VAL | DHD_PNO_VAL
+int dhd_msg_level = DHD_ERROR_VAL | DHD_PNO_VAL
 	/* For CUSTOMER_HW4 do not enable DHD_IOVAR_MEM_VAL by default */
-#if !defined(CUSTOMER_HW4) && !defined(BOARD_HIKEY)
+#if !defined(CUSTOMER_HW4) && !defined(BOARD_HIKEY) && !defined(BOARD_EXYNOS)
 	| DHD_IOVAR_MEM_VAL
 #endif
 	| DHD_PKT_MON_VAL;
@@ -3214,6 +3214,10 @@ wl_show_roam_cache_update_event(const char *name, uint status,
 		{WLC_E_STATUS_INVALID, "Invalid status code"}
 	};
 
+	BCM_REFERENCE(reason_name);
+	BCM_REFERENCE(status_name);
+	BCM_REFERENCE(ntoa_buf);
+
 	switch (reason) {
 	case WLC_ROAM_CACHE_UPDATE_NEW_ROAM_CACHE:
 		DHD_EVENT(("Current roam cache status %d, "
@@ -3315,6 +3319,8 @@ wl_show_roam_cache_update_event(const char *name, uint status,
 			{
 				rmc_candidate_info_v1_t *candidate_info =
 					(rmc_candidate_info_v1_t *)(val_xtlv->data);
+
+				BCM_REFERENCE(candidate_info);
 				if (val_xtlv->id == WL_RMC_RPT_XTLV_CANDIDATE_INFO) {
 					DHD_EVENT(("\t Candidate INFO:\n"));
 				} else {
@@ -3460,6 +3466,7 @@ wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
 		if (datalen >= sizeof(wlc_roam_start_event_t)) {
 			const wlc_roam_start_event_t *roam_start =
 				(wlc_roam_start_event_t *)event_data;
+			BCM_REFERENCE(roam_start);
 			DHD_EVENT(("MACEVENT: %s, current bss rssi %d\n",
 				event_name, (int)roam_start->rssi));
 		}
@@ -3468,6 +3475,7 @@ wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
 		if (datalen >= sizeof(wlc_roam_prep_event_t)) {
 			const wlc_roam_prep_event_t *roam_prep =
 				(wlc_roam_prep_event_t *)event_data;
+			BCM_REFERENCE(roam_prep);
 			DHD_EVENT(("MACEVENT: %s, target bss rssi %d\n",
 				event_name, (int)roam_prep->rssi));
 		}
@@ -3755,6 +3763,7 @@ wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
 		if (datalen >= sizeof(wl_proxd_event_t)) {
 			const wl_proxd_event_t *proxd =
 				(wl_proxd_event_t*)event_data;
+			BCM_REFERENCE(proxd);
 			DHD_LOG_MEM(("MACEVENT: %s, event:%d, status:%d\n",
 				event_name, proxd->type, reason));
 		}
@@ -3809,6 +3818,7 @@ wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
 		if (datalen >= sizeof(wlc_bcn_mute_miti_event_data_v1_t)) {
 			const wlc_bcn_mute_miti_event_data_v1_t
 				*bcn_mute_miti_evnt_data = event_data;
+			BCM_REFERENCE(bcn_mute_miti_evnt_data);
 			DHD_EVENT(("MACEVENT: %s, reason :%d uatbtt_count: %d\n",
 				event_name, reason, bcn_mute_miti_evnt_data->uatbtt_count));
 		}

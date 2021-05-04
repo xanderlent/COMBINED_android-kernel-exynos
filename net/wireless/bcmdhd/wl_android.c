@@ -1316,6 +1316,7 @@ int wl_android_get_chanspec(struct net_device *dev, char *command, int total_len
 
 	channel = chanspec & WL_CHANSPEC_CHAN_MASK;
 	band = chanspec & WL_CHANSPEC_BAND_MASK;
+	BCM_REFERENCE(band);
 	bw = chanspec & WL_CHANSPEC_BW_MASK;
 
 	DHD_INFO(("wl_android_get_80211_mode: channel:%d band:%d bandwidth:%d\n",
@@ -9300,7 +9301,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr)
 	command[priv_cmd.total_len] = '\0';
 
 	if (wl_android_priv_cmd_log_enable_check(command)) {
-		DHD_ERROR(("wl_android_priv_cmd: Android private cmd \"%s\" on %s\n",
+		DHD_INFO(("wl_android_priv_cmd: Android private cmd \"%s\" on %s\n",
 			command, ifr->ifr_name));
 	}
 	else {
@@ -10308,7 +10309,7 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 		if (wldev_iovar_setint(net, "fccpwrlimit2g", FALSE)) {
 			DHD_ERROR(("%s: fccpwrlimit2g deactivation is failed\n", __FUNCTION__));
 		} else {
-			DHD_ERROR(("%s: fccpwrlimit2g is deactivated\n", __FUNCTION__));
+			DHD_INFO(("%s: fccpwrlimit2g is deactivated\n", __FUNCTION__));
 		}
 #endif /* FCC_PWR_LIMIT_2G */
 #endif /* CUSTOMER_HW4_PRIVATE_CMD */

@@ -286,10 +286,10 @@ do {	\
 
 #define DHD_DBGIF(args)
 
-#define DHD_ERROR_MEM(args)	DHD_ERROR(args)
-#define DHD_IOVAR_MEM(args)	DHD_ERROR(args)
-#define DHD_LOG_MEM(args)	DHD_ERROR(args)
-#define DHD_ERROR_EX(args)	DHD_ERROR(args)
+#define DHD_ERROR_MEM(args)
+#define DHD_IOVAR_MEM(args)
+#define DHD_LOG_MEM(args)
+#define DHD_ERROR_EX(args)
 
 #ifdef CUSTOMER_HW4_DEBUG
 #define DHD_TRACE_HW4	DHD_ERROR

@@ -2570,7 +2570,7 @@ wl_cfgvendor_set_ssid_whitelist(struct wiphy *wiphy,
 		 * API. so this handler cannot be compiled out. but its
 		 * safe to ignore.
 		 */
-		WL_ERR(("whilelist ssid not supported. Ignore."));
+		WL_INFORM(("whilelist ssid not supported. Ignore."));
 		err = BCME_OK;
 	}
 exit:
