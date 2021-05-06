@@ -1221,7 +1221,7 @@ continue_monitor:
 	dev_info(battery->dev,
 			"%s: Time=%lu, Battery sts=%s, vbat=%d, ichg=%d, ifg=%d, soc=%d, tbat=%d, tchg=%d, wlc=%s, iwlc=%d, twlc=%d, vwlc=%d\n",
 			__func__,
-			ktime_get_boot_ns() / 1000000,
+			ktime_get_real_ns() / 1000000,
 			bat_status_str[battery->status],
 			battery->voltage_now,
 			battery->charging_current,
