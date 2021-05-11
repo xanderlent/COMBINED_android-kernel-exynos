@@ -289,9 +289,6 @@ static int abox_wdma_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (memblock_is_memory(substream->runtime->dma_addr))
-			abox_request_dram_on(data->dev_abox, dev, true);
-
 		pcmtask_msg->param.trigger = 1;
 		ret = abox_wdma_request_ipc(data, &msg, 1, 0);
 		switch (data->type) {
@@ -319,8 +316,6 @@ static int abox_wdma_trigger(struct snd_pcm_substream *substream, int cmd)
 			break;
 		}
 
-		if (memblock_is_memory(substream->runtime->dma_addr))
-			abox_request_dram_on(data->dev_abox, dev, false);
 		break;
 	default:
 		ret = -EINVAL;

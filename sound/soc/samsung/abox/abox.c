@@ -137,6 +137,7 @@ static void update_mask_value(void __iomem *sfr,
 #define DEFAULT_HMP_BOOST_ID		DEFAULT_CPU_GEAR_ID
 #define DEFAULT_INT_FREQ_ID		DEFAULT_CPU_GEAR_ID
 #define DEFAULT_MIF_FREQ_ID		DEFAULT_CPU_GEAR_ID
+#define DEFAULT_SYS_POWER_ID		DEFAULT_CPU_GEAR_ID
 #define AUD_PLL_RATE_KHZ		(1179648)
 #define AUD_PLL_RATE_HZ_BYPASS		(26000000)
 #define AUDIF_RATE_HZ			(24576000)
@@ -3846,7 +3847,6 @@ static void abox_check_cpu_gear(struct device *dev,
 			/* new */
 			dev_dbg(dev, "%s(%p): new\n", __func__, id);
 			pm_wakeup_event(dev_abox, BOOT_DONE_TIMEOUT_MS);
-			abox_request_dram_on(dev, (void *)BOOT_CPU_GEAR_ID, true);
 		}
 	} else {
 		if ((old_gear >= ABOX_CPU_GEAR_MIN) &&
@@ -3854,13 +3854,11 @@ static void abox_check_cpu_gear(struct device *dev,
 			/* on */
 			dev_dbg(dev, "%s(%p): on\n", __func__, id);
 			pm_wakeup_event(dev_abox, BOOT_DONE_TIMEOUT_MS);
-			abox_request_dram_on(dev, (void *)BOOT_CPU_GEAR_ID, true);
 		} else if ((old_gear < ABOX_CPU_GEAR_MIN) &&
 				(gear >= ABOX_CPU_GEAR_MIN)) {
 			/* off */
 			dev_dbg(dev, "%s(%p): off\n", __func__, id);
 			pm_relax(dev_abox);
-			abox_request_dram_on(dev, (void *)BOOT_CPU_GEAR_ID, false);
 		}
 	}
 }
@@ -5062,7 +5060,6 @@ static void abox_boot_done_work_func(struct work_struct *work)
 	abox_restore_data(dev);
 	abox_request_cpu_gear(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
 			ABOX_CPU_GEAR_MIN);
-	abox_request_dram_on(dev, dev, false);
 }
 
 static void abox_boot_done(struct device *dev, unsigned int version)
@@ -6013,7 +6010,7 @@ static int abox_enable(struct device *dev)
 		}
 	}
 
-	abox_request_dram_on(dev, dev, true);
+	abox_request_dram_on(dev, (void *)DEFAULT_SYS_POWER_ID, true);
 	if (has_reset) {
 		abox_cpu_power(true);
 		abox_cpu_enable(true);
@@ -6091,7 +6088,7 @@ static int abox_disable(struct device *dev)
 	}
 	data->calliope_state = CALLIOPE_DISABLED;
 	abox_log_drain_all(dev);
-
+	abox_request_dram_on(dev, (void *)DEFAULT_SYS_POWER_ID, false);
 	abox_save_register(data);
 	abox_cfg_gpio(dev, "idle");
 	abox_pad_retention(true);
@@ -6102,18 +6099,29 @@ static int abox_disable(struct device *dev)
 	return 0;
 }
 
+void abox_poweroff(void)
+{
+	struct device *dev = p_abox_data->dev;
+	struct abox_data *data = dev_get_drvdata(dev);
+
+	if (data->calliope_state == CALLIOPE_DISABLED) {
+		dev_dbg(dev, "already disabled\n");
+		return;
+	}
+	dev_info(dev, "%s\n", __func__);
+
+	abox_disable(dev);
+
+	exynos_sysmmu_control(dev, false);
+}
+
 static int abox_runtime_suspend(struct device *dev)
 {
-	int ret = 0;
-
 	dev_dbg(dev, "%s\n", __func__);
 
-	ret = abox_disable(dev);
-	if (!ret) {
-		exynos_sysmmu_control(dev, false);
-	}
+	p_abox_data->enabled = false;
 
-	return ret;
+	return 0;
 }
 
 static int abox_runtime_resume(struct device *dev)
