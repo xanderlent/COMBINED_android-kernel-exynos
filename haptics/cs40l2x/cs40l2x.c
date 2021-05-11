@@ -3984,7 +3984,8 @@ static ssize_t cs40l2x_bemf_rec_show(struct device *dev,
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int reg, val;
-	int ret, i, size = 0;
+	ssize_t len = 0;
+	int ret, i;
 
 	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
@@ -4002,12 +4003,11 @@ static ssize_t cs40l2x_bemf_rec_show(struct device *dev,
 		ret = regmap_read(regmap, reg + (i*4), &val);
 		if (ret)
 			goto err_bemf_rec;
-
-		size += snprintf(buf, PAGE_SIZE, "%d\n", val);
-		buf += strlen(buf);
+		len += snprintf(buf + len, PAGE_SIZE - len, "%d ", val);
 	}
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 
-	ret = size;
+	ret = len;
 
 err_bemf_rec:
 	mutex_unlock(&cs40l2x->lock);
@@ -4030,7 +4030,7 @@ static ssize_t cs40l2x_bemf_rec_en_store(struct device *dev,
 	if (ret || val > 1)
 		return -EINVAL;
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "MEASURE_BEMF_ONLY",
@@ -4050,8 +4050,8 @@ static ssize_t cs40l2x_bemf_rec_en_store(struct device *dev,
 
 err_bemf_rec_en:
 	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 	return ret;
 }
 
@@ -4063,7 +4063,7 @@ static ssize_t cs40l2x_bemf_rec_en_show(struct device *dev,
 	unsigned int reg, val;
 	int ret;
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "MEASURE_BEMF_ONLY",
@@ -4083,28 +4083,29 @@ static ssize_t cs40l2x_bemf_rec_en_show(struct device *dev,
 
 err_bemf_rec_en:
 	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 	return ret;
 }
 
 static ssize_t cs40l2x_bemf_shift_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
+					struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct regmap *regmap = cs40l2x->regmap;
-	int ret;
 	unsigned int reg, val;
+	int ret;
 
 	ret = kstrtou32(buf, 10, &val);
 	if (ret)
 		return -EINVAL;
 
 	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "BEMF_SHIFT",
-			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_PAR);
+			      CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_PAR);
 	if (!reg) {
 		dev_err(cs40l2x->dev, "Unable to get bemf shift register\n");
 		ret = -EPERM;
@@ -4118,6 +4119,7 @@ static ssize_t cs40l2x_bemf_shift_store(struct device *dev,
 	ret = count;
 
 err_exit:
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 
@@ -4125,16 +4127,18 @@ err_exit:
 }
 
 static ssize_t cs40l2x_bemf_shift_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+				       struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int reg, val;
 	int ret;
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
 	reg = cs40l2x_dsp_reg(cs40l2x, "BEMF_SHIFT",
-			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_PAR);
+			      CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_PAR);
 	if (!reg) {
 		dev_err(cs40l2x->dev, "Unable to get bemf shift register\n");
 		ret = -EINVAL;
@@ -4148,8 +4152,10 @@ static ssize_t cs40l2x_bemf_shift_show(struct device *dev,
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", val);
 
 err_exit:
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
 	return ret;
 }
 
@@ -4234,7 +4240,7 @@ static ssize_t cs40l2x_dyn_f0_val_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "DYN_F0_TABLE", CS40L2X_XM_UNPACKED_TYPE,
@@ -4282,8 +4288,8 @@ static ssize_t cs40l2x_dyn_f0_val_store(struct device *dev,
 	ret = count;
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
@@ -7951,7 +7957,7 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 
 		if (cs40l2x->cond_class_h_en) {
 			ret = cs40l2x_cond_classh(cs40l2x,
-				cs40l2x->cp_trailer_index);
+				cs40l2x->cp_trailer_index & CS40L2X_INDEX_MASK);
 			if (ret) {
 				dev_err(dev, "Conditional ClassH failed\n");
 				break;
@@ -8585,6 +8591,9 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 
 	if (cs40l2x->algo_info[0].rev >= CS40L2X_PWLE_FRQ_MIN_REV)
 		cs40l2x->ext_freq_min_fw = true;
+
+	if (cs40l2x->algo_info[0].rev < CS40L2X_OWT_MIN_REV)
+		cs40l2x->open_wt_enable = false;
 
 	return 0;
 }
