@@ -278,11 +278,11 @@ static int of_get_devfreq_sync_volt_idx(const struct device_node *device)
 
 static bool exynos_pd_power_down_ok_aud(void)
 {
-//#ifdef CONFIG_SND_SOC_SAMSUNG_ABOX
-//	return !abox_is_on();
-//#else
+#ifdef CONFIG_SND_SOC_SAMSUNG_ABOX
+	return !abox_is_on();
+#else
 	return true;
-//#endif
+#endif
 }
 
 static bool exynos_pd_power_down_ok_vts(void)
