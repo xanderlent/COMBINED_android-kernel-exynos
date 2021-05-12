@@ -12,3 +12,8 @@
 		};
 	};
 };
+
+&abox {
+	samsung,abox-sram-name = "calliope_sram_obsolete.bin";
+	samsung,abox-dram-name = "calliope_dram_obsolete.bin";
+};
