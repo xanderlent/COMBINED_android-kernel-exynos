@@ -148,54 +148,6 @@
 	};
 
 	exynos-powermode {
-		cpd_residency = <3000>;
-		cpd_enabled = <0>;
-		sicd_residency = <3000>;
-		sicd_enabled = <0>;
-
-		idle-ip = "13970000.pwm",		/* [ 0] pwm		*/
-			  "11c40000.adc",		/* [ 1] adc		*/
-			  "11d00000.hsi2c",		/* [ 2] hsi2c_0		*/
-			  "11d10000.hsi2c",		/* [ 3] hsi2c_1		*/
-			  "11d20000.hsi2c",		/* [ 4] hsi2c_2		*/
-			  "11d30000.hsi2c",		/* [ 5] hsi2c_3		*/
-			  "11d40000.hsi2c",		/* [ 6] hsi2c_4		*/
-			  "11d50000.hsi2c",		/* [ 7] hsi2c_5		*/
-			  "11d60000.hsi2c",		/* [ 8] hsi2c_6		*/
-			  "11d70000.hsi2c",		/* [ 9] hsi2c_7		*/
-			  "138a0000.hsi2c",		/* [10] hsi2c_8		*/
-			  "13900000.hsi2c",		/* [11] hsi2c_9		*/
-			  "13910000.hsi2c",		/* [12] hsi2c_10	*/
-			  "11d00000.spi",		/* [13] spi_0		*/
-			  "11d20000.spi",		/* [14] spi_1		*/
-			  "11d40000.spi",		/* [15] spi_2		*/
-			  "11d60000.spi",		/* [16] spi_3		*/
-			  "13940000.spi",		/* [17] spi_4		*/
-			  "13900000.spi",		/* [18] spi_5		*/
-			  "13500000.dwmmc0",		/* [19] dwmmc0		*/
-			  "13550000.dwmmc2",		/* [20] dwmmc2		*/
-			  "13600000.usb",		/* [21] usb		*/
-			  "148e0000.dsim",		/* [22] dsim		*/
-			  /* index for power-domain */
-			  "pd-dispaud",			/* [23] pd-dispaud	*/
-			  "pd-g3d",			/* [24] pd-g3d		*/
-			  "pd-is",			/* [25] pd-is		*/
-			  "pd-mfcmscl",			/* [26] pd-mfcmscl	*/
-			  "pd-vts";			/* [27] pd-vts		*/
-
-		fix-idle-ip = "acpm_dvfs";
-		fix-idle-ip-index = <96>;
-		eint_wakeup_mask_offset = <0x60C>, <0x644>;
-
-		idle_ip_mask {
-			sicd: SYS_SICD {
-				mode-index = <0>;
-				ref-idle-ip = <0>,  <1>,  <2>,  <3>,  <4>,  <5>,  <6>,  <7>,  <8>,  <9>,
-					     <10>, <11>, <12>, <13>, <14>, <15>, <16>, <17>, <18>, <19>,
-					     <20>, <21>, <22>,       <24>,       <26>,       <96>;
-			};
-		};
-
 		wakeup-masks {
 			/*
 			 * wakeup_mask configuration
@@ -436,6 +388,27 @@
 		logging-period = <500>;
 		dump-base = <0x203C000>;
 		dump-size = <0x17000>;			/* 92KB */
+	};
+
+	cpupm {
+		#define POWERMODE_TYPE_CLUSTER	0
+		#define POWERMODE_TYPE_SYSTEM	1
+
+		cpd_cl0 {
+			device_type = "cpupm";
+			target-residency = <3000>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			siblings = "0-1";
+		};
+
+		sicd {
+			device_type = "cpupm";
+			target-residency = <3000>;
+			type = <POWERMODE_TYPE_SYSTEM>;
+			siblings = "0-1";
+			entry-allowed = "0-1";
+			system-idle;
+		};
 	};
 
 	exynos_flexpmu_dbg {
