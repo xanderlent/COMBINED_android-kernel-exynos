@@ -229,6 +229,7 @@ void exynos_update_ip_idle_status(int ip_index, int idle)
 		idle_ip_bit_field |= (val << ip_index);
 	spin_unlock_irqrestore(&idle_ip_bit_field_lock, flags);
 }
+EXPORT_SYMBOL_GPL(exynos_update_ip_idle_status);
 
 int exynos_get_idle_ip_index(const char *ip_name)
 {
@@ -263,6 +264,7 @@ free:
 	kfree(ip);
 	return -1;
 }
+EXPORT_SYMBOL_GPL(exynos_get_idle_ip_index);
 
 static void __init fix_idle_ip_init(void)
 {
