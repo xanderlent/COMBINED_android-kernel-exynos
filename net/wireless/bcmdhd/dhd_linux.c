@@ -10624,9 +10624,9 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 
 	DHD_ERROR(("Firmware up: op_mode=0x%04x, MAC="MACDBG"\n",
 		dhd->op_mode, MAC2STRDBG(dhd->mac.octet)));
-#if defined(DHD_BLOB_EXISTENCE_CHECK)
+#if defined(DHD_BLOB_EXISTENCE_CHECK) && !defined(CUSTOM_COUNTRY_CODE)
 	if (!dhd->is_blob)
-#endif /* DHD_BLOB_EXISTENCE_CHECK */
+#endif /* DHD_BLOB_EXISTENCE_CHECK && !CUSTOM_COUNTRY_CODE */
 	{
 		/* get a ccode and revision for the country code */
 #if defined(CUSTOM_COUNTRY_CODE)
@@ -11581,9 +11581,9 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 
 	DHD_ERROR(("Firmware up: op_mode=0x%04x, MAC="MACDBG"\n",
 		dhd->op_mode, MAC2STRDBG(dhd->mac.octet)));
-#if defined(DHD_BLOB_EXISTENCE_CHECK)
+#if defined(DHD_BLOB_EXISTENCE_CHECK) && !defined(CUSTOM_COUNTRY_CODE)
 	if (!dhd->is_blob)
-#endif /* DHD_BLOB_EXISTENCE_CHECK */
+#endif /* DHD_BLOB_EXISTENCE_CHECK && !CUSTOM_COUNTRY_CODE */
 	{
 		/* get a ccode and revision for the country code */
 #if defined(CUSTOM_COUNTRY_CODE)
@@ -16519,9 +16519,9 @@ void dhd_get_customized_country_code(struct net_device *dev, char *country_iso_c
 	wl_country_t *cspec)
 {
 	dhd_info_t *dhd = DHD_DEV_INFO(dev);
-#if defined(DHD_BLOB_EXISTENCE_CHECK)
+#if defined(DHD_BLOB_EXISTENCE_CHECK) && !defined(CUSTOM_COUNTRY_CODE)
 	if (!dhd->pub.is_blob)
-#endif /* DHD_BLOB_EXISTENCE_CHECK */
+#endif /* DHD_BLOB_EXISTENCE_CHECK && !CUSTOM_COUNTRY_CODE */
 	{
 #if defined(CUSTOM_COUNTRY_CODE)
 		get_customized_country_code(dhd->adapter, country_iso_code, cspec,

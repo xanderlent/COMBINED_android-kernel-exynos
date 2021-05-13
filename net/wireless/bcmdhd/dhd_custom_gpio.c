@@ -129,108 +129,18 @@ dhd_custom_get_mac_address(void *adapter, unsigned char *buf)
 /* Customized Locale table : OPTIONAL feature */
 const struct cntry_locales_custom translate_custom_table[] = {
 /* Table should be filled out based on custom platform regulatory requirement */
-#ifdef EXAMPLE_TABLE
-	{"",   "XY", 4},  /* Universal if Country code is unknown or empty */
-	{"US", "US", 69}, /* input ISO "US" to : US regrev 69 */
-	{"CA", "US", 69}, /* input ISO "CA" to : US regrev 69 */
-	{"EU", "EU", 5},  /* European union countries to : EU regrev 05 */
-	{"AT", "EU", 5},
-	{"BE", "EU", 5},
-	{"BG", "EU", 5},
-	{"CY", "EU", 5},
-	{"CZ", "EU", 5},
-	{"DK", "EU", 5},
-	{"EE", "EU", 5},
-	{"FI", "EU", 5},
-	{"FR", "EU", 5},
-	{"DE", "EU", 5},
-	{"GR", "EU", 5},
-	{"HU", "EU", 5},
-	{"IE", "EU", 5},
-	{"IT", "EU", 5},
-	{"LV", "EU", 5},
-	{"LI", "EU", 5},
-	{"LT", "EU", 5},
-	{"LU", "EU", 5},
-	{"MT", "EU", 5},
-	{"NL", "EU", 5},
-	{"PL", "EU", 5},
-	{"PT", "EU", 5},
-	{"RO", "EU", 5},
-	{"SK", "EU", 5},
-	{"SI", "EU", 5},
-	{"ES", "EU", 5},
-	{"SE", "EU", 5},
-	{"GB", "EU", 5},
-	{"KR", "XY", 3},
-	{"AU", "XY", 3},
-	{"CN", "XY", 3}, /* input ISO "CN" to : XY regrev 03 */
-	{"TW", "XY", 3},
-	{"AR", "XY", 3},
-	{"MX", "XY", 3},
-	{"IL", "IL", 0},
-	{"CH", "CH", 0},
-	{"TR", "TR", 0},
-	{"NO", "NO", 0},
-#endif /* EXMAPLE_TABLE */
-#if defined(BOARD_HIKEY)
-#if defined(BCM4335_CHIP)
-	{"",   "XZ", 11},  /* Universal if Country code is unknown or empty */
-#endif
-	{"AE", "AE", 1},
-	{"AR", "AR", 1},
-	{"AT", "AT", 1},
-	{"AU", "AU", 2},
-	{"BE", "BE", 1},
-	{"BG", "BG", 1},
-	{"BN", "BN", 1},
-	{"CA", "CA", 2},
-	{"CH", "CH", 1},
-	{"CY", "CY", 1},
-	{"CZ", "CZ", 1},
-	{"DE", "DE", 3},
-	{"DK", "DK", 1},
-	{"EE", "EE", 1},
-	{"ES", "ES", 1},
-	{"FI", "FI", 1},
-	{"FR", "FR", 1},
+/* ccode list: AU/1 CA/1 EU/1 GB/1 IN/1 JP/1 MX/1 NZ/1 US/1 WW/1 */
+	{"",   "XV", 0},  /* Universal if Country code is unknown or empty */
+	{"AU", "AU", 1},
+	{"CA", "CA", 1},
+	{"EU", "EU", 1},
 	{"GB", "GB", 1},
-	{"GR", "GR", 1},
-	{"HR", "HR", 1},
-	{"HU", "HU", 1},
-	{"IE", "IE", 1},
-	{"IS", "IS", 1},
-	{"IT", "IT", 1},
-	{"ID", "ID", 1},
-	{"JP", "JP", 8},
-	{"KR", "KR", 24},
-	{"KW", "KW", 1},
-	{"LI", "LI", 1},
-	{"LT", "LT", 1},
-	{"LU", "LU", 1},
-	{"LV", "LV", 1},
-	{"MA", "MA", 1},
-	{"MT", "MT", 1},
+	{"IN", "IN", 1},
+	{"JP", "JP", 1},
 	{"MX", "MX", 1},
-	{"NL", "NL", 1},
-	{"NO", "NO", 1},
-	{"PL", "PL", 1},
-	{"PT", "PT", 1},
-	{"PY", "PY", 1},
-	{"RO", "RO", 1},
-	{"SE", "SE", 1},
-	{"SI", "SI", 1},
-	{"SK", "SK", 1},
-	{"TR", "TR", 7},
-	{"TW", "TW", 1},
-	{"IR", "XZ", 11},	/* Universal if Country code is IRAN, (ISLAMIC REPUBLIC OF) */
-	{"SD", "XZ", 11},	/* Universal if Country code is SUDAN */
-	{"SY", "XZ", 11},	/* Universal if Country code is SYRIAN ARAB REPUBLIC */
-	{"GL", "XZ", 11},	/* Universal if Country code is GREENLAND */
-	{"PS", "XZ", 11},	/* Universal if Country code is PALESTINIAN TERRITORY, OCCUPIED */
-	{"TL", "XZ", 11},	/* Universal if Country code is TIMOR-LESTE (EAST TIMOR) */
-	{"MH", "XZ", 11},	/* Universal if Country code is MARSHALL ISLANDS */
-#endif
+	{"NZ", "NZ", 1},
+	{"US", "US", 1},
+	{"WW", "WW", 1},
 };
 
 /* Customized Locale convertor
@@ -244,7 +154,7 @@ void get_customized_country_code(void *adapter, char *country_iso_code,
 void get_customized_country_code(void *adapter, char *country_iso_code, wl_country_t *cspec)
 #endif /* CUSTOM_COUNTRY_CODE */
 {
-#if defined(BOARD_HIKEY) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
+#if defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
 
 	struct cntry_locales_custom *cloc_ptr;
 
@@ -280,11 +190,11 @@ void get_customized_country_code(void *adapter, char *country_iso_code, wl_count
 			return;
 		}
 	}
-#ifdef EXAMPLE_TABLE
+
 	/* if no country code matched return first universal code from translate_custom_table */
 	memcpy(cspec->ccode, translate_custom_table[0].custom_locale, WLC_CNTRY_BUF_SZ);
 	cspec->rev = translate_custom_table[0].custom_locale_rev;
-#endif /* EXMAPLE_TABLE */
+
 	return;
 #endif /* (defined(CUSTOMER_HW2) || defined(BOARD_HIKEY)) &&
 	* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
