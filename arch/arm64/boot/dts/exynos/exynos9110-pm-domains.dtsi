@@ -44,7 +44,6 @@
 		need_smc = <0x11410204>;
 		status = "okay";
 		#power-domain-cells = <0>;
-		skip-idle-ip;
 	};
 	pd_mfcmscl: pd-mfcmscl@11864018 {
 		compatible = "samsung,exynos-pd";
@@ -53,7 +52,6 @@
 		need_smc = <0x12C20204>;
 		status = "okay";
 		#power-domain-cells = <0>;
-		skip-idle-ip;
 	};
 
 	pd_vts: pd-vts@11864020 {
