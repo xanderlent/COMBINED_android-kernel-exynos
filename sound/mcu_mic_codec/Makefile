@@ -7,7 +7,7 @@ default: all
 KBUILD_OPTIONS := CONFIG_SND_SOC_MCU_MIC_CODEC=m
 
 all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(M) modules $(KBUILD_OPTIONS)
+	$(MAKE) -C $(KERNEL_SRC) M=$(M) modules $(KBUILD_OPTIONS) KBUILD_EXTRA_SYMBOLS="$(OUT_DIR)/../exynos-google-cw-extra/drivers/sensorhub/nanohub/Module.symvers"
 
 modules_install:
 	$(MAKE) INSTALL_MOD_STRIP=1 M=$(M) -C $(KERNEL_SRC) modules_install
