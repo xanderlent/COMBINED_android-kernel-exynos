@@ -66,8 +66,8 @@ EXPORT_SYMBOL(exynos_pd_status);
  */
 static void exynos_pd_power_on_pre(struct exynos_pm_domain *pd)
 {
-//	if (!pd->skip_idle_ip)
-//		exynos_update_ip_idle_status(pd->idle_ip_index, 0);
+	if (!pd->skip_idle_ip)
+		exynos_update_ip_idle_status(pd->idle_ip_index, 0);
 
 	if (pd->devfreq_index >= 0)
 		exynos_bts_scitoken_setting(true);
@@ -93,8 +93,8 @@ static void exynos_pd_power_off_pre(struct exynos_pm_domain *pd)
 
 static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 {
-//	if (!pd->skip_idle_ip)
-//		exynos_update_ip_idle_status(pd->idle_ip_index, 1);
+	if (!pd->skip_idle_ip)
+		exynos_update_ip_idle_status(pd->idle_ip_index, 1);
 
 	if (pd->devfreq_index >= 0)
 		exynos_bts_scitoken_setting(false);
