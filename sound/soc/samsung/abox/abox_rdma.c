@@ -582,6 +582,7 @@ static int abox_rdma_compr_open(struct snd_compr_stream *stream)
 	data->created = false;
 
 	pm_runtime_get_sync(dev);
+	abox_request_dram_on(dma_data->dev_abox, dev, true);
 	abox_request_cpu_gear(dev, abox_data, dev, abox_data->cpu_gear_min);
 
 	return 0;
@@ -648,6 +649,7 @@ static int abox_rdma_compr_free(struct snd_compr_stream *stream)
 }
 #endif
 	abox_request_cpu_gear(dev, abox_data, dev, ABOX_CPU_GEAR_MIN);
+	abox_request_dram_on(dma_data->dev_abox, dev, false);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put(dev);
 
@@ -1465,6 +1467,7 @@ static int abox_rdma_trigger(struct snd_pcm_substream *substream, int cmd)
 	int ret;
 	ABOX_IPC_MSG msg;
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg.msg.pcmtask;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	dev_info(dev, "%s[%d](%d)\n", __func__, id, cmd);
 
@@ -1476,6 +1479,9 @@ static int abox_rdma_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (memblock_is_memory(runtime->dma_addr))
+			abox_request_dram_on(data->dev_abox, dev, true);
+
 		pcmtask_msg->param.trigger = 1;
 		ret = abox_rdma_request_ipc(data, &msg, 1, 0);
 		break;
@@ -1493,6 +1499,9 @@ static int abox_rdma_trigger(struct snd_pcm_substream *substream, int cmd)
 		default:
 			break;
 		}
+
+		if (memblock_is_memory(runtime->dma_addr))
+			abox_request_dram_on(data->dev_abox, dev, false);
 
 		break;
 	default:

@@ -146,9 +146,11 @@ static ssize_t abox_dump_auto_write(struct file *file, const char __user *data,
 
 			pdev_abox = to_platform_device(abox_dump_dev_abox);
 			if (enable) {
+				abox_request_dram_on(abox_dump_dev_abox, dev, true);
 				pm_runtime_get(dev);
 			} else {
 				pm_runtime_put(dev);
+				abox_request_dram_on(abox_dump_dev_abox, dev, false);
 			}
 		}
 
