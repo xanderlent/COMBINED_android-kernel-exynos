@@ -18456,7 +18456,7 @@ dhd_mem_dump(void *handle, void *event_info, u8 event)
 		cancel_delayed_work_sync(&dhd->edl_dispatcher_work);
 #endif
 
-		BUG_ON(1);
+		//BUG_ON(1);
 	}
 
 exit:

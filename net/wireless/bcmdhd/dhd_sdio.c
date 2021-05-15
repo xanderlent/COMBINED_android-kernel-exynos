@@ -2940,10 +2940,15 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 	} else {
 		if (timeleft == 0) {
 #ifdef DHD_DEBUG
+			void __iomem *gpm20_0_io = ioremap(0x11A50080, SZ_16);
 			uint32 status, retry = 0;
 			R_SDREG(status, &bus->regs->intstatus, retry);
 			DHD_ERROR(("%s: resumed on timeout, INT status=0x%08X\n",
 				__FUNCTION__, status));
+			DHD_ERROR(("%s: GPM20_0 CON(%#x) DAT(%#x) PUD(%#x) DRV(%#x)\n",
+				__FUNCTION__, readl(gpm20_0_io), readl(gpm20_0_io + 0x4),
+				readl(gpm20_0_io + 0x8), readl(gpm20_0_io + 0xC)));
+			iounmap(gpm20_0_io);
 #else
 			DHD_ERROR(("%s: resumed on timeout\n", __FUNCTION__));
 #endif /* DHD_DEBUG */
