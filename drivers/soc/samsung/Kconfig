@@ -42,6 +42,12 @@ config EXYNOS_PD
 	depends on PM
 	select PM_GENERIC_DOMAINS
 
+config EXYNOS_CPUPM
+	bool "Exynos CPU Power Management driver"
+	depends on ARCH_EXYNOS && EXYNOS_PMU && PMUCAL
+	help
+	Support Exynos CPU Power Control for EXYNOS SoC.
+
 config EXYNOS_RGT
 	bool "Exynos Regulator Debug Support"
 	depends on REGULATOR

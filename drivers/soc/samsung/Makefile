@@ -47,5 +47,8 @@ obj-$(CONFIG_EXYNOS_DEBUG)      += debug/
 # CPU HOTPLUG
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-cpu_hotplug.o
 
+# CPU Power Management
+obj-$(CONFIG_EXYNOS_CPUPM)     += exynos-cpupm.o
+
 # SDM
 obj-$(CONFIG_EXYNOS_SDM)	+= exynos-sdm.o
