@@ -39,7 +39,6 @@
 
 #include <soc/samsung/exynos-devfreq.h>
 
-#undef CONFIG_CPU_IDLE
 #if defined(CONFIG_CPU_IDLE)
 #include <soc/samsung/exynos-cpupm.h>
 #endif
