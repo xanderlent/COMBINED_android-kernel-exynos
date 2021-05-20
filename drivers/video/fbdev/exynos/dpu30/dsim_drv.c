@@ -1036,8 +1036,10 @@ static int dsim_enable(struct dsim_device *dsim)
 				dsim->id, dsim_state_names[next_state], ret);
 		goto out;
 	}
-
-	if (prev_state != DSIM_STATE_INIT)
+	if (prev_state == DSIM_STATE_DOZE ||
+			prev_state == DSIM_STATE_DOZE_SUSPEND)
+		dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_WAKE, NULL);
+	else if (prev_state != DSIM_STATE_INIT)
 		dsim_call_panel_ops(dsim, EXYNOS_PANEL_IOC_DISPLAYON, NULL);
 
 	dsim_info("dsim-%d %s - (state:%s -> %s)\n", dsim->id, __func__,

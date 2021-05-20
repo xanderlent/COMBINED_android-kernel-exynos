@@ -73,6 +73,7 @@ struct exynos_panel_ops {
 	int (*set_light)(struct exynos_panel_device *panel, u32 br_val);
 	int (*enter_hbm)(struct exynos_panel_device *panel);
 	int (*exit_hbm)(struct exynos_panel_device *panel);
+	int (*exit_doze)(struct exynos_panel_device *panel);
 };
 
 /*
@@ -137,5 +138,6 @@ static inline struct exynos_panel_device *get_panel_drvdata(void)
 #define EXYNOS_PANEL_IOC_SET_LIGHT	_IOW('P', 11, u32)
 #define EXYNOS_PANEL_IOC_HBM_ON		_IOW('P', 12, u32)
 #define EXYNOS_PANEL_IOC_HBM_OFF	_IOW('P', 13, u32)
+#define EXYNOS_PANEL_IOC_WAKE		_IOW('P', 14, u32)
 
 #endif /* __EXYNOS_PANEL_DRV_H__ */
