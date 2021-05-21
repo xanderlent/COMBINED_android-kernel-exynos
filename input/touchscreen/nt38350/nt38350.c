@@ -1833,6 +1833,7 @@ static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long e
 			nvt_ts_suspend(&ts->client->dev);
 		} else if ((*blank == FB_BLANK_VSYNC_SUSPEND) || (*blank == FB_BLANK_NORMAL)) {
 			ts->idle_mode = true;
+			nvt_ts_resume(&ts->client->dev);
 		}
 	} else if (evdata && evdata->data && event == FB_EVENT_BLANK) {
 		blank = evdata->data;
