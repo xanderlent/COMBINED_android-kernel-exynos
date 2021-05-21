@@ -54,6 +54,10 @@
 #include "samsung.h"
 #include "../../pinctrl/core.h"
 #include <linux/pinctrl/consumer.h>
+#include <misc/logbuffer.h>
+
+/* Debug logging */
+#define DATA_BYTES_PER_LINE     (16)
 
 #ifdef CONFIG_CPU_IDLE
 #include <soc/samsung/exynos-pm.h>
@@ -558,6 +562,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 	unsigned int insert_cnt = 0;
 	unsigned char trace_buf[256] = {0, };
 	int trace_cnt = 0;
+	char buf[DATA_BYTES_PER_LINE * 3 + 1];
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -655,8 +660,16 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 		continue;
 	}
 
-	if (ourport->uart_logging && trace_cnt)
+	if (ourport->uart_logging && trace_cnt) {
+		if (!IS_ERR_OR_NULL(ourport->log)) {
+			hex_dump_to_buffer(trace_buf, trace_cnt,
+				DATA_BYTES_PER_LINE, 1, buf, sizeof(buf),
+				false);
+			logbuffer_log(ourport->log, "RX: len: %d,buf: %s",
+				trace_cnt, buf);
+		}
 		uart_copy_to_local_buf(1, &ourport->uart_local_buf, trace_buf, trace_cnt);
+	}
 
 	__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
 
@@ -685,6 +698,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 	int count = port->fifosize;
 	unsigned char trace_buf[256] = {0, };
 	int trace_cnt = 0;
+	char buf[DATA_BYTES_PER_LINE * 3 + 1];
 
 	if (ourport->port.line == BLUETOOTH_UART_PORT_LINE) {
 		snprintf(uart_log_buf, LOG_REG_DEBUG_LEN,"[1] UMCON:0x%08x UFSTAT:0x%08x UINTP:0x%08x UCON:0x%08x UMSTAT:0x%08x",
@@ -737,8 +751,16 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 out:
 	wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_TXD_MSK);
-	if (ourport->uart_logging && trace_cnt)
+	if (ourport->uart_logging && trace_cnt) {
+		if (!IS_ERR_OR_NULL(ourport->log)) {
+			hex_dump_to_buffer(trace_buf, trace_cnt,
+				DATA_BYTES_PER_LINE, 1, buf,sizeof(buf),
+				false);
+			logbuffer_log(ourport->log, "TX: len: %d, buf: %s",
+				trace_cnt, buf);
+		}
 		uart_copy_to_local_buf(0, &ourport->uart_local_buf, trace_buf, trace_cnt);
+	}
 
 	spin_unlock_irqrestore(&port->lock, flags);
 	return IRQ_HANDLED;
@@ -820,10 +842,18 @@ static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	unsigned int umcon = rd_regl(port, S3C2410_UMCON);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
-	if (mctrl & TIOCM_RTS)
+	if (mctrl & TIOCM_RTS) {
 		umcon |= S3C2410_UMCOM_RTS_LOW;
-	else
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log,
+				"set_mctrl: Activate RTS, umcon:0x%08x", umcon);
+	} else {
 		umcon &= ~S3C2410_UMCOM_RTS_LOW;
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log,
+				"set_mctrl: Inactivate RTS, umcon:0x%08x",
+				umcon);
+	}
 
 	wr_regl(port, S3C2410_UMCON, umcon);
 	if (ourport->port.line == BLUETOOTH_UART_PORT_LINE) {
@@ -984,6 +1014,11 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 			/* disable auto flow control & set nRTS for High */
 			umcon = rd_regl(port, S3C2410_UMCON);
 			umcon &= ~(S3C2410_UMCOM_AFC | S3C2410_UMCOM_RTS_LOW);
+			if (ourport->uart_logging &&
+				!IS_ERR_OR_NULL(ourport->log))
+				logbuffer_log(ourport->log,
+					"pm: OFF: Disable AFC & Inactivate RTS, 0x%08x",
+					umcon);
 			wr_regl(port, S3C2410_UMCON, umcon);
 			if (ourport->port.line == BLUETOOTH_UART_PORT_LINE) {
 				snprintf(uart_log_buf, LOG_REG_DEBUG_LEN,"[3] UMCON:0x%08x UFSTAT:0x%08x UINTP:0x%08x UCON:0x%08x UMSTAT:0x%08x",
@@ -992,11 +1027,16 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 				uart_copy_to_local_buf(2, &ourport->uart_local_buf, uart_log_buf, sizeof(uart_log_buf));
 			}
 		}
-
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log,
+				"pm: OFF: uart_clock_disable");
 		uart_clock_disable(ourport);
 		break;
 
 	case S3C24XX_UART_PORT_RESUME:
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log,
+				"pm: ON: uart_clock_enable");
 		uart_clock_enable(ourport);
 		if (ourport->port.line == BLUETOOTH_UART_PORT_LINE) {
 			snprintf(uart_log_buf, LOG_REG_DEBUG_LEN,"[4] UMCON:0x%08x UFSTAT:0x%08x UINTP:0x%08x UCON:0x%08x UMSTAT:0x%08x",
@@ -1247,7 +1287,11 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	spin_lock_irqsave(&port->lock, flags);
 
 	dbg("setting ulcon to %08x, brddiv to %d, udivslot %08x\n",
-	    ulcon, quot, udivslot);
+		ulcon, quot, udivslot);
+	if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+		logbuffer_log(ourport->log,
+			"set_termios: ulcon %08x, brddiv %d, udivslot %08x",
+			ulcon, quot, udivslot);
 
 	wr_regl(port, S3C2410_ULCON, ulcon);
 	wr_regl(port, S3C2410_UBRDIV, quot);
@@ -1260,8 +1304,16 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CRTSCTS) {
 		umcon |= S3C2410_UMCOM_AFC;
 		port->status = UPSTAT_AUTOCTS;
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log,
+				"set_termios: Enable AFC, umcon:0x%08x",
+				umcon);
 	} else {
 		umcon &= ~S3C2410_UMCOM_AFC;
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log,
+				"set_termios: Disable AFC, umcon:0x%08x",
+				umcon);
 	}
 	wr_regl(port, S3C2410_UMCON, umcon);
 
@@ -1269,6 +1321,12 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	    rd_regl(port, S3C2410_ULCON),
 	    rd_regl(port, S3C2410_UCON),
 	    rd_regl(port, S3C2410_UFCON));
+	if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+		logbuffer_log(ourport->log,
+			"set_termios: ulcon 0x%08x, ucon 0x%08x, ufcon 0x%08x",
+			rd_regl(port, S3C2410_ULCON),
+			rd_regl(port, S3C2410_UCON),
+			rd_regl(port, S3C2410_UFCON));
 
 	if (ourport->dbg_mode & UART_DBG_MODE)
 		print_uart_mode(port, termios, baud);
@@ -1924,6 +1982,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	int ret, fifo_size;
 	int port_index = probe_index;
 	int rts_trig_level;
+	char logbuf_port[6];
 
 	dbg("s3c24xx_serial_probe(%p) %d\n", pdev, index);
 
@@ -2132,6 +2191,14 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 
 	ourport->dbg_mode = 0;
 
+	if (ourport->uart_logging == 1) {
+		snprintf(logbuf_port, sizeof(logbuf_port), "tty%d", port_index);
+		ourport->log = logbuffer_register(logbuf_port);
+		if (IS_ERR_OR_NULL(ourport->log)) {
+			dev_err(&pdev->dev, "probe: logbuffer get failed\n");
+			ourport->log = NULL;
+		}
+	}
 
 	return 0;
 }
@@ -2149,6 +2216,10 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 	if (ourport->cpu_qos_val && ourport->qos_timeout)
 		pm_qos_remove_request(&ourport->s3c24xx_uart_cpu_qos);
 #endif
+
+	if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log)) {
+		logbuffer_unregister(ourport->log);
+	}
 
 	if (port) {
 #ifdef CONFIG_SAMSUNG_CLOCK
@@ -2186,6 +2257,9 @@ static int s3c24xx_serial_suspend(struct device *dev)
 		udelay(300);//dealy for sfr update
 		s3c24xx_serial_rx_fifo_wait(ourport);
 
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log,
+				"suspend: uart_suspend_port");
 		uart_suspend_port(&s3c24xx_uart_drv, port);
 #ifdef CONFIG_SERIAL_SAMSUNG_HWACG
 		uart_clock_enable(ourport);
@@ -2195,7 +2269,6 @@ static int s3c24xx_serial_suspend(struct device *dev)
 		wr_regl(port, S3C2410_UCON, ucon);
 		exynos_usi_stop(port);
 		uart_clock_disable(ourport);
-
 		rx_enabled(port) = 0;
 		tx_enabled(port) = 0;
 #endif
@@ -2216,6 +2289,9 @@ static int s3c24xx_serial_resume(struct device *dev)
 			regmap_update_bits(ourport->usi_reg,
 				ourport->usi_offset, USI_SW_CONF_MASK,
 				USI_UART_SW_CONF);
+
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "resume: uart_resume_port");
 
 		uart_resume_port(&s3c24xx_uart_drv, port);
 
