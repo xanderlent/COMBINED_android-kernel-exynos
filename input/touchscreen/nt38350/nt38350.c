@@ -1703,8 +1703,6 @@ static int32_t nvt_ts_suspend(struct device *dev)
 	buf[1] = 0x13;
 	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
 
-	enable_irq_wake(ts->client->irq);
-
 	NVT_LOG("Enabled touch wakeup gesture\n");
 
 #else // WAKEUP_GESTURE
@@ -1788,6 +1786,15 @@ static int32_t nvt_ts_resume(struct device *dev)
 	return 0;
 }
 
+static int nvt_ts_wake_enable(struct device *dev) {
+	enable_irq_wake(ts->client->irq);
+	return 0;
+}
+
+static int nvt_ts_wake_disable(struct device *dev) {
+	disable_irq_wake(ts->client->irq);
+	return 0;
+}
 
 #if defined(CONFIG_FB)
 #ifdef _MSM_DRM_NOTIFY_H_
@@ -1875,6 +1882,9 @@ static void nvt_ts_late_resume(struct early_suspend *h)
 }
 #endif
 
+
+static SIMPLE_DEV_PM_OPS(nvt_ts_pm_ops, nvt_ts_wake_enable, nvt_ts_wake_disable);
+
 static const struct i2c_device_id nvt_ts_id[] = {
 	{ NVT_I2C_NAME, 0 },
 	{ }
@@ -1895,6 +1905,7 @@ static struct i2c_driver nvt_i2c_driver = {
 	.driver = {
 		.name	= NVT_I2C_NAME,
 		.owner	= THIS_MODULE,
+		.pm = &nvt_ts_pm_ops,
 #ifdef CONFIG_OF
 		.of_match_table = nvt_match_table,
 #endif
