@@ -15480,6 +15480,16 @@ dhd_dev_pno_set_for_ssid(struct net_device *dev, wlc_ssid_ext_t* ssids_local, in
 		pno_repeat, pno_freq_expo_max, channel_list, nchan));
 }
 
+#ifdef DHD_PNO_RESTART
+int
+dhd_dev_pno_restart_for_ssid(struct net_device *dev)
+{
+	dhd_info_t *dhd = DHD_DEV_INFO(dev);
+
+	return (dhd_pno_restart_for_ssid(&dhd->pub));
+}
+#endif
+
 /* Linux wrapper to call common dhd_pno_enable */
 int
 dhd_dev_pno_enable(struct net_device *dev, int enable)

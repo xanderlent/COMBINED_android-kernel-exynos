@@ -484,6 +484,11 @@ extern int
 dhd_dev_pno_set_for_ssid(struct net_device *dev, wlc_ssid_ext_t* ssids_local, int nssid,
 	uint16 scan_fr, int pno_repeat, int pno_freq_expo_max, uint16 *channel_list, int nchan);
 
+#ifdef DHD_PNO_RESTART
+extern int
+dhd_dev_pno_restart_for_ssid(struct net_device *dev);
+#endif
+
 extern int
 dhd_dev_pno_set_for_batch(struct net_device *dev,
 	struct dhd_pno_batch_params *batch_params);
@@ -529,6 +534,9 @@ extern int dhd_pno_stop_for_ssid(dhd_pub_t *dhd);
 extern int dhd_pno_enable(dhd_pub_t *dhd, int enable);
 extern int dhd_pno_set_for_ssid(dhd_pub_t *dhd, wlc_ssid_ext_t* ssid_list, int nssid,
 	uint16  scan_fr, int pno_repeat, int pno_freq_expo_max, uint16 *channel_list, int nchan);
+#ifdef DHD_PNO_RESTART
+extern int dhd_pno_restart_for_ssid(dhd_pub_t *dhd);
+#endif
 
 extern int dhd_pno_set_for_batch(dhd_pub_t *dhd, struct dhd_pno_batch_params *batch_params);
 

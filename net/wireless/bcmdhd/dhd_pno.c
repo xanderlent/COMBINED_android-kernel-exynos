@@ -1319,6 +1319,60 @@ dhd_pno_set_for_ssid(dhd_pub_t *dhd, wlc_ssid_ext_t* ssid_list, int nssid,
 
 }
 
+#ifdef DHD_PNO_RESTART
+int
+dhd_pno_restart_for_ssid(dhd_pub_t *dhd)
+{
+	int err = BCME_OK;
+	int mode;
+	dhd_pno_status_info_t *_pno_state;
+
+	_pno_state = PNO_GET_PNOSTATE(dhd);
+	DHD_PNO(("%s enter\n", __FUNCTION__));
+
+	if (!dhd_support_sta_mode(dhd)) {
+		err = BCME_BADOPTION;
+		goto exit;
+	}
+
+	mutex_lock(&_pno_state->pno_mutex);
+	mode = _pno_state->pno_mode;
+	err = dhd_pno_clean(dhd);
+	if (err < 0) {
+		DHD_ERROR(("%s : failed to call dhd_pno_clean (err: %d)\n",
+			__FUNCTION__, err));
+		mutex_unlock(&_pno_state->pno_mutex);
+		return err;
+	}
+	_pno_state->pno_mode = mode;
+	mutex_unlock(&_pno_state->pno_mutex);
+
+	/* Reprogram Legacy PNO if it was running */
+	if (_pno_state->pno_mode & DHD_PNO_LEGACY_MODE) {
+		struct dhd_pno_legacy_params *params_legacy;
+		uint16 chan_list[WL_NUMCHANNELS];
+
+		params_legacy = &(_pno_state->pno_params_arr[INDEX_OF_LEGACY_PARAMS].params_legacy);
+		_pno_state->pno_mode &= ~DHD_PNO_LEGACY_MODE;
+
+		DHD_PNO(("Restarting Legacy PNO SSID scan...\n"));
+		memcpy(chan_list, params_legacy->chan_list,
+			(params_legacy->nchan * sizeof(uint16)));
+		err = dhd_pno_set_legacy_pno(dhd, params_legacy->scan_fr,
+			params_legacy->pno_repeat, params_legacy->pno_freq_expo_max,
+			chan_list, params_legacy->nchan);
+		if (err < 0) {
+			DHD_ERROR(("%s : failed to restart legacy PNO scan(err: %d)\n",
+				__FUNCTION__, err));
+			goto exit;
+		}
+	}
+
+exit:
+	return err;
+}
+#endif
+
 static int
 dhd_pno_set_legacy_pno(dhd_pub_t *dhd, uint16  scan_fr, int pno_repeat,
 	int pno_freq_expo_max, uint16 *channel_list, int nchan)

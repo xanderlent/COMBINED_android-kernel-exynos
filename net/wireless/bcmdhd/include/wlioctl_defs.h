@@ -2123,7 +2123,7 @@
 #define WL_PFN_HIDDEN_BIT		2
 #define PNO_SCAN_MAX_FW			508*1000	/* max time scan time in msec */
 #define PNO_SCAN_MAX_FW_SEC		PNO_SCAN_MAX_FW/1000 /* max time scan time in SEC */
-#define PNO_SCAN_MIN_FW_SEC		10			/* min time scan time in SEC */
+#define PNO_SCAN_MIN_FW_SEC		5			/* min time scan time in SEC */
 #define WL_PFN_HIDDEN_MASK		0x4
 #define MAX_BSSID_PREF_LIST_NUM        32
 

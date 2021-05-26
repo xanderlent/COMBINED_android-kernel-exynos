@@ -464,6 +464,9 @@ DHDCFLAGS += -DDISABLE_FRAMEBURST_VSDB
 # WPS
 DHDCFLAGS += -DWL_WPS_SYNC -DBCMCRYPTO_COMPONENT
 
+# Restart PNO when fails
+DHDCFLAGS += -DDHD_PNO_RESTART
+
 # Path name to store the FW Debug symbol files
 DHDCFLAGS += -DPLATFORM_PATH="\"/data/vendor/log/wifi/\""
 

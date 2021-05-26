@@ -2667,11 +2667,15 @@ s32 wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 		cfg->sched_scan_running = FALSE;
 
 		if (cfg->bss_list && (cfg->bss_list->count == 0)) {
+#ifndef DHD_PNO_RESTART
 			WL_INFORM_MEM(("bss list empty. report sched_scan_stop\n"));
 			/* Indicated sched scan stopped so that user space
 			 * can do a full scan incase found match is empty.
 			 */
 			CFG80211_SCHED_SCAN_STOPPED(wiphy, cfg->sched_scan_req);
+#else
+			dhd_dev_pno_restart_for_ssid(dev);
+#endif
 			cfg->sched_scan_req = NULL;
 		}
 	}
@@ -3342,8 +3346,8 @@ wl_cfg80211_scan_mac_disable(struct net_device *dev)
 #endif /* SUPPORT_RANDOM_MAC_SCAN */
 
 #ifdef WL_SCHED_SCAN
-#define PNO_TIME                    30
-#define PNO_REPEAT                  4
+#define PNO_TIME                    5
+#define PNO_REPEAT                  10
 #define PNO_FREQ_EXPO_MAX           2
 #define PNO_ADAPTIVE_SCAN_LIMIT     60
 static bool
