@@ -130,6 +130,12 @@ Optional properties:
     cs40l25a_f0.bin does not exist, then disabling dynamic F0 support is
     recommended.
 
+  - cirrus,open-wt-disable : Boolean for disabling open wavetable support
+    (silicon revision B1 only). If this property is omitted, open wavetable
+    remains enabled in the absence of the open-wt-disable property. The open
+    wavetable feature can only be disabled with this property due to the
+    required adjustment of the wavetable during initialization.
+
   - cirrus,gpio1-rise-index : Specifies the wavetable index mapped to GPIO1
     rising edges. If this value is omitted, specified as zero or exceeds the
     maximum available index in the wavetable, GPIO1 rising edges are mapped to
@@ -375,6 +381,10 @@ Optional properties:
     of a single I2C read transaction. If this property is omitted, auto-recovery
     mode remains disabled and I2C-triggered playback is unaffected.
 
+  - cirrus,cond-classh : Boolean for enabling conditional classh. This will
+    keep classh enabled unless a clab waveform is triggered. Otherwise, classh
+    will be disabled unless data is streamed to the ASP port.
+
 Optional properties for VP (cirrus,vpbr-config) and VBST (cirrus,vbbr-config)
 brownout prevention child nodes:
 
@@ -408,6 +418,9 @@ brownout prevention child nodes:
   - cirrus,br-mute-enable: Boolean to specify that the output shall be muted
     if VPBR_MAX_ATT/VBBR_MAX_ATT is reached during the attack state in the
     continued presence of a brownout condition.
+
+  - cirrus,dcm-disable: Boolean to disable DCM automatic low power mode in
+    favor of CCM mode for specific hardware configurations.
 
 Examples:
 

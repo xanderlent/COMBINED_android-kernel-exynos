@@ -27,8 +27,11 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+
+// Google: Changed paths for our kernel directory structure
 #include "linux/platform_data/cs40l2x.h"
 #include "linux/mfd/cs40l2x.h"
+
 #include <linux/uaccess.h>
 
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
@@ -156,7 +159,7 @@ struct dspmem_chunk {
 	int cachebits;
 };
 
-static inline struct dspmem_chunk dspmem_chunk(u8 *data, int size)
+static inline struct dspmem_chunk dspmem_chunk(void *data, int size)
 {
 	struct dspmem_chunk ch = {
 		.data = data,
@@ -174,6 +177,11 @@ static inline bool dspmem_chunk_end(struct dspmem_chunk *ch)
 static inline int dspmem_chunk_bytes(struct dspmem_chunk *ch)
 {
 	return ch->bytes;
+}
+
+static inline bool dspmem_chunk_valid_addr(struct dspmem_chunk *ch, void *addr)
+{
+	return (u8 *)addr <= ch->max;
 }
 
 static int dspmem_chunk_write(struct dspmem_chunk *ch, int nbits, u32 val)
@@ -205,6 +213,45 @@ static int dspmem_chunk_write(struct dspmem_chunk *ch, int nbits, u32 val)
 	return 0;
 }
 
+static int dspmem_chunk_flush(struct dspmem_chunk *ch)
+{
+	if (!ch->cachebits)
+		return 0;
+
+	return dspmem_chunk_write(ch, 24 - ch->cachebits, 0);
+}
+
+static int dspmem_chunk_read(struct dspmem_chunk *ch, int nbits)
+{
+	int nread, i;
+	u32 result;
+
+	if (!ch->cachebits) {
+		if (dspmem_chunk_end(ch))
+			return -ENOSPC;
+
+		ch->cache = 0;
+		ch->cachebits = 24;
+
+		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= 8)
+			ch->cache |= *ch->data++;
+
+		ch->bytes += sizeof(ch->cache);
+	}
+
+	nread = min(ch->cachebits, nbits);
+	nbits -= nread;
+
+	result = ch->cache >> (32 - nread);
+	ch->cache <<= nread;
+	ch->cachebits -= nread;
+
+	if (nbits)
+		result = (result << nbits) | dspmem_chunk_read(ch, nbits);
+
+	return result;
+}
+
 static int cs40l2x_write_comp(struct cs40l2x_private *cs40l2x, void *buf,
 			      int size, struct wt_type10_comp *wave)
 {
@@ -230,6 +277,150 @@ static int cs40l2x_write_comp(struct cs40l2x_private *cs40l2x, void *buf,
 	}
 
 	return dspmem_chunk_bytes(&ch);
+}
+
+static int cs40l2x_write_pwle(struct cs40l2x_private *cs40l2x, void *buf,
+			      int size, struct wt_type12_pwle *wave)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+	int i;
+
+	dspmem_chunk_write(&ch, 24, wave->wlength);
+	dspmem_chunk_write(&ch, 8, wave->repeat);
+	dspmem_chunk_write(&ch, 12, wave->wait);
+	dspmem_chunk_write(&ch, 8, wave->nsections);
+
+	for (i = 0; i < wave->nsections; i++) {
+		dspmem_chunk_write(&ch, 16, wave->sections[i].time);
+		dspmem_chunk_write(&ch, 12, wave->sections[i].level);
+		dspmem_chunk_write(&ch, 12, wave->sections[i].frequency);
+		dspmem_chunk_write(&ch, 8, wave->sections[i].flags);
+
+		if (wave->sections[i].flags & WT_T12_FLAG_AMP_REG)
+			dspmem_chunk_write(&ch, 24, wave->sections[i].vbtarget);
+	}
+
+	dspmem_chunk_flush(&ch);
+
+	return dspmem_chunk_bytes(&ch);
+}
+
+static int cs40l2x_write_header(struct cs40l2x_private *cs40l2x, void *buf,
+				int size, struct wt_entry *entry)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+
+	dspmem_chunk_write(&ch, 16, entry->flags);
+	dspmem_chunk_write(&ch, 8, entry->type);
+	dspmem_chunk_write(&ch, 24, entry->index);
+	dspmem_chunk_write(&ch, 24, entry->size);
+
+	return dspmem_chunk_bytes(&ch);
+}
+
+static int cs40l2x_write_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
+				   int size, struct wt_wavetable *table)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+	struct wt_entry *entry = table->waves;
+	int i, index = (table->nwaves * WT_ENTRY_SIZE_WORDS) + 1;
+	u32 *data = buf;
+
+	for (i = 0; i < table->nwaves + 1; i++, entry++) {
+		dspmem_chunk_write(&ch, 16, entry->flags);
+		dspmem_chunk_write(&ch, 8, entry->type);
+
+		if (entry->type == WT_TYPE_TERMINATOR)
+			break;
+
+		entry->index = index;
+
+		dspmem_chunk_write(&ch, 24, entry->index);
+		dspmem_chunk_write(&ch, 24, entry->size);
+
+		if (!dspmem_chunk_valid_addr(&ch, data + index + entry->size))
+			return -EINVAL;
+
+		if (entry->data)
+			memcpy(data + index, entry->data,
+			       entry->size * sizeof(*data));
+		else
+			memset(data + index, 0, entry->size * sizeof(*data));
+
+		index += entry->size;
+	}
+
+	if (i != table->nwaves)
+		return -E2BIG;
+
+	return index * sizeof(*data);
+}
+
+static int cs40l2x_read_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
+				  int size, struct wt_wavetable *table)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+	struct wt_entry *entry = table->waves;
+	u32 *data = buf, *max = buf;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(table->waves); i++, entry++) {
+		entry->flags = dspmem_chunk_read(&ch, 16);
+		entry->type = dspmem_chunk_read(&ch, 8);
+
+		if (entry->type == WT_TYPE_TERMINATOR) {
+			table->nwaves = i;
+			table->bytes = max(dspmem_chunk_bytes(&ch),
+					   (int)((void*)max - buf));
+
+			return table->bytes;
+		}
+
+		entry->index = dspmem_chunk_read(&ch, 24);
+		entry->size = dspmem_chunk_read(&ch, 24);
+		entry->data = data + entry->index;
+
+		if (data + entry->index + entry->size > max) {
+			max = data + entry->index + entry->size;
+
+			if (!dspmem_chunk_valid_addr(&ch, max))
+				return -EINVAL;
+		}
+	}
+
+	return -E2BIG;
+}
+
+static inline struct wt_entry *
+	cs40l2x_get_wave(struct cs40l2x_private *cs40l2x, int index)
+{
+	if (index < cs40l2x->wt_xm.nwaves)
+		return &cs40l2x->wt_xm.waves[index];
+	else
+		return &cs40l2x->wt_ym.waves[index - cs40l2x->wt_xm.nwaves];
+}
+
+static int cs40l2x_get_wlength(struct cs40l2x_private *cs40l2x, int index)
+{
+	struct wt_entry *entry = cs40l2x_get_wave(cs40l2x, index);
+	struct dspmem_chunk ch;
+
+	switch (entry->type) {
+	case WT_TYPE_V6_PCM_F0_REDC:
+	case WT_TYPE_V6_PCM_F0_REDC_VAR:
+	case WT_TYPE_V6_PWLE:
+		break;
+	case WT_TYPE_V6_COMPOSITE:
+		dev_err(cs40l2x->dev, "Nested composites not allowed\n");
+		return -EINVAL;
+	default:
+		dev_err(cs40l2x->dev, "Can't size waveform: %x\n", entry->type);
+		return -EINVAL;
+	}
+
+	ch = dspmem_chunk(entry->data, sizeof(u32));
+
+	return dspmem_chunk_read(&ch, 24);
 }
 
 static void cs40l2x_set_state(struct cs40l2x_private *cs40l2x, bool state)
@@ -258,546 +449,106 @@ static void cs40l2x_set_safe_save_state(struct cs40l2x_private *cs40l2x,
 }
 
 static int cs40l2x_check_wt_open_space(struct cs40l2x_private *cs40l2x,
-	unsigned int size)
+				       unsigned int size)
 {
-	unsigned int default_empty_ym_size = (cs40l2x->wt_limit_ym -
-		CS40L2X_WT_YM_EMPTY_SIZE);
-
 	/* If YM exists, must add to end of YM to keep index order */
-	if (cs40l2x->wt_open_ym < default_empty_ym_size) {
-		if (size <= cs40l2x->wt_open_ym) {
-			/* Add to end of existing YM */
-			cs40l2x->create_ym = false;
-			cs40l2x->xm_append = false;
-			return 0;
-		}
-		/* YM exists, requested size too big */
-		if (size > cs40l2x->wt_open_ym)
+	if (cs40l2x->wt_ym.nwaves) {
+		if (size > wt_get_space(&cs40l2x->wt_ym))
 			return -ENOSPC;
+
+		/* Add to end of existing YM */
+		cs40l2x->create_ym = false;
+		cs40l2x->xm_append = false;
+
+		return 0;
 	}
-	if (size <=	cs40l2x->wt_open_xm) {
+
+	if (size <= wt_get_space(&cs40l2x->wt_xm)) {
 		/* Add to end of existing XM */
 		cs40l2x->create_ym = false;
 		cs40l2x->xm_append = true;
+
 		return 0;
 	}
-	if (size > cs40l2x->wt_open_xm) {
+
+	if (size <= wt_get_space(&cs40l2x->wt_ym)) {
 		/* Create YM section and add to YM */
 		cs40l2x->create_ym = true;
 		cs40l2x->xm_append = false;
+
 		return 0;
 	}
 
 	return -ENOSPC;
 }
 
-static void cs40l2x_set_ym_data(struct cs40l2x_private *cs40l2x)
+static int cs40l2x_update_existing_block(struct cs40l2x_private *cs40l2x,
+					 unsigned int comp_size, bool is_xm)
 {
-	cs40l2x->ym_hdr_strt_pos = (cs40l2x->wt_xm_size +
-		CS40L2X_WT_YM_PRE_HDR_BYTES +
-		CS40L2X_WT_DBLK_LENGTH_SIZE);
-	cs40l2x->wt_ym_size = (CS40L2X_WT_YM_PRE_HDR_BYTES +
-		CS40L2X_WT_DBLK_LENGTH_SIZE +
-		(CS40L2X_WT_HEADER_ENTRY_SIZE *
-		CS40L2X_WT_NUM_VIRT_SLOTS) +
-		CS40L2X_WT_TERMINATOR_BYTES +
-		cs40l2x->comp_bytes);
-}
-
-static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
-{
-	unsigned int wt_file_type;
-	unsigned int wt_offset = 0;
-	unsigned int wt_length = 0;
-	unsigned int waveform_length;
-	unsigned int cleared_extra_bits;
-	unsigned int pos, offset_pos;
-	int i, wt_entry_words;
-	int count = 0;
-
-	if (memcmp(cs40l2x->pbq_fw_raw_wt, "WMDR", 4)) {
-		dev_err(cs40l2x->dev, "Failed to recognize raw wavetable\n");
-		return -ENODATA;
-	}
-
-	if (cs40l2x->create_ym)
-		cs40l2x_set_ym_data(cs40l2x);
-
-	memset(&cs40l2x->wvfrm_lengths[0], 0,
-		cs40l2x->wvfrm_lengths_size);
-
-	cs40l2x->updated_offsets_size = cs40l2x->num_waves;
-
-	pos = cs40l2x->xm_hdr_strt_pos;
-	for (i = 0; i < cs40l2x->num_xm_wavs; i++) {
-		wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-		cleared_extra_bits = (wt_file_type & CS40L2X_WT_CLR_EX_TYPE);
-		cs40l2x->wvfrm_lengths[count] = cleared_extra_bits;
-
-		pos += 4;
-		wt_offset = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-		/* Add words to updated offset for new entry.
-		 * Wavetable entries are in words.
-		 */
-		wt_entry_words = ((CS40L2X_WT_HEADER_ENTRY_SIZE *
-			CS40L2X_WT_NUM_VIRT_SLOTS) / 4);
-		cs40l2x->updated_offsets[i] = wt_offset + wt_entry_words;
-
-		pos += 4;
-		wt_length = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-
-		offset_pos = cs40l2x->xm_hdr_strt_pos +
-			(wt_offset * 4);
-		waveform_length =
-			(cs40l2x->pbq_fw_raw_wt[offset_pos] << 24)
-			+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 1] << 16)
-			+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 2] << 8)
-			+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 3]);
-		cs40l2x->wvfrm_lengths[count + 1] = waveform_length;
-		count = count + 2;
-		pos += 4;
-	}
-	cs40l2x->wt_xm_header_end_pos = pos;
-	cs40l2x->wt_xm_header_last_offset = wt_offset;
-	cs40l2x->wt_xm_header_last_size = wt_length;
-
-	if (cs40l2x->num_ym_wavs > 0) {
-		pos = cs40l2x->ym_hdr_strt_pos;
-		for (i = cs40l2x->num_xm_wavs;
-			i < (cs40l2x->num_xm_wavs +
-				cs40l2x->num_ym_wavs); i++) {
-			wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-			cleared_extra_bits =
-				(wt_file_type & CS40L2X_WT_CLR_EX_TYPE);
-			cs40l2x->wvfrm_lengths[count] = cleared_extra_bits;
-
-			pos += 4;
-			wt_offset = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-			/* Add words to updated offset for new entry.
-			 * Wavetable entries are in words.
-			 */
-			wt_entry_words = ((CS40L2X_WT_HEADER_ENTRY_SIZE *
-				CS40L2X_WT_NUM_VIRT_SLOTS) / 4);
-			cs40l2x->updated_offsets[i] = wt_offset +
-				wt_entry_words;
-
-			pos += 4;
-			wt_length = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-
-			offset_pos = cs40l2x->ym_hdr_strt_pos +
-				(wt_offset * 4);
-			waveform_length =
-				(cs40l2x->pbq_fw_raw_wt[offset_pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 3]);
-			cs40l2x->wvfrm_lengths[count + 1] = waveform_length;
-			count = count + 2;
-			pos += 4;
-		}
-		cs40l2x->wt_ym_header_end_pos = pos;
-		cs40l2x->wt_ym_header_last_offset = wt_offset;
-		cs40l2x->wt_ym_header_last_size = wt_length;
-	}
-
-	return 0;
-}
-
-static int cs40l2x_to_bytes_msb(unsigned int val, int len, char **byte_data)
-{
-	char two_bytes[2] = {0, 0};
-	char three_bytes[3] = {0, 0, 0};
-	int i;
-	int count = 0;
-
-	if ((len < 2) || (len > 3))
-		return -EINVAL;
-
-	for (i = (len - 1); i >= 0; i--) {
-		if (len == 2)
-			two_bytes[count] = (val >> (i * 8)) & 0xFF;
-		if (len == 3)
-			three_bytes[count] = (val >> (i * 8)) & 0xFF;
-		count++;
-	}
-
-	if (len == 2) {
-		(*byte_data)[0] = two_bytes[0];
-		(*byte_data)[1] = two_bytes[1];
-	}
-
-	if (len == 3) {
-		(*byte_data)[0] = three_bytes[0];
-		(*byte_data)[1] = three_bytes[1];
-		(*byte_data)[2] = three_bytes[2];
-	}
-
-	return 0;
-}
-
-static int cs40l2x_insert_comp_wt_header(struct cs40l2x_private *cs40l2x,
-	bool is_xm, unsigned int comp_size, unsigned int pos)
-{
-	unsigned int i_pos = pos;
-	unsigned int offset;
-	char *wt_file_type;
-	char *wt_offset;
-	char *wt_length;
-	int wt_entry_words = ((CS40L2X_WT_HEADER_ENTRY_SIZE *
-		CS40L2X_WT_NUM_VIRT_SLOTS) / 4);
-	unsigned int indv_comp_size = (comp_size / CS40L2X_WT_NUM_VIRT_SLOTS);
-	int i;
-
-	cs40l2x->three_bytes[0] = 0;
-	cs40l2x->three_bytes[1] = 0;
-	cs40l2x->three_bytes[2] = 0;
-	wt_file_type = cs40l2x->three_bytes;
-	wt_offset = cs40l2x->three_bytes;
-	wt_length = cs40l2x->three_bytes;
-
-	if (is_xm) {
-		offset = cs40l2x->wt_xm_header_last_offset +
-			cs40l2x->wt_xm_header_last_size +
-			wt_entry_words;
-	} else {
-		offset = cs40l2x->wt_ym_header_last_offset +
-			cs40l2x->wt_ym_header_last_size +
-			wt_entry_words;
-	}
-
-	for (i = 0; i < CS40L2X_WT_NUM_VIRT_SLOTS; i++) {
-		cs40l2x_to_bytes_msb(CS40L2X_WT_TYPE_10_COMP_FILE,
-			CS40L2X_WT_WORD_SIZE, &wt_file_type);
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos] = 0; /* Zero pad */
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 1] = wt_file_type[0];
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 2] = wt_file_type[1];
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 3] = wt_file_type[2];
-
-		i_pos += 4;
-		cs40l2x_to_bytes_msb(offset,
-			CS40L2X_WT_WORD_SIZE, &wt_offset);
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos] = 0; /* Zero pad */
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 1] = wt_offset[0];
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 2] = wt_offset[1];
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 3] = wt_offset[2];
-
-		i_pos += 4;
-		cs40l2x_to_bytes_msb((indv_comp_size / 4),
-			CS40L2X_WT_WORD_SIZE, &wt_length);
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos] = 0; /* Zero pad */
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 1] = wt_length[0];
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 2] = wt_length[1];
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 3] = wt_length[2];
-
-		i_pos += 4;
-		offset += (indv_comp_size / 4);
-	}
-
-	return i_pos;
-}
-
-static void cs40l2x_update_wt_header_offsets(struct cs40l2x_private *cs40l2x,
-	bool is_xm)
-{
-	char *wt_offset;
-	unsigned int pos = 0;
-	unsigned int offset;
-	unsigned int num_wavs;
-	int i;
-
-	cs40l2x->three_bytes[0] = 0;
-	cs40l2x->three_bytes[1] = 0;
-	cs40l2x->three_bytes[2] = 0;
-	wt_offset = cs40l2x->three_bytes;
+	struct wt_entry template = {
+		.type = WT_TYPE_V6_COMPOSITE,
+		.flags = 0,
+		.index = 0,
+		.size = comp_size / CS40L2X_WT_NUM_VIRT_SLOTS / sizeof(u32),
+	};
+	struct wt_wavetable *wt = &cs40l2x->wt_ym;
+	int i, ret;
 
 	if (is_xm)
-		num_wavs = cs40l2x->num_xm_wavs;
-	else
-		num_wavs = cs40l2x->num_ym_wavs;
+		wt = &cs40l2x->wt_xm;
 
-	for (i = 0; i < num_wavs; i++) {
-		pos += 4;
-		offset = cs40l2x->updated_offsets[i];
-		if (!is_xm) {
-			offset =
-			cs40l2x->updated_offsets[i + cs40l2x->num_xm_wavs];
-		}
-		wt_offset[0] = 0;
-		wt_offset[1] = 0;
-		wt_offset[2] = 0;
-		cs40l2x_to_bytes_msb(offset, CS40L2X_WT_WORD_SIZE,
-			&wt_offset);
-		cs40l2x->pbq_updated_fw_raw_wt[pos] = 0; /* Zero pad */
-		cs40l2x->pbq_updated_fw_raw_wt[pos + 1] = wt_offset[0];
-		cs40l2x->pbq_updated_fw_raw_wt[pos + 2] = wt_offset[1];
-		cs40l2x->pbq_updated_fw_raw_wt[pos + 3] = wt_offset[2];
-		pos += 8;
-	}
-}
+	for (i = 0; i < CS40L2X_WT_NUM_VIRT_SLOTS; i++, wt->nwaves++)
+		wt->waves[wt->nwaves] = template;
 
-static int cs40l2x_create_wt_header(struct cs40l2x_private *cs40l2x,
-	bool is_xm)
-{
-	unsigned int start_pos;
-	unsigned int header_length;
+	wt->waves[wt->nwaves].type = WT_TYPE_TERMINATOR;
+	wt->waves[wt->nwaves].flags = WT_FLAG_TERMINATOR;
 
-	if (is_xm) {
-		header_length = (cs40l2x->num_xm_wavs *
-			CS40L2X_WT_HEADER_ENTRY_SIZE);
-		start_pos = cs40l2x->xm_hdr_strt_pos;
-	} else {
-		header_length = (cs40l2x->num_ym_wavs *
-			CS40L2X_WT_HEADER_ENTRY_SIZE);
-		start_pos = cs40l2x->ym_hdr_strt_pos;
+	ret = cs40l2x_write_wavetable(cs40l2x, cs40l2x->pbq_updated_fw_raw_wt,
+				      CS40L2X_WT_MAX_BIN_SIZE, wt);
+	if (ret < 0) {
+		dev_err(cs40l2x->dev, "Failed to write new wavetable: %d\n", ret);
+		return ret;
 	}
 
-	memcpy(&cs40l2x->pbq_updated_fw_raw_wt[0],
-		&cs40l2x->pbq_fw_raw_wt[start_pos],
-		header_length);
-
-	return header_length;
-}
-
-static int cs40l2x_copy_waveform_data(struct cs40l2x_private *cs40l2x,
-	bool is_xm,	unsigned int pos)
-{
-	unsigned int wav_data_end;
-	unsigned int i_pos = pos;
-	unsigned int start;
-	int i;
-
-	if (is_xm) {
-		wav_data_end = cs40l2x->xm_hdr_strt_pos +
-		((cs40l2x->wt_xm_header_last_offset +
-			cs40l2x->wt_xm_header_last_size) *
-			CS40L2X_WT_TOTAL_WORD_SIZE);
-		start = cs40l2x->wt_xm_header_end_pos;
-	} else {
-		wav_data_end = cs40l2x->ym_hdr_strt_pos +
-		((cs40l2x->wt_ym_header_last_offset +
-			cs40l2x->wt_ym_header_last_size) *
-			CS40L2X_WT_TOTAL_WORD_SIZE);
-		start = cs40l2x->wt_ym_header_end_pos;
-	}
-
-	for (i = start; i < wav_data_end; i++) {
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos] =
-			cs40l2x->pbq_fw_raw_wt[i];
-		i_pos++;
-	}
-
-	return i_pos;
-}
-
-static int cs40l2x_update_existing_block(struct cs40l2x_private *cs40l2x,
-	unsigned int comp_size, bool is_xm)
-{
-	unsigned int pos;
-	unsigned int end_data_pos;
-	unsigned int end_header_pos;
-	unsigned int existing_wt_size;
-	unsigned int wav_data_end;
-	unsigned int pbq_updated_fw_raw_wt_size;
-	unsigned int start;
-
-	if (is_xm) {
-		wav_data_end = cs40l2x->xm_hdr_strt_pos +
-		((cs40l2x->wt_xm_header_last_offset +
-			cs40l2x->wt_xm_header_last_size) *
-			CS40L2X_WT_TOTAL_WORD_SIZE);
-		start = cs40l2x->xm_hdr_strt_pos;
-	} else {
-		wav_data_end = cs40l2x->ym_hdr_strt_pos +
-		((cs40l2x->wt_ym_header_last_offset +
-			cs40l2x->wt_ym_header_last_size) *
-			CS40L2X_WT_TOTAL_WORD_SIZE);
-		start = cs40l2x->ym_hdr_strt_pos;
-	}
-
-	existing_wt_size = (wav_data_end - start);
-
-	pbq_updated_fw_raw_wt_size = (existing_wt_size +
-		(comp_size + (CS40L2X_WT_HEADER_ENTRY_SIZE *
-			CS40L2X_WT_NUM_VIRT_SLOTS)));
-
-	/* Copies wt header up to position before wt header terminator */
-	pos = cs40l2x_create_wt_header(cs40l2x, is_xm);
-
-	/* Update the offsets to account for the extra wt header entries */
-	cs40l2x_update_wt_header_offsets(cs40l2x, is_xm);
-
-	/* Insert the new composite wt header entry
-	 * after the last wt header entry
-	 * and before the wt header terminator
-	 */
-	end_header_pos =
-		cs40l2x_insert_comp_wt_header(cs40l2x, is_xm, comp_size, pos);
-
-	/* Copy waveform data */
-	end_data_pos =
-		cs40l2x_copy_waveform_data(cs40l2x, is_xm, end_header_pos);
-
-	end_data_pos += comp_size;
-	cs40l2x->updated_block_size = end_data_pos;
-
-	if (cs40l2x->updated_block_size > pbq_updated_fw_raw_wt_size) {
-		dev_err(cs40l2x->dev, "Virtual block copy failed.\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int cs40l2x_create_block(struct cs40l2x_private *cs40l2x,
-	unsigned int comp_size)
-{
-	char *wt_offset;
-	char *wvfrm_size;
-	unsigned int pos;
-	unsigned int offset;
-	unsigned int end_data_pos;
-	unsigned int indv_comp_size = (comp_size / CS40L2X_WT_NUM_VIRT_SLOTS);
-	unsigned int pbq_updated_fw_raw_wt_size;
-	int i, count = 0, header_slot = 0;
-
-	cs40l2x->two_bytes[0] = 0;
-	cs40l2x->two_bytes[1] = 0;
-	wt_offset = cs40l2x->two_bytes;
-	wvfrm_size = cs40l2x->two_bytes;
-
-	pbq_updated_fw_raw_wt_size = (CS40L2X_WT_TERMINATOR_BYTES +
-		(comp_size + (CS40L2X_WT_HEADER_ENTRY_SIZE *
-			CS40L2X_WT_NUM_VIRT_SLOTS)));
-
-	/* Create the new wt header */
-	offset = (((CS40L2X_WT_HEADER_ENTRY_SIZE *
-		CS40L2X_WT_NUM_VIRT_SLOTS) +
-		CS40L2X_WT_TERMINATOR_BYTES) / 4);
-	for (i = 0; i < (CS40L2X_WT_HEADER_ENTRY_SIZE *
-		CS40L2X_WT_NUM_VIRT_SLOTS); i++) {
-		if ((count + 1) % 4 == 0) {
-			header_slot++;
-			if (header_slot == 1) {
-				cs40l2x->pbq_updated_fw_raw_wt[i] =
-					CS40L2X_WT_TYPE_10_COMP_FILE;
-			} else if (header_slot == 2) {
-				wt_offset[0] = 0;
-				wt_offset[1] = 0;
-				cs40l2x_to_bytes_msb(offset,
-					2, &wt_offset);
-				cs40l2x->pbq_updated_fw_raw_wt[i - 1] =
-					wt_offset[0];
-				cs40l2x->pbq_updated_fw_raw_wt[i] =
-					wt_offset[1];
-			} else if (header_slot == 3) {
-				wvfrm_size[0] = 0;
-				wvfrm_size[1] = 0;
-				cs40l2x_to_bytes_msb(
-					(indv_comp_size / 4), 2, &wvfrm_size);
-				cs40l2x->pbq_updated_fw_raw_wt[i - 1] =
-					wvfrm_size[0];
-				cs40l2x->pbq_updated_fw_raw_wt[i] =
-					wvfrm_size[1];
-				header_slot = 0;
-				offset += (indv_comp_size / 4);
-			}
-		} else {
-			cs40l2x->pbq_updated_fw_raw_wt[i] = CS40L2X_WT_ZERO;
-		}
-		count++;
-	}
-
-	/* Add new wt header terminator */
-	pos = (CS40L2X_WT_HEADER_ENTRY_SIZE *
-		CS40L2X_WT_NUM_VIRT_SLOTS);
-	cs40l2x->pbq_updated_fw_raw_wt[pos] = CS40L2X_WT_ZERO;
-	pos++;
-	for (i = pos; i < (pos + (CS40L2X_WT_TERMINATOR_BYTES - 1)); i++)
-		cs40l2x->pbq_updated_fw_raw_wt[i] =
-			CS40L2X_WT_TERMINATOR_BYTE;
-
-	end_data_pos = ((pos + (CS40L2X_WT_TERMINATOR_BYTES - 1)) + comp_size);
-	cs40l2x->updated_block_size = end_data_pos;
-
-	cs40l2x->ym_hdr_strt_pos = 0;
-	cs40l2x->wt_ym_header_end_pos = 0;
-
-	if (!cs40l2x->ym_hdr_strt_reg) {
-		dev_err(cs40l2x->dev,
-			"Malformed bin file, missing YM section header.\n");
-		return -EINVAL;
-	}
-
-	if (cs40l2x->updated_block_size > pbq_updated_fw_raw_wt_size) {
-		dev_err(cs40l2x->dev, "Failed to create virtual block.\n");
-		return -EINVAL;
-	}
+	cs40l2x->updated_block_size = ret;
 
 	return 0;
 }
 
 static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
-	unsigned int index, bool is_gpio, bool is_rise, bool over_write)
+					  unsigned int index, bool is_gpio,
+					  bool is_rise, bool over_write)
 {
-	bool is_xm;
-	int ret = 0;
-	char *raw_waveform_data;
-	unsigned int last_offset, size_in_words, wvfrm_type;
-	unsigned int num_xm_registers, num_ym_registers;
 	unsigned int size_in_bytes = 0;
-	unsigned int wt_xm_header_end_reg, wt_ym_header_end_reg;
-	unsigned int len_reg, off_reg, type_reg, data_reg;
-	struct regmap *regmap = cs40l2x->regmap;
 	struct cs40l2x_virtual_waveform *virtual_wav;
-	unsigned int reg_addr_size = CS40L2X_WT_TOTAL_WORD_SIZE;
+	unsigned int wtype, wflags;
+	int hreg, dreg;
+	struct wt_entry *entry;
+	uint8_t raw_header[WT_ENTRY_SIZE_BYTES];
+	char *raw_waveform_data;
+	bool is_xm;
+	int ret;
 
 	if (over_write) {
 		is_xm = cs40l2x->ovwr_wav->is_xm;
-		wvfrm_type = cs40l2x->ovwr_wav->wvfrm_type +
-			cs40l2x->ovwr_wav->wvfrm_feature;
+		wtype = cs40l2x->ovwr_wav->wvfrm_type;
+		wflags = cs40l2x->ovwr_wav->wvfrm_feature;
 		size_in_bytes = cs40l2x->ovwr_wav->data_len;
-		raw_waveform_data = devm_kzalloc(cs40l2x->dev,
-			size_in_bytes, GFP_KERNEL);
-		if (!raw_waveform_data)
-			return -ENOMEM;
-		memcpy(raw_waveform_data, &cs40l2x->ovwr_wav->data[0],
-			cs40l2x->ovwr_wav->data_len);
+		raw_waveform_data = cs40l2x->ovwr_wav->data;
 	} else {
 		list_for_each_entry(virtual_wav,
-			&cs40l2x->virtual_waveform_head, list) {
+				    &cs40l2x->virtual_waveform_head, list) {
 			if (virtual_wav->index != index)
 				continue;
 
 			is_xm = virtual_wav->is_xm;
-			wvfrm_type = virtual_wav->wvfrm_type +
-				virtual_wav->wvfrm_feature;
+			wtype = virtual_wav->wvfrm_type;
+			wflags = virtual_wav->wvfrm_feature;
 			size_in_bytes = virtual_wav->data_len;
-			raw_waveform_data = devm_kzalloc(cs40l2x->dev,
-				size_in_bytes, GFP_KERNEL);
-			if (!raw_waveform_data)
-				return -ENOMEM;
-			memcpy(raw_waveform_data, &virtual_wav->data[0],
-				virtual_wav->data_len);
+			raw_waveform_data = virtual_wav->data;
 			break;
 		}
+
 		if (size_in_bytes == 0) {
 			dev_err(cs40l2x->dev,
 				"Unable to find index in virtual list\n");
@@ -805,105 +556,67 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 		}
 	}
 
-	/* wt_xm_header_end_pos is last byte before header terminator */
-	if (is_xm) {
-		num_xm_registers = ((cs40l2x->wt_xm_header_end_pos +
-			(CS40L2X_WT_NUM_VIRT_SLOTS *
-			CS40L2X_WT_HEADER_ENTRY_SIZE)) -
-			cs40l2x->xm_hdr_strt_pos);
-		wt_xm_header_end_reg = (cs40l2x->xm_hdr_strt_reg +
-			num_xm_registers);
-		len_reg = (wt_xm_header_end_reg - reg_addr_size);
-		off_reg = (wt_xm_header_end_reg - (reg_addr_size * 2));
-		type_reg = (wt_xm_header_end_reg - (reg_addr_size * 3));
-		if (is_gpio) {
-			len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			if (is_rise) {
-				len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-				off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-				type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			}
+	if (is_gpio) {
+		if (is_rise) {
+			cs40l2x->loaded_gpio_index[CS40L2X_GPIO_RISE] = index;
+			index = cs40l2x->virtual_gpio1_rise_slot;
+		} else {
+			cs40l2x->loaded_gpio_index[CS40L2X_GPIO_FALL] = index;
+			index = cs40l2x->virtual_gpio1_fall_slot;
 		}
-		ret = regmap_read(regmap, off_reg, &last_offset);
-		if (ret) {
-			dev_err(cs40l2x->dev,
-				"Failed to read last offset 0x%08X: %d\n",
-				off_reg, ret);
-			goto err_free;
-		}
-		data_reg = (cs40l2x->xm_hdr_strt_reg +
-			(last_offset * reg_addr_size));
 	} else {
-		num_ym_registers = ((cs40l2x->wt_ym_header_end_pos +
-			(CS40L2X_WT_NUM_VIRT_SLOTS *
-			CS40L2X_WT_HEADER_ENTRY_SIZE)) -
-			cs40l2x->ym_hdr_strt_pos);
-		wt_ym_header_end_reg = (cs40l2x->ym_hdr_strt_reg +
-			num_ym_registers);
-		len_reg = (wt_ym_header_end_reg - reg_addr_size);
-		off_reg = (wt_ym_header_end_reg - (reg_addr_size * 2));
-		type_reg = (wt_ym_header_end_reg - (reg_addr_size * 3));
-		if (is_gpio) {
-			len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			if (is_rise) {
-				len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-				off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-				type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			}
-		}
-		ret = regmap_read(regmap, off_reg, &last_offset);
-		if (ret) {
-			dev_err(cs40l2x->dev,
-				"Failed to read last offset 0x%08X: %d\n",
-				off_reg, ret);
-			goto err_free;
-		}
-		data_reg = (cs40l2x->ym_hdr_strt_reg +
-			(last_offset * reg_addr_size));
-	}
-
-	size_in_words = (size_in_bytes / CS40L2X_WT_TOTAL_WORD_SIZE);
-
-	ret = regmap_write(regmap, len_reg, size_in_words);
-	if (ret) {
-		dev_err(cs40l2x->dev,
-			"Failed to write waveform size 0x%08X: %d\n",
-			len_reg, ret);
-		goto err_free;
-	}
-	ret = regmap_write(regmap, type_reg, wvfrm_type);
-	if (ret) {
-		dev_err(cs40l2x->dev,
-			"Failed to write waveform type 0x%08X: %d\n",
-			type_reg, ret);
-		goto err_free;
-	}
-	ret = cs40l2x_raw_write(cs40l2x, data_reg, &raw_waveform_data[0],
-		size_in_bytes, CS40L2X_MAX_WLEN);
-	if (ret) {
-		dev_err(cs40l2x->dev, "Failed to write wt virtual data\n");
-		goto err_free;
-	}
-
-	if (!is_gpio)
 		cs40l2x->loaded_virtual_index = index;
-	else {
-		if (is_rise)
-			cs40l2x->loaded_gpio_index[CS40L2X_GPIO_RISE] =
-				index;
-		else
-			cs40l2x->loaded_gpio_index[CS40L2X_GPIO_FALL] =
-				index;
+		index = cs40l2x->virtual_slot_index;
 	}
 
-err_free:
-	devm_kfree(cs40l2x->dev, raw_waveform_data);
+	if (is_xm) {
+		entry = cs40l2x->wt_xm.waves;
 
-	return ret;
+		hreg = cs40l2x_dsp_reg(cs40l2x, "WAVETABLE",
+				       CS40L2X_XM_UNPACKED_TYPE,
+				       CS40L2X_ALGO_ID_VIBE);
+	} else {
+		entry = cs40l2x->wt_ym.waves;
+		index -= cs40l2x->wt_xm.nwaves;
+
+		hreg = cs40l2x_dsp_reg(cs40l2x, "WAVETABLEYM",
+				       CS40L2X_YM_UNPACKED_TYPE,
+				       CS40L2X_ALGO_ID_VIBE);
+	}
+
+	if (!hreg) {
+		dev_err(cs40l2x->dev, "Failed to locate wavetable\n");
+		return -EINVAL;
+	}
+
+	dreg = hreg;
+	hreg += index * WT_ENTRY_SIZE_BYTES;
+	dreg += entry[index].index * sizeof(u32);
+
+	entry[index].size = size_in_bytes / sizeof(u32);
+	entry[index].type = wtype;
+	entry[index].flags = wflags;
+	entry[index].data = raw_waveform_data;
+
+	cs40l2x_write_header(cs40l2x, raw_header, ARRAY_SIZE(raw_header),
+			     &entry[index]);
+
+	ret = cs40l2x_raw_write(cs40l2x, hreg, raw_header,
+				ARRAY_SIZE(raw_header), CS40L2X_MAX_WLEN);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to sync header: %d\n", ret);
+		return ret;
+	}
+
+	ret = cs40l2x_raw_write(cs40l2x, dreg, entry[index].data,
+				entry[index].size * sizeof(u32),
+				CS40L2X_MAX_WLEN);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to sync waveform: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int cs40l2x_add_waveform_to_virtual_list(
@@ -962,64 +675,13 @@ static void cs40l2x_save_waveform_to_ovwr_struct(
 		raw_waveform_size);
 }
 
-static void cs40l2x_calc_num_waves(struct cs40l2x_private *cs40l2x)
-{
-	unsigned int wt_file_type;
-	unsigned int block_length;
-	unsigned int pos;
-	int i;
-
-	cs40l2x->num_xm_wavs = 0;
-	cs40l2x->num_ym_wavs = 0;
-
-	if (cs40l2x->xm_hdr_strt_pos > 0) {
-		block_length = cs40l2x->wt_xm_size -
-			cs40l2x->xm_hdr_strt_pos;
-		pos = cs40l2x->xm_hdr_strt_pos;
-		for (i = 0; i < block_length - CS40L2X_WT_HEADER_ENTRY_SIZE;
-			i += CS40L2X_WT_HEADER_ENTRY_SIZE) {
-			wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-			if (wt_file_type != CS40L2X_WT_TERMINATOR)
-				cs40l2x->num_xm_wavs++;
-			else
-				break;
-			pos += CS40L2X_WT_HEADER_ENTRY_SIZE;
-		}
-	}
-
-	if (cs40l2x->ym_hdr_strt_pos > 0) {
-		block_length = cs40l2x->wt_ym_size -
-			(cs40l2x->ym_hdr_strt_pos -
-				cs40l2x->wt_xm_size);
-		pos = cs40l2x->ym_hdr_strt_pos;
-		for (i = 0; i < block_length - CS40L2X_WT_HEADER_ENTRY_SIZE;
-			i += CS40L2X_WT_HEADER_ENTRY_SIZE) {
-			wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-			if (wt_file_type != CS40L2X_WT_TERMINATOR)
-				cs40l2x->num_ym_wavs++;
-			else
-				break;
-			pos += CS40L2X_WT_HEADER_ENTRY_SIZE;
-		}
-	}
-
-	cs40l2x->num_waves = cs40l2x->num_xm_wavs + cs40l2x->num_ym_wavs;
-}
-
 static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 	unsigned int *is_xm)
 {
 	unsigned int wt_open_bytes = CS40L2X_PACKED_BYTES_MAX +
-		(CS40L2X_WT_HEADER_ENTRY_SIZE * CS40L2X_WT_NUM_VIRT_SLOTS);
+		(WT_ENTRY_SIZE_BYTES * CS40L2X_WT_NUM_VIRT_SLOTS);
 	unsigned int comp_size;
 	int no_space = -ENOSPC;
-	int ret = 0;
 
 	while (no_space) {
 		no_space = cs40l2x_check_wt_open_space(cs40l2x, wt_open_bytes);
@@ -1037,7 +699,7 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 		"Total size of all virtual slots: %d bytes\n",
 		wt_open_bytes);
 
-	cs40l2x_calc_num_waves(cs40l2x);
+	cs40l2x->num_waves = cs40l2x->wt_xm.nwaves + cs40l2x->wt_ym.nwaves;
 
 	cs40l2x->virtual_slot_index = ((cs40l2x->num_waves +
 		CS40L2X_WT_NUM_VIRT_SLOTS) - 1);
@@ -1047,32 +709,16 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 		cs40l2x->virtual_gpio1_fall_slot - 1;
 
 	comp_size = (wt_open_bytes -
-		(CS40L2X_WT_HEADER_ENTRY_SIZE * CS40L2X_WT_NUM_VIRT_SLOTS));
+		(WT_ENTRY_SIZE_BYTES * CS40L2X_WT_NUM_VIRT_SLOTS));
 	cs40l2x->comp_bytes = comp_size;
 
 	cs40l2x->display_pwle_segs =
 		(((cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS) -
 		CS40L2X_PWLE_NON_SEG_BYTES) / CS40L2X_PWLE_MAX_SEG_BYTES);
 
-	cs40l2x->wvfrm_lengths_size = (cs40l2x->num_waves * 2);
+	*is_xm = cs40l2x->xm_append;
 
-	ret = cs40l2x_create_wvfrm_len_type_pairs(cs40l2x);
-	if (ret)
-		return ret;
-
-	if (cs40l2x->xm_append) {
-		*is_xm = 1;
-		ret = cs40l2x_update_existing_block(cs40l2x, comp_size, true);
-	} else {
-		*is_xm = 0;
-		if (cs40l2x->create_ym)
-			ret = cs40l2x_create_block(cs40l2x, comp_size);
-		else
-			ret = cs40l2x_update_existing_block(cs40l2x,
-				comp_size, false);
-	}
-
-	return ret;
+	return cs40l2x_update_existing_block(cs40l2x, comp_size, *is_xm);
 }
 
 static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
@@ -1391,21 +1037,12 @@ static int cs40l2x_comp_finalise_section(struct cs40l2x_private *cs40l2x)
 {
 	struct wt_type10_comp *comp = &cs40l2x->pbq_comp;
 	struct wt_type10_comp_section *sec = &comp->sections[comp->nsections];
-	unsigned int lindex = sec->index * 2;
 	int slen = 0;
 
 	if (sec->index) {
-		switch (cs40l2x->wvfrm_lengths[lindex]) {
-		case CS40L2X_WT_TYPE_8_PCM_FILE:
-		case CS40L2X_WT_TYPE_9_VAR_FILE:
-		case CS40L2X_WT_TYPE_12_PWLE_FILE:
-			break;
-		default:
-			dev_err(cs40l2x->dev, "Invalid PBQ waveform\n");
-			return -EINVAL;
-		}
-
-		slen = cs40l2x->wvfrm_lengths[lindex + 1];
+		slen = cs40l2x_get_wlength(cs40l2x, sec->index);
+		if (slen < 0)
+			return slen;
 
 		if (slen & WT_WAVELEN_INDEFINITE) {
 			if (!(sec->flags & WT_T10_FLAG_DURATION)) {
@@ -1665,304 +1302,61 @@ err_mutex:
 	return ret;
 }
 
-static void cs40l2x_calc_pwle_samples(struct cs40l2x_private *cs40l2x,
-	unsigned int accu_time, bool indefinite)
+static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
+					 struct wt_type12_pwle *pwle,
+					 unsigned int feature, bool save)
 {
-	unsigned int wait_time = cs40l2x->wvfrm_len_wait_time;
-	unsigned int repeat = cs40l2x->pwle_repeat;
-	unsigned int total_time = 0;
-	unsigned int samples = 0;
+	unsigned int zero_pad_size;
+	char *zero_pad_data;
+	int ret;
 
-	total_time = (wait_time + accu_time);
-	if (repeat > 0)
-		total_time = ((repeat + 1) * total_time);
-	samples = (total_time - wait_time);
-	samples = (samples * CS40L2X_PWLE_SAMPLES_PER_MS);
+	zero_pad_data = kzalloc(CS40L2X_PWLE_BYTES_MAX, GFP_KERNEL);
+	if (!zero_pad_data)
+		return -ENOMEM;
 
-	if (indefinite)
-		cs40l2x->pwle_wvfrm_len = (samples +
-			CS40L2X_WT_COMP_INDEFINITE +
-			CS40L2X_WT_COMP_LEN_CALCD);
-	else
-		cs40l2x->pwle_wvfrm_len = (samples + CS40L2X_WT_COMP_LEN_CALCD);
-}
+	ret = cs40l2x_write_pwle(cs40l2x, zero_pad_data,
+				 CS40L2X_PWLE_BYTES_MAX, pwle);
 
-static void cs40l2x_pwle_seg_free(struct cs40l2x_private *cs40l2x)
-{
-	struct cs40l2x_pwle_segment *pwle_seg_struct;
-
-	while (!list_empty(&cs40l2x->pwle_segment_head)) {
-		pwle_seg_struct = list_first_entry(&cs40l2x->pwle_segment_head,
-				struct cs40l2x_pwle_segment, list);
-		list_del(&pwle_seg_struct->list);
-		devm_kfree(cs40l2x->dev, pwle_seg_struct);
-	}
-}
-
-static int cs40l2x_calc_pwle_bytes(struct cs40l2x_private *cs40l2x)
-{
-	unsigned int unpadded_bytes;
-
-	unpadded_bytes = CS40L2X_PWLE_FIRST_BYTES;
-	unpadded_bytes += (cs40l2x->pwle_num_segs *
-		CS40L2X_PWLE_SEG_BYTES);
-	unpadded_bytes += (cs40l2x->pwle_num_vb_targs *
-		CS40L2X_PWLE_NUM_VBT_BYTES);
-	unpadded_bytes += CS40L2X_PWLE_END_PAD_BYTES;
-
-	return unpadded_bytes;
-}
-
-static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
-{
-	char *three_bytes_data, *two_bytes_data, *unpadded_data, *zero_pad_data;
-	char wait_time_byte, num_segs_byte, b_four_time, time_byte;
-	struct cs40l2x_pwle_segment *pwle_seg_struct;
-	int zero_pad_count = 0, count = 0, ret = 0;
-	unsigned int zero_pad_size, pwle_size;
-	int i, k;
-
-	pwle_size = cs40l2x_calc_pwle_bytes(cs40l2x);
-	zero_pad_size = ((pwle_size / 3) + pwle_size);
-
-	if (zero_pad_size > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
+	if (ret > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
 		dev_err(cs40l2x->dev, "PWLE size exceeds available space\n");
 		return -ENOSPC;
 	}
 
-	unpadded_data = devm_kzalloc(cs40l2x->dev, pwle_size, GFP_KERNEL);
-	if (!unpadded_data)
-		return -ENOMEM;
+	zero_pad_size = ret;
 
-	zero_pad_data = devm_kzalloc(cs40l2x->dev, zero_pad_size, GFP_KERNEL);
-	if (!zero_pad_data) {
-		devm_kfree(cs40l2x->dev, unpadded_data);
-		return -ENOMEM;
-	}
-
-	cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
-	cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-	two_bytes_data = cs40l2x->two_bytes;
-
-	cs40l2x->three_bytes[0] = CS40L2X_ZERO_INIT;
-	cs40l2x->three_bytes[1] = CS40L2X_ZERO_INIT;
-	cs40l2x->three_bytes[2] = CS40L2X_ZERO_INIT;
-	three_bytes_data = cs40l2x->three_bytes;
-
-	/* Wvfrm Length in samples */
-	cs40l2x_to_bytes_msb(cs40l2x->pwle_wvfrm_len,
-		CS40L2X_WT_WORD_SIZE, &three_bytes_data);
-	for (i = 0; i < CS40L2X_WT_WORD_SIZE; i++) {
-		unpadded_data[count] = three_bytes_data[i];
-		count++;
-	}
-
-	/* Repeat, wait time and first 4 bits of num_segs */
-	unpadded_data[count] = cs40l2x->pwle_repeat;
-	count++;
-	cs40l2x_to_bytes_msb(cs40l2x->pwle_wait_time,
-		CS40L2X_TWO_BYTES, &two_bytes_data);
-	unpadded_data[count] = ((cs40l2x->two_bytes[0] << 4) +
-		(cs40l2x->two_bytes[1] >> 4));
-	count++;
-	wait_time_byte = (two_bytes_data[1] << 4);
-	num_segs_byte = cs40l2x->pwle_num_segs;
-	/* Last 4bits wait time and first 4bits num segs */
-	unpadded_data[count] = ((num_segs_byte >> 4) +
-		wait_time_byte);
-	count++;
-	b_four_time = (num_segs_byte << 4);
-
-	if (list_empty(&cs40l2x->pwle_segment_head)) {
-		ret = -EINVAL;
-		goto err_release;
-	}
-
-	list_for_each_entry_reverse(pwle_seg_struct,
-		&cs40l2x->pwle_segment_head, list) {
-		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
-		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(pwle_seg_struct->time,
-			CS40L2X_TWO_BYTES, &two_bytes_data);
-		unpadded_data[count] += ((cs40l2x->two_bytes[0] >>
-			CS40L2X_FOUR_BITS) + b_four_time);
-		count++;
-		unpadded_data[count] = ((cs40l2x->two_bytes[0] <<
-			CS40L2X_FOUR_BITS) + (cs40l2x->two_bytes[1] >>
-			CS40L2X_FOUR_BITS));
-		count++;
-		time_byte = (cs40l2x->two_bytes[1] << CS40L2X_FOUR_BITS);
-		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
-		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(pwle_seg_struct->level,
-			CS40L2X_TWO_BYTES, &two_bytes_data);
-		/* Last 4bits time + first 4bits level */
-		unpadded_data[count] = ((cs40l2x->two_bytes[0] &
-			CS40L2X_LS_FOUR_BYTE_MASK) + time_byte);
-		count++;
-		unpadded_data[count] = (cs40l2x->two_bytes[1]);
-		count++;
-		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
-		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(pwle_seg_struct->freq,
-			CS40L2X_TWO_BYTES, &two_bytes_data);
-		unpadded_data[count] = ((cs40l2x->two_bytes[0] <<
-			CS40L2X_FOUR_BITS) + (cs40l2x->two_bytes[1] >>
-			CS40L2X_FOUR_BITS));
-		count++;
-		unpadded_data[count] = (cs40l2x->two_bytes[1] <<
-			CS40L2X_FOUR_BITS);
-		if (pwle_seg_struct->chirp)
-			unpadded_data[count] += CS40L2X_PWLE_CHIRP_BIT;
-		if (pwle_seg_struct->brake)
-			unpadded_data[count] += CS40L2X_PWLE_BRAKE_BIT;
-		if (pwle_seg_struct->amp_reg) {
-			unpadded_data[count] += CS40L2X_PWLE_AMP_REG_BIT;
-			count++;
-			cs40l2x->three_bytes[0] = CS40L2X_ZERO_INIT;
-			cs40l2x->three_bytes[1] = CS40L2X_ZERO_INIT;
-			cs40l2x->three_bytes[2] = CS40L2X_ZERO_INIT;
-			cs40l2x_to_bytes_msb(pwle_seg_struct->vb_targ,
-				CS40L2X_WT_WORD_SIZE, &three_bytes_data);
-			unpadded_data[count] = (cs40l2x->three_bytes[0] >>
-				CS40L2X_FOUR_BITS);
-			count++;
-			unpadded_data[count] = ((cs40l2x->three_bytes[0] <<
-				CS40L2X_FOUR_BITS) + (cs40l2x->three_bytes[1] >>
-				CS40L2X_FOUR_BITS));
-			count++;
-			unpadded_data[count] = ((cs40l2x->three_bytes[1] <<
-				CS40L2X_FOUR_BITS) + (cs40l2x->three_bytes[2] >>
-				CS40L2X_FOUR_BITS));
-			count++;
-			unpadded_data[count] = (cs40l2x->three_bytes[2] <<
-				CS40L2X_FOUR_BITS);
-			b_four_time = (cs40l2x->three_bytes[2] <<
-				CS40L2X_FOUR_BITS);
-		} else {
-			count++;
-			unpadded_data[count] = CS40L2X_ZERO_VAL;
-			b_four_time = CS40L2X_ZERO_VAL;
-			/* Last 4bits of chirp byte are unused */
-		}
-	}
-	count++;
-	unpadded_data[count] = CS40L2X_ZERO_VAL;
-	count++;
-	unpadded_data[count] = CS40L2X_ZERO_VAL;
-	/* PWLE requires two zeros at end to complete last word */
-
-	/* Add zero padding bytes */
-	zero_pad_data[zero_pad_count] = CS40L2X_ZERO_VAL;
-	zero_pad_count++;
-	for (k = 0; k < count; k++) {
-		zero_pad_data[zero_pad_count] = unpadded_data[k];
-		zero_pad_count++;
-		if ((((k + 1) % 3) == 0) && ((k + 1) != count)) {
-			zero_pad_data[zero_pad_count] = CS40L2X_ZERO_VAL;
-			zero_pad_count++;
-		}
-	}
-
-	if (cs40l2x->save_pwle) {
+	if (save) {
 		ret = cs40l2x_add_waveform_to_virtual_list(cs40l2x,
 				CS40L2X_WT_TYPE_12_PWLE_FILE,
-				cs40l2x->pwle_feature,
-				zero_pad_size, zero_pad_data);
+				feature, zero_pad_size, zero_pad_data);
 		if (!ret)
 			cs40l2x->num_virtual_pwle_waves++;
 	} else {
 		cs40l2x_save_waveform_to_ovwr_struct(cs40l2x,
-			CS40L2X_WT_TYPE_12_PWLE_FILE, cs40l2x->pwle_feature,
-			zero_pad_size, zero_pad_data);
+				CS40L2X_WT_TYPE_12_PWLE_FILE,
+				feature, zero_pad_size, zero_pad_data);
 	}
 
-err_release:
-	devm_kfree(cs40l2x->dev, unpadded_data);
-	devm_kfree(cs40l2x->dev, zero_pad_data);
-
-	return ret;
-}
-
-static int cs40l2x_pwle_save_entry(struct cs40l2x_private *cs40l2x,
-	char *pwle_seg_tok, unsigned int num_vals)
-{
-	unsigned int val;
-	int ret;
-
-	ret = kstrtou32(pwle_seg_tok, 10, &val);
-	if (ret)
-		return -EINVAL;
-
-	if (val > 1) {
-		dev_err(cs40l2x->dev, "Valid Save: 0 or 1\n");
-		return -EINVAL;
-	}
-
-	if (num_vals == 0) {
-		if (val)
-			cs40l2x->save_pwle = true;
-	} else {
-		dev_err(cs40l2x->dev,
-			"Malformed PWLE, missing Save entry\n");
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
-static int cs40l2x_pwle_wvfrm_feature_entry(
-	struct cs40l2x_private *cs40l2x,
-	char *pwle_seg_tok, unsigned int num_vals)
-{
-	unsigned int val;
-	int ret;
-
-	ret = kstrtou32(pwle_seg_tok, 10, &val);
-	if (ret)
-		return -EINVAL;
-
-	if ((val > CS40L2X_PWLE_MAX_WVFRM_FEAT) ||
-		((val % 4) != 0)) {
-		dev_err(cs40l2x->dev,
-			"Valid Waveform Feature: 0, 4, 8, 12\n");
-		return -EINVAL;
-	}
-
-	if (num_vals == 1) {
-		cs40l2x->pwle_feature =
-			(val << CS40L2X_PWLE_WVFRM_FT_SHFT);
-	} else {
-		dev_err(cs40l2x->dev,
-			"Malformed PWLE, missing Feature entry\n");
-		return -EINVAL;
-	}
+	kfree(zero_pad_data);
 
 	return ret;
 }
 
 static int cs40l2x_pwle_repeat_entry(struct cs40l2x_private *cs40l2x,
-	char *pwle_seg_tok, unsigned int num_vals)
+				     char *token, struct wt_type12_pwle *pwle)
 {
 	unsigned int val;
 	int ret;
 
-	ret = kstrtou32(pwle_seg_tok, 10, &val);
+	ret = kstrtou32(token, 10, &val);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	if (val > CS40L2X_PWLE_MAX_RP_VAL) {
 		dev_err(cs40l2x->dev, "Valid Repeat: 0 to 255\n");
 		return -EINVAL;
 	}
 
-	if (num_vals == 2) {
-		cs40l2x->pwle_repeat = val;
-	} else {
-		dev_err(cs40l2x->dev,
-			"Malformed PWLE, missing Repeat entry\n");
-		return -EINVAL;
-	}
+	pwle->repeat = val;
 
 	return ret;
 }
@@ -1998,7 +1392,7 @@ static int cs40l2x_parse_float(char *frac, int *result, int nfracdigits,
 }
 
 static int cs40l2x_pwle_wait_time_entry(struct cs40l2x_private *cs40l2x,
-					char *token, unsigned int num_vals)
+					char *token, struct wt_type12_pwle *pwle)
 {
 	int val, ret;
 
@@ -2009,22 +1403,16 @@ static int cs40l2x_pwle_wait_time_entry(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
-	if (num_vals == 3) {
-		cs40l2x->pwle_wait_time = val / (100 / 4);
-		cs40l2x->wvfrm_len_wait_time = cs40l2x->pwle_wait_time / 4;
-	} else {
-		dev_err(cs40l2x->dev,
-			"Malformed PWLE, WaitTime follows Repeat\n");
-		return -EINVAL;
-	}
+	pwle->wait = val / (100 / 4);
+	pwle->wlength += pwle->wait;
 
 	return ret;
 }
 
-static int cs40l2x_pwle_time_entry(struct cs40l2x_private *cs40l2x,
-				   char *token, unsigned int num_vals,
-				   struct cs40l2x_pwle_segment *pwle_seg_struct,
-				   unsigned int *accu_time, bool *indef)
+static int cs40l2x_pwle_time_entry(struct cs40l2x_private *cs40l2x, char *token,
+				   struct wt_type12_pwle *pwle,
+				   struct wt_type12_pwle_section *section,
+				   bool *indef)
 {
 	int val, ret;
 
@@ -2035,19 +1423,18 @@ static int cs40l2x_pwle_time_entry(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
-	pwle_seg_struct->time = val / (100 / 4);
+	section->time = val / (100 / 4);
 
 	if (val == CS40L2X_PWLE_INDEF_TIME_VAL)
 		*indef = true;
 	else
-		*accu_time += pwle_seg_struct->time / 4;
+		pwle->wlength += section->time;
 
 	return ret;
 }
 
-static int cs40l2x_pwle_level_entry(struct cs40l2x_private *cs40l2x,
-				    char *token,
-				    struct cs40l2x_pwle_segment *pwle_seg_struct)
+static int cs40l2x_pwle_level_entry(struct cs40l2x_private *cs40l2x, char *token,
+				    struct wt_type12_pwle_section *section)
 {
 	int val, ret;
 
@@ -2058,14 +1445,14 @@ static int cs40l2x_pwle_level_entry(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
-	pwle_seg_struct->level = val / (10000000 / 2048);
+	section->level = val / (10000000 / 2048);
 
 	return ret;
 }
 
 static int cs40l2x_pwle_frequency_entry(struct cs40l2x_private *cs40l2x,
 					char *token,
-					struct cs40l2x_pwle_segment *pwle_seg_struct)
+					struct wt_type12_pwle_section *section)
 {
 	int val, ret;
 	/* Valid values, as per spec, 50.125Hz - 561.875Hz */
@@ -2084,16 +1471,16 @@ static int cs40l2x_pwle_frequency_entry(struct cs40l2x_private *cs40l2x,
 	}
 
 	if (cs40l2x->ext_freq_min_fw)
-		pwle_seg_struct->freq = (val / (1000 / 4));
+		section->frequency = (val / (1000 / 4));
 	else
-		pwle_seg_struct->freq = (val / (1000 / 8)) - 400;
+		section->frequency = (val / (1000 / 8)) - 400;
 
 	return ret;
 }
 
 static int cs40l2x_pwle_vb_target_entry(struct cs40l2x_private *cs40l2x,
-					char *token, bool amp_reg,
-					struct cs40l2x_pwle_segment *pwle_seg_struct)
+					char *token,
+					struct wt_type12_pwle_section *section)
 {
 	int val, ret;
 
@@ -2111,12 +1498,7 @@ static int cs40l2x_pwle_vb_target_entry(struct cs40l2x_private *cs40l2x,
 	val = (val * 1770) / 211;
 	clamp(val, 0, 0x7FFFFF);
 
-	/* Only add vb_target to array if amp_reg set */
-	if (amp_reg) {
-		pwle_seg_struct->vb_targ = val;
-		cs40l2x->pwle_num_vb_targs++;
-		amp_reg = false;
-	}
+	section->vbtarget = val;
 
 	return ret;
 }
@@ -2127,42 +1509,24 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
-	struct cs40l2x_pwle_segment *pwle_seg_struct;
-	char *pwle_str_alloc, *pwle_str, *pwle_str_tok;
-	char *pwle_seg_alloc, *pwle_seg, *pwle_seg_tok;
-	char *pwle_dec_alloc, *pwle_dec, *pwle_dec_tok;
-	unsigned int accu_time = 0, num_vals = 0, num_segs = 0;
+	struct wt_type12_pwle *pwle;
+	struct wt_type12_pwle_section *section;
+	char *pwle_str, *cur, *token, *type;
+	unsigned int num_vals = 0, num_segs = 0, feature = 0;
 	unsigned int val;
-	size_t pwle_seg_len;
-	size_t pwle_dec_len;
-	bool amp_reg = false, indef = false;
+	bool indef = false, save_pwle = false;
 	bool t = false, l = false, f = false, c = false, b = false;
 	bool a = false, v = false;
 	int ret;
 
-	pwle_str_alloc = kzalloc(count, GFP_KERNEL);
-	if (!pwle_str_alloc)
+
+	pwle_str = kzalloc(count, GFP_KERNEL);
+	if (!pwle_str)
 		return -ENOMEM;
 
-	pwle_seg_alloc = kzalloc(CS40L2X_PWLE_SEG_LEN_MAX + 1, GFP_KERNEL);
-	if (!pwle_seg_alloc) {
-		kfree(pwle_str_alloc);
-		return -ENOMEM;
-	}
-
-	pwle_dec_alloc = kzalloc(CS40L2X_PWLE_SEG_LEN_MAX + 1, GFP_KERNEL);
-	if (!pwle_dec_alloc) {
-		kfree(pwle_str_alloc);
-		kfree(pwle_seg_alloc);
-		return -ENOMEM;
-	}
-
-	pwle_seg_struct = devm_kzalloc(cs40l2x->dev,
-		sizeof(*pwle_seg_struct), GFP_KERNEL);
-	if (!pwle_seg_struct) {
-		kfree(pwle_str_alloc);
-		kfree(pwle_seg_alloc);
-		kfree(pwle_dec_alloc);
+	pwle = kzalloc(sizeof(*pwle), GFP_KERNEL);
+	if (!pwle) {
+		kfree(pwle_str);
 		return -ENOMEM;
 	}
 
@@ -2178,272 +1542,190 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 		goto err_exit;
 	}
 
-	cs40l2x->pwle_num_vb_targs = 0;
-	cs40l2x->pwle_num_segs = 0;
-	cs40l2x->save_pwle = false;
+	section = pwle->sections;
 
-	pwle_str = pwle_str_alloc;
 	strlcpy(pwle_str, buf, count);
 
-	pwle_str_tok = strsep(&pwle_str, ",");
+	cur = pwle_str;
 
-	while (pwle_str_tok) {
+	while ((token = strsep(&cur, ","))) {
+		token = strim(token);
+
 		if (num_vals >= CS40L2X_PWLE_TOTAL_VALS) {
 			ret = -E2BIG;
 			goto err_exit;
 		}
 
-		pwle_seg = pwle_seg_alloc;
-		pwle_seg_len = strlcpy(pwle_seg, strim(pwle_str_tok),
-			CS40L2X_PWLE_SEG_LEN_MAX + 1);
-		if (pwle_seg_len > CS40L2X_PWLE_SEG_LEN_MAX) {
-			ret = -E2BIG;
-			goto err_exit;
-		}
+		type = strsep(&token, ":");
+		token = strim(token);
 
-		if (strnchr(pwle_seg, CS40L2X_PWLE_SEG_LEN_MAX, ':')) {
-			pwle_seg_tok = strsep(&pwle_seg, ":");
-
-			if (strnchr(pwle_seg_tok, 1, 'S')) {
-				pwle_seg_tok = strsep(&pwle_seg, ":");
-
-				ret = cs40l2x_pwle_save_entry(cs40l2x,
-					pwle_seg_tok, num_vals);
-				if (ret)
-					goto err_exit;
+		if (type[0] == 'S') {
+			if (num_vals != 0) {
+				dev_err(cs40l2x->dev,
+					"Malformed PWLE, missing Save entry\n");
+				ret = -EINVAL;
+				goto err_exit;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'W')) {
-				if (strnchr(pwle_seg_tok, 2, 'F')) {
-					pwle_seg_tok = strsep(&pwle_seg, ":");
+			ret = kstrtou32(token, 10, &val);
+			if (ret)
+				goto err_exit;
 
-					ret = cs40l2x_pwle_wvfrm_feature_entry(
-						cs40l2x, pwle_seg_tok,
-						num_vals);
-					if (ret)
-						goto err_exit;
-				}
+			if (val > 1) {
+				dev_err(cs40l2x->dev, "Valid Save: 0 or 1\n");
+				ret = -EINVAL;
+				goto err_exit;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'R')) {
-				if (strnchr(pwle_seg_tok, 2, 'P')) {
-					pwle_seg_tok = strsep(&pwle_seg, ":");
-
-					ret = cs40l2x_pwle_repeat_entry(cs40l2x,
-						pwle_seg_tok, num_vals);
-					if (ret)
-						goto err_exit;
-				}
+			if (val)
+				save_pwle = true;
+		} else if (!strncmp(type, "WF", 2)) {
+			if (num_vals != 1) {
+				dev_err(cs40l2x->dev,
+					"Malformed PWLE, missing Feature entry\n");
+				ret = -EINVAL;
+				goto err_exit;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'W')) {
-				if (strnchr(pwle_seg_tok, 2, 'T')) {
-					pwle_seg_tok = strsep(&pwle_seg, ":");
+			ret = kstrtou32(token, 10, &val);
+			if (ret)
+				goto err_exit;
 
-					pwle_dec = pwle_dec_alloc;
-					pwle_dec_len = strlcpy(pwle_dec,
-						strim(pwle_seg_tok),
-						CS40L2X_PWLE_SEG_LEN_MAX + 1);
-					if (pwle_dec_len >
-						CS40L2X_PWLE_SEG_LEN_MAX) {
-						ret = -E2BIG;
-						goto err_exit;
-					}
-
-					ret = cs40l2x_pwle_wait_time_entry(
-						cs40l2x, pwle_dec, num_vals);
-					if (ret)
-						goto err_exit;
-				}
+			if (val > CS40L2X_PWLE_MAX_WVFRM_FEAT || (val % 4) != 0) {
+				dev_err(cs40l2x->dev, "Valid Waveform Feature: 0, 4, 8, 12\n");
+				ret = -EINVAL;
+				goto err_exit;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'T')) {
-				if (num_vals > 4) {
-					/* Verify complete previous segment */
-					if ((!t) || (!l) || (!f) ||	(!c) ||
-						(!b) || (!a) || (!v)) {
-						dev_err(cs40l2x->dev,
-							"Malformed PWLE. Missing entry in seg %d\n",
-							(num_segs - 1));
-						ret = -EINVAL;
-						goto err_exit;
-					}
-					t = false;
-					l = false;
-					f = false;
-					c = false;
-					b = false;
-					a = false;
-					v = false;
-				}
-
-				pwle_seg_tok = strsep(&pwle_seg, ":");
-
-				pwle_dec = pwle_dec_alloc;
-				pwle_dec_len = strlcpy(pwle_dec,
-					strim(pwle_seg_tok),
-					CS40L2X_PWLE_SEG_LEN_MAX + 1);
-				if (pwle_dec_len > CS40L2X_PWLE_SEG_LEN_MAX) {
-					ret = -E2BIG;
-					goto err_exit;
-				}
-
-				if (num_segs > 0) {
-					pwle_seg_struct = devm_kzalloc(
-						cs40l2x->dev,
-						sizeof(*pwle_seg_struct),
-						GFP_KERNEL);
-					if (!pwle_seg_struct) {
-						ret = -ENOMEM;
-						goto err_exit;
-					}
-				}
-
-				ret = cs40l2x_pwle_time_entry(cs40l2x,
-					pwle_dec, num_vals,
-					pwle_seg_struct, &accu_time, &indef);
-				if (ret)
-					goto err_exit;
-
-				t = true;
-				pwle_seg_struct->index = num_segs;
+			feature = val << CS40L2X_PWLE_WVFRM_FT_SHFT;
+		} else if (!strncmp(type, "RP", 2)) {
+			if (num_vals != 2) {
+				dev_err(cs40l2x->dev,
+					"Malformed PWLE, missing Repeat entry\n");
+				ret = -EINVAL;
+				goto err_exit;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'L')) {
-				pwle_seg_tok = strsep(&pwle_seg, ":");
-				pwle_dec_tok = pwle_seg_tok;
-
-				pwle_dec = pwle_dec_alloc;
-				pwle_dec_len = strlcpy(pwle_dec,
-					strim(pwle_seg_tok),
-					CS40L2X_PWLE_SEG_LEN_MAX + 1);
-				if (pwle_dec_len > CS40L2X_PWLE_SEG_LEN_MAX) {
-					ret = -E2BIG;
-					goto err_exit;
-				}
-
-				ret = cs40l2x_pwle_level_entry(cs40l2x,
-					pwle_dec, pwle_seg_struct);
-				if (ret)
-					goto err_exit;
-
-				l = true;
+			ret = cs40l2x_pwle_repeat_entry(cs40l2x, token, pwle);
+			if (ret)
+				goto err_exit;
+		} else if (!strncmp(type, "WT", 2)) {
+			if (num_vals != 3) {
+				dev_err(cs40l2x->dev,
+					"Malformed PWLE, WaitTime follows Repeat\n");
+				ret = -EINVAL;
+				goto err_exit;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'F')) {
-				pwle_seg_tok = strsep(&pwle_seg, ":");
-
-				pwle_dec = pwle_dec_alloc;
-				pwle_dec_len = strlcpy(pwle_dec,
-					strim(pwle_seg_tok),
-					CS40L2X_PWLE_SEG_LEN_MAX + 1);
-				if (pwle_dec_len > CS40L2X_PWLE_SEG_LEN_MAX) {
-					ret = -E2BIG;
-					goto err_exit;
-				}
-
-				ret = cs40l2x_pwle_frequency_entry(cs40l2x,
-					pwle_dec, pwle_seg_struct);
-				if (ret)
-					goto err_exit;
-
-				f = true;
-			}
-
-			if (strnchr(pwle_seg_tok, 1, 'C')) {
-				pwle_seg_tok = strsep(&pwle_seg, ":");
-
-				ret = kstrtou32(pwle_seg_tok, 10, &val);
-				if (ret) {
-					ret = -EINVAL;
-					goto err_exit;
-				}
-
-				if (val > 1) {
+			ret = cs40l2x_pwle_wait_time_entry(cs40l2x, token, pwle);
+			if (ret)
+				goto err_exit;
+		} else if (type[0] == 'T') {
+			if (num_vals > 4) {
+				/* Verify complete previous segment */
+				if (!t || !l || !f || !c || !b || !a || !v) {
 					dev_err(cs40l2x->dev,
-						"Valid Chirp: 0 or 1\n");
+						"Malformed PWLE. Missing entry in seg %d\n",
+						(num_segs - 1));
 					ret = -EINVAL;
 					goto err_exit;
 				}
-				pwle_seg_struct->chirp = val;
-				c = true;
+				t = false;
+				l = false;
+				f = false;
+				c = false;
+				b = false;
+				a = false;
+				v = false;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'B')) {
-				pwle_seg_tok = strsep(&pwle_seg, ":");
+			ret = cs40l2x_pwle_time_entry(cs40l2x, token, pwle,
+						      section, &indef);
+			if (ret)
+				goto err_exit;
 
-				ret = kstrtou32(pwle_seg_tok, 10, &val);
-				if (ret) {
-					ret = -EINVAL;
-					goto err_exit;
-				}
+			t = true;
+		} else if (type[0] == 'L') {
+			ret = cs40l2x_pwle_level_entry(cs40l2x, token, section);
+			if (ret)
+				goto err_exit;
 
-				if (val > 1) {
-					dev_err(cs40l2x->dev,
-						"Valid Braking: 0 or 1\n");
-					ret = -EINVAL;
-					goto err_exit;
-				}
-				pwle_seg_struct->brake = val;
-				b = true;
+			l = true;
+		} else if (type[0] == 'F') {
+			ret = cs40l2x_pwle_frequency_entry(cs40l2x, token,
+							   section);
+			if (ret)
+				goto err_exit;
+
+			f = true;
+		} else if (type[0] == 'C') {
+			ret = kstrtou32(token, 10, &val);
+			if (ret)
+				goto err_exit;
+
+			if (val > 1) {
+				dev_err(cs40l2x->dev,
+					"Valid Chirp: 0 or 1\n");
+				ret = -EINVAL;
+				goto err_exit;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'A')) {
-				if (strnchr(pwle_seg_tok, 2, 'R')) {
-					pwle_seg_tok = strsep(&pwle_seg, ":");
+			if (val)
+				section->flags |= WT_T12_FLAG_CHIRP;
 
-					ret = kstrtou32(pwle_seg_tok, 10, &val);
-					if (ret) {
-						ret = -EINVAL;
-						goto err_exit;
-					}
+			c = true;
+		} else if (type[0] == 'B') {
+			ret = kstrtou32(token, 10, &val);
+			if (ret)
+				goto err_exit;
 
-					if (val > 1) {
-						dev_err(cs40l2x->dev,
-							"Valid Amplitude Regulation: 0 or 1\n");
-						ret = -EINVAL;
-						goto err_exit;
-					}
-					pwle_seg_struct->amp_reg = val;
-					a = true;
-
-					if (val == 1)
-						amp_reg = true;
-				}
+			if (val > 1) {
+				dev_err(cs40l2x->dev,
+					"Valid Braking: 0 or 1\n");
+				ret = -EINVAL;
+				goto err_exit;
 			}
 
-			if (strnchr(pwle_seg_tok, 1, 'V')) {
-				pwle_seg_tok = strsep(&pwle_seg, ":");
+			if (val)
+				section->flags |= WT_T12_FLAG_BRAKE;
 
-				pwle_dec = pwle_dec_alloc;
-				pwle_dec_len = strlcpy(pwle_dec,
-					strim(pwle_seg_tok),
-					CS40L2X_PWLE_SEG_LEN_MAX + 1);
-				if (pwle_dec_len > CS40L2X_PWLE_SEG_LEN_MAX) {
-					ret = -E2BIG;
-					goto err_exit;
-				}
+			b = true;
+		} else if (!strncmp(type, "AR", 2)) {
+			ret = kstrtou32(token, 10, &val);
+			if (ret)
+				goto err_exit;
 
+			if (val > 1) {
+				dev_err(cs40l2x->dev,
+					"Valid Amplitude Regulation: 0 or 1\n");
+				ret = -EINVAL;
+				goto err_exit;
+			}
+
+			if (val)
+				section->flags |= WT_T12_FLAG_AMP_REG;
+
+			a = true;
+
+		} else if (type[0] == 'V') {
+			if (section->flags & WT_T12_FLAG_AMP_REG) {
 				ret = cs40l2x_pwle_vb_target_entry(cs40l2x,
-					pwle_dec, amp_reg,
-					pwle_seg_struct);
+								   token,
+								   section);
 				if (ret)
 					goto err_exit;
-
-				v = true;
-
-				list_add(&pwle_seg_struct->list,
-					&cs40l2x->pwle_segment_head);
-
-				num_segs++;
 			}
+
+			v = true;
+			num_segs++;
+			section++;
 		}
+
 		num_vals++;
-		pwle_str_tok = strsep(&pwle_str, ",");
 	}
 
 	/* Verify last segment was complete */
-	if ((!t) || (!l) || (!f) || (!c) || (!b) || (!a) || (!v)) {
+	if (!t || !l || !f || !c || !b || !a || !v) {
 		dev_err(cs40l2x->dev,
 			"Malformed PWLE. Missing entry in seg %d\n",
 			(num_segs - 1));
@@ -2451,32 +1733,42 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 		goto err_exit;
 	}
 
+	pwle->nsections = num_segs;
+
 	strlcpy(cs40l2x->pwle_str, buf, count);
 	cs40l2x->pwle_str_size = count;
 
-	cs40l2x->pwle_num_segs = num_segs;
-	cs40l2x_calc_pwle_samples(cs40l2x, accu_time, indef);
-	ret = cs40l2x_save_packed_pwle_data(cs40l2x);
+	pwle->wlength *= pwle->repeat + 1;
+	/* Firmware doesn't count the last wait since it is just dead time */
+	pwle->wlength -= pwle->wait;
+
+	/* Convert from 1/4mS's to samples at 8kHz for waveform length */
+	pwle->wlength *= 2;
+
+	if (indef)
+		pwle->wlength |= WT_WAVELEN_INDEFINITE;
+
+	pwle->wlength |= WT_WAVELEN_CALCULATED;
+
+	ret = cs40l2x_save_packed_pwle_data(cs40l2x, pwle, feature, save_pwle);
 	if (ret) {
 		dev_err(cs40l2x->dev,
 			"Malformed PWLE. No segments found.\n");
 		ret = -EINVAL;
 		goto err_exit;
 	}
-	cs40l2x_pwle_seg_free(cs40l2x);
 
 	ret = count;
 
-	if (!cs40l2x->save_pwle)
+	if (!save_pwle)
 		cs40l2x->last_type_entered = CS40L2X_WT_TYPE_12_PWLE_FILE;
 	cs40l2x->queue_stored = true;
 
 err_exit:
 	mutex_unlock(&cs40l2x->lock);
 
-	kfree(pwle_str_alloc);
-	kfree(pwle_seg_alloc);
-	kfree(pwle_dec_alloc);
+	kfree(pwle);
+	kfree(pwle_str);
 
 	enable_irq(i2c_client->irq);
 
@@ -4769,7 +4061,7 @@ static int cs40l2x_dig_scale_get(struct cs40l2x_private *cs40l2x,
 	int ret;
 	unsigned int val;
 
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL, &val);
+	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_CTRL, &val);
 	if (ret)
 		return ret;
 
@@ -4788,7 +4080,7 @@ static int cs40l2x_dig_scale_set(struct cs40l2x_private *cs40l2x,
 	if (dig_scale == CS40L2X_DIG_SCALE_RESET)
 		return -EINVAL;
 
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL, &val);
+	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_CTRL, &val);
 	if (ret)
 		return ret;
 
@@ -4797,11 +4089,11 @@ static int cs40l2x_dig_scale_set(struct cs40l2x_private *cs40l2x,
 			(((CS40L2X_DIG_SCALE_ZERO - dig_scale)
 			& CS40L2X_DIG_SCALE_MASK) << CS40L2X_AMP_VOL_PCM_SHIFT);
 
-	ret = regmap_write(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL, val);
+	ret = regmap_write(cs40l2x->regmap, CS40L2X_AMP_CTRL, val);
 	if (ret)
 		return ret;
 
-	return cs40l2x_wseq_replace(cs40l2x, CS40L2X_AMP_DIG_VOL_CTRL, val);
+	return cs40l2x_wseq_replace(cs40l2x, CS40L2X_AMP_CTRL, val);
 }
 
 static ssize_t cs40l2x_dig_scale_show(struct device *dev,
@@ -6290,91 +5582,6 @@ err_mutex:
 	return ret;
 }
 
-static ssize_t cs40l2x_reba_disable_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
-	unsigned int reg, val, slope;
-
-	ret = kstrtou32(buf, 10, &val);
-	if (ret || (val > 1))
-		return -EINVAL;
-
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
-	reg = cs40l2x_dsp_reg(cs40l2x, "REBA_SLOPE",
-			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_DYN_F0);
-	if (!reg) {
-		dev_warn(dev, "Can't find REBA_SLOPE\n");
-		ret = -EPERM;
-		goto err_mutex;
-	}
-
-	ret = regmap_read(cs40l2x->regmap, reg, &slope);
-	if (ret)
-		goto err_mutex;
-
-
-	if (val) {
-		if (slope)
-			cs40l2x->dyn_reba_slope = slope;
-		/* Set slope to 0 to disable reba */
-		ret = regmap_write(cs40l2x->regmap, reg, 0);
-		if (ret)
-			goto err_mutex;
-	} else {
-		ret = regmap_write(cs40l2x->regmap, reg,
-					cs40l2x->dyn_reba_slope);
-		if (ret)
-			goto err_mutex;
-	}
-
-	ret = count;
-
-err_mutex:
-	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_put_autosuspend(cs40l2x->dev);
-
-	return ret;
-}
-
-static ssize_t cs40l2x_reba_disable_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
-	unsigned int reg, val;
-
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
-	reg = cs40l2x_dsp_reg(cs40l2x, "REBA_SLOPE",
-			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_DYN_F0);
-	if (!reg) {
-		dev_warn(dev, "Can't find REBA_SLOPE\n");
-		ret = -EPERM;
-		goto err_mutex;
-	}
-
-	ret = regmap_read(cs40l2x->regmap, reg, &val);
-	if (ret)
-		goto err_mutex;
-
-	ret = snprintf(buf, PAGE_SIZE, "%u\n", val ? 0 : 1);
-
-err_mutex:
-	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(cs40l2x->dev);
-	pm_runtime_put_autosuspend(cs40l2x->dev);
-
-	return ret;
-}
-
-
-
 static ssize_t cs40l2x_clab_enable_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
@@ -6647,8 +5854,6 @@ static ssize_t cs40l2x_vibe_state_show(struct device *dev,
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	int ret;
 
-	flush_workqueue(cs40l2x->vibe_workqueue);
-
 	mutex_lock(&cs40l2x->lock);
 	ret = snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->vibe_state);
 	mutex_unlock(&cs40l2x->lock);
@@ -6770,42 +5975,6 @@ err_mutex:
 	return ret;
 }
 
-static ssize_t cs40l2x_autosuspend_delay_show(struct device *dev,
-					      struct device_attribute *attr,
-					      char *buf)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	unsigned int val;
-
-	mutex_lock(&cs40l2x->lock);
-	val = cs40l2x->autosuspend_delay;
-	mutex_unlock(&cs40l2x->lock);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", val);
-}
-
-static ssize_t cs40l2x_autosuspend_delay_store(struct device *dev,
-					       struct device_attribute *attr,
-					       const char *buf,
-					       size_t count)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
-	unsigned int val;
-
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return -EINVAL;
-
-	mutex_lock(&cs40l2x->lock);
-	cs40l2x->autosuspend_delay = val;
-	mutex_unlock(&cs40l2x->lock);
-
-	pm_runtime_set_autosuspend_delay(cs40l2x->dev, val);
-
-	return count;
-}
-
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l2x_cp_trigger_index_show,
 		cs40l2x_cp_trigger_index_store);
 static DEVICE_ATTR(cp_trigger_queue, 0660, cs40l2x_cp_trigger_queue_show,
@@ -6918,8 +6087,6 @@ static DEVICE_ATTR(wt_file, 0660, cs40l2x_wt_file_show, cs40l2x_wt_file_store);
 static DEVICE_ATTR(wt_date, 0660, cs40l2x_wt_date_show, NULL);
 static DEVICE_ATTR(vmon_imon_offs_enable, 0660, cs40l2x_imon_offs_enable_show,
 		cs40l2x_imon_offs_enable_store);
-static DEVICE_ATTR(reba_disable, 0660, cs40l2x_reba_disable_show,
-		cs40l2x_reba_disable_store);
 static DEVICE_ATTR(clab_enable, 0660, cs40l2x_clab_enable_show,
 		cs40l2x_clab_enable_store);
 static DEVICE_ATTR(clab_peak, 0660, cs40l2x_clab_peak_show,
@@ -6934,8 +6101,6 @@ static DEVICE_ATTR(gpio_event, 0660, cs40l2x_gpio_event_show,
 static DEVICE_ATTR(safe_save_state, 0660, cs40l2x_safe_save_state_show, NULL);
 static DEVICE_ATTR(max_back_emf, 0660, cs40l2x_max_back_emf_show,
 		cs40l2x_max_back_emf_store);
-static DEVICE_ATTR(autosuspend_delay, 0660, cs40l2x_autosuspend_delay_show,
-		   cs40l2x_autosuspend_delay_store);
 static DEVICE_ATTR(pwle, 0660, cs40l2x_pwle_show, cs40l2x_pwle_store);
 static DEVICE_ATTR(num_virtual_composite, 0660,
 	cs40l2x_num_virtual_composite_show, NULL);
@@ -7010,7 +6175,6 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_wt_date.attr,
 	&dev_attr_vmon_imon_offs_enable.attr,
 	&dev_attr_clab_enable.attr,
-	&dev_attr_reba_disable.attr,
 	&dev_attr_clab_peak.attr,
 	&dev_attr_pwle_regulation_enable.attr,
 	&dev_attr_gain_compensation_enable.attr,
@@ -7018,7 +6182,6 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_gpio_event.attr,
 	&dev_attr_safe_save_state.attr,
 	&dev_attr_max_back_emf.attr,
-	&dev_attr_autosuspend_delay.attr,
 	&dev_attr_pwle.attr,
 	&dev_attr_num_virtual_composite.attr,
 	&dev_attr_num_virtual_pwle.attr,
@@ -7101,22 +6264,25 @@ static int cs40l2x_read_dyn_f0_table(struct cs40l2x_private *cs40l2x)
 static int cs40l2x_enable_classh(struct cs40l2x_private *cs40l2x)
 {
 	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int classh = WT_FLAG_CLAB | WT_FLAG_F0;
 	int ret, i;
 
 	for (i = 0; i < CS40L2X_MAX_WAVEFORMS; i++)
-		if (cs40l2x->clab_wt_en[i] || cs40l2x->f0_wt_en[i])
+		if (cs40l2x_get_wave(cs40l2x, i)->flags & classh)
 			break;
 
 	if (i == CS40L2X_MAX_WAVEFORMS)
 		return 0;
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	/* Add 50 ms delay to settle the waveform */
+	msleep(CS40L2X_SETTLE_DELAY_MS);
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+	ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 			CS40L2X_CLASSH_EN_MASK,
 			1 << CS40L2X_CLASSH_EN_SHIFT);
 	if (ret)
@@ -7148,19 +6314,19 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 		goto err_exit;
 
 	if (cs40l2x->a2h_enable) {
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
 		if (ret)
 			goto err_exit;
 
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 				CS40L2X_CLASSH_EN_MASK,
 				1 << CS40L2X_CLASSH_EN_SHIFT);
 		if (ret)
 			goto err_exit;
 
-		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
+		ret = regmap_write(regmap, CS40L2X_MBOX_USER_CONTROL,
 					CS40L2X_A2H_I2S_START);
 		if (ret)
 			goto err_exit;
@@ -7188,9 +6354,11 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 		}
 	}
 
-	ret = cs40l2x_enable_classh(cs40l2x);
-	if (ret)
-		goto err_exit;
+	if (cs40l2x->cond_class_h_en) {
+		ret = cs40l2x_enable_classh(cs40l2x);
+		if (ret)
+			goto err_exit;
+	}
 
 err_exit:
 	mutex_unlock(&cs40l2x->lock);
@@ -7605,17 +6773,6 @@ static int cs40l2x_reset_recovery(struct cs40l2x_private *cs40l2x)
 	if (cs40l2x->revid < CS40L2X_REVID_B1)
 		return -EPERM;
 
-	if (cs40l2x->asp_available) {
-		ret = cs40l2x_wseq_replace(cs40l2x, CS40L2X_PLL_CLK_CTRL,
-				((1 << CS40L2X_PLL_REFCLK_EN_SHIFT)
-					& CS40L2X_PLL_REFCLK_EN_MASK) |
-				((CS40L2X_PLL_REFCLK_SEL_MCLK
-					<< CS40L2X_PLL_REFCLK_SEL_SHIFT)
-					& CS40L2X_PLL_REFCLK_SEL_MASK));
-		if (ret)
-			return ret;
-	}
-
 	cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
 
 	cs40l2x->cp_trailer_index = CS40L2X_INDEX_IDLE;
@@ -7690,43 +6847,6 @@ static int cs40l2x_check_recovery(struct cs40l2x_private *cs40l2x)
 	return ret;
 }
 
-static int cs40l2x_classh_wt_check(struct cs40l2x_private *cs40l2x,
-					const unsigned char *data,
-					const int len, int *pos)
-{
-	struct device *dev = cs40l2x->dev;
-	int i, index;
-	unsigned int header_end = CS40L2X_WT_HEAD_END;
-
-	if (*pos < 0 || *pos >= CS40L2X_MAX_WAVEFORMS)
-		return -EINVAL;
-
-	index = *pos;
-	/* Check the wave table header for CLAB and F0 waveforms */
-	for (i = 1; i < len; i += CS40L2X_WT_DESC_BYTE_OFFSET) {
-		if (!memcmp(&header_end, (data + i), 3))
-			break;
-
-		if (*(data + i) & CS40L2X_CLAB_WT_EN)
-			cs40l2x->clab_wt_en[index] = true;
-
-		if (*(data + i) & CS40L2X_F0_WT_EN)
-			cs40l2x->f0_wt_en[index] = true;
-
-		dev_dbg(dev, "header = 0x%x clab_wt_en = 0x%x\n", *(data + i),
-			 cs40l2x->clab_wt_en[index]);
-		index++;
-		if (index >= CS40L2X_MAX_WAVEFORMS) {
-			dev_err(dev, "Overflow on waveforms\n");
-			return -EFAULT;
-		}
-	}
-
-	*pos += index;
-
-	return 0;
-}
-
 static int cs40l2x_set_boost_voltage(struct cs40l2x_private *cs40l2x,
 					unsigned int boost_ctl)
 {
@@ -7752,7 +6872,7 @@ static int cs40l2x_set_boost_voltage(struct cs40l2x_private *cs40l2x,
 		return -EINVAL;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL1,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_1,
 			CS40L2X_BST_CTL_MASK,
 			bst_ctl_scaled << CS40L2X_BST_CTL_SHIFT);
 	if (ret) {
@@ -7760,7 +6880,7 @@ static int cs40l2x_set_boost_voltage(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 			CS40L2X_BST_CTL_LIM_EN_MASK,
 			1 << CS40L2X_BST_CTL_LIM_EN_SHIFT);
 	if (ret) {
@@ -7793,11 +6913,9 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 		}
 	}
 
-	if (enable) {
-		if (cs40l2x->f0_wt_en[index]) {
-			boost = cs40l2x->pdata.boost_ctl;
-			disable_classh = true;
-		}
+	if (enable && cs40l2x_get_wave(cs40l2x, index)->flags & WT_FLAG_F0) {
+		boost = cs40l2x->pdata.boost_ctl;
+		disable_classh = true;
 	}
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "CLAB_ENABLED",
@@ -7809,11 +6927,10 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 		if (ret)
 			return ret;
 
-		if (enable) {
-			if (cs40l2x->clab_wt_en[index]) {
-				boost = cs40l2x->pdata.boost_clab;
-				disable_classh = true;
-			}
+		if (enable &&
+		    cs40l2x_get_wave(cs40l2x, index)->flags & WT_FLAG_CLAB) {
+			boost = cs40l2x->pdata.boost_clab;
+			disable_classh = true;
 		}
 	}
 
@@ -7822,25 +6939,25 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 		if (ret)
 			return ret;
 
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 						CS40L2X_BST_CTL_SEL_MASK,
 						CS40L2X_BST_CTL_SEL_CP_VAL);
 		if (ret)
 			return ret;
 
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 				CS40L2X_CLASSH_EN_MASK,
 				0 << CS40L2X_CLASSH_EN_SHIFT);
 		if (ret)
 			return ret;
 	} else {
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 						CS40L2X_BST_CTL_SEL_MASK,
 						CS40L2X_BST_CTL_SEL_CLASSH);
 		if (ret)
 			return ret;
 
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 				CS40L2X_CLASSH_EN_MASK,
 				1 << CS40L2X_CLASSH_EN_SHIFT);
 		if (ret)
@@ -8512,8 +7629,12 @@ static int cs40l2x_create_led(struct cs40l2x_private *cs40l2x)
 	else
 		name = CS40L2X_DEVICE_NAME;
 
+// Google: Modified to us "vibrator" instead of "cs40l25:vibrator" path.
+//	led_dev->name = devm_kasprintf(cs40l2x->dev, GFP_KERNEL,
+//				       "%s:%s", "cs40l25", name);
 	led_dev->name = devm_kasprintf(cs40l2x->dev, GFP_KERNEL,
 				       "%s", name);
+
 	led_dev->max_brightness = LED_FULL;
 	led_dev->brightness_set = cs40l2x_vibe_brightness_set;
 	led_dev->default_trigger = "transient";
@@ -8617,7 +7738,7 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 					+ coeff_desc->block_offset * 4;
 				if (!strncmp(coeff_desc->name, "WAVETABLE",
 						CS40L2X_COEFF_NAME_LEN_MAX))
-					cs40l2x->wt_limit_xm =
+					cs40l2x->wt_xm.byteslimit =
 						(cs40l2x->algo_info[i].xm_size
 						- coeff_desc->block_offset) * 4;
 				break;
@@ -8627,7 +7748,7 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 					+ coeff_desc->block_offset * 4;
 				if (!strncmp(coeff_desc->name, "WAVETABLEYM",
 						CS40L2X_COEFF_NAME_LEN_MAX))
-					cs40l2x->wt_limit_ym =
+					cs40l2x->wt_ym.byteslimit =
 						(cs40l2x->algo_info[i].ym_size
 						- coeff_desc->block_offset) * 4;
 				break;
@@ -8669,7 +7790,8 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 		return -EINVAL;
 	}
 
-	if (cs40l2x->algo_info[0].rev >= CS40L2X_COND_CLSH_MIN_REV)
+	if ((cs40l2x->algo_info[0].rev >= CS40L2X_COND_CLSH_MIN_REV) &&
+		cs40l2x->pdata.cond_classh)
 		cs40l2x->cond_class_h_en = true;
 
 	if (cs40l2x->algo_info[0].rev >= CS40L2X_PBQ_DUR_MIN_REV)
@@ -8680,6 +7802,9 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 
 	if (cs40l2x->algo_info[0].rev < CS40L2X_OWT_MIN_REV)
 		cs40l2x->open_wt_enable = false;
+
+	if (cs40l2x->algo_info[0].rev >= CS40L2X_A2H_REINIT_MIN_REV)
+		cs40l2x->a2h_reinit_min_fw = true;
 
 	return 0;
 }
@@ -8713,7 +7838,7 @@ static int cs40l2x_hw_err_rls(struct cs40l2x_private *cs40l2x,
 	}
 
 	if (cs40l2x_hw_errs[i].bst_cycle) {
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES,
 				CS40L2X_BST_EN_MASK,
 				CS40L2X_BST_DISABLED << CS40L2X_BST_EN_SHIFT);
 		if (ret) {
@@ -8722,27 +7847,27 @@ static int cs40l2x_hw_err_rls(struct cs40l2x_private *cs40l2x,
 		}
 	}
 
-	ret = regmap_write(regmap, CS40L2X_PROTECT_REL_ERR_IGN, 0);
+	ret = regmap_write(regmap, CS40L2X_ERROR_RELEASE, 0);
 	if (ret) {
 		dev_err(dev, "Failed to cycle error release (step 1 of 3)\n");
 		return ret;
 	}
 
-	ret = regmap_write(regmap, CS40L2X_PROTECT_REL_ERR_IGN,
+	ret = regmap_write(regmap, CS40L2X_ERROR_RELEASE,
 			cs40l2x_hw_errs[i].rls_mask);
 	if (ret) {
 		dev_err(dev, "Failed to cycle error release (step 2 of 3)\n");
 		return ret;
 	}
 
-	ret = regmap_write(regmap, CS40L2X_PROTECT_REL_ERR_IGN, 0);
+	ret = regmap_write(regmap, CS40L2X_ERROR_RELEASE, 0);
 	if (ret) {
 		dev_err(dev, "Failed to cycle error release (step 3 of 3)\n");
 		return ret;
 	}
 
 	if (cs40l2x_hw_errs[i].bst_cycle) {
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES,
 				CS40L2X_BST_EN_MASK,
 				CS40L2X_BST_ENABLED << CS40L2X_BST_EN_SHIFT);
 		if (ret) {
@@ -8763,7 +7888,7 @@ static int cs40l2x_hw_err_chk(struct cs40l2x_private *cs40l2x)
 	unsigned int val;
 	int ret, i;
 
-	ret = regmap_read(regmap, CS40L2X_IRQ2_STATUS1, &val);
+	ret = regmap_read(regmap, CS40L2X_IRQ2_EINT_1, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read hardware error status\n");
 		return ret;
@@ -8776,7 +7901,7 @@ static int cs40l2x_hw_err_chk(struct cs40l2x_private *cs40l2x)
 		dev_crit(dev, "Encountered %s error\n",
 				cs40l2x_hw_errs[i].err_name);
 
-		ret = regmap_write(regmap, CS40L2X_IRQ2_STATUS1,
+		ret = regmap_write(regmap, CS40L2X_IRQ2_EINT_1,
 				cs40l2x_hw_errs[i].irq_mask);
 		if (ret) {
 			dev_err(dev, "Failed to acknowledge hardware error\n");
@@ -8798,10 +7923,10 @@ static int cs40l2x_hw_err_chk(struct cs40l2x_private *cs40l2x)
 }
 
 static const struct reg_sequence cs40l2x_irq2_masks[] = {
-	{CS40L2X_IRQ2_MASK1,		0xFFFFFFFF},
-	{CS40L2X_IRQ2_MASK2,		0xFFFFFFFF},
-	{CS40L2X_IRQ2_MASK3,		0xFFFF87FF},
-	{CS40L2X_IRQ2_MASK4,		0xFEFFFFFF},
+	{CS40L2X_IRQ2_MASK_1,		0xFFFFFFFF},
+	{CS40L2X_IRQ2_MASK_2,		0xFFFFFFFF},
+	{CS40L2X_IRQ2_MASK_3,		0xFFFF87FF},
+	{CS40L2X_IRQ2_MASK_4,		0xFEFFFFFF},
 };
 
 static const struct reg_sequence cs40l2x_amp_gnd_setup[] = {
@@ -8919,7 +8044,7 @@ static int cs40l2x_dsp_pre_config(struct cs40l2x_private *cs40l2x)
 		for (i = 0; i < ARRAY_SIZE(cs40l2x_irq2_masks); i++) {
 			/* unmask hardware error interrupts */
 			val = cs40l2x_irq2_masks[i].def;
-			if (cs40l2x_irq2_masks[i].reg == CS40L2X_IRQ2_MASK1)
+			if (cs40l2x_irq2_masks[i].reg == CS40L2X_IRQ2_MASK_1)
 				val &= ~cs40l2x->hw_err_mask;
 
 			/* upper half */
@@ -8969,24 +8094,24 @@ static int cs40l2x_dsp_pre_config(struct cs40l2x_private *cs40l2x)
 }
 
 static const struct reg_sequence cs40l2x_dsp_errata[] = {
-	{CS40L2X_DSP1_XM_ACCEL_PL0_PRI,	0x00000000},
-	{CS40L2X_DSP1_YM_ACCEL_PL0_PRI,	0x00000000},
-	{CS40L2X_DSP1_RX1_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX2_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX3_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX4_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX5_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX6_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX7_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX8_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX1_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX2_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX3_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX4_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX5_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX6_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX7_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX8_RATE,		0x00000001},
+	{0x02BC2020,			0x00000000},
+	{0x02BC20E0,			0x00000000},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX1,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX2,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX3,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX4,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX5,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX6,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX7,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX8,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX1,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX2,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX3,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX4,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX5,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX6,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX7,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX8,	0x00000001},
 };
 
 static int cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
@@ -9006,7 +8131,7 @@ static int cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 
 	switch (cs40l2x->revid) {
 	case CS40L2X_REVID_A0:
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL1,
+		ret = regmap_update_bits(regmap, CS40L2X_GLOBAL_ENABLES,
 				CS40L2X_GLOBAL_EN_MASK,
 				1 << CS40L2X_GLOBAL_EN_SHIFT);
 		if (ret) {
@@ -9025,10 +8150,11 @@ static int cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 		}
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
-			CS40L2X_DSP1_RESET_MASK | CS40L2X_DSP1_EN_MASK,
-			(1 << CS40L2X_DSP1_RESET_SHIFT) |
-				(1 << CS40L2X_DSP1_EN_SHIFT));
+	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CONTROL,
+				 CS40L2X_DSP1_CCM_CORE_RESET_MASK |
+				 CS40L2X_DSP1_CCM_CORE_EN_MASK,
+				 (1 << CS40L2X_DSP1_CCM_CORE_RESET_SHIFT) |
+				 (1 << CS40L2X_DSP1_CCM_CORE_EN_SHIFT));
 	if (ret) {
 		dev_err(dev, "Failed to start DSP\n");
 		return ret;
@@ -9369,7 +8495,11 @@ int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 
 	ret = regmap_write(regmap, reg, write_val);
 	if (ret) {
-		dev_err(dev, "Failed to write register 0x%08X: %d\n", reg, ret);
+		/* A NACK is expected when waking from hibernate */
+		if (reg != CS40L2X_MBOX_POWERCONTROL ||
+		    write_val != CS40L2X_POWERCONTROL_WAKEUP)
+			dev_err(dev, "Failed to write register 0x%08X: %d\n",
+				reg, ret);
 		return ret;
 	}
 
@@ -9393,28 +8523,6 @@ int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(cs40l2x_ack_write);
 
-static void cs40l2x_set_xm(struct cs40l2x_private *cs40l2x, unsigned int pos,
-			unsigned int reg, unsigned int block_length,
-			unsigned int size)
-{
-	cs40l2x->wt_open_xm = (cs40l2x->wt_limit_xm - block_length);
-	/* Set YM available space in case no YM block defined in bin file. */
-	cs40l2x->wt_open_ym = cs40l2x->wt_limit_ym;
-	cs40l2x->xm_hdr_strt_pos = pos;
-	cs40l2x->xm_hdr_strt_reg = reg;
-	cs40l2x->wt_xm_size = pos + block_length;
-	cs40l2x->wt_total_size = size;
-}
-
-static void cs40l2x_set_ym(struct cs40l2x_private *cs40l2x, unsigned int pos,
-			unsigned int reg, unsigned int block_length)
-{
-	cs40l2x->wt_open_ym = (cs40l2x->wt_limit_ym - block_length);
-	cs40l2x->ym_hdr_strt_pos = pos;
-	cs40l2x->ym_hdr_strt_reg = reg;
-	cs40l2x->wt_ym_size = ((pos - cs40l2x->wt_xm_size) + block_length);
-}
-
 int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			const struct firmware *fw)
 {
@@ -9427,7 +8535,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 	unsigned int reg = 0;
 	unsigned int is_xm;
 	int ret = -EINVAL;
-	int i = 0, wt_index = 0;
+	int i = 0;
 
 	*wt_date = '\0';
 
@@ -9528,7 +8636,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 						"WAVETABLE",
 						CS40L2X_XM_UNPACKED_TYPE,
 						CS40L2X_ALGO_ID_VIBE)) {
-				if (block_length > cs40l2x->wt_limit_xm) {
+				if (block_length > cs40l2x->wt_xm.byteslimit) {
 					dev_err(dev,
 						"Wvtbl too big: %d bytes XM\n",
 						block_length / 4 * 3);
@@ -9536,21 +8644,15 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 					goto err_rls_fw;
 				} else {
 					if (wt_found) {
-						cs40l2x_set_xm(cs40l2x, pos,
-							reg, block_length,
-							fw->size);
 						memcpy(cs40l2x->pbq_fw_raw_wt,
 							&fw->data[0],
 							fw->size);
+						ret = cs40l2x_read_wavetable(cs40l2x,
+								(void *)&cs40l2x->pbq_fw_raw_wt[pos],
+								block_length,
+								&cs40l2x->wt_xm);
 					}
 				}
-			}
-			if (wt_found && cs40l2x->cond_class_h_en) {
-				ret = cs40l2x_classh_wt_check(cs40l2x,
-						&fw->data[pos],
-						block_length, &wt_index);
-				if (ret)
-					goto err_rls_fw;
 			}
 
 			break;
@@ -9562,7 +8664,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 						"WAVETABLEYM",
 						CS40L2X_YM_UNPACKED_TYPE,
 						CS40L2X_ALGO_ID_VIBE)) {
-				if (block_length > cs40l2x->wt_limit_ym) {
+				if (block_length > cs40l2x->wt_ym.byteslimit) {
 					dev_err(dev,
 						"Wvtbl too big: %d bytes YM\n",
 						block_length / 4 * 3);
@@ -9570,17 +8672,12 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 					goto err_rls_fw;
 				} else {
 					if (wt_found) {
-						cs40l2x_set_ym(cs40l2x, pos,
-							reg, block_length);
+						ret = cs40l2x_read_wavetable(cs40l2x,
+								(void *)&cs40l2x->pbq_fw_raw_wt[pos],
+								block_length,
+								&cs40l2x->wt_ym);
 					}
 				}
-			}
-			if (wt_found && cs40l2x->cond_class_h_en) {
-				ret = cs40l2x_classh_wt_check(cs40l2x,
-						&fw->data[pos],
-						block_length, &wt_index);
-				if (ret)
-					goto err_rls_fw;
 			}
 
 			break;
@@ -9723,14 +8820,15 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 
 	dev_info(cs40l2x->dev,
 			"Max. wavetable size: %d bytes (XM), %d bytes (YM)\n",
-			cs40l2x->wt_limit_xm / 4 * 3,
-			cs40l2x->wt_limit_ym / 4 * 3);
+			cs40l2x->wt_xm.byteslimit / 4 * 3,
+			cs40l2x->wt_ym.byteslimit / 4 * 3);
 
 	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_set_autosuspend_delay(dev, cs40l2x->autosuspend_delay);
+
+	pm_runtime_set_autosuspend_delay(dev, CS40L2X_AUTOSUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
 
 	return;
@@ -10001,8 +9099,8 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 
 	cs40l2x->dsp_reg = NULL;
 
-	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
-			CS40L2X_DSP1_EN_MASK, (0 << CS40L2X_DSP1_EN_SHIFT));
+	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CONTROL,
+				 CS40L2X_DSP1_CCM_CORE_EN_MASK, 0);
 	if (ret) {
 		dev_err(dev, "Failed to stop DSP\n");
 		return ret;
@@ -10222,7 +9320,7 @@ static int cs40l2x_boost_short_test(struct cs40l2x_private *cs40l2x)
 	unsigned int val;
 	int ret;
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 			CS40L2X_BST_CTL_SEL_MASK,
 			CS40L2X_BST_CTL_SEL_CP_VAL
 				<< CS40L2X_BST_CTL_SEL_SHIFT);
@@ -10231,7 +9329,7 @@ static int cs40l2x_boost_short_test(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL1,
+	ret = regmap_update_bits(regmap, CS40L2X_GLOBAL_ENABLES,
 			CS40L2X_GLOBAL_EN_MASK, 1 << CS40L2X_GLOBAL_EN_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to enable device\n");
@@ -10240,7 +9338,7 @@ static int cs40l2x_boost_short_test(struct cs40l2x_private *cs40l2x)
 
 	usleep_range(10000, 10100);
 
-	ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS1, &val);
+	ret = regmap_read(regmap, CS40L2X_IRQ1_EINT_1, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read boost converter error status\n");
 		return ret;
@@ -10251,14 +9349,14 @@ static int cs40l2x_boost_short_test(struct cs40l2x_private *cs40l2x)
 		return -EIO;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL1,
+	ret = regmap_update_bits(regmap, CS40L2X_GLOBAL_ENABLES,
 			CS40L2X_GLOBAL_EN_MASK, 0 << CS40L2X_GLOBAL_EN_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to disable device\n");
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 			CS40L2X_BST_CTL_SEL_MASK,
 			CS40L2X_BST_CTL_SEL_CLASSH
 				<< CS40L2X_BST_CTL_SEL_SHIFT);
@@ -10320,7 +9418,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		bst_cbst_range = 4;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_COEFF,
+	ret = regmap_update_bits(regmap, CS40L2X_BST_LOOP_COEFF,
 			CS40L2X_BST_K1_MASK,
 			cs40l2x_bst_k1_table[bst_lbst_val][bst_cbst_range]
 				<< CS40L2X_BST_K1_SHIFT);
@@ -10329,7 +9427,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_COEFF,
+	ret = regmap_update_bits(regmap, CS40L2X_BST_LOOP_COEFF,
 			CS40L2X_BST_K2_MASK,
 			cs40l2x_bst_k2_table[bst_lbst_val][bst_cbst_range]
 				<< CS40L2X_BST_K2_SHIFT);
@@ -10338,7 +9436,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_COEFF,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BST_LOOP_COEFF,
 			(cs40l2x_bst_k2_table[bst_lbst_val][bst_cbst_range]
 				<< CS40L2X_BST_K2_SHIFT) |
 			(cs40l2x_bst_k1_table[bst_lbst_val][bst_cbst_range]
@@ -10348,7 +9446,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_SLOPE_LBST,
+	ret = regmap_update_bits(regmap, CS40L2X_LBST_SLOPE,
 			CS40L2X_BST_SLOPE_MASK,
 			cs40l2x_bst_slope_table[bst_lbst_val]
 				<< CS40L2X_BST_SLOPE_SHIFT);
@@ -10357,7 +9455,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_SLOPE_LBST,
+	ret = regmap_update_bits(regmap, CS40L2X_LBST_SLOPE,
 			CS40L2X_BST_LBST_VAL_MASK,
 			bst_lbst_val << CS40L2X_BST_LBST_VAL_SHIFT);
 	if (ret) {
@@ -10365,7 +9463,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_SLOPE_LBST,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_LBST_SLOPE,
 			(cs40l2x_bst_slope_table[bst_lbst_val]
 				<< CS40L2X_BST_SLOPE_SHIFT) |
 			(bst_lbst_val << CS40L2X_BST_LBST_VAL_SHIFT));
@@ -10381,7 +9479,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 	}
 	bst_ipk_scaled = ((boost_ipk - 1600) / 50) + 0x10;
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_PEAK_CUR,
+	ret = regmap_update_bits(regmap, CS40L2X_BST_IPK_CTL,
 			CS40L2X_BST_IPK_MASK,
 			bst_ipk_scaled << CS40L2X_BST_IPK_SHIFT);
 	if (ret) {
@@ -10389,7 +9487,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_PEAK_CUR,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BST_IPK_CTL,
 			bst_ipk_scaled << CS40L2X_BST_IPK_SHIFT);
 	if (ret) {
 		dev_err(dev,
@@ -10414,7 +9512,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return -EINVAL;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL1,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_1,
 			CS40L2X_BST_CTL_MASK,
 			bst_ctl_scaled << CS40L2X_BST_CTL_SHIFT);
 	if (ret) {
@@ -10422,27 +9520,10 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_VCTRL1,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_VBST_CTL_1,
 			bst_ctl_scaled << CS40L2X_BST_CTL_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to sequence VBST limit\n");
-		return ret;
-	}
-
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
-			CS40L2X_BST_CTL_LIM_EN_MASK,
-			1 << CS40L2X_BST_CTL_LIM_EN_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to configure VBST control\n");
-		return ret;
-	}
-
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_VCTRL2,
-			(1 << CS40L2X_BST_CTL_LIM_EN_SHIFT) |
-			(CS40L2X_BST_CTL_SEL_CLASSH
-				<< CS40L2X_BST_CTL_SEL_SHIFT));
-	if (ret) {
-		dev_err(dev, "Failed to sequence VBST control\n");
 		return ret;
 	}
 
@@ -10452,7 +9533,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 	case 9000 ... 12875:
 		bst_ovp_scaled = ((boost_ovp - 9000) / 125) * 2;
 
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_OVERVOLT_CTRL,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_OVP,
 				CS40L2X_BST_OVP_THLD_MASK,
 				bst_ovp_scaled << CS40L2X_BST_OVP_THLD_SHIFT);
 		if (ret) {
@@ -10460,8 +9541,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 			return ret;
 		}
 
-		ret = cs40l2x_wseq_add_reg(cs40l2x,
-				CS40L2X_BSTCVRT_OVERVOLT_CTRL,
+		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_VBST_OVP,
 				(1 << CS40L2X_BST_OVP_EN_SHIFT) |
 				(bst_ovp_scaled << CS40L2X_BST_OVP_THLD_SHIFT));
 		if (ret) {
@@ -10480,65 +9560,6 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 	return cs40l2x_boost_short_test(cs40l2x);
 }
 
-static int cs40l2x_asp_config(struct cs40l2x_private *cs40l2x)
-{
-	struct regmap *regmap = cs40l2x->regmap;
-	struct device *dev = cs40l2x->dev;
-	unsigned int asp_bclk_freq = cs40l2x->pdata.asp_bclk_freq;
-	unsigned int asp_slot_num = cs40l2x->pdata.asp_slot_num;
-	unsigned int val;
-	int ret, i;
-
-	if (asp_slot_num > CS40L2X_ASP_RX1_SLOT_MAX) {
-		dev_err(dev, "Invalid ASP slot number: %d\n", asp_slot_num);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < CS40L2X_NUM_REFCLKS; i++)
-		if (cs40l2x_refclks[i].freq == asp_bclk_freq)
-			break;
-	if (i == CS40L2X_NUM_REFCLKS) {
-		dev_err(dev, "Invalid ASP_BCLK frequency: %d Hz\n",
-				asp_bclk_freq);
-		return -EINVAL;
-	}
-
-	ret = regmap_write(regmap, CS40L2X_FS_MON_0, cs40l2x_refclks[i].coeff);
-	if (ret) {
-		dev_err(dev, "Failed to write ASP coefficients\n");
-		return ret;
-	}
-
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_FS_MON_0,
-			cs40l2x_refclks[i].coeff);
-	if (ret) {
-		dev_err(dev, "Failed to sequence ASP coefficients\n");
-		return ret;
-	}
-
-	ret = regmap_update_bits(regmap, CS40L2X_SP_FRAME_RX_SLOT,
-			CS40L2X_ASP_RX1_SLOT_MASK,
-			asp_slot_num << CS40L2X_ASP_RX1_SLOT_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to write ASP slot number\n");
-		return ret;
-	}
-
-	ret = regmap_read(regmap, CS40L2X_SP_FRAME_RX_SLOT, &val);
-	if (ret) {
-		dev_err(dev, "Failed to read ASP slot number\n");
-		return ret;
-	}
-
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_SP_FRAME_RX_SLOT, val);
-	if (ret) {
-		dev_err(dev, "Failed to sequence ASP slot number\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 			unsigned int br_reg)
 {
@@ -10551,7 +9572,7 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 	int ret;
 
 	switch (br_reg) {
-	case CS40L2X_VPBR_CFG:
+	case CS40L2X_VPBR_CONFIG:
 		br_enable = cs40l2x->pdata.vpbr_enable;
 		br_config = &cs40l2x->pdata.vpbr_config;
 
@@ -10571,7 +9592,7 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 		br_thld1_scaled = ((br_thld1 - 2497) * 1000 / 47482) + 0x02;
 		break;
 
-	case CS40L2X_VBBR_CFG:
+	case CS40L2X_VBBR_CONFIG:
 		br_enable = cs40l2x->pdata.vbbr_enable;
 		br_config = &cs40l2x->pdata.vbbr_config;
 
@@ -10599,7 +9620,7 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 	if (!br_enable)
 		return 0;
 
-	ret = regmap_read(regmap, CS40L2X_PWR_CTRL3, &val);
+	ret = regmap_read(regmap, CS40L2X_BLOCK_ENABLES2, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read VPBR/VBBR enable controls\n");
 		return ret;
@@ -10607,13 +9628,13 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 
 	val |= br_en_mask;
 
-	ret = regmap_write(regmap, CS40L2X_PWR_CTRL3, val);
+	ret = regmap_write(regmap, CS40L2X_BLOCK_ENABLES2, val);
 	if (ret) {
 		dev_err(dev, "Failed to write VPBR/VBBR enable controls\n");
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_PWR_CTRL3, val);
+	ret = cs40l2x_wseq_replace(cs40l2x, CS40L2X_BLOCK_ENABLES2, val);
 	if (ret) {
 		dev_err(dev, "Failed to sequence VPBR/VBBR enable controls\n");
 		return ret;
@@ -10701,32 +9722,73 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 	return 0;
 }
 
+static int cs40l2x_classh_config(struct cs40l2x_private *cs40l2x)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int val_en, val_ctl;
+	int ret;
+
+	ret = regmap_read(regmap, CS40L2X_VBST_CTL_2, &val_ctl);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(regmap, CS40L2X_BLOCK_ENABLES2, &val_en);
+	if (ret)
+		return ret;
+
+	val_ctl &= ~CS40L2X_BST_CTL_SEL_MASK;
+	val_ctl |= 1 << CS40L2X_BST_CTL_LIM_EN_SHIFT;
+
+	if (!cs40l2x->pdata.cond_classh) {
+		val_en &= ~(1 << CS40L2X_CLASSH_EN_SHIFT);
+	} else {
+		val_en |= 1 << CS40L2X_CLASSH_EN_SHIFT;
+		val_ctl |= CS40L2X_BST_CTL_SEL_CLASSH;
+	}
+
+	ret = regmap_write(regmap, CS40L2X_VBST_CTL_2, val_ctl);
+	if (ret)
+		return ret;
+
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_VBST_CTL_2,
+				val_ctl);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(regmap, CS40L2X_BLOCK_ENABLES2, val_en);
+	if (ret)
+		return ret;
+
+	return cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BLOCK_ENABLES2, val_en);
+}
+
 static const struct reg_sequence cs40l2x_mpu_config[] = {
-	{CS40L2X_DSP1_MPU_LOCK_CONFIG,	CS40L2X_MPU_UNLOCK_CODE1},
-	{CS40L2X_DSP1_MPU_LOCK_CONFIG,	CS40L2X_MPU_UNLOCK_CODE2},
-	{CS40L2X_DSP1_MPU_XM_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YM_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_WNDW_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_XREG_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YREG_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_WNDW_ACCESS1,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_XREG_ACCESS1,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YREG_ACCESS1,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_WNDW_ACCESS2,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_XREG_ACCESS2,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YREG_ACCESS2,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_WNDW_ACCESS3,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_XREG_ACCESS3,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YREG_ACCESS3,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_LOCK_CONFIG,	0x00000000}
+	{CS40L2X_DSP1_MPU_LOCK_CONFIG,		CS40L2X_MPU_UNLOCK_CODE1},
+	{CS40L2X_DSP1_MPU_LOCK_CONFIG,		CS40L2X_MPU_UNLOCK_CODE2},
+	{CS40L2X_DSP1_MPU_XM_ACCESS_0,		0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YM_ACCESS_0,		0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_WINDOW_ACCESS_0,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_XREG_ACCESS_0,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YREG_ACCESS_0,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_WINDOW_ACCESS_1,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_XREG_ACCESS_1,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YREG_ACCESS_1,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_WINDOW_ACCESS_2,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_XREG_ACCESS_2,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YREG_ACCESS_2,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_WINDOW_ACCESS_3,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_XREG_ACCESS_3,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YREG_ACCESS_3,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_LOCK_CONFIG,		0x00000000}
 };
 
 static const struct reg_sequence cs40l2x_pcm_routing[] = {
-	{CS40L2X_DAC_PCM1_SRC,		CS40L2X_DAC_PCM1_SRC_DSP1TX1},
+	{CS40L2X_DACPCM1_INPUT,		CS40L2X_DACPCM1_SRC_DSP1TX1},
 	{CS40L2X_DSP1RX1_INPUT,		CS40L2X_DSP1_RXn_SRC_ASPRX1},
 	{CS40L2X_DSP1RX2_INPUT,		CS40L2X_DSP1_RXn_SRC_VMON},
 	{CS40L2X_DSP1RX3_INPUT,		CS40L2X_DSP1_RXn_SRC_IMON},
 	{CS40L2X_DSP1RX4_INPUT,		CS40L2X_DSP1_RXn_SRC_VPMON},
+	{CS40L2X_DSP1RX5_INPUT,		CS40L2X_DSP1_RXn_SRC_ASPRX2},
 };
 
 static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
@@ -10750,37 +9812,12 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 			return ret;
 		}
 
-		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_GPIO_PAD_CONTROL,
-				((CS40L2X_GPx_CTRL_MCLK
-					<< CS40L2X_GP2_CTRL_SHIFT)
-					& CS40L2X_GP2_CTRL_MASK) |
-				((CS40L2X_GPx_CTRL_GPIO
-					<< CS40L2X_GP1_CTRL_SHIFT)
-					& CS40L2X_GP1_CTRL_MASK));
-		if (ret) {
-			dev_err(dev,
-				"Failed to sequence GPIO1/2 configuration\n");
-			return ret;
-		}
-
-		ret = regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+		ret = regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 				CS40L2X_PLL_REFCLK_SEL_MASK,
 				CS40L2X_PLL_REFCLK_SEL_MCLK
 					<< CS40L2X_PLL_REFCLK_SEL_SHIFT);
 		if (ret) {
 			dev_err(dev, "Failed to select clock source\n");
-			return ret;
-		}
-
-		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_PLL_CLK_CTRL,
-				((1 << CS40L2X_PLL_REFCLK_EN_SHIFT)
-					& CS40L2X_PLL_REFCLK_EN_MASK) |
-				((CS40L2X_PLL_REFCLK_SEL_MCLK
-					<< CS40L2X_PLL_REFCLK_SEL_SHIFT)
-					& CS40L2X_PLL_REFCLK_SEL_MASK));
-		if (ret) {
-			dev_err(dev,
-				"Failed to sequence PLL configuration\n");
 			return ret;
 		}
 	}
@@ -10803,7 +9840,7 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_AMP_DIG_VOL_CTRL,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_AMP_CTRL,
 			(1 << CS40L2X_AMP_HPF_PCM_EN_SHIFT)
 				& CS40L2X_AMP_HPF_PCM_EN_MASK);
 	if (ret) {
@@ -10859,28 +9896,25 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 		}
 	}
 
-	if (cs40l2x->asp_available) {
-		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_PLL_CLK_CTRL,
-				((1 << CS40L2X_PLL_REFCLK_EN_SHIFT)
-					& CS40L2X_PLL_REFCLK_EN_MASK) |
-				((CS40L2X_PLL_REFCLK_SEL_MCLK
-					<< CS40L2X_PLL_REFCLK_SEL_SHIFT)
-					& CS40L2X_PLL_REFCLK_SEL_MASK));
-		if (ret) {
-			dev_err(dev, "Failed to sequence PLL configuration\n");
-			return ret;
-		}
-
-		ret = cs40l2x_asp_config(cs40l2x);
+	if (cs40l2x->pdata.dcm_disable) {
+		ret = regmap_write(regmap, CS40L2X_BST_DCM_CTL,
+				CS40L2X_DCM_DISABLE);
 		if (ret)
 			return ret;
+
+		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BST_DCM_CTL,
+					CS40L2X_DCM_DISABLE);
+		if (ret) {
+			dev_err(dev, "Failed to sequence DCM Control\n");
+			return ret;
+		}
 	}
 
-	ret = cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CFG);
+	ret = cs40l2x_classh_config(cs40l2x);
 	if (ret)
 		return ret;
 
-	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VBBR_CFG);
+	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CONFIG);
 }
 
 static int cs40l2x_otp_unpack(struct cs40l2x_private *cs40l2x)
@@ -11214,13 +10248,15 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 
 	pdata->hiber_enable = of_property_read_bool(np, "cirrus,hiber-enable");
 
-	ret = of_property_read_u32(np, "cirrus,asp-bclk-freq-hz", &out_val);
-	if (!ret)
-		pdata->asp_bclk_freq = out_val;
-
 	ret = of_property_read_u32(np, "cirrus,asp-slot-num", &out_val);
-	if (!ret)
-		pdata->asp_slot_num = out_val;
+	if (!ret) {
+		if (out_val > CS40L2X_ASP_RX1_SLOT_MAX)
+			dev_warn(dev, "Invalid ASP slot number: %d\n",
+				 pdata->asp_slot_num);
+		else
+			pdata->asp_slot_num = out_val;
+	}
+
 
 	ret = of_property_read_u32(np, "cirrus,asp-timeout", &out_val);
 	if (!ret) {
@@ -11259,17 +10295,23 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 	pdata->auto_recovery = of_property_read_bool(np,
 			"cirrus,auto-recovery");
 
+	pdata->dcm_disable = of_property_read_bool(np,
+			"cirrus,dcm-disable");
+
+	pdata->cond_classh = of_property_read_bool(np,
+			"cirrus,cond-classh");
+
 	return 0;
 }
 
 static const struct reg_sequence cs40l2x_basic_mode_revert[] = {
-	{CS40L2X_PWR_CTRL1,		0x00000000},
-	{CS40L2X_PWR_CTRL2,		0x00003321},
+	{CS40L2X_GLOBAL_ENABLES,	0x00000000},
+	{CS40L2X_BLOCK_ENABLES,		0x00003321},
 	{CS40L2X_LRCK_PAD_CONTROL,	0x00000007},
 	{CS40L2X_SDIN_PAD_CONTROL,	0x00000007},
-	{CS40L2X_AMP_DIG_VOL_CTRL,	0x00008000},
-	{CS40L2X_IRQ2_MASK1,		0xFFFFFFFF},
-	{CS40L2X_IRQ2_MASK2,		0xFFFFFFFF},
+	{CS40L2X_AMP_CTRL,		0x00008000},
+	{CS40L2X_IRQ2_MASK_1,		0xFFFFFFFF},
+	{CS40L2X_IRQ2_MASK_2,		0xFFFFFFFF},
 };
 
 static int cs40l2x_basic_mode_exit(struct cs40l2x_private *cs40l2x)
@@ -11377,34 +10419,34 @@ static int cs40l2x_basic_mode_exit(struct cs40l2x_private *cs40l2x)
 
 static const struct reg_sequence cs40l2x_rev_a0_errata[] = {
 	{CS40L2X_OTP_TRIM_30,		0x9091A1C8},
-	{CS40L2X_PLL_LOOP_PARAM,	0x000C1837},
-	{CS40L2X_PLL_MISC_CTRL,		0x03008E0E},
-	{CS40L2X_BSTCVRT_DCM_CTRL,	0x00000051},
-	{CS40L2X_CTRL_ASYNC1,		0x00000004},
-	{CS40L2X_IRQ1_DB3,		0x00000000},
-	{CS40L2X_IRQ2_DB3,		0x00000000},
+	{0x3008,			0x000C1837},
+	{0x3014,			0x03008E0E},
+	{CS40L2X_BST_DCM_CTL,		0x00000051},
+	{0x0054,			0x00000004},
+	{CS40L2X_IRQ1_DB_3,		0x00000000},
+	{CS40L2X_IRQ2_DB_3,		0x00000000},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_UNLOCK_CODE1},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_UNLOCK_CODE2},
-	{CS40L2X_SPKMON_RESYNC,		0x00000000},
-	{CS40L2X_TEMP_RESYNC,		0x00000000},
+	{0x4100,			0x00000000},
+	{0x4310,			0x00000000},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_RELOCK_CODE1},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_RELOCK_CODE2},
-	{CS40L2X_VPVBST_FS_SEL,		0x00000000},
+	{0x4400,			0x00000000},
 };
 
 static const struct reg_sequence cs40l2x_rev_b0_errata[] = {
-	{CS40L2X_PLL_LOOP_PARAM,	0x000C1837},
-	{CS40L2X_PLL_MISC_CTRL,		0x03008E0E},
+	{0x3008,			0x000C1837},
+	{0x3014,			0x03008E0E},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_UNLOCK_CODE1},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_UNLOCK_CODE2},
 	{CS40L2X_TEST_LBST,		CS40L2X_EXPL_MODE_EN},
 	{CS40L2X_OTP_TRIM_12,		0x002F0065},
 	{CS40L2X_OTP_TRIM_13,		0x00002B4F},
-	{CS40L2X_SPKMON_RESYNC,		0x00000000},
-	{CS40L2X_TEMP_RESYNC,		0x00000000},
+	{0x4100,			0x00000000},
+	{0x4310,			0x00000000},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_RELOCK_CODE1},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_RELOCK_CODE2},
-	{CS40L2X_VPVBST_FS_SEL,		0x00000000},
+	{0x4400,			0x00000000},
 };
 
 static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
@@ -11419,7 +10461,7 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 	while (otp_timeout > 0) {
 		usleep_range(10000, 10100);
 
-		ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS4, &val);
+		ret = regmap_read(regmap, CS40L2X_IRQ1_EINT_4, &val);
 		if (ret) {
 			dev_err(dev, "Failed to read OTP boot status\n");
 			return ret;
@@ -11436,7 +10478,7 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		return -ETIME;
 	}
 
-	ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS3, &val);
+	ret = regmap_read(regmap, CS40L2X_IRQ1_EINT_3, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read OTP error status\n");
 		return ret;
@@ -11491,15 +10533,6 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		if (ret) {
 			dev_err(dev, "Failed to apply revision %02X errata\n",
 					revid);
-			return ret;
-		}
-
-		ret = cs40l2x_wseq_add_seq(cs40l2x, cs40l2x_rev_b0_errata,
-				ARRAY_SIZE(cs40l2x_rev_b0_errata));
-		if (ret) {
-			dev_err(dev,
-				"Failed to sequence revision %02X errata\n",
-				revid);
 			return ret;
 		}
 		break;
@@ -11742,7 +10775,6 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 
 	INIT_LIST_HEAD(&cs40l2x->coeff_desc_head);
 	INIT_LIST_HEAD(&cs40l2x->virtual_waveform_head);
-	INIT_LIST_HEAD(&cs40l2x->pwle_segment_head);
 
 	cs40l2x->regmap = devm_regmap_init_i2c(i2c_client, &cs40l2x_regmap);
 	if (IS_ERR(cs40l2x->regmap)) {
@@ -11792,7 +10824,10 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	cs40l2x->dyn_f0_enable = !pdata->dyn_f0_disable;
 	cs40l2x->open_wt_enable = !pdata->open_wt_disable;
 
-	cs40l2x->autosuspend_delay = CS40L2X_AUTOSUSPEND_DELAY_MS;
+	cs40l2x->wt_xm.waves[0].type = WT_TYPE_TERMINATOR;
+	cs40l2x->wt_xm.waves[0].flags = WT_FLAG_TERMINATOR;
+	cs40l2x->wt_ym.waves[0].type = WT_TYPE_TERMINATOR;
+	cs40l2x->wt_ym.waves[0].flags = WT_FLAG_TERMINATOR;
 
 	strlcpy(cs40l2x->wt_file,
 			CS40L2X_WT_FILE_NAME_MISSING,
@@ -11802,21 +10837,9 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 			CS40L2X_WT_FILE_DATE_LEN_MAX);
 
 	/* Virtual wavetable slots mem init */
-	cs40l2x->updated_offsets = devm_kzalloc(dev,
-		(CS40L2X_OWT_CALC_SIZE * sizeof(unsigned int)),
-		GFP_KERNEL);
-	if (!cs40l2x->updated_offsets)
-		return -ENOMEM;
-
 	cs40l2x->pbq_updated_fw_raw_wt = devm_kzalloc(dev,
 		CS40L2X_WT_MAX_BIN_SIZE, GFP_KERNEL);
 	if (!cs40l2x->pbq_updated_fw_raw_wt)
-		return -ENOMEM;
-
-	cs40l2x->wvfrm_lengths = devm_kzalloc(dev,
-		(CS40L2X_OWT_CALC_SIZE * sizeof(unsigned int)),
-		GFP_KERNEL);
-	if (!cs40l2x->wvfrm_lengths)
 		return -ENOMEM;
 
 	cs40l2x->pbq_fw_raw_wt = devm_kzalloc(dev,
@@ -11871,9 +10894,6 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	ret = cs40l2x_part_num_resolve(cs40l2x);
 	if (ret)
 		goto err;
-
-	cs40l2x->asp_available = (cs40l2x->devid == CS40L2X_DEVID_L25A) &&
-				 pdata->asp_bclk_freq;
 
 	init_completion(&cs40l2x->hap_done);
 
