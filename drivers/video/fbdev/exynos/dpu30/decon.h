@@ -959,6 +959,7 @@ struct decon_hiber {
 
 	int frame_cnt;
 	int fps;
+	enum decon_state last_state;
 };
 
 struct decon_win_update {

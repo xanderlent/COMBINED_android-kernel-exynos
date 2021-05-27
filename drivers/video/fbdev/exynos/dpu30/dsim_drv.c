@@ -1205,6 +1205,7 @@ static int dsim_enter_ulps(struct dsim_device *dsim)
 
 	/* Wait for current read & write CMDs. */
 	mutex_lock(&dsim->cmd_lock);
+	dsim->last_state = dsim->state;
 	dsim->state = DSIM_STATE_ULPS;
 	mutex_unlock(&dsim->cmd_lock);
 
@@ -1262,7 +1263,11 @@ static int dsim_exit_ulps(struct dsim_device *dsim)
 
 	enable_irq(dsim->res.irq);
 
-	dsim->state = DSIM_STATE_ON;
+	if (dsim->last_state == DSIM_STATE_DOZE)
+		dsim->state = DSIM_STATE_DOZE;
+	else
+		dsim->state = DSIM_STATE_ON;
+
 	DPU_EVENT_LOG(DPU_EVT_EXIT_ULPS, &dsim->sd, start);
 
 #ifdef CONFIG_DPHY_APB_CONTROL

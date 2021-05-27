@@ -269,7 +269,8 @@ static irqreturn_t decon_ext_irq_handler(int irq, void *dev_id)
 		decon_reg_set_trigger(decon->id, &psr, DECON_TRIG_ENABLE);
 	}
 
-	if (decon->hiber.enabled && decon->state == DECON_STATE_ON &&
+	if (decon->hiber.enabled && ((decon->state == DECON_STATE_DOZE) ||
+				(decon->state == DECON_STATE_ON)) &&
 			decon->dt.out_type == DECON_OUT_DSI) {
 		if (decon_min_lock_cond(decon)) {
 			if (list_empty(&decon->hiber.worker.work_list)) {
@@ -1053,7 +1054,12 @@ int decon_exit_hiber(struct decon_device *decon)
 		decon->eint_status = 1;
 	}
 
-	decon->state = DECON_STATE_ON;
+
+	if(decon->hiber.last_state == DECON_STATE_DOZE)
+		decon->state = DECON_STATE_DOZE;
+	else
+		decon->state = DECON_STATE_ON;
+
 	decon_to_psr_info(decon, &psr);
 	decon_reg_set_int(decon->id, &psr, 1);
 
@@ -1092,7 +1098,8 @@ int decon_enter_hiber(struct decon_device *decon)
 		goto err2;
 
 	decon_hiber_block(decon);
-	if (decon->state != DECON_STATE_ON)
+	if ((decon->state != DECON_STATE_ON) &&
+			(decon->state != DECON_STATE_DOZE))
 		goto err;
 
 	decon_dbg("decon-%d %s +\n", decon->id, __func__);
@@ -1104,8 +1111,7 @@ int decon_enter_hiber(struct decon_device *decon)
 	decon_to_psr_info(decon, &psr);
 	decon_reg_set_int(decon->id, &psr, 0);
 
-	if (!decon->id && (decon->vsync.irq_refcount <= 0) &&
-			decon->eint_status) {
+	if (!decon->id && decon->eint_status) {
 		disable_irq(decon->res.irq);
 		decon->eint_status = 0;
 	}
@@ -1133,6 +1139,7 @@ int decon_enter_hiber(struct decon_device *decon)
 		decon_err("%s decon-%d failed to set subdev ENTER_ULPS state\n",
 				__func__, decon->id);
 
+	decon->hiber.last_state = decon->state;
 	decon->state = DECON_STATE_HIBER;
 
 	decon->hiber.enter_cnt++;
