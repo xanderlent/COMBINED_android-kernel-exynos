@@ -94,7 +94,7 @@
 		pinctrl-0 = <&bt_reg_on &bt_dev_wake &bt_host_wake>;
 		pinctrl-names = "default";
 		shutdown-gpios = <&gpg5 1 GPIO_ACTIVE_HIGH>;
-		host-wakeup-gpios = <&gpa1 1 0xf>;
+		host-wakeup-gpios = <&gpa1 1 GPIO_ACTIVE_HIGH>;
 		device-wakeup-gpios = <&gpg4 1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
