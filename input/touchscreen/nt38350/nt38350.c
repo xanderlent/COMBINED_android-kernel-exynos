@@ -1787,11 +1787,13 @@ static int32_t nvt_ts_resume(struct device *dev)
 }
 
 static int nvt_ts_wake_enable(struct device *dev) {
+	NVT_LOG("enabling wake irq %d\n", ts->client->irq);
 	enable_irq_wake(ts->client->irq);
 	return 0;
 }
 
 static int nvt_ts_wake_disable(struct device *dev) {
+	NVT_LOG("disabling wake irq %d\n", ts->client->irq);
 	disable_irq_wake(ts->client->irq);
 	return 0;
 }
@@ -1840,6 +1842,8 @@ static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long e
 			nvt_ts_suspend(&ts->client->dev);
 		} else if ((*blank == FB_BLANK_VSYNC_SUSPEND) || (*blank == FB_BLANK_NORMAL)) {
 			ts->idle_mode = true;
+			NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
+			NVT_LOG("setting idle_mode = true\n");
 			nvt_ts_resume(&ts->client->dev);
 		}
 	} else if (evdata && evdata->data && event == FB_EVENT_BLANK) {
@@ -1847,6 +1851,7 @@ static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long e
 		if (*blank == FB_BLANK_UNBLANK) {
 			NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
 			if(ts->idle_mode) {
+				NVT_LOG("setting idle_mode = false\n");
 				ts->idle_mode = false;
 			}
 			nvt_ts_resume(&ts->client->dev);
