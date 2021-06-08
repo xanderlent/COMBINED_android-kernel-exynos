@@ -47,6 +47,7 @@ struct nitrous_bt_lpm {
 
 	bool is_suspended;           /* driver is in suspend state */
 	bool host_irq_dev_pm_resumed;
+	bool uart_tx_dev_pm_resumed;
 
 	int irq_timesync;            /* IRQ associated with TIMESYNC GPIO*/
 	int timesync_state;
@@ -88,7 +89,7 @@ static inline void nitrous_wake_controller(struct nitrous_bt_lpm *lpm, bool wake
  * Called before UART driver starts transmitting data out. UART and BT resources
  * are requested to allow a transmission.
  */
-static void nitrous_prepare_uart_tx_locked(struct nitrous_bt_lpm *lpm)
+static void nitrous_prepare_uart_tx_locked(struct nitrous_bt_lpm *lpm, bool assert)
 {
 	int ret;
 
@@ -98,22 +99,26 @@ static void nitrous_prepare_uart_tx_locked(struct nitrous_bt_lpm *lpm)
 		return;
 	}
 
-	ret = pm_runtime_get_sync(lpm->dev);
+	if (assert && !lpm->uart_tx_dev_pm_resumed) {
+		ret = pm_runtime_get_sync(lpm->dev);
+		lpm->uart_tx_dev_pm_resumed = true;
 
-	/* Shall be resumed here */
-	logbuffer_log(lpm->log, "uart_tx_locked");
+		/* Shall be resumed here */
+		logbuffer_log(lpm->log, "uart_tx_locked");
 
-	if (lpm->is_suspended) {
-		/* This shouldn't happen. If it does, it will result in a BT crash */
-		/* TODO (mullerf): Does this happen? If yes, why? */
-		dev_err(lpm->dev,"Tx in device suspended. ret: %d, uc:%d\n",
-			ret, atomic_read(&lpm->dev->power.usage_count));
-		logbuffer_log(lpm->log,"Tx in device suspended. ret: %d, uc:%d",
-			ret, atomic_read(&lpm->dev->power.usage_count));
+		if (lpm->is_suspended) {
+			/* This shouldn't happen. If it does, it will result in a BT crash */
+			/* TODO (mullerf): Does this happen? If yes, why? */
+			dev_err(lpm->dev,"Tx in device suspended. ret: %d, uc:%d\n",
+				ret, atomic_read(&lpm->dev->power.usage_count));
+			logbuffer_log(lpm->log,"Tx in device suspended. ret: %d, uc:%d",
+				ret, atomic_read(&lpm->dev->power.usage_count));
+		}
+	} else if (!assert && lpm->uart_tx_dev_pm_resumed) {
+		pm_runtime_mark_last_busy(lpm->dev);
+		pm_runtime_put_autosuspend(lpm->dev);
+		lpm->uart_tx_dev_pm_resumed = false;
 	}
-
-	pm_runtime_mark_last_busy(lpm->dev);
-	pm_runtime_put_autosuspend(lpm->dev);
 }
 
 /*
@@ -252,7 +257,7 @@ static void nitrous_lpm_runtime_disable(struct nitrous_bt_lpm *lpm)
 
 	/* Host IRQ has been freed, so safe to set this here */
 	lpm->host_irq_dev_pm_resumed = false;
-
+	lpm->uart_tx_dev_pm_resumed = false;
 	lpm->lpm_enabled = false;
 }
 
@@ -330,10 +335,17 @@ static ssize_t nitrous_proc_write(struct file *file, const char *buf,
 			logbuffer_log(lpm->log, "PROC_BTWRITE: not enabled");
 			return count;
 		}
-		dev_dbg(lpm->dev, "LPM waking up for Tx\n");
-		ktime_get_real_ts64(&ts);
-		logbuffer_log(lpm->log, "PROC_BTWRITE: waking up %ptTt", &ts);
-		nitrous_prepare_uart_tx_locked(lpm);
+		if (lbuf[0] == '1') {
+			dev_dbg(lpm->dev, "LPM waking up for Tx\n");
+			ktime_get_real_ts64(&ts);
+			logbuffer_log(lpm->log, "PROC_BTWRITE: waking up %ptTt", &ts);
+			nitrous_prepare_uart_tx_locked(lpm, true);
+		} else {
+			dev_dbg(lpm->dev, "LPM Tx done\n");
+			ktime_get_real_ts64(&ts);
+			logbuffer_log(lpm->log, "PROC_BTWRITE: Tx done %ptTt", &ts);
+			nitrous_prepare_uart_tx_locked(lpm, false);
+		}
 		break;
 	default:
 		return 0;
