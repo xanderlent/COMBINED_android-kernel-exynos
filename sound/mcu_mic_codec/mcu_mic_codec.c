@@ -360,7 +360,7 @@ static int mcu_mic_probe(struct platform_device *pdev)
 	codec_data->sample_rate_hz = 16000;
 	codec_data->channel = DMIC_MCU_CHANNEL_RIGHT;
 	// gain is offset by 32. Therefore 32 means 0 gain
-	codec_data->gain = 32;
+	codec_data->gain = 37;
 	platform_set_drvdata(pdev, codec_data);
 
 	ret = snd_soc_register_component(&pdev->dev,
