@@ -1,0 +1,68 @@
+/*
+ * Google R11 DTSO file
+ *
+ * Copyright 2020 Google LLC
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/exynos9110.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/exynos9110.h>
+
+#include "r11_evt1_battery.dtsi"
+#include "r11_evt1_sound.dtsi"
+#include "r11_evt1_speaker.dtsi"
+
+/ {
+	compatible = "google,r11";
+	board_id = <0x010203>;
+	board_rev = <0x010100>;
+
+	fragment@common {
+		target-path = "/";
+		__overlay__ {
+			model = "Google R11 BtWifi Evt1";
+		};
+	};
+};
+
+&panel_0 {
+	ddi_id = <0x1>;
+	lcd_info = <&wf012fbm>;
+};
+
+&pat9126 {
+	status = "ok";
+};
+
+&proto1_cs40l25 {
+	status = "ok";
+};
+
+&evt11_hl6111 {
+	status = "ok";
+	halo,auth-gpio= <&gpm21 0 0>;
+};
+
+&novatek {
+	status = "ok";
+};
+
+&sensorhub_spi4 {
+	status = "ok";
+};
+
+&ese_spi0 {
+	status = "ok";
+};
