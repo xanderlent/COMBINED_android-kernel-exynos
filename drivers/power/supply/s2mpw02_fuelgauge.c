@@ -509,7 +509,7 @@ static void s2mpw02_fg_get_scaled_capacity(
 		0 : ((val->intval - fuelgauge->pdata->capacity_min) * 1000 /
 		(fuelgauge->capacity_max - fuelgauge->pdata->capacity_min));
 
-	dev_err(fuelgauge->dev, "%s: scaled capacity (%d.%d)\n",
+	dev_dbg(fuelgauge->dev, "%s: scaled capacity (%d.%d)\n",
 			__func__, val->intval/10, val->intval%10);
 }
 
@@ -523,7 +523,7 @@ static void s2mpw02_fg_get_atomic_capacity(
 
 	if (fuelgauge->pdata->capacity_calculation_type &
 			SEC_FUELGAUGE_CAPACITY_TYPE_ATOMIC) {
-		dev_err(fuelgauge->dev, "%s: ATOMIC capacity (old %d : new %d)\n",
+		dev_dbg(fuelgauge->dev, "%s: ATOMIC capacity (old %d : new %d)\n",
 				__func__, fuelgauge->capacity_old, val->intval);
 		if (fuelgauge->capacity_old < val->intval)
 			val->intval = fuelgauge->capacity_old + 1;
@@ -536,7 +536,7 @@ static void s2mpw02_fg_get_atomic_capacity(
 			SEC_FUELGAUGE_CAPACITY_TYPE_SKIP_ABNORMAL) {
 		if (!fuelgauge->is_charging &&
 				fuelgauge->capacity_old < val->intval) {
-			dev_err(fuelgauge->dev, "%s: ABNORMAL capacity (old %d : new %d)\n",
+			dev_dbg(fuelgauge->dev, "%s: ABNORMAL capacity (old %d : new %d)\n",
 					__func__, fuelgauge->capacity_old, val->intval);
 			val->intval = fuelgauge->capacity_old;
 		}
