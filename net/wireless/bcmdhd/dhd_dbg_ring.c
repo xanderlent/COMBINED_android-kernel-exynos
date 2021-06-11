@@ -267,13 +267,10 @@ dhd_dbg_ring_pull_single(dhd_dbg_ring_t *ring, void *data, uint32 buf_len, bool 
 	dhd_dbg_ring_entry_t *r_entry = NULL;
 	uint32 rlen = 0;
 	char *buf = NULL;
-	unsigned long flags;
 
 	if (!ring || !data || buf_len <= 0) {
 		return 0;
 	}
-
-	DHD_DBG_RING_LOCK(ring->lock, flags);
 
 	/* pull from ring is allowed for inactive (suspended) ring
 	 * in case of ecounters only, this is because, for ecounters
@@ -348,8 +345,6 @@ dhd_dbg_ring_pull_single(dhd_dbg_ring_t *ring, void *data, uint32 buf_len, bool 
 		ring->id, ring->name, ring->stat.read_bytes, ring->wp, ring->rp));
 
 exit:
-	DHD_DBG_RING_UNLOCK(ring->lock, flags);
-
 	return rlen;
 }
 
@@ -357,17 +352,13 @@ int
 dhd_dbg_ring_pull(dhd_dbg_ring_t *ring, void *data, uint32 buf_len, bool strip_hdr)
 {
 	int32 r_len, total_r_len = 0;
-	unsigned long flags;
 
 	if (!ring || !data)
 		return 0;
 
-	DHD_DBG_RING_LOCK(ring->lock, flags);
 	if (!ring->pull_inactive && (ring->state != RING_ACTIVE)) {
-		DHD_DBG_RING_UNLOCK(ring->lock, flags);
 		return 0;
 	}
-	DHD_DBG_RING_UNLOCK(ring->lock, flags);
 
 	while (buf_len > 0) {
 		r_len = dhd_dbg_ring_pull_single(ring, data, buf_len, strip_hdr);

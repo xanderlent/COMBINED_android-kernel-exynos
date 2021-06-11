@@ -4969,7 +4969,18 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			if (unlikely(pkt_wake)) {
 #ifdef DHD_WAKE_EVENT_STATUS
 				if (event.event_type < WLC_E_LAST) {
+#ifdef CUSTOM_WAKE_REASON_STATS
+					if (wcp->rc_event_idx == MAX_WAKE_REASON_STATS) {
+						wcp->rc_event_idx = 0;
+					}
+					DHD_INFO(("[pkt_wake] event id %u = %s\n",
+						event.event_type,
+						bcmevent_get_name(event.event_type)));
+					wcp->rc_event[wcp->rc_event_idx] = event.event_type;
+					wcp->rc_event_idx++;
+#else
 					wcp->rc_event[event.event_type]++;
+#endif /* CUSTOM_WAKE_REASON_STATS */
 					wcp->rcwake++;
 					pkt_wake = 0;
 				}
@@ -12620,6 +12631,20 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	dhd->sroamed = FALSE;
 #endif /* CONFIG_SILENT_ROAM */
 	dhd_set_bandlock(dhd);
+
+#ifdef DHD_WAKE_EVENT_STATUS
+#ifdef CUSTOM_WAKE_REASON_STATS
+	/* Initialization */
+	if (dhd_bus_get_wakecount(dhd)) {
+		int i = 0;
+		wake_counts_t *wcp = dhd_bus_get_wakecount(dhd);
+		wcp->rc_event_idx = 0;
+		for (i = 0; i < MAX_WAKE_REASON_STATS; i++) {
+			wcp->rc_event[i] = -1;
+		}
+	}
+#endif /* CUSTOM_WAKE_REASON_STATS */
+#endif /* DHD_WAKE_EVENT_STATUS */
 
 done:
 

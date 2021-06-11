@@ -1481,6 +1481,9 @@ int dhd_wifi_platform_set_power(dhd_pub_t *pub, bool on);
 static INLINE int dhd_wifi_platform_set_power(dhd_pub_t *pub, bool on)  { return 0; }
 #endif /* __linux__ */
 
+#ifdef CUSTOM_WAKE_REASON_STATS
+#define MAX_WAKE_REASON_STATS	32u
+#endif /* CUSTOM_WAKE_REASON_STATS */
 typedef struct {
 	uint rxwake;
 	uint rcwake;
@@ -1498,7 +1501,12 @@ typedef struct {
 	uint rx_ucast;
 #endif /* DHD_WAKE_RX_STATUS */
 #ifdef DHD_WAKE_EVENT_STATUS
+#ifdef CUSTOM_WAKE_REASON_STATS
+	int rc_event[MAX_WAKE_REASON_STATS];
+	int rc_event_idx;
+#else
 	uint rc_event[WLC_E_LAST];
+#endif /* CUSTOM_WAKE_REASON_STATS */
 #endif /* DHD_WAKE_EVENT_STATUS */
 } wake_counts_t;
 
@@ -2981,13 +2989,10 @@ extern void dhd_os_general_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 #define DHD_IF_STA_LIST_LOCK(lock, flags)	(flags) = osl_spin_lock(lock)
 #define DHD_IF_STA_LIST_UNLOCK(lock, flags)	osl_spin_unlock((lock), (flags))
 
-/* linux is defined for DHD EFI builds also,
-* since its cross-compiled for EFI from linux
-*/
-#define DHD_DBG_RING_LOCK_INIT(osh)				dhd_os_dbgring_lock_init(osh)
-#define DHD_DBG_RING_LOCK_DEINIT(osh, lock)		dhd_os_dbgring_lock_deinit(osh, (lock))
-#define DHD_DBG_RING_LOCK(lock, flags)			(flags) = dhd_os_dbgring_lock(lock)
-#define DHD_DBG_RING_UNLOCK(lock, flags)		dhd_os_dbgring_unlock((lock), flags)
+#define DHD_DBG_RING_LOCK_INIT(osh)		osl_spin_lock_init(osh)
+#define DHD_DBG_RING_LOCK_DEINIT(osh, lock)	osl_spin_lock_deinit(osh, (lock))
+#define DHD_DBG_RING_LOCK(lock, flags)		(flags) = osl_spin_lock(lock)
+#define DHD_DBG_RING_UNLOCK(lock, flags)	osl_spin_unlock((lock), flags)
 
 #ifdef DHD_MEM_STATS
 /* memory stats lock/unlock */

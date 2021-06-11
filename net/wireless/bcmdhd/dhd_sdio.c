@@ -3176,10 +3176,19 @@ dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 		bus->wake_counts.rx_icmpv6_ns);
 #endif /* DHD_WAKE_RX_STATUS */
 #ifdef DHD_WAKE_EVENT_STATUS
+#ifdef CUSTOM_WAKE_REASON_STATS
+	bcm_bprintf(strbuf, "rc_event_idx = %d, which indicates queue head\n",
+		bus->wake_counts.rc_event_idx);
+	for (i = 0; i < MAX_WAKE_REASON_STATS; i++)
+		if (bus->wake_counts.rc_event[i] != -1)
+			bcm_bprintf(strbuf, " %u = %s\n", i,
+				bcmevent_get_name(bus->wake_counts.rc_event[i]));
+#else
 	for (i = 0; i < WLC_E_LAST; i++)
 		if (bus->wake_counts.rc_event[i] != 0)
 			bcm_bprintf(strbuf, " %s = %u\n", bcmevent_get_name(i),
 				bus->wake_counts.rc_event[i]);
+#endif /* CUSTOM_WAKE_REASON_STATS */
 	bcm_bprintf(strbuf, "\n");
 #endif /* DHD_WAKE_EVENT_STATUS */
 #endif /* DHD_WAKE_STATUS */

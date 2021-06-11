@@ -362,6 +362,12 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 	}
 #endif /* ENABLE_WAKEUP_PKT_DUMP */
 
+#ifdef DHD_WAKE_STATUS
+	{
+		bcmsdh_set_get_wake(bcmsdh, 1);
+	}
+#endif /* DHD_WAKE_STATUS */
+
 	return IRQ_HANDLED;
 }
 

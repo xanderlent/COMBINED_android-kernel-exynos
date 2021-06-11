@@ -85,6 +85,7 @@
 #include <dhd_wlfc.h>
 #endif
 #include <brcm_nl80211.h>
+static uint32 halpid = 0;
 
 char*
 wl_get_kernel_timestamp(void)
@@ -1318,6 +1319,11 @@ wl_cfgvendor_get_wake_reason_stats(struct wiphy *wiphy,
 	int ret, mem_needed;
 #if defined(DHD_DEBUG) && defined(DHD_WAKE_EVENT_STATUS)
 	int flowid;
+#ifdef CUSTOM_WAKE_REASON_STATS
+	int tmp_rc_event[MAX_WAKE_REASON_STATS];
+	int rc_event_used_cnt = 0;
+	int front = 0;
+#endif /* CUSTOM_WAKE_REASON_STATS */
 #endif /* DHD_DEBUG && DHD_WAKE_EVENT_STATUS */
 	struct sk_buff *skb = NULL;
 	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(ndev);
@@ -1335,30 +1341,67 @@ wl_cfgvendor_get_wake_reason_stats(struct wiphy *wiphy,
 		goto exit;
 	}
 #ifdef DHD_WAKE_EVENT_STATUS
+#ifdef CUSTOM_WAKE_REASON_STATS
+	ret = nla_put_u32(skb, WAKE_STAT_ATTRIBUTE_TOTAL_DRIVER_FW, 0);
+	if (unlikely(ret)) {
+		WL_ERR(("Failed to put total count of driver fw\n"));
+		goto exit;
+	}
+#endif /* CUSTOM_WAKE_REASON_STATS */
 	WL_ERR(("pwake_count_info->rcwake %d\n", pwake_count_info->rcwake));
 	ret = nla_put_u32(skb, WAKE_STAT_ATTRIBUTE_TOTAL_CMD_EVENT, pwake_count_info->rcwake);
 	if (unlikely(ret)) {
 		WL_ERR(("Failed to put Total count of CMD event, ret=%d\n", ret));
 		goto exit;
 	}
+#ifdef CUSTOM_WAKE_REASON_STATS
+	front = pwake_count_info->rc_event_idx - 1;
+	for (flowid = 0; flowid < MAX_WAKE_REASON_STATS; flowid++) {
+		/* Reorder the rc_event, the latest event in the header index */
+		if (front < 0) {
+			front = MAX_WAKE_REASON_STATS - 1;
+		}
+		if (pwake_count_info->rc_event[front] != -1) {
+			rc_event_used_cnt++;
+		}
+		tmp_rc_event[flowid] = pwake_count_info->rc_event[front];
+		front--;
+	}
+	ret = nla_put_u32(skb, WAKE_STAT_ATTRIBUTE_CMD_EVENT_COUNT_USED, rc_event_used_cnt);
+#else
 	ret = nla_put_u32(skb, WAKE_STAT_ATTRIBUTE_CMD_EVENT_COUNT_USED, WLC_E_LAST);
+#endif /* CUSTOM_WAKE_REASON_STATS */
 	if (unlikely(ret)) {
 		WL_ERR(("Failed to put Max count of event used, ret=%d\n", ret));
 		goto exit;
 	}
+#ifdef CUSTOM_WAKE_REASON_STATS
+	ret = nla_put(skb, WAKE_STAT_ATTRIBUTE_CMD_EVENT_WAKE,
+		(MAX_WAKE_REASON_STATS * sizeof(int)), tmp_rc_event);
+#else
 	ret = nla_put(skb, WAKE_STAT_ATTRIBUTE_CMD_EVENT_WAKE, (WLC_E_LAST * sizeof(uint)),
 		pwake_count_info->rc_event);
+#endif /* CUSTOM_WAKE_REASON_STATS */
 	if (unlikely(ret)) {
 		WL_ERR(("Failed to put Event wake data, ret=%d\n", ret));
 		goto exit;
 	}
 #ifdef DHD_DEBUG
+#ifdef CUSTOM_WAKE_REASON_STATS
+	for (flowid = 0; flowid < MAX_WAKE_REASON_STATS; flowid++) {
+		if (pwake_count_info->rc_event[flowid] != -1) {
+			WL_INFORM(("Event ID %u = %s\n", pwake_count_info->rc_event[flowid],
+				bcmevent_get_name(pwake_count_info->rc_event[flowid])));
+		}
+	}
+#else
 	for (flowid = 0; flowid < WLC_E_LAST; flowid++) {
 		if (pwake_count_info->rc_event[flowid] != 0) {
 			WL_ERR((" %s = %u\n", bcmevent_get_name(flowid),
 				pwake_count_info->rc_event[flowid]));
 		}
 	}
+#endif /* CUSTOM_WAKE_REASON_STATS */
 #endif /* DHD_DEBUG */
 #endif /* DHD_WAKE_EVENT_STATUS */
 #ifdef DHD_WAKE_RX_STATUS
@@ -1508,6 +1551,31 @@ wl_cfgvendor_notify_dump_completion(struct wiphy *wiphy,
 #endif /* WL_CFG80211 && DHD_FILE_DUMP_EVENT */
 
 #if defined(WL_CFG80211)
+static int
+wl_cfgvendor_set_hal_pid(struct wiphy *wiphy,
+		struct wireless_dev *wdev, const void  *data, int len)
+{
+	int ret = BCME_OK;
+	uint32 type;
+	if (!data) {
+		WL_DBG(("%s,data is not available\n", __FUNCTION__));
+	} else {
+		if (len > 0) {
+			type = nla_type(data);
+			if (type == SET_HAL_START_ATTRIBUTE_EVENT_SOCK_PID) {
+				if (nla_len(data)) {
+					WL_DBG(("HAL PID = %u\n", nla_get_u32(data)));
+					halpid = nla_get_u32(data);
+				}
+			}
+		} else {
+			WL_ERR(("invalid len %d\n", len));
+			ret = BCME_ERROR;
+		}
+	}
+	return ret;
+}
+
 static int
 wl_cfgvendor_set_hal_started(struct wiphy *wiphy,
 		struct wireless_dev *wdev, const void  *data, int len)
@@ -7354,6 +7422,7 @@ static void wl_cfgvendor_dbg_ring_send_evt(void *ctx,
 	struct wiphy *wiphy;
 	gfp_t kflags;
 	struct sk_buff *skb;
+	struct nlmsghdr *nlh;
 	if (!ndev) {
 		WL_ERR(("ndev is NULL\n"));
 		return;
@@ -7363,10 +7432,10 @@ static void wl_cfgvendor_dbg_ring_send_evt(void *ctx,
 	/* Alloc the SKB for vendor_event */
 #if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-	skb = cfg80211_vendor_event_alloc(wiphy, NULL, len + 100,
+	skb = cfg80211_vendor_event_alloc(wiphy, NULL, len + CFG80211_VENDOR_EVT_SKB_SZ,
 			GOOGLE_DEBUG_RING_EVENT, kflags);
 #else
-	skb = cfg80211_vendor_event_alloc(wiphy, len + 100,
+	skb = cfg80211_vendor_event_alloc(wiphy, len + CFG80211_VENDOR_EVT_SKB_SZ,
 			GOOGLE_DEBUG_RING_EVENT, kflags);
 #endif /* (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || */
 		/* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) */
@@ -7374,6 +7443,10 @@ static void wl_cfgvendor_dbg_ring_send_evt(void *ctx,
 		WL_ERR(("skb alloc failed"));
 		return;
 	}
+
+	/* Set halpid for sending unicast event to wifi hal */
+	nlh = (struct nlmsghdr*)skb->data;
+	nlh->nlmsg_pid = halpid;
 	nla_put(skb, DEBUG_ATTRIBUTE_RING_STATUS, sizeof(ring_status), &ring_status);
 	nla_put(skb, DEBUG_ATTRIBUTE_RING_DATA, len, data);
 	cfg80211_vendor_event(skb, kflags);
@@ -9127,6 +9200,14 @@ static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = wl_cfgvendor_stop_hal
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = DEBUG_SET_HAL_PID
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_set_hal_pid
 	},
 #endif /* WL_CFG80211 */
 #ifdef WL_P2P_RAND
