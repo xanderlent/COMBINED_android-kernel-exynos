@@ -191,8 +191,12 @@ struct battery_info {
 	int voltage_now;
 	int voltage_avg;
 
-	unsigned int capacity;
-	unsigned int max_rawsoc;
+	unsigned int rawsoc; /* True SOC */
+	unsigned int capacity; /* True SOC, scaled down to 100% as max_rawsoc */
+	unsigned int soc_fg; /* SOC scaled by FG driver */
+	unsigned int soc_spoof; /* UI spoofed SOC */
+	unsigned int soc_spoof_full;
+	unsigned int max_rawsoc; /* Last known max raw SOC */
 
 	unsigned int charge_full_design;  /* designed battery capacity (uAh) */
 	unsigned int charge_full;         /* last known full battery capacity (uAh) */
@@ -626,14 +630,13 @@ static int battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = battery->temperature;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		val->intval = (battery->rawsoc * (battery->charge_full_design / 100)) / 100;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (!battery->battery_valid)
 			val->intval = FAKE_BAT_LEVEL;
 		else {
-			if (battery->status == POWER_SUPPLY_STATUS_FULL)
-				val->intval = 100;
-			else
-				val->intval = battery->capacity;
+			val->intval = battery->soc_spoof;
 		}
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
@@ -781,6 +784,15 @@ static int battery_handle_notification(struct notifier_block *nb,
 }
 #endif
 
+// Scale input to a percentage of full scale with rounding
+static int google_battery_percent_scale(int input, int full_scale) {
+	int val = (input * 100 + (full_scale-1)) / full_scale;
+	if (val > 100)
+		return 100;
+	else
+		return val;
+}
+
 static void get_battery_capacity(struct battery_info *battery)
 {
 
@@ -788,6 +800,9 @@ static void get_battery_capacity(struct battery_info *battery)
 	struct power_supply *psy;
 	int ret;
 	unsigned int raw_soc = 0;
+	unsigned int new_soc = 0;
+	unsigned int old_capacity = battery->capacity;
+	unsigned int old_spoof = battery->soc_spoof;
 
 	psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
 	if (psy == NULL) {
@@ -797,7 +812,6 @@ static void get_battery_capacity(struct battery_info *battery)
 
 	//read rawsoc only
 	value.intval = 1;
-
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
 	if (ret < 0) {
 		pr_err("%s: Fail to execute capacity property\n", __func__);
@@ -805,14 +819,47 @@ static void get_battery_capacity(struct battery_info *battery)
 	}
 	raw_soc = value.intval;
 
-	battery->capacity = (raw_soc*100)/battery->max_rawsoc;
-	if (battery->capacity > 100)
-		battery->capacity = 100;
+	// Read scaled soc
+	value.intval = 0;
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
+	if (ret < 0) {
+		pr_err("%s: Fail to execute scaled capacity property\n", __func__);
+		return;
+	}
+	battery->soc_fg = value.intval;
+
+	if (raw_soc > battery->max_rawsoc)
+		battery->max_rawsoc = raw_soc;
+
+	battery->rawsoc = raw_soc;
+
+	battery->capacity = google_battery_percent_scale(raw_soc, battery->max_rawsoc);
+	if (battery->status == POWER_SUPPLY_STATUS_FULL ||
+			raw_soc > battery->soc_spoof_full + 100) {
+		battery->soc_spoof_full = raw_soc - 100;
+	}
+
+	// new_soc = real capacity * 100% / fake full capacity, rounded
+	new_soc = google_battery_percent_scale(raw_soc, battery->soc_spoof_full);
+
+	if (battery->wlc_connected || battery->status == POWER_SUPPLY_STATUS_CHARGING ||
+		battery->status == POWER_SUPPLY_STATUS_FULL	|| new_soc < battery->soc_spoof) {
+		// Don't let capacity increase during discharge
+		battery->soc_spoof = new_soc;
+
+	}
+
+	if (old_capacity != battery->capacity || old_spoof != battery->soc_spoof) {
+		// Log data about % changes
+		dev_info(battery->dev, "%s: Time(%lu), SOC(%u), FG SOC(%u), UI SOC(%u), rawsoc(%d), max_rawsoc(%u), charge_full(%u), soc_spoof_full(%u)\n",__func__,
+				ktime_get_real_ns() / 1000000000, battery->capacity, battery->soc_fg,
+				battery->soc_spoof, battery->rawsoc, battery->max_rawsoc,
+				battery->charge_full, battery->soc_spoof_full);
+
+
+	}
 
 	power_supply_put(psy);
-	dev_dbg(battery->dev, "%s: SOC(%u), rawsoc(%d), max_rawsoc(%u), \
-		 charge_full(%u).\n",__func__, battery->capacity, raw_soc,
-		 battery->max_rawsoc, battery->charge_full);
 }
 
 static int get_battery_info(struct battery_info *battery)
@@ -1193,7 +1240,7 @@ static void bat_monitor_work(struct work_struct *work)
 		} else
 			battery->battery_valid = true;
 	}
-	old_capacity = battery->capacity;
+	old_capacity = battery->soc_spoof;
 	old_health = battery->health;
 	old_temp_index = battery->temp_index;
 	get_battery_info(battery);
@@ -1211,7 +1258,7 @@ static void bat_monitor_work(struct work_struct *work)
 		pr_err("%s: Fail to check charging current\n", __func__);
 	check_charging_full(battery);
 
-	if (old_capacity != battery->capacity ||
+	if (old_capacity != battery->soc_spoof ||
 			old_health != battery->health ||
 			old_temp_index != battery->temp_index) {
 		power_supply_changed(battery->psy_battery);
@@ -1221,7 +1268,7 @@ continue_monitor:
 	dev_info(battery->dev,
 			"%s: Time=%lu, Battery sts=%s, vbat=%d, ichg=%d, ifg=%d, soc=%d, tbat=%d, tchg=%d, wlc=%s, iwlc=%d, twlc=%d, vwlc=%d\n",
 			__func__,
-			ktime_get_real_ns() / 1000000,
+			ktime_get_real_ns() / 1000000000,
 			bat_status_str[battery->status],
 			battery->voltage_now,
 			battery->charging_current,
@@ -1752,13 +1799,16 @@ static int google_battery_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_unreg_wireless;
 	}
+	battery->soc_spoof_full = 10000;
 	//read rawsoc only
 	value.intval = 1;
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("%s: Fail to execute property\n", __func__);
-	else
-		battery->capacity = value.intval;
+	} else {
+		battery->capacity = value.intval / 100;
+		battery->soc_spoof = battery->capacity;
+	}
 	power_supply_put(psy);
 #if defined(CONFIG_MUIC_NOTIFIER)
 	pr_info("%s: Register MUIC notifier\n", __func__);
