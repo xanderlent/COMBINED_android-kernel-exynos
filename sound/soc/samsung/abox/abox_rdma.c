@@ -472,7 +472,7 @@ static int abox_rdma_compr_set_param(struct device *dev,
 	int id = dma_data->id;
 	int ret;
 
-	dev_info(dev, "%s[%d] buffer: %p(%llu)\n", __func__, id,
+	dev_dbg(dev, "%s[%d] buffer: %p(%llu)\n", __func__, id,
 			runtime->buffer, runtime->buffer_size);
 
 #ifdef COMPR_USE_FIXED_MEMORY
@@ -540,12 +540,12 @@ static int abox_rdma_compr_set_param(struct device *dev,
 
 	/* created instance */
 	data->handle_id = abox_rdma_mailbox_read(dev, COMPR_IP_ID);
-	dev_info(dev, "%s: codec id:0x%x, ret_val:0x%x, handle_id:0x%x\n",
+	dev_dbg(dev, "%s: codec id:0x%x, ret_val:0x%x, handle_id:0x%x\n",
 		__func__, data->codec_id,
 		abox_rdma_mailbox_read(dev, COMPR_RETURN_CMD),
 		data->handle_id);
 
-	dev_info(dev, "%s: allocated buffer address (0x%pad), size(0x%llx)\n",
+	dev_dbg(dev, "%s: allocated buffer address (0x%pad), size(0x%llx)\n",
 		__func__, &data->dma_addr, runtime->buffer_size);
 #ifdef CONFIG_SND_ESA_SA_EFFECT
 	data->effect_on = false;
@@ -567,7 +567,7 @@ static int abox_rdma_compr_open(struct snd_compr_stream *stream)
 	struct abox_data *abox_data = dma_data->abox_data;
 	int id = dma_data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	/* init runtime data */
 	data->cstream = stream;
@@ -598,7 +598,7 @@ static int abox_rdma_compr_free(struct snd_compr_stream *stream)
 	int id = dma_data->id;
 	int ret = 0;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	if (data->eos) {
 		/* ALSA Framework callback to notify drain complete */
@@ -720,7 +720,7 @@ static int abox_rdma_compr_set_metadata(struct snd_compr_stream *stream,
 	struct device *dev = dma_data->dev;
 	int id = dma_data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	if (!metadata)
 		return -EINVAL;
@@ -745,7 +745,7 @@ static int abox_rdma_compr_trigger(struct snd_compr_stream *stream, int cmd)
 	int id = dma_data->id;
 	int ret = 0;
 
-	dev_info(dev, "%s[%d](%d)\n", __func__, id, cmd);
+	dev_dbg(dev, "%s[%d](%d)\n", __func__, id, cmd);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -884,7 +884,7 @@ static int abox_rdma_compr_mmap(struct snd_compr_stream *stream,
 	struct snd_compr_runtime *runtime = stream->runtime;
 	int id = dma_data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	return dma_mmap_writecombine(dev, vma,
 			runtime->buffer,
@@ -968,7 +968,7 @@ static int abox_rdma_compr_get_caps(struct snd_compr_stream *stream,
 	struct device *dev = dma_data->dev;
 	int id = dma_data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	memcpy(caps, &abox_rdma_compr_caps, sizeof(*caps));
 
@@ -984,7 +984,7 @@ static int abox_rdma_compr_get_codec_caps(struct snd_compr_stream *stream,
 	struct device *dev = dma_data->dev;
 	int id = dma_data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	return 0;
 }
@@ -1629,7 +1629,7 @@ static int abox_rdma_mmap(struct snd_pcm_substream *substream,
 	struct device *dev = data->dev;
 	int id = data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	return dma_mmap_writecombine(dev, vma,
 			runtime->dma_area,
@@ -1706,7 +1706,7 @@ static int abox_rdma_new(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 
 #ifdef USE_FIXED_MEMORY
-	dev_info(data->dev, "%s[%d] %x, %x\n", __func__, 
+	dev_dbg(data->dev, "%s[%d] %x, %x\n", __func__,
 			id, IOVA_RDMA_BUFFER(id), substream->dma_buffer.addr);
 
 	iommu_map(iommu_domain, IOVA_RDMA_BUFFER(id),
@@ -1736,7 +1736,7 @@ static int register_rdma_routes(struct device *dev,
 	struct snd_soc_dapm_route *route;
 	int i;
 
-	dev_info(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 
 	route = devm_kmemdup(dev, route_base, sizeof(*route_base) * num, GFP_KERNEL);
 
@@ -1771,7 +1771,7 @@ int abox_cmpnt_register_rdma(struct snd_soc_dapm_context *dapm, struct device *d
 {
 	struct abox_data *data = dev_get_drvdata(dev_abox);
 
-	dev_info(dev, "%s(%s)\n", __func__, name);
+	dev_dbg(dev, "%s(%s)\n", __func__, name);
 
 	if (id >= ARRAY_SIZE(data->dev_rdma)) {
 		dev_err(dev, "%s: invalid id(%u)\n", __func__, id);
@@ -1794,7 +1794,7 @@ static int abox_rdma_probe(struct snd_soc_component *cmpnt)
 		snd_soc_component_get_dapm(cmpnt);
 	int ret;
 
-	dev_info(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 
 	data->cmpnt = cmpnt;
 	abox_cmpnt_register_rdma(dapm, data->abox_data->dev, dev,
@@ -1993,7 +1993,7 @@ static int abox_rdma_runtime_suspend(struct device *dev)
 	struct abox_dma_data *data = dev_get_drvdata(dev);
 	int id = data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	abox_mailbox_save(dev);
 	return 0;
@@ -2004,7 +2004,7 @@ static int abox_rdma_runtime_resume(struct device *dev)
 	struct abox_dma_data *data = dev_get_drvdata(dev);
 	int id = data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	abox_mailbox_restore(dev);
 	return 0;
@@ -2019,7 +2019,7 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 	int i, ret;
 	const char *type;
 
-	dev_info(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -2032,7 +2032,7 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 
 	data->dev_abox = pdev->dev.parent;
 	//data->dev_abox = abox_get_abox_data()->dev;
-	dev_info(dev, "%s - data(%llx) dev_abox(%llx)\n", __func__,
+	dev_dbg(dev, "%s - data(%llx) dev_abox(%llx)\n", __func__,
 			data, data->dev_abox);
 	if (!data->dev_abox) {
 		dev_err(dev, "Failed to get abox platform device\n");
@@ -2051,7 +2051,7 @@ static int samsung_abox_rdma_probe(struct platform_device *pdev)
 			abox_rdma_irq_handler, data->abox_data);
 
 	ret = of_property_read_u32_index(np, "samsung,id", 0, &data->id);
-	dev_info(dev, "%s(%d)\n", __func__, data->id);
+	dev_dbg(dev, "%s(%d)\n", __func__, data->id);
 	if (ret < 0) {
 		dev_err(dev, "id property reading fail\n");
 		return ret;

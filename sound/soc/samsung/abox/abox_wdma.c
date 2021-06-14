@@ -279,7 +279,7 @@ static int abox_wdma_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct IPC_PCMTASK_MSG *pcmtask_msg = &msg.msg.pcmtask;
 	int ret;
 
-	dev_info(dev, "%s[%d](%d)\n", __func__, id, cmd);
+	dev_dbg(dev, "%s[%d](%d)\n", __func__, id, cmd);
 
 	msg.ipcid = IPC_PCMCAPTURE;
 	pcmtask_msg->msgtype = PCM_PLTDAI_TRIGGER;
@@ -451,7 +451,7 @@ static int abox_wdma_mmap(struct snd_pcm_substream *substream,
 	struct device *dev = data->dev;
 	int id = data->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	return dma_mmap_writecombine(dev, vma,
 			runtime->dma_area,
@@ -552,7 +552,7 @@ static int register_wdma_routes(struct device *dev,
 	struct snd_soc_dapm_route *route;
 	int i;
 
-	dev_info(dev, "%s(%d)\n", __func__, id);
+	dev_dbg(dev, "%s(%d)\n", __func__, id);
 
 	route = devm_kmemdup(dev, route_base, sizeof(*route_base) * num,
 			GFP_KERNEL);
@@ -577,7 +577,7 @@ static int register_wdma_routes(struct device *dev,
 					route[i].source, id - 1);
 	}
 
-	dev_info(dev, "sink(%s), source(%s), control(%s)\n", route[0].sink,
+	dev_dbg(dev, "sink(%s), source(%s), control(%s)\n", route[0].sink,
 			route[0].source, route[0].control);
 
 	snd_soc_dapm_add_routes(dapm, route, num);
@@ -596,7 +596,7 @@ int abox_cmpnt_register_wdma(struct snd_soc_dapm_context *dapm, struct device *d
 {
 	struct abox_data *data = dev_get_drvdata(dev_abox);
 
-	dev_info(dev, "%s(%s)\n", __func__, name);
+	dev_dbg(dev, "%s(%s)\n", __func__, name);
 
 	if (id >= ARRAY_SIZE(data->dev_wdma)) {
 		dev_err(dev, "%s: invalid id(%u)\n", __func__, id);
@@ -689,7 +689,7 @@ static int samsung_abox_wdma_probe(struct platform_device *pdev)
 	int i, ret;
 	const char *type;
 
-	dev_info(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
