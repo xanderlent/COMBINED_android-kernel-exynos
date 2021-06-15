@@ -415,10 +415,12 @@ static int set_wlc_online(struct battery_info *battery)
 	psy = power_supply_get_by_name(battery->pdata->wlc_name);
 	if (!psy)
 		return -EINVAL;
-	if (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS)
+	if (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS) {
 		value.intval = 1;
-	else
+		battery->wlc_vout_setting = -1; // target vout should be recalculated and resent
+	} else {
 		value.intval = 0;
+	}
 	ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
 	if (ret < 0)
 		pr_err("%s: Fail to execute WLC ONLINE property\n", __func__);
@@ -632,6 +634,7 @@ static int battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		val->intval = (battery->rawsoc * (battery->charge_full_design / 100)) / 100;
+		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (!battery->battery_valid)
 			val->intval = FAKE_BAT_LEVEL;
