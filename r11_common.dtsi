@@ -214,7 +214,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <1>;
 			};
 			buck2_reg: BUCK2 {
 				regulator-name = "vdd_lldo";
@@ -269,7 +269,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <1>;
 			};
 			ldo4_reg: LDO4 {
 				regulator-name = "vdd_ldo4";
@@ -278,7 +278,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <1>;
 			};
 			ldo5_reg: LDO5 {
 				regulator-name = "vdd_ldo5";
@@ -296,7 +296,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <1>;
 			};
 			ldo7_reg: LDO7 {
 				regulator-name = "vdd_ldo7";
@@ -305,7 +305,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <1>;
 			};
 			ldo8_reg: LDO8 {
 				regulator-name = "vdd_ldo8";
@@ -314,7 +314,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <1>;
 			};
 			ldo9_reg: LDO9 {
 				regulator-name = "vdd_ldo9";
@@ -323,7 +323,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <1>;
 			};
 			ldo10_reg: LDO10 {
 				regulator-name = "vdd_ldo10";
@@ -332,7 +332,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <1>;
 			};
 			ldo15_reg: LDO15 {
 				regulator-name = "vdd_ldo15";
