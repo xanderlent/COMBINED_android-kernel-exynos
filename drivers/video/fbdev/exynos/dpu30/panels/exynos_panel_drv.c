@@ -185,22 +185,20 @@ static int exynos_panel_parse_regulators(struct exynos_panel_device *panel)
 		str_regulator[i] = NULL;
 	}
 
-	if (!of_property_read_string(dev->of_node, "regulator_1p8v",
-				(const char **)&str_regulator[0])) {
-		res->regulator[0] = regulator_get_exclusive(dev, str_regulator[0]);
-		if (IS_ERR(res->regulator[0])) {
-			DPU_ERR_PANEL("panel regulator 1.8V get failed\n");
-			res->regulator[0] = NULL;
-		}
+	res->regulator[0] = regulator_get_exclusive(dev, "1p8v");
+	if (IS_ERR(res->regulator[0])) {
+		if (PTR_ERR(res->regulator[0]) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		DPU_ERR_PANEL("panel regulator 1.8V get failed\n");
+		res->regulator[0] = NULL;
 	}
 
-	if (!of_property_read_string(dev->of_node, "regulator_3p3v",
-				(const char **)&str_regulator[1])) {
-		res->regulator[1] = regulator_get_exclusive(dev, str_regulator[1]);
-		if (IS_ERR(res->regulator[1])) {
-			DPU_ERR_PANEL("panel regulator 3.3V get failed\n");
-			res->regulator[1] = NULL;
-		}
+	res->regulator[1] = regulator_get_exclusive(dev, "3p3v");
+	if (IS_ERR(res->regulator[1])) {
+		if (PTR_ERR(res->regulator[1]) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		DPU_ERR_PANEL("panel regulator 3.3V get failed\n");
+		res->regulator[1] = NULL;
 	}
 
 	return 0;
