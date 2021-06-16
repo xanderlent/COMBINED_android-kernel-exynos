@@ -9,8 +9,8 @@
 	/* reset, power */
 	gpios = <&gpc1 1 GPIO_ACTIVE_LOW>, <&gpm14 0 GPIO_ACTIVE_HIGH>;
 	mux-gpios = <&gpm10 0 GPIO_ACTIVE_HIGH>, <&gpm11 0 GPIO_ACTIVE_LOW>;
-	regulator_1p8v = "vdd_ldo21";
-	regulator_3p3v = "vdd_ldo20";
+	3p3v-supply = <&ldo20_reg>;
+	1p8v-supply = <&ldo21_reg>;
 
 	hb120blx01: hb120blx01 {
 		id = <0x2>;
