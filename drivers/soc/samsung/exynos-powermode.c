@@ -181,6 +181,17 @@ static int __init exynos_powermode_init(void)
 	if (ret)
 		pr_warn("Fail to initialize the wakeup mask with err = %d\n", ret);
 
+	ret = of_property_count_u32_elems(np, "eint_wakeup_mask_offset");
+	if (!ret) {
+		pr_err("exynos-powermode: unabled to get eint_wakeup_mask_offset from DT\n");
+	} else if (ret > 0) {
+		pm_info->num_eint_wakeup_mask = ret;
+		pm_info->eint_wakeup_mask_offset =
+			kzalloc(sizeof(unsigned int) * ret, GFP_KERNEL);
+		of_property_read_u32_array(np, "eint_wakeup_mask_offset",
+			pm_info->eint_wakeup_mask_offset, ret);
+	}
+
 	return 0;
 }
 arch_initcall(exynos_powermode_init);
