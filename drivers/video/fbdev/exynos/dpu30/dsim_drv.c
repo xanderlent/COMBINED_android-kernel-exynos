@@ -2411,7 +2411,10 @@ static void dsim_shutdown(struct platform_device *pdev)
 
 	dsim_info("%s -\n", __func__);
 #else
-	dsim_info("%s +-\n", __func__);
+	struct dsim_device *dsim = platform_get_drvdata(pdev);
+	dsim_info("%s +\n", __func__);
+	dsim_set_panel_power(dsim, 0);
+	dsim_info("%s -\n", __func__);
 #endif
 }
 
