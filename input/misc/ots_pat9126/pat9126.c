@@ -535,12 +535,8 @@ static ssize_t pat9126_sleep_level_store(struct device *dev,
 	return count;
 }
 
-static ssize_t pat9126_pd_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf,
-				    size_t count) {
-	u8 config, tmp;
-
+static int pat9126_pd_write(struct device *dev, u8 val) {
+	u8 config;
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -548,13 +544,23 @@ static ssize_t pat9126_pd_store(struct device *dev,
 	pat9126_read(client, PIXART_PAT9126_CONFIG_REG, &config);
 	config &= ~POWER_DOWN_ENABLE_BIT;
 
-	if (!kstrtou8(buf, 0, &tmp)) {
-		if (tmp) {
-			config |= POWER_DOWN_ENABLE_BIT;
-		}
+	if (val) {
+		config |= POWER_DOWN_ENABLE_BIT;
+	}
 
+	pat9126_write(client, PIXART_PAT9126_CONFIG_REG, config);
+	return 0;
+}
+
+static ssize_t pat9126_pd_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t count) {
+	u8 tmp;
+
+	if (!kstrtou8(buf, 0, &tmp)) {
 		dev_dbg(dev, "power down: %d\n", (tmp ? 1 : 0));
-		pat9126_write(client, PIXART_PAT9126_CONFIG_REG, config);
+		pat9126_pd_write(dev, tmp);
 	} else {
 		dev_warn(dev, "failed to parse sysfs arg: '%s'\n", buf);
 	}
@@ -738,37 +744,21 @@ static int pat9126_suspend(struct device *dev)
 	flush_scheduled_work();
 
 	printk(KERN_DEBUG "[PAT9126]%s, start\n", __func__);
-	if(!is_initialized) {
-		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
-		/* disable write protect */
-		pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
-				PIXART_PAT9126_DISABLE_WRITE_PROTECT);
-
-		/*Write Register for Suspend Mode*/
-		ret = pat9126_disable_mot(data->client,
-			PIXART_PAT9126_SLEEP_MODE_DETECT_FREQ_DEFAULT);
-		if (ret != 0){
-			pr_err("[PAT9126]: Disable Motion FAIL.");
-		}
-
-		/* enable write protect */
-		pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
-				PIXART_PAT9126_ENABLE_WRITE_PROTECT);
-
-		return 0;
-	}
-	else
+	if(is_initialized) {
 		printk(KERN_DEBUG "[PAT9126]%s: Already initialized. \n", __func__);
 
-	if (dis_irq_cnt == 0){
-		disable_irq(data->client->irq);
-		dis_irq_cnt++;
+		if (dis_irq_cnt == 0){
+			disable_irq(data->client->irq);
+			dis_irq_cnt++;
+		}
+		else {
+			dev_info(dev, "Already in suspend state\n");
+			return 0;
+		}
+		en_irq_cnt = 0;
+	} else {
+		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
 	}
-	else {
-		dev_info(dev, "Already in suspend state\n");
-		return 0;
-	}
-	en_irq_cnt = 0;
 
 	/* disable write protect */
 	pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
@@ -794,26 +784,11 @@ static int pat9126_resume(struct device *dev)
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
 	printk(KERN_DEBUG "[PAT9126]%s, start\n", __func__);
-	if(!is_initialized) {
-		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
-		/* disable write protect */
-		pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
-				PIXART_PAT9126_DISABLE_WRITE_PROTECT);
-
-		ret = pat9126_enable_mot(data->client);
-		if (ret != 0){
-			pr_err("[PAT9126]: Enable Motion FAIL. \n");
-			return 0;
-		}
-
-		/* enable write protect */
-		pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
-				PIXART_PAT9126_ENABLE_WRITE_PROTECT);
-
-		return 0;
-	}
-	else
+	if (is_initialized) {
 		printk(KERN_DEBUG "[PAT9126]%s: Already initialized. \n", __func__);
+	} else {
+		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
+	}
 
 	/* disable write protect */
 	pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
@@ -829,15 +804,17 @@ static int pat9126_resume(struct device *dev)
 	pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
 			PIXART_PAT9126_ENABLE_WRITE_PROTECT);
 
-	if (en_irq_cnt == 0){
-		enable_irq(data->client->irq);
-		en_irq_cnt++;
+	if (is_initialized) {
+		if (en_irq_cnt == 0){
+			enable_irq(data->client->irq);
+			en_irq_cnt++;
+		}
+		else {
+			dev_info(dev, "Already in wake state \n");
+			return 0;
+		}
+		dis_irq_cnt = 0;
 	}
-	else {
-		dev_info(dev, "Already in wake state \n");
-		return 0;
-	}
-	dis_irq_cnt = 0;
 
 	return 0;
 }
