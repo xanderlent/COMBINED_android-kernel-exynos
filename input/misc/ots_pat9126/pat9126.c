@@ -38,6 +38,7 @@ struct pixart_pat9126_data {
 	struct work_struct work;
 	struct workqueue_struct *workqueue;
 	struct delayed_work polling_work;
+	struct delayed_work resume_work;
 };
 
 /*IRQ Flags*/
@@ -585,6 +586,34 @@ static ssize_t pat9126_pd_show(struct device *dev,
 	return count;
 }
 
+static void pat9126_complete_resume(struct work_struct *work) {
+    struct delayed_work *dw = to_delayed_work(work);
+	struct pixart_pat9126_data *data =
+			container_of(dw, struct pixart_pat9126_data, resume_work);
+	struct device *dev = &data->client->dev;
+
+	printk(KERN_DEBUG "[PAT9126]%s, start\n", __func__);
+	if (is_initialized) {
+		printk(KERN_DEBUG "[PAT9126]%s: Already initialized. \n", __func__);
+	} else {
+		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
+	}
+
+	pat9126_pd_write(dev, 0);
+	delay(3); // To ensure accuracy, datasheet recommends 3ms delay here
+
+	if (is_initialized) {
+		if (en_irq_cnt == 0){
+			enable_irq(data->client->irq);
+			en_irq_cnt++;
+			dis_irq_cnt = 0;
+		}
+		else {
+			dev_info(dev, "Already in wake state \n");
+		}
+	}
+}
+
 static DEVICE_ATTR
 	(crown_sensitivity, S_IRUGO | S_IWUSR | S_IWGRP, pat9126_sensitivity_show, pat9126_sensitivity_store);
 
@@ -699,6 +728,7 @@ static int pat9126_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 	INIT_DELAYED_WORK(&data->polling_work, pat9126_work_handler);
+	INIT_DELAYED_WORK(&data->resume_work, pat9126_complete_resume);
 	if (en_irq_cnt == 0) {
 		pr_err("[PAT9126]: Probe Enable Irq. \n");
 		ret = devm_request_threaded_irq(dev, client->irq, NULL, pat9126_irq,
@@ -737,7 +767,6 @@ static int pat9126_i2c_remove(struct i2c_client *client)
 
 static int pat9126_suspend(struct device *dev)
 {
-	int ret = 0;
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
@@ -760,60 +789,18 @@ static int pat9126_suspend(struct device *dev)
 		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
 	}
 
-	/* disable write protect */
-	pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
-			PIXART_PAT9126_DISABLE_WRITE_PROTECT);
-
-	/*Write Register for Suspend Mode*/
-	ret = pat9126_disable_mot(data->client,
-		PIXART_PAT9126_SLEEP_MODE_DETECT_FREQ_DEFAULT);
-	if (ret != 0){
-		pr_err("[PAT9126]: Disable Motion FAIL.");
-	}
-
-	/* enable write protect */
-	pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
-			PIXART_PAT9126_ENABLE_WRITE_PROTECT);
+	pat9126_pd_write(dev, 1);
 	return 0;
 }
 
 static int pat9126_resume(struct device *dev)
 {
-	int ret = 0;
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
-	printk(KERN_DEBUG "[PAT9126]%s, start\n", __func__);
-	if (is_initialized) {
-		printk(KERN_DEBUG "[PAT9126]%s: Already initialized. \n", __func__);
-	} else {
-		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
-	}
-
-	/* disable write protect */
-	pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
-			PIXART_PAT9126_DISABLE_WRITE_PROTECT);
-
-	ret = pat9126_enable_mot(data->client);
-	if (ret != 0){
-		pr_err("[PAT9126]: Enable Motion FAIL. \n");
-		return 0;
-	}
-
-	/* enable write protect */
-	pat9126_write_verified(data->client, PIXART_PAT9126_WRITE_PROTECT_REG,
-			PIXART_PAT9126_ENABLE_WRITE_PROTECT);
-
-	if (is_initialized) {
-		if (en_irq_cnt == 0){
-			enable_irq(data->client->irq);
-			en_irq_cnt++;
-		}
-		else {
-			dev_info(dev, "Already in wake state \n");
-			return 0;
-		}
-		dis_irq_cnt = 0;
+	if (!schedule_delayed_work(&data->resume_work, msecs_to_jiffies(10))) {
+		pr_err("Failed to schedule delayed resume\n");
+		pat9126_complete_resume(&data->resume_work.work);
 	}
 
 	return 0;
