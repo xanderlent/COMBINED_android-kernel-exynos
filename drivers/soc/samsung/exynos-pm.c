@@ -297,8 +297,10 @@ static int exynos_pm_enter(suspend_state_t state)
 	exynos_pmu_read(CPU_INFORM4, &off_count);
 	pr_info("%s: post mif_count %d	%d\n",EXYNOS_PM_PREFIX, post_mif,off_count);
 
-	if (post_mif == prev_mif)
+	if (post_mif == prev_mif) {
 		pr_info("%s: MIF blocked. MIF request Mster was  0x%x\n", EXYNOS_PM_PREFIX, prev_req);
+		return -EBUSY;
+	}
 	else
 		pr_info("%s: MIF down. cur_count: %d, acc_count: %d\n",
 				EXYNOS_PM_PREFIX, post_mif - prev_mif, post_mif);
