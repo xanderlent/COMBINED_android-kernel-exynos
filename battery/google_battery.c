@@ -42,6 +42,7 @@
 #define FAKE_BAT_LEVEL	50
 #define DEFAULT_ALARM_INTERVAL	10
 #define SLEEP_ALARM_INTERVAL	300
+#define RESUME_DELAY_MS         300
 
 static char *bat_status_str[] = {
 	"Unknown",
@@ -1224,8 +1225,21 @@ static void bat_monitor_work(struct work_struct *work)
 		container_of(work, struct battery_info, monitor_work.work);
 	union power_supply_propval value;
 	struct power_supply *psy;
+	struct thermal_zone_device *tzd;
 	int old_charging_current, old_temp_index, old_capacity, old_health;
 	int ret;
+
+	tzd = thermal_zone_get_zone_by_name(battery->pdata->wlc_tz_name);
+	if (tzd) {
+		enum thermal_device_mode mode;
+		tzd->ops->get_mode(tzd, &mode);
+		if (mode == THERMAL_DEVICE_DISABLED) {
+			tzd->ops->set_mode(tzd, THERMAL_DEVICE_ENABLED);
+		}
+	} else {
+		pr_err("%s: Fail to get thermal zone device: %s\n",
+		       __func__, battery->pdata->wlc_tz_name);
+	}
 
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy) {
@@ -1877,6 +1891,7 @@ static int google_battery_remove(struct platform_device *pdev)
 static int google_battery_prepare(struct device *dev)
 {
 	struct battery_info *battery = dev_get_drvdata(dev);
+	struct thermal_zone_device *tzd;
 
 	/* If charger is connected, monitoring is required*/
 	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
@@ -1886,6 +1901,16 @@ static int google_battery_prepare(struct device *dev)
 				__func__, battery->monitor_alarm_interval);
 		alarm_start_relative(&battery->monitor_alarm,
 			ktime_set(battery->monitor_alarm_interval, 0));
+	}
+
+	/* Disable the thermal device to avoid a temperature read on-resume
+	   This cuts 50-70ms from the critical path */
+	tzd = thermal_zone_get_zone_by_name(battery->pdata->wlc_tz_name);
+	if (tzd) {
+		tzd->ops->set_mode(tzd, THERMAL_DEVICE_DISABLED);
+	} else {
+		pr_err("%s: Fail to get thermal zone device: %s\n",
+		       __func__, battery->pdata->wlc_tz_name);
 	}
 	return 0;
 }
@@ -1910,7 +1935,12 @@ static void google_battery_complete(struct device *dev)
 			__func__, battery->monitor_alarm_interval);
 		alarm_cancel(&battery->monitor_alarm);
 		wake_lock(&battery->monitor_wake_lock);
-		queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+		/* We need to delay long enough here to avoid re-enabling the thermal device
+		   before resume is complete. If we don't, we will block resume for 50ms while
+		   we wait for the thermistor reading to stabilize. */
+		queue_delayed_work(battery->monitor_wqueue,
+		                   &battery->monitor_work,
+		                   msecs_to_jiffies(RESUME_DELAY_MS));
 	}
 }
 
