@@ -234,7 +234,7 @@ thermal_zones: thermal-zones {
 		thermal-sensors = <&tsmab104_ntc 0>;
 	};
 	batt_ntc: BATT_NTC {
-		polling-delay = <1000>; /* milliseconds */
+		polling-delay = <10000>; /* milliseconds */
 		polling-delay-passive = <0>; /* milliseconds */
 		thermal-sensors = <&tsmab104_ntc 1>;
 	};
