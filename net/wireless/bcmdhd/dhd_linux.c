@@ -966,6 +966,7 @@ static int dhd_pm_callback(struct notifier_block *nfb, unsigned long action, voi
 #endif /* defined(SUPPORT_P2P_GO_PS) && defined(PROP_TXSTATUS) */
 
 	dhd_mmc_suspend = suspend;
+	pr_info("%s: dhd_mmc_suspend: %d\n", __FUNCTION__, dhd_mmc_suspend);
 	smp_mb();
 
 	return ret;
