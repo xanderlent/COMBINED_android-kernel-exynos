@@ -1965,6 +1965,17 @@ int nanohub_suspend(struct iio_dev *iio_dev)
 	return ret;
 }
 
+int nanohub_suspend_noirq(struct iio_dev *iio_dev)
+{
+	struct nanohub_data *data = iio_priv(iio_dev);
+	int ret = 0;
+
+	if (nanohub_irq1_fired(data)) {
+		ret = -EBUSY;
+	}
+	return ret;
+}
+
 int nanohub_resume(struct iio_dev *iio_dev)
 {
 	struct nanohub_data *data = iio_priv(iio_dev);

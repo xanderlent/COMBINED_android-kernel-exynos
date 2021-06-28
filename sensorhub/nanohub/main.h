@@ -122,6 +122,7 @@ void nanohub_start(struct nanohub_data *data);
 int nanohub_reset(struct nanohub_data *data);
 int nanohub_remove(struct iio_dev *iio_dev);
 int nanohub_suspend(struct iio_dev *iio_dev);
+int nanohub_suspend_noirq(struct iio_dev *iio_dev);
 int nanohub_resume(struct iio_dev *iio_dev);
 
 static inline int nanohub_irq1_fired(struct nanohub_data *data)

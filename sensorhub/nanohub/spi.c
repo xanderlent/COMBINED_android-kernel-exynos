@@ -512,6 +512,12 @@ static int nanohub_spi_suspend(struct device *dev)
 	return ret;
 }
 
+static int nanohub_spi_suspend_noirq(struct device *dev)
+{
+	struct iio_dev *iio_dev = spi_get_drvdata(to_spi_device(dev));
+	return nanohub_suspend_noirq(iio_dev);
+}
+
 static int nanohub_spi_resume(struct device *dev)
 {
 	struct iio_dev *iio_dev = spi_get_drvdata(to_spi_device(dev));
@@ -529,6 +535,7 @@ static struct spi_device_id nanohub_spi_id[] = {
 
 static const struct dev_pm_ops nanohub_spi_pm_ops = {
 	.suspend = nanohub_spi_suspend,
+	.suspend_noirq = nanohub_spi_suspend_noirq,
 	.resume = nanohub_spi_resume,
 };
 
