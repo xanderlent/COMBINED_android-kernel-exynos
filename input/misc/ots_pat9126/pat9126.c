@@ -25,6 +25,10 @@
 #include <linux/rtc.h>
 #include <linux/string.h>
 
+// TODO(b/192250990): Do not re-enable PM ops before removing the call to
+// 'flush_scheduled_work' from pat9126_suspend.
+//#define PAT9126_PM_OPS
+
 struct pixart_pat9126_data {
 	struct i2c_client *client;
 	struct input_dev *input;
@@ -62,9 +66,11 @@ struct rw_reg_info {
 
 struct rw_reg_info pat9126_reg_info;
 
+#if defined(PAT9126_PM_OPS)
 /* Declaration of suspend and resume functions */
 static int pat9126_suspend(struct device *dev);
 static int pat9126_resume(struct device *dev);
+#endif
 
 static int pat9126_write(struct i2c_client *client, u8 addr, u8 data)
 {
@@ -765,6 +771,7 @@ static int pat9126_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#if defined(PAT9126_PM_OPS)
 static int pat9126_suspend(struct device *dev)
 {
 	struct pixart_pat9126_data *data =
@@ -805,6 +812,7 @@ static int pat9126_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct i2c_device_id pat9126_device_id[] = {
 	{PAT9126_DEV_NAME, 0},
@@ -812,10 +820,12 @@ static const struct i2c_device_id pat9126_device_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pat9126_device_id);
 
+#if defined(PAT9126_PM_OPS)
 static const struct dev_pm_ops pat9126_pm_ops = {
 	.suspend = pat9126_suspend,
 	.resume = pat9126_resume
 };
+#endif
 
 static const struct of_device_id pixart_pat9126_match_table[] = {
 	{ .compatible = "pixart,pat9126",},
@@ -826,7 +836,9 @@ static struct i2c_driver pat9126_i2c_driver = {
 	.driver = {
 		   .name = PAT9126_DEV_NAME,
 		   .owner = THIS_MODULE,
+#if defined(PAT9126_PM_OPS)
 		   .pm = &pat9126_pm_ops,
+#endif
 		   .of_match_table = pixart_pat9126_match_table,
 		   },
 	.probe = pat9126_i2c_probe,
