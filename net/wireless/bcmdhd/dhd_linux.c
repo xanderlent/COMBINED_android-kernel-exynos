@@ -139,10 +139,6 @@
 #include <802.1d.h>
 #endif /* AMPDU_VO_ENABLE */
 
-#ifndef CONFIG_BCMDHD_NVRAM_PATH
-#include <linux/of.h>
-#endif /* CONFIG_BCMDHD_NVRAM_PATH */
-
 #if defined(DHDTCPACK_SUPPRESS) || defined(DHDTCPSYNC_FLOOD_BLK)
 #include <dhd_ip.h>
 #endif /* DHDTCPACK_SUPPRESS || DHDTCPSYNC_FLOOD_BLK */
@@ -9356,50 +9352,6 @@ int dhd_bus_get_fw_mode(dhd_pub_t *dhdp)
 	return dhd_get_fw_mode(dhdp->info);
 }
 
-#ifndef CONFIG_BCMDHD_NVRAM_PATH
-
-#define CDB_PLAT_PATH "/chosen/plat"
-#define MODEM_SKU "modem_sku"
-
-typedef enum {
-    MODEM_SKU_UNKNOWN,
-    MODEM_SKU_NA,
-    MODEM_SKU_ROW
-} modem_sku_type;
-
-modem_sku_type dhd_get_modem_sku(void)
-{
-    unsigned int size;
-    struct device_node *node;
-    unsigned char *modem_sku_code = NULL;
-    modem_sku_type modem_sku = MODEM_SKU_UNKNOWN;
-
-    node = of_find_node_by_path(CDB_PLAT_PATH);
-    if (!node) {
-        DHD_ERROR(("CDB_PLAT Node not created under %s\n", CDB_PLAT_PATH));
-        return modem_sku;
-    } else {
-        modem_sku_code = (unsigned char *)
-                of_get_property(node, MODEM_SKU, &size);
-    }
-
-    /* In case Missing Provisioned Modem SKU, exit with error */
-    if (!modem_sku_code) {
-        DHD_ERROR(("Missing Provisioned Modem SKU\n"));
-        return modem_sku;
-    }
-
-    if (strcmp(modem_sku_code, "<0x0>") == 0) {
-        modem_sku = MODEM_SKU_NA;
-    } else {
-        modem_sku = MODEM_SKU_ROW;
-    }
-
-    return modem_sku;
-}
-
-#endif /* CONFIG_BCMDHD_NVRAM_PATH */
-
 extern char * nvram_get(const char *name);
 bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 {
@@ -9433,7 +9385,8 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 #ifdef CONFIG_BCMDHD_NVRAM_PATH
 		nv = VENDOR_PATH CONFIG_BCMDHD_NVRAM_PATH;
 #else
-#if defined(CONFIG_BCMDHD_NA_NVRAM_PATH) && defined(CONFIG_BCMDHD_ROW_NVRAM_PATH)
+#if defined(CONFIG_BCMDHD_NA_NVRAM_PATH) && defined(CONFIG_BCMDHD_ROW_NVRAM_PATH) && \
+    defined(CONFIG_CHECK_MODEM_SKU)
         switch (dhd_get_modem_sku()) {
             case MODEM_SKU_NA:
                 DHD_INFO(("Loading NA bcmdhd.cal\n"));
@@ -9447,7 +9400,8 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
                 DHD_ERROR(("No Modem SKU found to match NVRAM\n"));
                 break;
         }
-#endif /* CONFIG_BCMDHD_NA_NVRAM_PATH && CONFIG_BCMDHD_ROW_NVRAM_PATH */
+#endif /* CONFIG_BCMDHD_NA_NVRAM_PATH && CONFIG_BCMDHD_ROW_NVRAM_PATH &&
+        CONFIG_CHECK_MODEM_SKU*/
 #endif /* CONFIG_BCMDHD_NVRAM_PATH */
 	}
 
@@ -21437,7 +21391,26 @@ void
 dhd_set_blob_support(dhd_pub_t *dhdp, char *fw_path)
 {
 	struct file *fp;
-	char *filepath = VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
+	char *filepath;
+
+#if defined(CONFIG_CHECK_MODEM_SKU)
+		switch (dhd_get_modem_sku()) {
+			case MODEM_SKU_NA:
+				DHD_INFO(("Loading NA bcmdhd_clm.blob\n"));
+				filepath = VENDOR_PATH CONFIG_BCMDHD_NA_CLM_PATH;
+				break;
+			case MODEM_SKU_ROW:
+				DHD_INFO(("Loading ROW bcmdhd_clm.blob\n"));
+				filepath = VENDOR_PATH CONFIG_BCMDHD_ROW_CLM_PATH;
+				break;
+			default:
+				DHD_ERROR(("No Modem SKU found to match CLM\n"));
+				filepath = VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
+				break;
+		}
+#else
+	filepath = VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
+#endif /* CONFIG_CHECK_MODEM_SKU*/
 
 	fp = filp_open(filepath, O_RDONLY, 0);
 	if (IS_ERR(fp)) {

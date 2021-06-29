@@ -130,6 +130,10 @@ int dhd_msg_level = DHD_ERROR_VAL | DHD_PNO_VAL
 #include <linux/pm_runtime.h>
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 
+#ifdef CONFIG_CHECK_MODEM_SKU
+#include <linux/of.h>
+#endif /* CONFIG_CHECK_MODEM_SKU */
+
 #ifdef SOFTAP
 char fw_path2[MOD_PARAM_PATHLEN];
 extern bool softap_enabled;
@@ -6441,7 +6445,24 @@ dhd_apply_default_clm(dhd_pub_t *dhd, char *clm_path)
 		clm_blob_path = clm_path;
 		DHD_TRACE(("clm path from module param:%s\n", clm_path));
 	} else {
+#if defined(CONFIG_CHECK_MODEM_SKU)
+		switch (dhd_get_modem_sku()) {
+			case MODEM_SKU_NA:
+				DHD_INFO(("Loading NA bcmdhd_clm.blob\n"));
+				clm_blob_path = VENDOR_PATH CONFIG_BCMDHD_NA_CLM_PATH;
+				break;
+			case MODEM_SKU_ROW:
+				DHD_INFO(("Loading ROW bcmdhd_clm.blob\n"));
+				clm_blob_path = VENDOR_PATH CONFIG_BCMDHD_ROW_CLM_PATH;
+				break;
+			default:
+				DHD_ERROR(("No Modem SKU found to match CLM\n"));
+				clm_blob_path = VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
+				break;
+		}
+#else
 		clm_blob_path = VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
+#endif /* CONFIG_CHECK_MODEM_SKU*/
 	}
 
 	/* If CLM blob file is found on the filesystem, download the file.
@@ -8752,3 +8773,41 @@ exit:
 	}
 	return ret;
 }
+
+#if defined(CONFIG_CHECK_MODEM_SKU)
+
+#define CDB_PLAT_PATH "/chosen/plat"
+#define MODEM_SKU "modem_sku"
+
+modem_sku_type dhd_get_modem_sku(void)
+{
+    unsigned int size;
+    struct device_node *node;
+    unsigned char *modem_sku_code = NULL;
+    modem_sku_type modem_sku = MODEM_SKU_UNKNOWN;
+
+    node = of_find_node_by_path(CDB_PLAT_PATH);
+    if (!node) {
+        DHD_ERROR(("CDB_PLAT Node not created under %s\n", CDB_PLAT_PATH));
+        return modem_sku;
+    } else {
+        modem_sku_code = (unsigned char *)
+                of_get_property(node, MODEM_SKU, &size);
+    }
+
+    /* In case Missing Provisioned Modem SKU, exit with error */
+    if (!modem_sku_code) {
+        DHD_ERROR(("Missing Provisioned Modem SKU\n"));
+        return modem_sku;
+    }
+
+    if (strcmp(modem_sku_code, "<0x0>") == 0) {
+        modem_sku = MODEM_SKU_NA;
+    } else {
+        modem_sku = MODEM_SKU_ROW;
+    }
+
+    return modem_sku;
+}
+
+#endif /* CONFIG_CHECK_MODEM_SKU */

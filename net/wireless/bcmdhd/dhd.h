@@ -3644,4 +3644,13 @@ extern void dhd_hdm_wlan_sysfs_deinit(struct work_struct *);
 #define SYSFS_DEINIT_MS 10
 #endif /* DHD_SUPPORT_HDM */
 
+#if defined(CONFIG_CHECK_MODEM_SKU)
+typedef enum {
+    MODEM_SKU_UNKNOWN,
+    MODEM_SKU_NA,
+    MODEM_SKU_ROW
+} modem_sku_type;
+modem_sku_type dhd_get_modem_sku(void);
+#endif /* CONFIG_CHECK_MODEM_SKU */
+
 #endif /* _dhd_h_ */
