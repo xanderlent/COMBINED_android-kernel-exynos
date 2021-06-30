@@ -32,7 +32,7 @@
 	fragment@common {
 		target-path = "/";
 		__overlay__ {
-			model = "Google R11 BtWifi Evt1";
+			model = "Google R11 BtWifi Evt1.1";
 		};
 	};
 };
@@ -50,9 +50,9 @@
 	status = "ok";
 };
 
-&evt11_hl6111 {
+&evt1_hl6111 {
 	status = "ok";
-	halo,auth-gpio= <&gpm21 0 0>;
+	halo,auth-gpio = <&gpm21 0 0>;
 };
 
 &novatek {
