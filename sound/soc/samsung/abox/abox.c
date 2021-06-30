@@ -5277,15 +5277,27 @@ static void abox_system_ipc_handler(struct device *dev,
 					abox_addr_to_kernel_addr(data,
 					system_msg->bundle.param_s32[0]),
 					ABOX_DBG_DUMP_FIRMWARE, type);
-			abox_dbg_dump_mem(dev, data, ABOX_DBG_DUMP_FIRMWARE,
-					type);
+			if (1) {
+				dev_err(dev,
+					"skipping abox_dbg_dump_mem: param1=%d",
+					system_msg->param1);
+			} else {
+				abox_dbg_dump_mem(dev, data,
+						ABOX_DBG_DUMP_FIRMWARE, type);
+			}
 			break;
 		default:
 			abox_dbg_print_gpr(dev, data);
 			abox_dbg_dump_gpr(dev, data, ABOX_DBG_DUMP_FIRMWARE,
 					type);
-			abox_dbg_dump_mem(dev, data, ABOX_DBG_DUMP_FIRMWARE,
-					type);
+			if (1) {
+				dev_err(dev,
+					"skipping abox_dbg_dump_mem: param1=%d",
+					system_msg->param1);
+			} else {
+				abox_dbg_dump_mem(dev, data,
+						ABOX_DBG_DUMP_FIRMWARE, type);
+			}
 			break;
 		}
 		abox_failsafe_report(dev);
