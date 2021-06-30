@@ -5944,7 +5944,7 @@ static int abox_enable(struct device *dev)
 
 	abox_gic_enable_irq(data->dev_gic);
 
-	abox_request_cpu_gear_sync(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
+	abox_request_cpu_gear(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
 			ABOX_CPU_GEAR_MAX);
 
 	if (is_secure_gic()) {
