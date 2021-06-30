@@ -847,7 +847,8 @@ static void get_battery_capacity(struct battery_info *battery)
 	new_soc = google_battery_percent_scale(raw_soc, battery->soc_spoof_full);
 
 	if (battery->wlc_connected || battery->status == POWER_SUPPLY_STATUS_CHARGING ||
-		battery->status == POWER_SUPPLY_STATUS_FULL	|| new_soc < battery->soc_spoof) {
+		battery->status == POWER_SUPPLY_STATUS_FULL	|| new_soc < battery->soc_spoof ||
+		battery->soc_spoof == 0) {
 		// Don't let capacity increase during discharge
 		battery->soc_spoof = new_soc;
 
@@ -1808,25 +1809,18 @@ static int google_battery_probe(struct platform_device *pdev)
 	}
 	pr_info("%s: Registered Wireless as power supply\n", __func__);
 
-	/* Initialize battery level*/
-	value.intval = 0;
-
+	/* check fuelgauge availability */
 	psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
 	if (!psy) {
 		ret = -EINVAL;
 		goto err_unreg_wireless;
 	}
-	battery->soc_spoof_full = 10000;
-	//read rawsoc only
-	value.intval = 1;
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
-	if (ret < 0) {
-		pr_err("%s: Fail to execute property\n", __func__);
-	} else {
-		battery->capacity = value.intval / 100;
-		battery->soc_spoof = battery->capacity;
-	}
 	power_supply_put(psy);
+	// Assume lower bound of charge full spoofing
+	battery->soc_spoof_full = (battery->pdata->chg_recharge_soc - 1) * 100;
+	/* Initialize battery level */
+	get_battery_capacity(battery);
+
 #if defined(CONFIG_MUIC_NOTIFIER)
 	pr_info("%s: Register MUIC notifier\n", __func__);
 	muic_notifier_register(&battery->batt_nb, battery_handle_notification,
