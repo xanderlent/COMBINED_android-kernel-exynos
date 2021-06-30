@@ -43,6 +43,7 @@
 #define DEFAULT_ALARM_INTERVAL	10
 #define SLEEP_ALARM_INTERVAL	300
 #define RESUME_DELAY_MS         300
+#define INITIAL_VOUT_BOOST_MV	100
 
 static char *bat_status_str[] = {
 	"Unknown",
@@ -123,8 +124,10 @@ typedef struct battery_platform_data {
 	s32 *cc_limits;
 	int cv_headroom;
 	int topoff_current;
+	int default_current;
 	int wlc_vout_headroom;
 	int wlc_vout_min;
+	int wlc_vout_max;
 
 	/* full check */
 	unsigned int full_check_count;
@@ -235,6 +238,25 @@ static int calculate_cc_index(struct battery_info *battery, int temp_index, int 
 	return (temp_index - 1) * (battery->pdata->num_volt_limits) + voltage_index;
 }
 
+static int set_charging_current(struct battery_info *battery, int charging_current) {
+	union power_supply_propval value;
+	struct power_supply *psy;
+	int ret = 0;
+	dev_info(battery->dev, "%s: charging_current(%d to %d)\n", __func__,
+		battery->charging_current, charging_current);
+	value.intval = charging_current;
+	psy = power_supply_get_by_name(battery->pdata->charger_name);
+	if (!psy) {
+		return -EINVAL;
+	}
+	ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
+	if (ret < 0)
+		pr_err("%s: Fail to execute property CURRENT_NOW\n", __func__);
+	power_supply_put(psy);
+	battery->charging_current = charging_current;
+	return ret;
+}
+
 static int check_charging_current(struct battery_info *battery)
 {
 	union power_supply_propval value;
@@ -329,19 +351,9 @@ static int check_charging_current(struct battery_info *battery)
 	mutex_lock(&battery->iolock);
 	// Update charging current if necessary
 	if (battery->charging_current != charging_current) {
-		dev_info(battery->dev, "%s: charging_current(%d to %d)\n", __func__,
-			battery->charging_current, charging_current);
-		value.intval = charging_current;
-		psy = power_supply_get_by_name(battery->pdata->charger_name);
-		if (!psy) {
-			ret = -EINVAL;
-			goto charger_fail;
-		}
-		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &value);
+		ret = set_charging_current(battery, charging_current);
 		if (ret < 0)
-			pr_err("%s: Fail to execute property CURRENT_NOW\n", __func__);
-		power_supply_put(psy);
-		battery->charging_current = charging_current;
+			goto charger_fail;
 	}
 	// Update Float Voltage if necessary
 	if (battery->voltage_index != v_i) {
@@ -391,6 +403,14 @@ static int check_wlc_vout(struct battery_info *battery)
 	wlc_vout = battery->voltage_now + battery->pdata->wlc_vout_headroom;
 	if (wlc_vout < battery->pdata->wlc_vout_min) {
 		wlc_vout = battery->pdata->wlc_vout_min;
+	}
+	if (battery->wlc_vout_setting == -1) {
+		// need a higher vout on first charge because battery voltage
+		// measurement starts out inaccurate
+		wlc_vout += INITIAL_VOUT_BOOST_MV;
+	}
+	if (wlc_vout > battery->pdata->wlc_vout_max) {
+		wlc_vout = battery->pdata->wlc_vout_max;
 	}
 	if (wlc_vout != battery->wlc_vout_setting) {
 		psy = power_supply_get_by_name(battery->pdata->wlc_name);
@@ -514,6 +534,7 @@ static int set_battery_status(struct battery_info *battery,
 		power_supply_put(psy);
 
 		set_charger_mode(battery, BAT_CHG_MODE_CHARGING);
+		battery->charging_current = battery->pdata->default_current;
 		break;
 
 	case POWER_SUPPLY_STATUS_DISCHARGING:
@@ -525,38 +546,33 @@ static int set_battery_status(struct battery_info *battery,
 		if (!psy)
 			return -EINVAL;
 		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
+		// Re-enable charging if it was disabled
+		set_charger_mode(battery, BAT_CHG_MODE_CHARGING);
 		power_supply_put(psy);
-
-		set_charger_mode(battery, BAT_CHG_MODE_CHARGING_OFF);
-		battery->temp_index = -1;
-		battery->voltage_index = -1;
-		battery->charging_current = 0;
-		battery->topoff_current = 0;
 		break;
 
 	case POWER_SUPPLY_STATUS_NOT_CHARGING:
 		// charger in unhealthy state
 		set_charger_mode(battery, BAT_CHG_MODE_BUCK_OFF);
-
-		/* to recover charger configuration when heath is recovered */
-		battery->temp_index = -1;
-		battery->voltage_index = -1;
-		battery->charging_current = 0;
-		battery->topoff_current = 0;
 		set_wlc_status(battery, status);
 		break;
 
 	case POWER_SUPPLY_STATUS_FULL:
 		// battery full
 		set_charger_mode(battery, BAT_CHG_MODE_CHARGING_OFF);
-		battery->temp_index = -1;
-		battery->voltage_index = -1;
-		battery->charging_current = 0;
-		battery->topoff_current = 0;
 		set_wlc_status(battery, status);
 		break;
 	}
 
+	if (status != POWER_SUPPLY_STATUS_CHARGING) {
+		// Set charging current to default and reset internal state keeping
+		if (battery->charging_current != battery->pdata->default_current)
+			ret = set_charging_current(battery, battery->pdata->default_current);
+		battery->temp_index = -1;
+		battery->voltage_index = -1;
+		battery->charging_current = 0;
+		battery->topoff_current = 0;
+	}
 	/* battery status update */
 	battery->status = status;
 	value.intval = battery->status;
@@ -1267,7 +1283,10 @@ static void bat_monitor_work(struct work_struct *work)
 	if (battery->status == POWER_SUPPLY_STATUS_CHARGING) {
 		old_charging_current = battery->charging_current;
 		ret = check_charging_current(battery);
-		if (battery->wlc_connected && battery->charging_current == old_charging_current) {
+		if (battery->charging_current != old_charging_current) {
+			mdelay(250);
+		}
+		if (battery->wlc_connected) {
 			check_wlc_vout(battery);
 		}
 	}
@@ -1430,6 +1449,13 @@ static int google_battery_parse_dt(struct device *dev,
 		return -EINVAL;
 	}
 
+	ret = of_property_read_u32(np, "battery,default_current",
+			&pdata->default_current);
+	if (ret) {
+		pr_debug("%s : Default current is empty\n", __func__);
+		return -EINVAL;
+	}
+
 	ret = of_property_read_u32(np, "battery,wlc_vout_headroom",
 			&pdata->wlc_vout_headroom);
 	if (ret) {
@@ -1442,6 +1468,13 @@ static int google_battery_parse_dt(struct device *dev,
 	if (ret) {
 		pr_debug("%s : WLC VOUT min is empty\n", __func__);
 		pdata->wlc_vout_min = 4200;
+	}
+
+	ret = of_property_read_u32(np, "battery,wlc_vout_max",
+			&pdata->wlc_vout_max);
+	if (ret) {
+		pr_debug("%s : WLC VOUT max is empty\n", __func__);
+		pdata->wlc_vout_min = 5000;
 	}
 
 	ret = of_property_read_u32(np, "battery,full_check_condition_soc",
@@ -1821,6 +1854,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	/* Initialize battery level */
 	get_battery_info(battery);
 
+	set_charging_current(battery, battery->pdata->default_current);
 #if defined(CONFIG_MUIC_NOTIFIER)
 	pr_info("%s: Register MUIC notifier\n", __func__);
 	muic_notifier_register(&battery->batt_nb, battery_handle_notification,
