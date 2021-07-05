@@ -542,6 +542,7 @@ struct abox_l2c_request {
 };
 
 struct abox_extra_firmware {
+	struct list_head list;
 	const struct firmware *firmware;
 	const char *name;
 	u32 area;
@@ -589,7 +590,7 @@ struct abox_data {
 	unsigned int calliope_version;
 	const struct firmware *firmware_sram;
 	const struct firmware *firmware_dram;
-	struct abox_extra_firmware firmware_extra[8];
+	struct list_head firmware_extra;
 	struct device *dev_gic;
 	struct device *dev_bt;
 	struct device *dev_if[8];

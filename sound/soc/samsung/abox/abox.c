@@ -5555,29 +5555,49 @@ static void abox_restore_register(struct abox_data *data)
 	regcache_sync(data->regmap);
 }
 
+static int abox_request_firmware(struct device *dev,
+		const struct firmware **fw, const char *name)
+{
+	int ret;
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	release_firmware(*fw);
+	ret = request_firmware(fw, name, dev);
+	if (ret < 0)
+		dev_err(dev, "%s: %s request failed(%d)\n", __func__,
+				name, ret);
+	else
+		dev_info(dev, "%s is loaded\n", name);
+
+	return ret;
+}
+
+static struct abox_extra_firmware *abox_get_extra_firmware(
+		struct abox_data *data, const char *name)
+{
+	struct abox_extra_firmware *efw;
+
+	list_for_each_entry(efw, &data->firmware_extra, list) {
+		if (strcmp(efw->name, name) == 0)
+			return efw;
+	}
+
+	return NULL;
+}
+
 static void abox_reload_extra_firmware(struct abox_data *data, const char *name)
 {
 	struct device *dev = data->dev;
-	struct abox_extra_firmware *ext_fw;
-	int ret;
+	struct abox_extra_firmware *efw;
 
 	dev_dbg(dev, "%s(%s)\n", __func__, name);
 
-	for (ext_fw = data->firmware_extra; ext_fw - data->firmware_extra <
-			ARRAY_SIZE(data->firmware_extra); ext_fw++) {
-		if (!ext_fw->name || strcmp(ext_fw->name, name))
+	list_for_each_entry(efw, &data->firmware_extra, list) {
+		if (!efw->name || strcmp(efw->name, name))
 			continue;
 
-		release_firmware(ext_fw->firmware);
-		ret = request_firmware(&ext_fw->firmware, ext_fw->name, dev);
-		if (ret < 0) {
-			dev_err(dev, "%s: %s request failed\n", __func__,
-					ext_fw->name);
-			break;
-		}
-		dev_info(dev, "%s is reloaded at %p (%zu)\n", name,
-				ext_fw->firmware->data,
-				ext_fw->firmware->size);
+		abox_request_firmware(dev, &efw->firmware, efw->name);
 	}
 }
 
@@ -5586,66 +5606,63 @@ static void abox_request_extra_firmware(struct abox_data *data)
 	struct device *dev = data->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *child_np;
-	struct abox_extra_firmware *ext_fw;
+	struct abox_extra_firmware *efw;
+	const char *name;
+	u32 area, offset;
 	int ret;
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	ext_fw = data->firmware_extra;
-	for_each_child_of_node(np, child_np) {
-		const char *status;
-
-		status = of_get_property(child_np, "status", NULL);
-		if (status && strcmp("okay", status) && strcmp("ok", status))
-			continue;
-
-		ret = of_property_read_string(child_np, "samsung,name",
-				&ext_fw->name);
+	for_each_available_child_of_node(np, child_np) {
+		ret = of_property_read_string(child_np, "samsung,name", &name);
 		if (ret < 0)
 			continue;
 
-		ret = of_property_read_u32(child_np, "samsung,area",
-				&ext_fw->area);
+		ret = of_property_read_u32(child_np, "samsung,area", &area);
 		if (ret < 0)
 			continue;
 
-		ret = of_property_read_u32(child_np, "samsung,offset",
-				&ext_fw->offset);
+		ret = of_property_read_u32(child_np, "samsung,offset", &offset);
 		if (ret < 0)
 			continue;
+
+		efw = abox_get_extra_firmware(data, name);
+		if (!efw)
+			efw = devm_kzalloc(dev, sizeof(*efw), GFP_KERNEL);
+		if (!efw) {
+			dev_err(dev, "%s: no memory %s\n", __func__, name);
+			continue;
+		}
+
+		list_add_tail(&efw->list, &data->firmware_extra);
+		efw->name = name;
+		efw->area = area;
+		efw->offset = offset;
 
 		dev_dbg(dev, "%s: name=%s, area=%u, offset=%u\n", __func__,
-				ext_fw->name, ext_fw->area, ext_fw->offset);
+				efw->name, efw->area, efw->offset);
 
-		if (!ext_fw->firmware) {
-			dev_dbg(dev, "%s: request %s\n", __func__,
-					ext_fw->name);
-			ret = request_firmware(&ext_fw->firmware,
-					ext_fw->name, dev);
-			if (ret < 0)
-				dev_err(dev, "%s: %s request failed\n",
-						__func__, ext_fw->name);
+		if (!efw->firmware) {
+			dev_dbg(dev, "%s: request %s\n", __func__, efw->name);
+			abox_request_firmware(dev, &efw->firmware, efw->name);
 		}
-		ext_fw++;
 	}
-
 }
 
 static void abox_download_extra_firmware(struct abox_data *data)
 {
 	struct device *dev = data->dev;
-	struct abox_extra_firmware *ext_fw;
+	struct abox_extra_firmware *efw;
 	void __iomem *base;
 	size_t size;
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	for (ext_fw = data->firmware_extra; ext_fw - data->firmware_extra <
-			ARRAY_SIZE(data->firmware_extra); ext_fw++) {
-		if (!ext_fw->firmware)
+	list_for_each_entry(efw, &data->firmware_extra, list) {
+		if (!efw->firmware)
 			continue;
 
-		switch (ext_fw->area) {
+		switch (efw->area) {
 		case 0:
 			base = data->sram_base;
 			size = data->sram_size;
@@ -5660,42 +5677,23 @@ static void abox_download_extra_firmware(struct abox_data *data)
 			break;
 		default:
 			dev_err(dev, "%s: area is invalid name=%s, area=%u, offset=%u\n",
-					__func__, ext_fw->name, ext_fw->area,
-					ext_fw->offset);
+					__func__, efw->name, efw->area,
+					efw->offset);
 			continue;
 		}
 
-		if (ext_fw->offset + ext_fw->firmware->size > size) {
+		if (efw->offset + efw->firmware->size > size) {
 			dev_err(dev, "%s: firmware is too large name=%s, area=%u, offset=%u\n",
-					__func__, ext_fw->name, ext_fw->area,
-					ext_fw->offset);
+					__func__, efw->name, efw->area,
+					efw->offset);
 			continue;
 		}
 
-		memcpy(base + ext_fw->offset, ext_fw->firmware->data,
-				ext_fw->firmware->size);
+		memcpy(base + efw->offset, efw->firmware->data,
+				efw->firmware->size);
 		dev_info(dev, "%s is downloaded at area %u offset %u\n",
-				ext_fw->name, ext_fw->area, ext_fw->offset);
+				efw->name, efw->area, efw->offset);
 	}
-}
-
-static int abox_request_firmware(struct device *dev,
-		const struct firmware **fw, const char *name)
-{
-	int ret;
-
-	dev_dbg(dev, "%s\n", __func__);
-
-	release_firmware(*fw);
-	ret = request_firmware(fw, name, dev);
-	if (ret < 0) {
-		dev_err(dev, "%s: %s request failed\n", __func__, name);
-	} else {
-		dev_info(dev, "%s is loaded at %p (%zu)\n", name,
-				(*fw)->data, (*fw)->size);
-	}
-
-	return ret;
 }
 
 static void abox_complete_sram_firmware_request(const struct firmware *fw,
@@ -6502,6 +6500,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	INIT_WORK(&data->l2c_work, abox_l2c_work_func);
 	INIT_DELAYED_WORK(&data->tickle_work, abox_tickle_work_func);
 	INIT_LIST_HEAD(&data->irq_actions);
+	INIT_LIST_HEAD(&data->firmware_extra);
 
 	data->gear_workqueue = alloc_ordered_workqueue("abox_gear",
 			WQ_HIGHPRI | WQ_FREEZABLE | WQ_MEM_RECLAIM);
