@@ -805,8 +805,6 @@ static void get_battery_capacity(struct battery_info *battery)
 	int ret;
 	unsigned int raw_soc = 0;
 	unsigned int new_soc = 0;
-	unsigned int old_capacity = battery->capacity;
-	unsigned int old_spoof = battery->soc_spoof;
 
 	psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
 	if (psy == NULL) {
@@ -854,16 +852,6 @@ static void get_battery_capacity(struct battery_info *battery)
 
 	}
 
-	if (old_capacity != battery->capacity || old_spoof != battery->soc_spoof) {
-		// Log data about % changes
-		dev_info(battery->dev, "%s: Time(%lu), SOC(%u), FG SOC(%u), UI SOC(%u), rawsoc(%d), max_rawsoc(%u), charge_full(%u), soc_spoof_full(%u)\n",__func__,
-				ktime_get_real_ns() / 1000000000, battery->capacity, battery->soc_fg,
-				battery->soc_spoof, battery->rawsoc, battery->max_rawsoc,
-				battery->charge_full, battery->soc_spoof_full);
-
-
-	}
-
 	power_supply_put(psy);
 }
 
@@ -874,6 +862,8 @@ static int get_battery_info(struct battery_info *battery)
 	struct thermal_zone_device *tzd;
 	int temp;
 	int ret;
+	unsigned int old_capacity = battery->capacity;
+	unsigned int old_spoof = battery->soc_spoof;
 
 	/*Get fuelgauge psy*/
 	psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
@@ -921,6 +911,16 @@ static int get_battery_info(struct battery_info *battery)
 
 	power_supply_put(psy);
 	get_battery_capacity(battery);
+
+	if (old_capacity != battery->capacity || old_spoof != battery->soc_spoof) {
+		// Log data about battery state on % changes
+		dev_info(battery->dev, "%s: Time(%lu), SOC(%u), FG SOC(%u), UI SOC(%u), rawsoc(%d), max_rawsoc(%u), soc_spoof_full(%u), voltage(%u), current(%d), temp(%u), status(%s)\n",
+				__func__,
+				ktime_get_real_ns() / 1000000000, battery->capacity, battery->soc_fg,
+				battery->soc_spoof, battery->rawsoc, battery->max_rawsoc,
+				battery->soc_spoof_full, battery->voltage_now, battery->current_now,
+				battery->temperature, bat_status_str[battery->status]);
+	}
 
 	return 0;
 }
@@ -1819,7 +1819,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	// Assume lower bound of charge full spoofing
 	battery->soc_spoof_full = (battery->pdata->chg_recharge_soc - 1) * 100;
 	/* Initialize battery level */
-	get_battery_capacity(battery);
+	get_battery_info(battery);
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 	pr_info("%s: Register MUIC notifier\n", __func__);
