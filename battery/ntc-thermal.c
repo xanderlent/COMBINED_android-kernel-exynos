@@ -15,6 +15,9 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
+
+#define NTC_AUTOSUSPEND_DELAY		100 /* autosuspend delay 100ms */
 
 struct ntc_device;
 
@@ -77,13 +80,12 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 	s64 long_val;
 	int ret;
 
-	/* Lock it so other threads don't set the gpio back to 0 */
 	mutex_lock(&ntcdev->gpiolock);
-	gpiod_set_value(ntcdev->enable_gpio, 1);
-	/* Wait for ADC to stabilize, takes ~50ms */
-	usleep_range(50000, 60000);
+	pm_runtime_get_sync(ntcdev->dev);
 	ret = iio_read_channel_raw(ntc_sensor->channel, &val);
-	gpiod_set_value(ntcdev->enable_gpio, 0);
+
+	pm_runtime_mark_last_busy(ntcdev->dev);
+	pm_runtime_put_autosuspend(ntcdev->dev);
 	mutex_unlock(&ntcdev->gpiolock);
 
 	if (ret < 0) {
@@ -183,6 +185,10 @@ static int ntc_thermal_probe(struct platform_device *pdev)
 		ntc_device->reference_voltage = 1800000;
 	}
 
+	pm_runtime_enable(ntc_device->dev);
+	pm_runtime_set_autosuspend_delay(ntc_device->dev, NTC_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(ntc_device->dev);
+
 	for (id = 0; id < ntc_device->num_sensors; id++) {
 		ntc_sensor = &ntc_device->sensors[id];
 		ntc_sensor->ntcdev = ntc_device;
@@ -201,16 +207,36 @@ static int ntc_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int ntc_runtime_suspend(struct device *dev) {
+	struct ntc_device *ntc_device = dev_get_drvdata(dev);
+	gpiod_set_value(ntc_device->enable_gpio, 0);
+	return 0;
+}
+
+static int ntc_runtime_resume(struct device *dev) {
+	struct ntc_device *ntc_device = dev_get_drvdata(dev);
+	gpiod_set_value(ntc_device->enable_gpio, 1);
+	/* Wait for ADC to stabilize, takes ~50ms */
+	usleep_range(50000, 60000);
+	return 0;
+}
+
 static const struct of_device_id of_ntc_thermal_match[] = {
 	{ .compatible = "google,ntc-thermal", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_ntc_thermal_match);
 
+static const struct dev_pm_ops ntc_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(ntc_runtime_suspend, ntc_runtime_resume, NULL)
+};
+
 static struct platform_driver ntc_thermal_driver = {
 	.driver = {
 		.name = "ntc-thermal",
 		.of_match_table = of_ntc_thermal_match,
+		.pm = &ntc_pm_ops,
 	},
 	.probe = ntc_thermal_probe,
 };
