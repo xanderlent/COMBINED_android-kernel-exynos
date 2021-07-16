@@ -643,6 +643,8 @@ static int decon_enable(struct decon_device *decon)
 	decon_info("decon-%d %s - (state:%s -> %s)\n", decon->id, __func__,
 			decon_state_names[prev_state],
 			decon_state_names[decon->state]);
+	/* Report delivery of the first frame after wake */
+	decon->report_regs_update = true;
 
 out:
 	mutex_unlock(&decon->lock);
@@ -2256,6 +2258,10 @@ static void decon_update_regs(struct decon_device *decon,
 	int i, j, err;
 	bool winup_rollback = false;
 
+	if (decon->report_regs_update) {
+		dev_info(decon->dev, "%s start\n", __func__);
+	}
+
 	if (!decon->systrace.pid)
 		decon->systrace.pid = current->pid;
 
@@ -2404,6 +2410,10 @@ fence_err:
 #endif
 
 	decon_systrace(decon, 'E', "decon_update_regs", 0);
+	if (decon->report_regs_update) {
+		dev_info(decon->dev, "%s end\n", __func__);
+		decon->report_regs_update = false;
+	}
 }
 
 /*

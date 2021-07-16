@@ -1145,6 +1145,7 @@ struct decon_device {
 #if defined(CONFIG_SAMSUNG_TUI)
 	bool tui_buf_protected;
 #endif
+	bool report_regs_update;
 };
 
 static inline struct decon_device *get_decon_drvdata(u32 id)
