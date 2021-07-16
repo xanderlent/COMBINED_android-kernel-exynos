@@ -39,7 +39,8 @@ sound: sound {
 	status = "okay";
 	compatible = "samsung,exynos9110-sound-r11";
 	samsung,routing = "VOUTPUT", "ABOX UAIF0 Playback",
-		"ABOX UAIF0 Capture", "VINPUT1",
+		"ABOX UAIF1 Capture", "VINPUT1",
+		"ABOX SIFS0 Capture", "VINPUT2",
 		"VOUTPUTCALL", "ABOX SIFS0 Playback",
 		"ABOX SIFS0 Capture", "VINPUTCALL";
 	/* samsung,aux = <&abox_effect>; */
