@@ -2651,6 +2651,18 @@ static int cs35l41_component_probe(struct snd_soc_component *component)
 			dev_err(cs35l41->dev,
 			       "snd_soc_add_codec_controls failed (%d)\n", ret);
 		kfree(kcontrol);
+
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "VBSTMON ADC");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "TEMPMON ADC");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "VPMON ADC");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "IMON ADC");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "VMON ADC");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "CLASS H");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "DSP1");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "Main AMP");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "SPK");
+		snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(component), "AMP Playback");
+		snd_soc_dapm_sync(snd_soc_component_get_dapm(component));
 	}
 exit:
 	return ret;
