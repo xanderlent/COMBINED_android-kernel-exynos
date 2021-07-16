@@ -69,7 +69,7 @@ struct sound_drvdata {
 static struct sound_drvdata exynos9110_drvdata;
 
 static struct snd_soc_pcm_runtime *sound_get_rtd(struct snd_soc_card *card,
-		int id)
+		const char *name)
 {
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_pcm_runtime *rtd = NULL;
@@ -77,7 +77,7 @@ static struct snd_soc_pcm_runtime *sound_get_rtd(struct snd_soc_card *card,
 	for (dai_link = card->dai_link;
 			dai_link - card->dai_link < card->num_links;
 			dai_link++) {
-		if (id == dai_link->id) {
+		if (!strcmp(name, dai_link->name)) {
 			rtd = snd_soc_get_pcm_runtime(card, dai_link->name);
 			break;
 		}
@@ -125,24 +125,143 @@ static int exynos9110_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_dai *aif_dai;
 	struct snd_soc_component *cpu;
+	struct snd_soc_dapm_context *dapm;
 	int ret = 0;
 
-	aif_dai = sound_get_rtd(card, 0)->cpu_dai;
-	cpu = aif_dai->component;
+	dev_info(card->dev, "%s\n", __func__);
 
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA0 Playback");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA1 Playback");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA2 Playback");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA3 Playback");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA4 Playback");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA5 Playback");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA6 Playback");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX RDMA7 Playback");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX WDMA0 Capture");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX WDMA1 Capture");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX WDMA2 Capture");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX WDMA3 Capture");
-	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu), "ABOX WDMA4 Capture");
+	dapm = &card->dapm;
+	snd_soc_dapm_ignore_suspend(dapm, "VOUTPUT");
+	snd_soc_dapm_ignore_suspend(dapm, "VINPUT1");
+	snd_soc_dapm_ignore_suspend(dapm, "VINPUT2");
+	snd_soc_dapm_ignore_suspend(dapm, "VOUTPUTCALL");
+	snd_soc_dapm_ignore_suspend(dapm, "VINPUTCALL");
+	snd_soc_dapm_sync(dapm);
+
+	aif_dai = sound_get_rtd(card, "RDMA0")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX RDMA0 Playback");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "RDMA1")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX RDMA1 Playback");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "RDMA2")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX RDMA2 Playback");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "RDMA3")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX RDMA3 Playback");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "RDMA4")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX RDMA4 Playback");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "RDMA5")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX RDMA5 Playback");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "RDMA6")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX RDMA6 Playback");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "RDMA7")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX RDMA7 Playback");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "WDMA0")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX WDMA0 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "WDMA1")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX WDMA1 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "WDMA2")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX WDMA2 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "WDMA3")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX WDMA3 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "WDMA4")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX WDMA4 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "UAIF0")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX UAIF0 Playback");
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX UAIF0 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "UAIF1")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX UAIF1 Playback");
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX UAIF1 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "UAIF4")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX UAIF4 Playback");
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX UAIF4 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "SIFS0")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX SIFS0 Playback");
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX SIFS0 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "SIFS1")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX SIFS1 Playback");
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX SIFS1 Capture");
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
+
+	aif_dai = sound_get_rtd(card, "SIFS2")->cpu_dai;
+	cpu = aif_dai->component;
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX SIFS2 Playback");
+	snd_soc_dapm_ignore_suspend(snd_soc_component_get_dapm(cpu),
+					"ABOX SIFS2 Capture");
 	snd_soc_dapm_sync(snd_soc_component_get_dapm(cpu));
 
 	sound_init_debugfs(card);
@@ -428,17 +547,17 @@ static struct snd_soc_dai_link exynos9110_dai[] = {
 };
 
 static const char * const vts_output_texts[] = {
-        "None",
-        "DMIC1",
+	"None",
+	"DMIC1",
 };
 
 static const struct soc_enum vts_output_enum =
-        SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(vts_output_texts),
-                        vts_output_texts);
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(vts_output_texts),
+			vts_output_texts);
 
 
 static const struct snd_kcontrol_new vts_output_mux[] = {
-        SOC_DAPM_ENUM("VTS Virtual Output Mux", vts_output_enum),
+	SOC_DAPM_ENUM("VTS Virtual Output Mux", vts_output_enum),
 };
 
 static const struct snd_kcontrol_new exynos9110_controls[] = {
@@ -452,7 +571,7 @@ static struct snd_soc_dapm_widget exynos9110_widgets[] = {
 	SND_SOC_DAPM_INPUT("VINPUTCALL"),
 	SND_SOC_DAPM_OUTPUT("VTS Virtual Output"),
 	SND_SOC_DAPM_MUX("VTS Virtual Output Mux", SND_SOC_NOPM, 0, 0,
-                      &vts_output_mux[0]),
+				&vts_output_mux[0]),
 };
 
 //static struct snd_soc_codec_conf codec_conf[] = {
@@ -588,7 +707,7 @@ static void exynos9110_register_card_work_func(struct work_struct *work)
 	struct snd_soc_card *card = &exynos9110_sound;
 	int ret;
 
-	dev_info(card->dev, "%s\n", __func__); 
+	dev_info(card->dev, "%s\n", __func__);
 
 	ret = devm_snd_soc_register_card(card->dev, card);
 	if (ret)
@@ -858,4 +977,3 @@ module_platform_driver(exynos9110_audio_driver);
 MODULE_DESCRIPTION("ALSA SoC EXYNOS9110 sound driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:exynos9110-sound");
-
