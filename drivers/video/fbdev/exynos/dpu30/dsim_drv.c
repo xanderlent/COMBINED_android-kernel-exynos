@@ -631,7 +631,6 @@ int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt, u8 *buf)
 			ret = dsim_reg_rx_err_handler(dsim->id, rx_fifo);
 			if (ret < 0) {
 				dsim_to_regs_param(dsim, &regs);
-				__dsim_dump(dsim->id, &regs);
 				goto exit;
 			}
 			break;
@@ -1498,12 +1497,12 @@ static int dsim_read_panel_id(struct dsim_device *dsim, u32 *id)
 	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
 			MIPI_DCS_GET_DISPLAY_ID, DSIM_DDI_ID_LEN, buf);
 	if (ret < 0) {
-		dsim_err("failed to read panel id(%d)\n", ret);
-		return ret;
+		dsim_warn("An error occured while reading panel id(%d)\n", ret);
+		ret = 0;
 	}
 
 	memcpy(id, (unsigned int *)buf, sizeof(u32));
-	dsim_info("suceeded to read panel id : 0x%08x\n", *id);
+	dsim_info("panel id : 0x%08x\n", *id);
 
 	return ret;
 }
@@ -1626,12 +1625,9 @@ static ssize_t dsim_ddi_read_sysfs_show(struct device *dev,
 	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ, dsim->ddi_seq[0], dsim->ddi_seq_size, &dsim->ddi_seq[1]);
 
 	if (ret < 0) {
-		dsim_err("Failed to write test data!\n");
-		count = 0;
-		goto end_func;
-	} else
-		dsim_dbg("Succeeded to write test data!\n");
-
+		dsim_warn("An error occurred during reading\n");
+		ret = 0;
+	}
 
 	/* print */
 	for (i = 1; i <= dsim->ddi_seq_size; i++) {
@@ -1641,7 +1637,6 @@ static ssize_t dsim_ddi_read_sysfs_show(struct device *dev,
 	ret = sprintf(buf + offset, "\n");
 	count = strlen(buf);
 
-end_func:
 	return count;
 }
 static DEVICE_ATTR(ddi_read, 0400, dsim_ddi_read_sysfs_show, NULL);
@@ -2017,6 +2012,8 @@ static ssize_t display_reg_read_show(struct device *dev,
 	struct dsim_device *dsim = dev_get_drvdata(dev);
 	u8 data_buf[16];
 	char *temp = buf;
+	int i = 0;
+	ret = 0;
 
 	if (dsim->reg_rd_size < 0x1) {
 		dsim_err("Invalid size - Range 0x01 - 0x10\n");
@@ -2030,22 +2027,20 @@ static ssize_t display_reg_read_show(struct device *dev,
 			dsim->reg_rd_size, data_buf);
 
 	if (ret < 0) {
-		dsim_err("failed to send reg rd\n");
-	} else {
-		int i = 0;
+		dsim_warn("An error occured during reg read\n");
 		ret = 0;
+	}
 
-		while (i < dsim->reg_rd_size) {
-			dsim_info("Display reg read: data_buf[%d] = 0x%X\n",
-								i, data_buf[i]);
-			ret += sprintf(temp, "%.2X", data_buf[i]);
+	while (i < dsim->reg_rd_size) {
+		dsim_info("Display reg read: data_buf[%d] = 0x%X\n",
+							i, data_buf[i]);
+		ret += sprintf(temp, "%.2X", data_buf[i]);
 
-			i++;
-			temp += 2;
-			if (i < dsim->reg_rd_size) {
-				*temp++ = ' ';
-				ret++;
-			}
+		i++;
+		temp += 2;
+		if (i < dsim->reg_rd_size) {
+			*temp++ = ' ';
+			ret++;
 		}
 
 		*temp++ = '\n';
