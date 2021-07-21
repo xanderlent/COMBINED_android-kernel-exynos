@@ -46,7 +46,6 @@ struct nitrous_bt_lpm {
 	int wake_polarity;           /* 0: active low; 1: active high */
 
 	bool is_suspended;           /* driver is in suspend state */
-	bool host_irq_dev_pm_resumed;
 	bool uart_tx_dev_pm_resumed;
 
 	int irq_timesync;            /* IRQ associated with TIMESYNC GPIO*/
@@ -59,7 +58,8 @@ struct nitrous_bt_lpm {
 	bool lpm_enabled;
 	struct nitrous_lpm_proc *proc;
 	struct logbuffer *log;
-	int idle_btip_index;
+	int idle_bt_tx_ip_index;
+	int idle_bt_rx_ip_index;
 };
 
 #define PROC_BTWAKE	0
@@ -146,21 +146,10 @@ static irqreturn_t nitrous_host_wake_isr(int irq, void *data)
 	if (host_wake == 1) {
 		logbuffer_log(lpm->log, "host_wake_isr asserted");
 		pm_stay_awake(lpm->dev);
-		/* Only resume device when needed to keep usage count synced.
-		This is because some falling edges can be missed by irq. */
-		if (!lpm->host_irq_dev_pm_resumed) {
-			pm_runtime_get(lpm->dev);
-			lpm->host_irq_dev_pm_resumed = true;
-		}
+		exynos_update_ip_idle_status(lpm->idle_bt_rx_ip_index, STATUS_BUSY);
 	} else {
 		logbuffer_log(lpm->log, "host_wake_isr de-asserted");
-		pm_runtime_mark_last_busy(lpm->dev);
-		/* Only autosuspend device when needed to keep usage count synced.
-		This is because some rising edges can be missed by irq. */
-		if (lpm->host_irq_dev_pm_resumed) {
-			pm_runtime_put_autosuspend(lpm->dev);
-			lpm->host_irq_dev_pm_resumed = false;
-		}
+		exynos_update_ip_idle_status(lpm->idle_bt_rx_ip_index, STATUS_IDLE);
 		pm_wakeup_dev_event(lpm->dev, NITROUS_AUTOSUSPEND_DELAY, false);
 	}
 
@@ -255,8 +244,6 @@ static void nitrous_lpm_runtime_disable(struct nitrous_bt_lpm *lpm)
 	pm_runtime_disable(lpm->dev);
 	pm_runtime_set_suspended(lpm->dev);
 
-	/* Host IRQ has been freed, so safe to set this here */
-	lpm->host_irq_dev_pm_resumed = false;
 	lpm->uart_tx_dev_pm_resumed = false;
 	lpm->lpm_enabled = false;
 }
@@ -561,7 +548,8 @@ static int nitrous_rfkill_set_power(void *data, bool blocked)
 		dev_dbg(lpm->dev, "REG_ON: Low");
 		gpiod_set_value_cansleep(lpm->gpio_power, false);
 		msleep(30);
-		exynos_update_ip_idle_status(lpm->idle_btip_index, STATUS_BUSY);
+		exynos_update_ip_idle_status(lpm->idle_bt_tx_ip_index, STATUS_BUSY);
+		exynos_update_ip_idle_status(lpm->idle_bt_rx_ip_index, STATUS_BUSY);
 		dev_dbg(lpm->dev, "REG_ON: High");
 		gpiod_set_value_cansleep(lpm->gpio_power, true);
 
@@ -577,7 +565,8 @@ static int nitrous_rfkill_set_power(void *data, bool blocked)
 		logbuffer_log(lpm->log, "Power down BT chip");
 		dev_dbg(lpm->dev, "REG_ON: Low");
 		gpiod_set_value_cansleep(lpm->gpio_power, false);
-		exynos_update_ip_idle_status(lpm->idle_btip_index, STATUS_IDLE);
+		exynos_update_ip_idle_status(lpm->idle_bt_tx_ip_index, STATUS_IDLE);
+		exynos_update_ip_idle_status(lpm->idle_bt_rx_ip_index, STATUS_IDLE);
 	}
 	lpm->rfkill_blocked = blocked;
 
@@ -703,8 +692,11 @@ static int nitrous_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, lpm);
 
-	lpm->idle_btip_index = exynos_get_idle_ip_index("bluetooth");
-	exynos_update_ip_idle_status(lpm->idle_btip_index, STATUS_IDLE);
+	lpm->idle_bt_tx_ip_index = exynos_get_idle_ip_index("bluetooth-tx");
+	exynos_update_ip_idle_status(lpm->idle_bt_tx_ip_index, STATUS_IDLE);
+
+	lpm->idle_bt_rx_ip_index = exynos_get_idle_ip_index("bluetooth-rx");
+	exynos_update_ip_idle_status(lpm->idle_bt_rx_ip_index, STATUS_IDLE);
 
 	logbuffer_log(lpm->log, "probe: successful");
 
@@ -749,7 +741,7 @@ static int nitrous_suspend_device(struct device *dev)
 		(lpm->is_suspended ? "asleep" : "awake"));
 
 	nitrous_wake_controller(lpm, false);
-	exynos_update_ip_idle_status(lpm->idle_btip_index, STATUS_IDLE);
+	exynos_update_ip_idle_status(lpm->idle_bt_tx_ip_index, STATUS_IDLE);
 	lpm->is_suspended = true;
 
 	return 0;
@@ -764,7 +756,7 @@ static int nitrous_resume_device(struct device *dev)
 	logbuffer_log(lpm->log, "resume_device from %s",
 		(lpm->is_suspended ? "asleep" : "awake"));
 
-	exynos_update_ip_idle_status(lpm->idle_btip_index, STATUS_BUSY);
+	exynos_update_ip_idle_status(lpm->idle_bt_tx_ip_index, STATUS_BUSY);
 	nitrous_wake_controller(lpm, true);
 	lpm->is_suspended = false;
 
