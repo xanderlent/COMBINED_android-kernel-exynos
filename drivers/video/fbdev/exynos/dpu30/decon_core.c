@@ -938,8 +938,13 @@ static ssize_t decon_power_state_show(struct device *dev,
 	const char *statestr;
 	int cnt;
 	struct dsim_device *dsim = v4l2_get_subdevdata(decon->out_sd[0]);
+	enum decon_state panel_state = decon->state;
 
-	switch (decon->state) {
+	if (decon->state == DECON_STATE_HIBER) {
+		panel_state = decon->hiber.last_state;
+	}
+
+	switch (panel_state) {
 	case DECON_STATE_ON:
 		if (dsim->hbm_enabled) {
 			statestr = "HBM@60Hz";
@@ -957,6 +962,7 @@ static ssize_t decon_power_state_show(struct device *dev,
 	default:
 		decon_err("decon-%d in invalid state %d\n",
 				decon->id, decon->state);
+		statestr = "Invalid";
 	}
 
 	cnt = snprintf(buf, PAGE_SIZE, "%s\n", statestr);
