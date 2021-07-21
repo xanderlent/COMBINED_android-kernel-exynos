@@ -66,3 +66,27 @@
 &ese_spi0 {
 	status = "ok";
 };
+
+&cpif {
+	status = "disabled";
+};
+
+&cp_mailbox {
+	status = "disabled";
+};
+
+&cp_shmem {
+	status = "disabled";
+};
+
+&cp_rmem {
+	status = "disabled";
+};
+
+&abox {
+	samsung,abox-bootargs = "init=ab0x vss=0";
+};
+
+&abox_vss {
+	status = "disabled";
+};
