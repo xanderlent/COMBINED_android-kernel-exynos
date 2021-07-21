@@ -5770,6 +5770,43 @@ static int abox_download_firmware(struct platform_device *pdev)
 	return 0;
 }
 
+static void abox_download_work_func(struct work_struct *work)
+{
+	struct abox_data *data = container_of(work, struct abox_data,
+			download_work);
+	struct device *dev = data->dev;
+	struct platform_device *pdev = to_platform_device(dev);
+	int ret = 0;
+
+	dev_info(dev, "%s\n", __func__);
+
+	ret = abox_download_firmware(pdev);
+	if (ret < 0) {
+		if (ret != -EAGAIN)
+			dev_err(dev, "Failed to download firmware\n");
+		else
+			ret = 0;
+		abox_request_cpu_gear(dev, data,
+				(void *)DEFAULT_CPU_GEAR_ID,
+				ABOX_CPU_GEAR_MIN);
+		return;
+	}
+
+	abox_request_dram_on(dev, (void *)DEFAULT_SYS_POWER_ID, true);
+
+	abox_cpu_power(true);
+	abox_cpu_enable(true);
+	data->calliope_state = CALLIOPE_ENABLING;
+
+	abox_pad_retention(false);
+#ifdef MANUAL_SECURITY_CHANGE
+	schedule_delayed_work(&work_temp, msecs_to_jiffies(3000));
+#endif
+
+	data->enabled = true;
+	pm_wakeup_event(dev, BOOT_DONE_TIMEOUT_MS);
+}
+
 static void abox_cfg_gpio(struct device *dev, const char *name)
 {
 	struct abox_data *data = dev_get_drvdata(dev);
@@ -5944,7 +5981,7 @@ static void abox_start_timer(struct abox_data *data)
 
 static int abox_enable(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
+	//struct platform_device *pdev = to_platform_device(dev);
 	struct abox_data *data = dev_get_drvdata(dev);
 	unsigned int i, value;
 	bool has_reset = !abox_is_timer_set(data);
@@ -6005,26 +6042,12 @@ static int abox_enable(struct device *dev)
 		abox_start_timer(data);
 	} else {
 		abox_gic_init_gic(data->dev_gic);
+		schedule_work(&data->download_work);
 
-		ret = abox_download_firmware(pdev);
-		if (ret < 0) {
-			if (ret != -EAGAIN)
-				dev_err(dev, "Failed to download firmware\n");
-			else
-				ret = 0;
-
-			abox_request_cpu_gear(dev, data,
-					(void *)DEFAULT_CPU_GEAR_ID,
-					ABOX_CPU_GEAR_MIN);
-			goto error;
-		}
+		return ret;
 	}
 
 	abox_request_dram_on(dev, (void *)DEFAULT_SYS_POWER_ID, true);
-	if (has_reset) {
-		abox_cpu_power(true);
-		abox_cpu_enable(true);
-	}
 	data->calliope_state = CALLIOPE_ENABLING;
 
 	abox_pad_retention(false);
@@ -6034,10 +6057,7 @@ static int abox_enable(struct device *dev)
 
 	data->enabled = true;
 
-	if (has_reset)
-		pm_wakeup_event(dev, BOOT_DONE_TIMEOUT_MS);
-	else
-		abox_boot_done(dev, data->calliope_version);
+	abox_boot_done(dev, data->calliope_version);
 
 error:
 	return ret;
@@ -6496,6 +6516,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 			abox_change_hmp_boost_work_func);
 	INIT_DELAYED_WORK(&data->register_component_work,
 			abox_register_component_work_func);
+	INIT_WORK(&data->download_work, abox_download_work_func);
 	INIT_WORK(&data->boot_done_work, abox_boot_done_work_func);
 	INIT_WORK(&data->l2c_work, abox_l2c_work_func);
 	INIT_DELAYED_WORK(&data->tickle_work, abox_tickle_work_func);

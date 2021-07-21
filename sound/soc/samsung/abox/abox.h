@@ -678,6 +678,7 @@ struct abox_data {
 	int pm_qos_int[5];
 	int pm_qos_aud[5];
 	int pm_qos_mif[5];
+	struct work_struct download_work;
 	struct work_struct boot_done_work;
 	struct delayed_work tickle_work;
 	enum audio_mode audio_mode;
