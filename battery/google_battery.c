@@ -44,6 +44,8 @@
 #define SLEEP_ALARM_INTERVAL	300
 #define RESUME_DELAY_MS         300
 #define INITIAL_VOUT_BOOST_MV	100
+#define DEFAULT_CHARGE_STOP_LEVEL	100
+#define DEFAULT_CHARGE_START_LEVEL	0
 
 static char *bat_status_str[] = {
 	"Unknown",
@@ -90,6 +92,7 @@ static enum power_supply_property google_battery_props[] = {
 
 static enum power_supply_property charging_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_PRESENT,
 };
 
 enum battery_voltage_mode {
@@ -154,8 +157,8 @@ struct battery_info {
 
 	struct power_supply *psy_battery;
 	struct power_supply_desc psy_battery_desc;
-	struct power_supply *psy_ac;
-	struct power_supply_desc psy_ac_desc;
+	struct power_supply *psy_usb;
+	struct power_supply_desc psy_usb_desc;
 	struct power_supply *psy_wireless;
 	struct power_supply_desc psy_wireless_desc;
 
@@ -187,6 +190,8 @@ struct battery_info {
 	bool wlc_connected;
 	struct mutex wlc_state_lock;
 	int wlc_vout_setting;
+	int charge_start_level;
+	int charge_stop_level;
 
 	bool battery_valid;
 	int status;
@@ -696,15 +701,15 @@ static int battery_set_property(struct power_supply *psy,
 }
 
 /*
- * AC charger operations
+ * USB charger operations
  */
-static int ac_get_property(struct power_supply *psy,
+static int usb_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
 	struct battery_info *battery =  power_supply_get_drvdata(psy);
 
-	if (psp != POWER_SUPPLY_PROP_ONLINE)
+	if (psp != POWER_SUPPLY_PROP_ONLINE && psp != POWER_SUPPLY_PROP_PRESENT)
 		return -EINVAL;
 
 	/* Set enable=1 only if the AC charger is connected */
@@ -729,7 +734,7 @@ static int wireless_get_property(struct power_supply *psy,
 {
 	struct battery_info *battery =  power_supply_get_drvdata(psy);
 
-	if (psp != POWER_SUPPLY_PROP_ONLINE)
+	if (psp != POWER_SUPPLY_PROP_ONLINE && psp != POWER_SUPPLY_PROP_PRESENT)
 		return -EINVAL;
 	if (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS || battery->wlc_connected)
 		val->intval = 1;
@@ -854,7 +859,12 @@ static void get_battery_capacity(struct battery_info *battery)
 	battery->capacity = google_battery_percent_scale(raw_soc, battery->max_rawsoc);
 	if (battery->status == POWER_SUPPLY_STATUS_FULL ||
 			raw_soc > battery->soc_spoof_full + 100) {
-		battery->soc_spoof_full = raw_soc - 100;
+		if (battery->charge_stop_level == DEFAULT_CHARGE_STOP_LEVEL) {
+			battery->soc_spoof_full = raw_soc - 100;
+		} else {
+			// Do not spoof SOC if we are lowering the charge level
+			battery->soc_spoof_full = battery->max_rawsoc;
+		}
 	}
 
 	// new_soc = real capacity * 100% / fake full capacity, rounded
@@ -1056,6 +1066,7 @@ static void check_charging_full(
 	int ret;
 	unsigned int raw_soc = 0;
 	int recharge_vcell;
+	bool spoof_full = false;
 	if (!battery->wlc_connected) {
 		if ((battery->status == POWER_SUPPLY_STATUS_DISCHARGING) ||
 				(battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING)) {
@@ -1068,8 +1079,10 @@ static void check_charging_full(
 	/* Recharging check */
 	if (battery->status == POWER_SUPPLY_STATUS_FULL) {
 		recharge_vcell = battery->float_voltage - battery->pdata->chg_recharge_vdrop;
-		if (battery->voltage_now < recharge_vcell &&  battery->capacity <= battery->pdata->chg_recharge_soc && !battery->is_recharging) {
-			dev_info(battery->dev, "%s: Recharging start\n", __func__);
+		if (battery->capacity < battery->charge_start_level ||
+				(battery->charge_stop_level == DEFAULT_CHARGE_STOP_LEVEL &&
+				(battery->voltage_now < recharge_vcell && battery->capacity <= battery->pdata->chg_recharge_soc))) {
+			dev_info(battery->dev, "%s: Recharging start: SOC %d\n", __func__, battery->capacity);
 			mutex_lock(&battery->wlc_state_lock);
 			if (battery->wlc_connected && battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
 				set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
@@ -1082,37 +1095,45 @@ static void check_charging_full(
 	}
 
 	/* Full charged check */
-	psy = power_supply_get_by_name(battery->pdata->charger_name);
-	if (!psy) {
-		pr_err("%s: Could not get charger psy\n", __func__);
-		return;
-	}
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
-	if (ret < 0) {
-		pr_err("%s: Fail to execute property\n", __func__);
-		return;
-	}
-	power_supply_put(psy);
-
-	if ((battery->status != value.intval
-				&& value.intval == POWER_SUPPLY_STATUS_FULL)) {
-		if (battery->capacity
-				< battery->pdata->full_check_condition_soc) {
-			dev_info(battery->dev, "%s: below full check SOC.\n", __func__);
+	if (battery->capacity > battery->charge_stop_level) {
+		// Spoof fullness state
+		spoof_full = true;
+	} else {
+		psy = power_supply_get_by_name(battery->pdata->charger_name);
+		if (!psy) {
+			pr_err("%s: Could not get charger psy\n", __func__);
 			return;
 		}
+		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &value);
+		if (ret < 0) {
+			pr_err("%s: Fail to execute property\n", __func__);
+			return;
+		}
+		power_supply_put(psy);
 
-		battery->full_check_cnt++;
-		dev_info(battery->dev, "%s: Full Check Cnt (%d)\n",
-				__func__, battery->full_check_cnt);
-	} else if (battery->full_check_cnt != 0) {
-		/* Reset full check cnt when it is out of full condition */
-		battery->full_check_cnt = 0;
-		dev_info(battery->dev, "%s: Reset Full Check Cnt\n", __func__);
+		if ((battery->status != value.intval
+					&& value.intval == POWER_SUPPLY_STATUS_FULL)) {
+			if (battery->capacity
+					< battery->pdata->full_check_condition_soc) {
+				dev_info(battery->dev, "%s: below full check SOC.\n", __func__);
+				return;
+			}
+
+			battery->full_check_cnt++;
+			dev_info(battery->dev, "%s: Full Check Cnt (%d)\n",
+					__func__, battery->full_check_cnt);
+		} else if (battery->full_check_cnt != 0) {
+			/* Reset full check cnt when it is out of full condition */
+			battery->full_check_cnt = 0;
+			dev_info(battery->dev, "%s: Reset Full Check Cnt\n", __func__);
+		}
 	}
 
 	/* If full charged, turn off charging. */
-	if (battery->full_check_cnt >= battery->pdata->full_check_count) {
+	if ((spoof_full && battery->status != POWER_SUPPLY_STATUS_FULL) ||
+			battery->full_check_cnt >= battery->pdata->full_check_count) {
+		if (spoof_full)
+			dev_info(battery->dev, "Charge stop level is set at %d, spoof fullness\n", battery->charge_stop_level);
 		battery->full_check_cnt = 0;
 		mutex_lock(&battery->wlc_state_lock);
 		battery->is_recharging = false;
@@ -1120,29 +1141,31 @@ static void check_charging_full(
 		mutex_unlock(&battery->wlc_state_lock);
 		dev_info(battery->dev, "%s: Full charged, charger off\n", __func__);
 
-		/* Read raw SOC value from the fuel gauge */
-		psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
-		if (!psy)
-			return;
-		value.intval = 1;
-		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
-		if (ret < 0)
-			pr_err("%s: Fail to get capacity property\n", __func__);
-		raw_soc = value.intval;
-		/* Max battery charge is ( (raw_soc/100) * charge_full_design ) / 100
-		 * where raw_soc is in 0.01% units and charge_full_design is in uAh.
-		 * switching around to prevent int overflow and maintain precision:
-		 * (raw_soc * ( charge_full_design / 100 )) /100 */
-		battery->charge_full = (raw_soc * (battery->charge_full_design / 100)) / 100;
+		if (!spoof_full) {
+			/* Read raw SOC value from the fuel gauge */
+			psy = power_supply_get_by_name(battery->pdata->fuelgauge_name);
+			if (!psy)
+				return;
+			value.intval = 1;
+			ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value);
+			if (ret < 0)
+				pr_err("%s: Fail to get capacity property\n", __func__);
+			raw_soc = value.intval;
+			/* Max battery charge is ( (raw_soc/100) * charge_full_design ) / 100
+			 * where raw_soc is in 0.01% units and charge_full_design is in uAh.
+			 * switching around to prevent int overflow and maintain precision:
+			 * (raw_soc * ( charge_full_design / 100 )) /100 */
+			battery->charge_full = (raw_soc * (battery->charge_full_design / 100)) / 100;
 
-		battery->max_rawsoc = raw_soc;
+			battery->max_rawsoc = raw_soc;
 
-		/* Let fuelgauge update charge_full */
-		value.intval = battery->charge_full;
-		ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL, &value);
-		if (ret < 0)
-			pr_err("%s: Fail to set charge_full property\n", __func__);
-		power_supply_put(psy);
+			/* Let fuelgauge update charge_full */
+			value.intval = battery->charge_full;
+			ret = power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL, &value);
+			if (ret < 0)
+				pr_err("%s: Fail to set charge_full property\n", __func__);
+			power_supply_put(psy);
+		}
 	}
 }
 
@@ -1560,7 +1583,7 @@ static enum alarmtimer_restart bat_monitor_alarm(
 }
 
 static int get_max_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned long *lvl) {
-	*lvl = 1;
+	*lvl = 3;
 	return 0;
 }
 
@@ -1573,13 +1596,18 @@ static int get_cur_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigne
 static int set_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned long lvl) {
 	struct battery_info *battery = (struct battery_info *) tcd->devdata;
 	bool first_trigger = false;
-	if (lvl < 0 || lvl > 1)
+	int trigger_level = 2;
+	if (lvl < 0 || lvl > 2)
 		return -EINVAL;
 	if (lvl == 0 && battery->thermal_level == 0) {
 		// No update needed
 		return 0;
 	}
-	if (lvl == 1 && battery->thermal_level == 0) {
+	if (battery->voltage_index == battery->pdata->num_volt_limits - 1) {
+		dev_info(battery->dev, "Currently in last voltage stage, lower thermal throttle trip\n");
+		trigger_level = 1;
+	}
+	if (lvl == trigger_level && battery->thermal_level < trigger_level) {
 		// Transition from 0->1
 		first_trigger = true;
 		dev_info(battery->dev, "Received cooling device limit: %lu. Last recorded temp: %d\n", lvl, battery->wlc_temperature);
@@ -1593,8 +1621,8 @@ static int set_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned lo
 		return 0;
 	}
 
-	if (battery->thermal_level == 1 && battery->status == POWER_SUPPLY_STATUS_CHARGING) {
-		dev_info(battery->dev, "%s: Temperature high: disable charging\n", __func__);
+	if (battery->status == POWER_SUPPLY_STATUS_CHARGING && battery->thermal_level == trigger_level) {
+		dev_info(battery->dev, "%s: Temperature high: disable charging.\n", __func__);
 		// Turn off WLC
 		set_wlc_status(battery, POWER_SUPPLY_STATUS_NOT_CHARGING);
 		// Immediately run a battery monitoring iteration
@@ -1661,11 +1689,92 @@ static int current_override_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(charging_debug_ops, charging_override_get, charging_override_set, "%lld\n");
 DEFINE_SIMPLE_ATTRIBUTE(current_debug_ops, current_override_get, current_override_set, "%lld\n");
 
-static int battery_create_debugfs_entries(struct battery_info *battery)
+static ssize_t show_charge_stop_level(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct battery_info *battery = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", battery->charge_stop_level);
+}
+
+static ssize_t set_charge_stop_level(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct battery_info *battery = dev_get_drvdata(dev);
+	int ret = 0, val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (!battery->psy_battery) {
+		dev_err(battery->dev, "battery psy is not ready");
+		return -ENODATA;
+	}
+
+	if ((val == battery->charge_stop_level) ||
+	    (val <= battery->charge_start_level) ||
+	    (val > DEFAULT_CHARGE_STOP_LEVEL))
+		return count;
+
+	battery->charge_stop_level = val;
+	if (battery->psy_battery)
+		power_supply_changed(battery->psy_battery);
+
+	return count;
+}
+static DEVICE_ATTR(charge_stop_level, 0660, show_charge_stop_level,
+					    set_charge_stop_level);
+
+static ssize_t
+show_charge_start_level(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct battery_info *battery = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", battery->charge_start_level);
+}
+
+static ssize_t set_charge_start_level(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct battery_info *battery = dev_get_drvdata(dev);
+	int ret = 0, val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (!battery->psy_battery) {
+		dev_err(battery->dev, "battery psy is not ready");
+		return -ENODATA;
+	}
+
+	if ((val == battery->charge_start_level) ||
+	    (val >= battery->charge_stop_level) ||
+	    (val < DEFAULT_CHARGE_START_LEVEL))
+		return count;
+
+	battery->charge_start_level = val;
+	if (battery->psy_battery)
+		power_supply_changed(battery->psy_battery);
+
+	return count;
+}
+
+
+static DEVICE_ATTR(charge_start_level, 0660,
+		   show_charge_start_level, set_charge_start_level);
+
+
+static int battery_create_fs_entries(struct battery_info *battery)
 {
 	struct dentry *ent;
 	int ret = 0;
 
+#ifdef CONFIG_DEBUG_FS
 	battery->debug_root = debugfs_create_dir("google-battery", NULL);
 	if (!battery->debug_root) {
 		dev_err(battery->dev, "Couldn't create debug dir\n");
@@ -1685,6 +1794,18 @@ static int battery_create_debugfs_entries(struct battery_info *battery)
 			dev_err(battery->dev, "Couldn't create current debug file\n");
 			ret = -ENOENT;
 		}
+	}
+#endif
+	ret = device_create_file(battery->dev, &dev_attr_charge_stop_level);
+	if (ret != 0) {
+		pr_err("Failed to create charge_stop_level files, ret=%d\n",
+		       ret);
+	}
+
+	ret = device_create_file(battery->dev, &dev_attr_charge_start_level);
+	if (ret != 0) {
+		pr_err("Failed to create charge_start_level files, ret=%d\n",
+		       ret);
 	}
 	return ret;
 }
@@ -1758,6 +1879,8 @@ static int google_battery_probe(struct platform_device *pdev)
 	battery->max_rawsoc = battery->pdata->max_rawsoc;
 	battery->charge_full_design = battery->pdata->charge_full_design;
 	battery->charge_full = battery->charge_full_design;
+	battery->charge_start_level = DEFAULT_CHARGE_START_LEVEL;
+	battery->charge_stop_level = DEFAULT_CHARGE_STOP_LEVEL;
 
 	battery->is_recharging = false;
 	battery->power_supply_type = POWER_SUPPLY_TYPE_BATTERY;
@@ -1788,11 +1911,11 @@ static int google_battery_probe(struct platform_device *pdev)
 	battery->psy_battery_desc.num_properties =  ARRAY_SIZE(google_battery_props);
 
 	/* Register an AC power supply so charging registers correctly */
-	battery->psy_ac_desc.name = "ac";
-	battery->psy_ac_desc.type = POWER_SUPPLY_TYPE_MAINS;
-	battery->psy_ac_desc.properties = charging_props;
-	battery->psy_ac_desc.num_properties = ARRAY_SIZE(charging_props);
-	battery->psy_ac_desc.get_property = ac_get_property;
+	battery->psy_usb_desc.name = "usb";
+	battery->psy_usb_desc.type = POWER_SUPPLY_TYPE_MAINS;
+	battery->psy_usb_desc.properties = charging_props;
+	battery->psy_usb_desc.num_properties = ARRAY_SIZE(charging_props);
+	battery->psy_usb_desc.get_property = usb_get_property;
 
 	/* Register a wireless power supply for WLC power */
 	battery->psy_wireless_desc.name = "wireless";
@@ -1826,19 +1949,19 @@ static int google_battery_probe(struct platform_device *pdev)
 	}
 	pr_info("%s: Registered battery as power supply\n", __func__);
 
-	battery->psy_ac = power_supply_register(&pdev->dev, &battery->psy_ac_desc, &psy_cfg);
-	if (IS_ERR(battery->psy_ac)) {
-		pr_err("%s: Failed to Register psy_ac\n", __func__);
-		ret = PTR_ERR(battery->psy_ac);
+	battery->psy_usb = power_supply_register(&pdev->dev, &battery->psy_usb_desc, &psy_cfg);
+	if (IS_ERR(battery->psy_usb)) {
+		pr_err("%s: Failed to Register psy_usb\n", __func__);
+		ret = PTR_ERR(battery->psy_usb);
 		goto err_unreg_battery;
 	}
-	pr_info("%s: Registered AC as power supply\n", __func__);
+	pr_info("%s: Registered USB as power supply\n", __func__);
 
 	battery->psy_wireless = power_supply_register(&pdev->dev, &battery->psy_wireless_desc, &psy_cfg);
 	if (IS_ERR(battery->psy_wireless)) {
-		pr_err("%s: Failed to Register psy_ac\n", __func__);
+		pr_err("%s: Failed to Register psy_wireless\n", __func__);
 		ret = PTR_ERR(battery->psy_wireless);
-		goto err_unreg_ac;
+		goto err_unreg_usb;
 	}
 	pr_info("%s: Registered Wireless as power supply\n", __func__);
 
@@ -1880,9 +2003,7 @@ static int google_battery_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	battery_create_debugfs_entries(battery);
-#endif
+	battery_create_fs_entries(battery);
 
 	/* Kick off monitoring thread */
 	pr_info("%s: start battery monitoring work\n", __func__);
@@ -1892,8 +2013,8 @@ static int google_battery_probe(struct platform_device *pdev)
 	return 0;
 err_unreg_wireless:
 	power_supply_unregister(battery->psy_wireless);
-err_unreg_ac:
-	power_supply_unregister(battery->psy_ac);
+err_unreg_usb:
+	power_supply_unregister(battery->psy_usb);
 err_unreg_battery:
 	power_supply_unregister(battery->psy_battery);
 err_workqueue:
