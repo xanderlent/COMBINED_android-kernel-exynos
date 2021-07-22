@@ -38,13 +38,19 @@
 	polling-delay = <10000>; /* milliseconds */
 	polling-delay-passive = <0>; /* milliseconds */
 	thermal-sensors = <&tsmab104_ntc 4>;
-	governor = "bang_bang";
+	governor = "fair_share";
 	trips {
-		wlc_throttle: wlc-throttle {
+		wlc_throttle_low: wlc-throttle-low {
+			temperature = <47000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		wlc_throttle_high: wlc-throttle-high {
 			temperature = <49000>;
 			hysteresis = <2000>;
 			type = "passive";
 		};
+
 		skin_backup_shutdown: skin-backup-shutdown {
 			temperature = <53000>;
 			hysteresis = <1000>;
@@ -52,8 +58,8 @@
 		};
 	};
 	cooling-maps {
-		wireless-charge-disabled {
-			trip = <&wlc_throttle>;
+		wireless-charge-throttled {
+			trip = <&wlc_throttle_low>;
 			cooling-device = <&wlc_cool_dev (~0) (~0) >; /* THERMAL_NO_LIMIT THERMAL_NO_LIMIT */
 		};
 	};
