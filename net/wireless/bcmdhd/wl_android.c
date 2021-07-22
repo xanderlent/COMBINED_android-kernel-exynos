@@ -1765,7 +1765,7 @@ wl_cfg80211_wbtext_roam_trigger_config(struct net_device *ndev, int roam_trigger
 		goto exit;
 	}
 
-	for (bandidx = 0; bandidx < MAXBANDS; bandidx++) {
+	for (bandidx = 1; bandidx < MAXBANDS; bandidx++) {
 		char *band;
 		int tri0, tri1, low0, low1, cu0, cu1, dur0, dur1;
 		int tri0_dflt;
@@ -11662,7 +11662,7 @@ wl_cfg80211_wbtext_set_default(struct net_device *ndev)
 		goto exit;
 	}
 	memcpy_s(&rp, sizeof(rp), ioctl_buf, sizeof(rp));
-	for (bandidx = 0; bandidx < MAXBANDS; bandidx++) {
+	for (bandidx = 1; bandidx < MAXBANDS; bandidx++) {
 		switch (rp.v1.ver) {
 			case WL_ROAM_PROF_VER_1:
 			{
