@@ -96,6 +96,12 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 	long_val = mult_frac(long_val, ntcdev->reference_voltage, 0xfff);
 	*temp = ntc_thermal_adc_to_temp(ntcdev, long_val);
 
+	if (*temp == ntcdev->lookup_table[ntcdev->nlookup_table - 1].temp) {
+		dev_err(ntcdev->dev, "IIO channel returned unusual temperature %d\n", *temp);
+		// Treat maximum temperature as a NTC error
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -209,7 +215,10 @@ static int ntc_thermal_probe(struct platform_device *pdev)
 
 static int ntc_runtime_suspend(struct device *dev) {
 	struct ntc_device *ntc_device = dev_get_drvdata(dev);
+	// Make sure we don't set it to 0 when something else is still reading it
+	mutex_lock(&ntc_device->gpiolock);
 	gpiod_set_value(ntc_device->enable_gpio, 0);
+	mutex_unlock(&ntc_device->gpiolock);
 	return 0;
 }
 
