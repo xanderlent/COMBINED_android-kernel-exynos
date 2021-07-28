@@ -5,9 +5,9 @@
 bcm477xx-y := bcm477xx.o
 bcm477xx-$(CONFIG_GPS_BCM_TTY) += bcm_gps_tty.o
 bcm477xx-$(CONFIG_GPS_BCM_I2C) += bcm_gps_i2c.o
-bcm477xx-$(CONFIG_GPS_BCM_SPI) += bcm_gps_spi.o
-bcm477xx-$(CONFIG_GPS_BCM_SPI) += bcm_gps_regs.o
+bcm477xx-$(CONFIG_BCM_GPS_SPI_DRIVER) += bcm_gps_spi.o
+bcm477xx-$(CONFIG_BCM_GPS_SPI_DRIVER) += bcm_gps_regs.o
 bcm477xx-$(CONFIG_GPS_BCM_HOSTWAKE) += bcm_gps_hostwake.o
-bcm477xx-$(CONFIG_GPS_BCM_SENSORS_SSP) += bbd_rpc_lh.o bbd.o
+bcm477xx-$(CONFIG_GPS_BCM_SENSORS_SSP) += bbd.o
 
 obj-$(CONFIG_GPS_BCM477XX) := bcm477xx.o

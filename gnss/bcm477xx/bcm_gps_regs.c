@@ -1,18 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2015 Broadcom Corporation
+/* Copyright 2015 Broadcom Corporation
  *
+ * The Broadcom GPS SPI driver
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- ******************************************************************************/
-
-#define pr_fmt(fmt) "GPSREGS: " fmt
+ */
 
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -42,72 +33,65 @@
 #include "bbd.h"
 #include "bcm_gps_spi.h"
 
-/****************************************************************************
- * Write/Read Direct Addressable Register
- ****************************************************************************/
 
-/** \brief  Writing Direct Addressable Registers
- *
- * Used to write to Direct Addressable Registers in Command Controller
- *
- * \id             is name of indirect register. Just for debug print.
- * \cmdRegOffset   is the command offset of the direct addressable register.
- * \cmdRegData     is pointer data to be written to the register
- * \cmdByteNum     is number of bytes to write
- * \references     Block Register Summary
- * \return         Upon successful completion, this function returns number of
- *                 written bytes otherwise exit with specific error code <0
+/**
+ * bcm_dreg_write - write to direct addressable registers in command controller
+ * @priv:           @bcm_spi_priv structure data
+ * @id:             name of indirect register, just for debug print
+ * @offset:         the command offset of the direct addressable register
+ * @buf:            pointer of data to be written to the register
+ * @size:           number of bytes to write
+ * Return:          upon successful completion, this function returns number of
+ *                  written bytes otherwise exit with specific error code <0
  */
-int RegWrite(struct bcm_spi_priv *priv, char *id, unsigned char cmdRegOffset,
-		unsigned char *cmdRegData,  unsigned char cmdByteNum)
+int bcm_dreg_write(struct bcm_spi_priv *priv, char *id, u8 offset, u8 *buf, u8 size)
 {
 
 	int i;
 	struct bcm_ssi_tx_frame *tx = priv->tx_buf;
 	struct bcm_ssi_rx_frame *rx = priv->rx_buf;
 
-	if  (cmdByteNum > MIN_SPI_FRAME_LEN)
+	if  (size > MAX_SPI_DREG_FRAME_LEN)
 		return -1;
 
-	/* Writing in 1 transaction
+	/*
+	 * writing in 1 transaction
 	 * 0x80 : < CHWXX > = half-duplex, SPI write command packet
 	 */
 	tx->cmd = SSI_MODE_DEBUG | SSI_MODE_HALF_DUPLEX | SSI_WRITE_TRANS;
 
-	/* Bit-8 is a write transaction and the lower 7-bits is
+	/*
+	 * bit-8 is a write transaction and the lower 7-bits is
 	 * the command offset of the
 	 */
-	tx->data[0] = cmdRegOffset & 0x7F;
-	/* is the number of valid bytes available on MOSI following this byte */
-	tx->data[1] = cmdByteNum;
-	memcpy(&tx->data[2], cmdRegData, cmdByteNum);
+	tx->data[0] = offset & 0x7F;
+	/* the number of valid bytes available on MOSI following this byte */
+	tx->data[1] = size;
+	memcpy(&tx->data[2], buf, size);
 	rx->status = 0;
 
-	if (bcm_spi_sync(priv, tx, rx, cmdByteNum+3, cmdByteNum+3))
+	if (bcm_spi_sync(priv, tx, rx, size + 3, size + 3))
 		return -1;
 
-	for (i = 0; i < cmdByteNum; i++) {
-		pr_info("regW REG %s @ [%02X]: %08X", id,
-				cmdRegOffset, cmdRegData[i]);
+	for (i = 0; i < size; i++) {
+		dev_dbg(&priv->spi->dev, "regW REG %s @ [%02X]: %08X", id,
+				offset, buf[i]);
 	}
 
-	return cmdByteNum;
+	return size;
 }
 
 
-/** \brief  Reading Direct Addressable Registers
- *
- * Used to read Direct Addressable Registers in Command Controller
- *
- * \cmdRegOffset   is the command offset of the direct addressable register.
- * \cmdRegData     is pointer data to be read from the register
- * \cmdByteNum     is number of bytes to read
- * \references     Block Register Summary
- * \return         Upon successful completion, this function returns number of
+/**
+ * bcm_dreg_read - read direct addressable registers in command controller
+ * @priv:          @bcm_spi_priv structure data
+ * @offset:        the command offset of the direct addressable register.
+ * @buf            pointer data to be read from the register
+ * @size           number of bytes to read
+ * Return:         upon successful completion, this function returns number of
  *                 read bytes otherwise exit with specific error code <0
  */
-int RegRead(struct bcm_spi_priv *priv, char *id, unsigned char cmdRegOffset,
-		unsigned char *cmdRegData,  unsigned char cmdByteNum)
+int bcm_dreg_read(struct bcm_spi_priv *priv, char *id, u8 offset, u8 *buf, u8 size)
 {
 	/* Reading in 2 transactions */
 	int i = 0;
@@ -115,95 +99,93 @@ int RegRead(struct bcm_spi_priv *priv, char *id, unsigned char cmdRegOffset,
 	struct bcm_ssi_tx_frame *tx = priv->tx_buf;
 	struct bcm_ssi_rx_frame *rx = priv->rx_buf;
 
-	if  (cmdByteNum > MIN_SPI_FRAME_LEN)
+	if  (size > MAX_SPI_DREG_FRAME_LEN)
 		return -1;
 
-	i = 0;
-	/* First transaction will setup SPI Command Logic
+	/*
+	 * First transaction will setup SPI Command Logic
 	 * to Read Data from Register.
 	 * 0x80 : < CHWXX > = half-duplex, SPI write command packet
 	 */
 	tx->cmd = SSI_MODE_DEBUG | SSI_MODE_HALF_DUPLEX | SSI_WRITE_TRANS;
 
-	/* <8?h1000_0100> = Bit-8 is a read transaction and the lower 7-bits
+	/*
+	 * <8?h1000_0100> = Bit-8 is a read transaction and the lower 7-bits
 	 * is the command offset of the register
 	 */
-	tx->data[0] = 0x80 | (cmdRegOffset & 0x7F);
-	/* is the number of bytes host will read from this offset
+	tx->data[0] = 0x80 | (offset & 0x7F);
+	/*
+	 * The number of bytes host will read from this offset
 	 * in next packet
 	 */
-	tx->data[1] = cmdByteNum;
+	tx->data[1] = size;
 	rx->status = 0;
 
 	if (bcm_spi_sync(priv, tx, rx, 3, 3))
 		return -1;
 
-	pr_info("regR: REG(W) %s @ [%02X]: %08X ", id,
-			cmdRegOffset, cmdByteNum);
+	dev_dbg(&priv->spi->dev, "regR: REG(W) %s @ [%02X]: %08X ", id,
+			offset, size);
 
-	/* Second Transaction will read data
+	/*
+	 *  Second Transaction will read data
 	 *  0xa0 : < CHRXX > = half-duplex, SPI read command packet
 	 */
 	tx->cmd = SSI_MODE_DEBUG | SSI_MODE_HALF_DUPLEX | SSI_READ_TRANS;
-	/* READ : the number of valid read bytes available plus one
-	 * to account for the read offset
-	 * address that accompanies the read data == <cmdByteNum+1>
+	/*
+	 * READ : the number of valid read bytes available plus one
+	 * to account for the read offset address that accompanies
+	 * the read data == <cmdByteNum+1>
 	 */
 	tx->data[0] = 0;
 	/* READ : the command offset of the register == <cmdRegOffset>. */
 	tx->data[1] = 0;
-	rx->status = 0;
+	rx->status  = 0;
 
-	memset(&tx->data[2], 0, cmdByteNum);
+	memset(&tx->data[2], 0, size);
 
-	if (bcm_spi_sync(priv, tx, rx, cmdByteNum+3, cmdByteNum+3))
+	if (bcm_spi_sync(priv, tx, rx, size + 3, size + 3))
 		return -1;
 
-	memcpy(cmdRegData, &rx->data[2], cmdByteNum);
+	memcpy(buf, &rx->data[2], size);
 
-	for (i = 0 ; i < cmdByteNum ; i++)
-		pr_info("regR: REG(R) %s @ [%02X]: %08X", id,
-			cmdRegOffset, cmdRegData[i]);
+	for (i = 0 ; i < size ; i++)
+		dev_dbg(&priv->spi->dev, "regR: REG(R) %s @ [%02X]: %08X", id,
+			offset, buf[i]);
 
-	return cmdByteNum;
+	return size;
 }
 
-/****************************************************************************
- * Write/Read Indirect Addressable Register
- ****************************************************************************/
 
-/** \brief  Writing Indirect Addressable Registers
- *
- * Used to write to Indirect Addressable Register
- *
- * \cmdRegOffset   is the command offset of the direct addressable register.
- * \cmdRegData     is pointer data to be written to the register
- * \references     Block Register Summary
- * \return         Upon successful completion, this function returns number
- *                 of written bytes otherwise exit with specific error code <0
+/**
+ * bcm_ireg_write - write to indirect addressable register
+ * @priv:           @bcm_spi_priv structure data
+ * @id:             name of indirect register, just for debug print
+ * @regaddr:        the stream address of the indirect addressable register.
+ * @regval:         pointer data to be read from the register
+ * Return:          upon successful completion, this function returns number
+ *                  of written bytes otherwise exit with specific error code <0
  */
-int bcm_reg32Iwrite(struct bcm_spi_priv *priv, char *id,
-		unsigned int regaddr, unsigned int regval)
+int bcm_ireg_write(struct bcm_spi_priv *priv, char *id, u32 regaddr, u32 regval)
 {
-	int i = 0;
-	/* int status; */
 	union long_union_t  swap_addr, swap_reg;
 	struct bcm_ssi_tx_frame *tx = priv->tx_buf;
 	struct bcm_ssi_rx_frame *rx = priv->rx_buf;
 
-	/* Writing in 2 transactions: */
-	/* First transaction will set up the SPI Debug Logic to Write Data
+	/*
+	 * Writing in 2 transactions
+	 * First transaction will set up the SPI Debug Logic to Write Data
 	 * into Configuration Register or Memory Location.
 	 *
 	 * 0x80 : <Command Byte>
-	 * 0xD1 : <SPI Slave Address Left Shifted with Write Bit as LSB>
+	 * 0xD1 : <SPI-Slave Address Left Shifted with Write Bit as LSB>
 	 * 0x00 : < SPI Offset of DMA Start Addr >
 	 * 0x00, 0x00, 0x00, 0x00 : < Start Address>,
 	 *                          Should be set from 'regaddr'
 	 * 0x04, 0x00 : <Number of bytes to write>
 	 * 0x01 : <Write Enable>
-	 */
-	/* uint8_t transaction_1st[13] = {
+	 *
+	 * uint8_t transaction_1st[13] = {
 	 * 0x80, 0xD1,  0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00,  0x03 };
 	 * uint8_t transaction_1st[19] = {
 	 * 0x00, 0x00,  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -211,31 +193,33 @@ int bcm_reg32Iwrite(struct bcm_spi_priv *priv, char *id,
 	 */
 
 	swap_addr.ul = regaddr;
-	swap_reg.ul = regval;
+	swap_reg.ul  = regval;
 
-	i = 0;
-	/* First transaction will setup SPI Command Logic
+	/*
+	 * First transaction will setup SPI Command Logic
 	 * to Read Data from Register.
 	 * HSI_MOSI_COMMAND_PCKT | HSI_MOSI_HALF_DUPLEX | HSI_MOSI_WRITE_TRANS;
 	 * 0x80 : < CHWXX > = half-duplex, SPI write command packet
 	 */
-	tx->cmd  = 0x80;
-	/* <8’h0100_0000> = Bit-8 is a write transaction.
+	tx->cmd = 0x80;
+	/*
+	 * <8’h0100_0000> = Bit-8 is a write transaction.
 	 * The lower 7-bits is the command offset of
 	 */
-	tx->data[0]  = 0x20;
-	/* the register (CONFIG_REG_DATA) the host is starting to write from.
+	tx->data[0] = 0x20;
+	/*
+	 * The register (CONFIG_REG_DATA) the host is starting to write from.
 	 * the number of valid bytes available on MOSI following this byte
 	 */
-	tx->data[1]  = 9;
+	tx->data[1] = 9;
 
-	tx->data[2]  = swap_reg.uc[0];
-	tx->data[3]  = swap_reg.uc[1];
-	tx->data[4]  = swap_reg.uc[2];
-	tx->data[5]  = swap_reg.uc[3];
+	tx->data[2] = swap_reg.uc[0];
+	tx->data[3] = swap_reg.uc[1];
+	tx->data[4] = swap_reg.uc[2];
+	tx->data[5] = swap_reg.uc[3];
 
-	tx->data[6]  = swap_addr.uc[0];
-	tx->data[7]  = swap_addr.uc[1];
+	tx->data[6] = swap_addr.uc[0];
+	tx->data[7] = swap_addr.uc[1];
 	tx->data[8] = swap_addr.uc[2];
 	tx->data[9] = swap_addr.uc[3];
 
@@ -249,36 +233,35 @@ int bcm_reg32Iwrite(struct bcm_spi_priv *priv, char *id,
 		return -1;
 
 	if (id)
-		pr_info("reg32w: %s @ : [%08lX] %08lX ", id,
+		dev_dbg(&priv->spi->dev, "reg32w: %s @ : [%08X] %08X ", id,
 				swap_addr.ul, swap_reg.ul);
 
 	return 1;
 }
 
-/** \brief  Reading Indirect Addressable Registers
- *
- * Used to read Indirect Addressable Register
- *
- * \id             is name of indirect register. Just for debug print.
- * \regaddr        is the stream address of the indirect addressable register.
- * \regval         is pointer data to be read from the register
- * \references     Block Register Summary
- * \return         Upon successful completion, this function returns number of
+/**
+ * bcm_ireg_read - read indirect addressable register
+ * @priv:          @bcm_spi_priv structure data
+ * @id:            the name of indirect register. Just for debug print.
+ * @regaddr:       the stream address of the indirect addressable register.
+ * @regval:        the pointer data to be read from the register
+ * Return:         upon successful completion, this function returns number of
  *                 read bytes otherwise exit with specific error code <0
  */
-int bcm_reg32Iread(struct bcm_spi_priv *priv, char *id,
-		unsigned int regaddr, unsigned int *regval, int n)
+int bcm_ireg_read(struct bcm_spi_priv *priv, char *id, u32 regaddr,
+	  u32 *regval, s32 n)
 {
-	int i;
+	s32 i;
 	union long_union_t  swap_addr, swap_reg;
 	union long_union_t  swap_addr2;
 	struct bcm_ssi_tx_frame *tx = priv->tx_buf;
 	struct bcm_ssi_rx_frame *rx = priv->rx_buf;
 
 	for (i = 0; i < n; i++) {
-		swap_addr.ul = regaddr + (i*4);
+		swap_addr.ul = regaddr + (i * 4);
 
-		/* First transaction will setup SPI Command Logic
+		/*
+		 * First transaction will setup SPI Command Logic
 		 * to Read Data from Register.
 		 * HSI_MOSI_COMMAND_PCKT |
 		 * HSI_MOSI_HALF_DUPLEX |
@@ -287,11 +270,13 @@ int bcm_reg32Iread(struct bcm_spi_priv *priv, char *id,
 		 */
 		tx->cmd = 0x80;
 
-		/* <8?h0100_0000> = Bit-8 is a write transaction.
+		/*
+		 * <8?h0100_0000> = Bit-8 is a write transaction.
 		 * The lower 7-bits is the command offset of
 		 */
 		tx->data[0] = 0x24;
-		/* the register (RFIFO Read DATA) the host is
+		/*
+		 * The register (RFIFO Read DATA) the host is
 		 * starting to write from. the number of valid bytes
 		 * available on MOSI following this byte
 		 */
@@ -324,12 +309,13 @@ int bcm_reg32Iread(struct bcm_spi_priv *priv, char *id,
 		swap_reg.uc[3] = rx->data[8];
 
 		if (id)
-			pr_info("reg32r: %s @ : [%08X] %08X ", id,
+			dev_dbg(&priv->spi->dev, "reg32r: %s @ : [%08X] %08X ", id,
 				(unsigned int)swap_addr2.ul,
 				(unsigned int)swap_reg.ul);
 
 		if (regval)
 			*regval++ = swap_reg.ul;
+
 	}
 
 	return i;

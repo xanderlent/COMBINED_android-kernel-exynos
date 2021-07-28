@@ -1,18 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2015 Broadcom Corporation
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright 2015 Broadcom Corporation
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
+ * The Broadcom GPS SPI driver
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The BBD (Broadcom Bridge Driver)
- *
- * tabstop = 8
  */
 
 #ifndef __BCM_GPS_SPI_H__
@@ -21,6 +11,10 @@
 #define WORD_BURST_SIZE			4
 #define CONFIG_SPI_DMA_BYTES_PER_WORD	4
 #define CONFIG_SPI_DMA_BITS_PER_WORD	32
+
+#define MIN_DMA_SIZE 		64
+#define DELAY_FOR_SYSTEM_OVERLOADED_MS 		100
+#define READ_SIZE_FOR_SYSTEM_OVERLOADED 	1024
 
 #define SSI_MODE_STREAM		0x00
 #define SSI_MODE_DEBUG		0x80
@@ -62,7 +56,7 @@
 #define HSI_F_MOSI_CTRL_PZC_MASK    (HSI_F_MOSI_CTRL_CNT_MASK | \
 		HSI_F_MOSI_CTRL_SZE_MASK | HSI_F_MOSI_CTRL_PE_MASK)
 
-/* Taken from ~\mcu_dev\BCM4775\csp\hub\system\init\init_host_interface.c
+/*
  * Transport receive buffer size, bytes
  * #define TRANSPORT_RX_BUFFER_SIZE 6144
  */
@@ -80,7 +74,7 @@
 
 #define CONFIG_MCU_WAKEUP
 
-
+/* TODO: Use proper kerenl type */
 struct bcm_spi_strm_protocol  {
 	int pckt_len;
 	int fc_len;
@@ -107,9 +101,7 @@ struct bcm_spi_transfer_stat  {
 #endif
 
 
-/* v10/proprietary/deliverables/lhe2_dev/fail_safe/fail_safe.cpp & .h
- *   class FailSafe : struct DataRecordList
- */
+/* class FailSafe : struct DataRecordList */
 struct bcm_failsafe_data_recordlist {
 	unsigned long start_addr;
 	unsigned int size;
@@ -122,13 +114,14 @@ struct bcm_failsafe_data_recordlist {
  *
  *******************/
 
-#define BCM_SPI_READ_BUF_SIZE	(8*PAGE_SIZE)
-#define BCM_SPI_WRITE_BUF_SIZE	(8*PAGE_SIZE)
+#define BCM_SPI_READ_BUF_SIZE	(16*PAGE_SIZE)
+#define BCM_SPI_WRITE_BUF_SIZE	(16*PAGE_SIZE)
 
 /* TODO: limit max payload to 254 because of exynos3 bug */
-#define MIN_SPI_FRAME_LEN 254
+#define MAX_SPI_DREG_FRAME_LEN 254
 
-/* TODO: MAX_SPI_FRAME_LEN = 8K should be less TRANSPORT_RX_BUFFER_SIZE,
+/*
+ * TODO: MAX_SPI_FRAME_LEN = 8K should be less TRANSPORT_RX_BUFFER_SIZE,
  * Now it is 12K (SWGNSSAND-1647)
  * #define MAX_SPI_FRAME_LEN (BCM_SPI_READ_BUF_SIZE / 8)
  *
@@ -191,8 +184,8 @@ struct bcm_spi_priv {
 	struct pinctrl_state *gpio_state_active;
 	struct pinctrl_state *gpio_state_suspend;
 
-	/* some chip-set(BCM4775) needs to skip sanity-checking */
-	bool skip_sanity;
+	/* some chip-set(BCM4775) needs to skip validity check */
+	bool skip_validity_check;
 
 	bool irq_wakeup_enabled;
 	/* struct wake_lock bcm_wake_lock; */
@@ -202,23 +195,23 @@ struct bcm_spi_priv {
 
 	/* Suspend/Resume semaphore */
 	int ssi_pm_semaphore;
+
+	/* Overrun counter */
+	unsigned long skip_count;
+	unsigned long last_tick;
 };
 
-/*
- * bcm_gps_regs.cpp
- */
-int RegWrite(struct bcm_spi_priv *priv, char *id, unsigned char cmdRegOffset,
-		unsigned char *cmdRegData,  unsigned char cmdByteNum);
-int RegRead(struct bcm_spi_priv *priv, char *id, unsigned char cmdRegOffset,
-		unsigned char *cmdRegData,  unsigned char cmdByteNum);
-int bcm_reg32Iwrite(struct bcm_spi_priv *priv, char *id, unsigned int regaddr,
+/* bcm_gps_regs.cpp */
+int bcm_dreg_write(struct bcm_spi_priv *priv, char *id, u8 offset, u8 *buf,
+	  u8 size);
+int bcm_dreg_read(struct bcm_spi_priv *priv, char *id, u8 offset, u8 *buf,
+	  u8 size);
+int bcm_ireg_write(struct bcm_spi_priv *priv, char *id, unsigned int regaddr,
 		unsigned int regval);
-int bcm_reg32Iread(struct bcm_spi_priv *priv, char *id, unsigned int regaddr,
+int bcm_ireg_read(struct bcm_spi_priv *priv, char *id, unsigned int regaddr,
 		unsigned int *regval, int n);
 
-/*
- * bcm_gps_spi.cpp
- */
+/* bcm_gps_spi.cpp */
 struct bcm_spi_priv *bcm_get_bcm_gps(void);
 void bcm_ssi_print_trans_stat(struct bcm_spi_priv *priv);
 void bcm_ssi_clear_trans_stat(struct bcm_spi_priv *priv);

@@ -1,43 +1,33 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2015 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright 2014 Broadcom Corporation
  *
  * The BBD (Broadcom Bridge Driver)
  *
- * tabstop = 8
  */
 
 #ifndef __BBD_H__
 #define __BBD_H__
 
-#pragma pack(4)
+#define BBD_PWR_STATUS
 
 union long_union_t {
-	unsigned char uc[sizeof(unsigned long)];
-	unsigned long ul;
-};
+	u8 uc[sizeof(u32)];
+	u32 ul;
+} __packed __aligned(4);
 
 union short_union_t {
-	unsigned char  uc[sizeof(unsigned short)];
-	unsigned short us;
-};
-#pragma pack()
+	u8  uc[sizeof(u16)];
+	u16 us;
+} __packed __aligned(4);
 
-
-#define BBD_DEVICE_MAJOR	239
 enum {
 	BBD_MINOR_SHMD	    = 0,
 	BBD_MINOR_SENSOR    = 1,
 	BBD_MINOR_CONTROL   = 2,
 	BBD_MINOR_PATCH     = 3,
+#ifdef BBD_PWR_STATUS
+	BBD_MINOR_PWRSTAT   = 4,
+#endif
 	/* BBD_MINOR_SSI_SPI_DEBUG = 5, */ /* NOT supported yet */
 	BBD_DEVICE_INDEX
 };
@@ -62,10 +52,12 @@ enum {
 #define BBD_CTRL_SSI_PATCH_END		"SSI:PatchEnd"
 #define GPSD_SENSOR_ON		"GPSD:SENSOR_ON"
 #define GPSD_SENSOR_OFF		"GPSD:SENSOR_OFF"
+#define GPSD_CORE_ON		"GPSD:CORE_ON"
+#define GPSD_CORE_OFF		"GPSD:CORE_OFF"
 
 /* #define DEBUG_1HZ_STAT */
 
-#define HSI_ERROR_STATUS              0x2C
+#define HSI_ERROR_STATUS                  0x2C
 #define HSI_ERROR_STATUS_LPBK_ERROR       0x01
 #define HSI_ERROR_STATUS_STRM_FIFO_OVFL   0x02
 #define HSI_ERROR_STATUS_AHB_BUS_ERROR    0x04
@@ -115,7 +107,7 @@ struct bbd_stat {
 	u64 max_rx_lat; /* = 0 */
 	u64 max_rx_dur; /* = 0 */
 
-	volatile u64 stat[STAT_MAX];
+	u64 stat[STAT_MAX];
 
 	struct timer_list timer;
 	struct work_struct work;
@@ -129,6 +121,13 @@ void bbd_enable_stat(void);
 void bbd_disable_stat(void);
 #endif
 
+#ifdef BBD_PWR_STATUS
+enum {
+	STAT_GPS_OFF = 0,
+	STAT_GPS_ON,
+	STAT_GPS_MAX
+};
+#endif /* BBD_PWR_STATUS */
 
 /** callback for incoming data from 477x to senser hub driver **/
 struct bbd_callbacks {
