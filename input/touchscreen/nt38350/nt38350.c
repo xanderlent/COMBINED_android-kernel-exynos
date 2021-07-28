@@ -763,6 +763,7 @@ return:
 #ifdef CONFIG_OF
 static void nvt_parse_dt(struct device *dev)
 {
+	uint32_t nfc_active_ms;
 	struct device_node *np = dev->of_node;
 
 #if NVT_TOUCH_SUPPORT_HW_RST
@@ -771,7 +772,12 @@ static void nvt_parse_dt(struct device *dev)
 #endif
 	ts->irq_gpio = of_get_named_gpio_flags(np, "novatek,irq-gpio", 0, &ts->irq_flags);
 	NVT_LOG("novatek,irq-gpio=%d\n", ts->irq_gpio);
+	ts->nfc_gpio = of_get_named_gpio(np, "novatek,nfc-active-gpio", 0);
+	NVT_LOG("novatek,nfc-active-gpio=%d\n", ts->nfc_gpio);
+	of_property_read_u32(np, "novatek,nfc-active-ms", &nfc_active_ms);
+	NVT_LOG("novatek,nfc-active-ms=%u\n", nfc_active_ms);
 
+	ts->nfc_active_jiffies = msecs_to_jiffies(nfc_active_ms);
 }
 #else
 static void nvt_parse_dt(struct device *dev)
@@ -914,6 +920,8 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #endif /* MT_PROTOCOL_B */
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
+	bool log_skipped_touch;
+	unsigned long nfc_last_active;
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
@@ -928,6 +936,18 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 		NVT_ERR("CTP_I2C_READ failed.(%d)\n", ret);
 		goto XFER_ERROR;
 	}
+
+	/* Ignore any ghost touches introduced by NFC */
+	log_skipped_touch = atomic_xchg(&ts->log_skipped_touch, false);
+	nfc_last_active = atomic64_read(&ts->nfc_last_active);
+	if (nfc_last_active && time_before(jiffies, nfc_last_active + ts->nfc_active_jiffies)) {
+		if (log_skipped_touch) {
+			NVT_LOG("Touch event discarded (NFC active)\n");
+		}
+		mutex_unlock(&ts->lock);
+		return IRQ_HANDLED;
+	}
+
 /*
 	//--- dump I2C buf ---
 	for (i = 0; i < 2; i++) {
@@ -1062,6 +1082,29 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 XFER_ERROR:
 
 	mutex_unlock(&ts->lock);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t nvt_ts_nfc_irq_handler(int irq, void *data) {
+	uint32_t nfc_active_ms;
+	unsigned long nfc_inactive_time;
+
+	if (gpio_get_value(ts->nfc_gpio)) {
+		nfc_inactive_time = atomic64_read(&ts->nfc_last_active) + ts->nfc_active_jiffies;
+		if (time_before(jiffies, nfc_inactive_time)) {
+			/* If touch reporting has not already resumed, do so now */
+			dev_info(&ts->client->dev,
+				"NFC inactive, touch reporting resumed\n");
+			atomic64_set(&ts->nfc_last_active, 0);
+		}
+	} else {
+		nfc_active_ms = jiffies_to_msecs(ts->nfc_active_jiffies);
+		dev_info(&ts->client->dev,
+			"NFC active, touch supressed for up to %u ms\n", nfc_active_ms);
+		atomic64_set(&ts->nfc_last_active, jiffies);
+		atomic_set(&ts->log_skipped_touch, true);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -1224,6 +1267,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 #if ((TOUCH_KEY_NUM > 0) || WAKEUP_GESTURE)
 	int32_t retry = 0;
 #endif
+	int nfc_irq;
 
 	NVT_LOG("start\n");
 
@@ -1363,6 +1407,15 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 		} else {
 			nvt_irq_enable(false);
 			NVT_LOG("request irq %d succeed\n", client->irq);
+		}
+	}
+
+	if (gpio_is_valid(ts->nfc_gpio) && ts->nfc_active_jiffies > 0) {
+		nfc_irq = gpio_to_irq(ts->nfc_gpio);
+		ret = request_irq(nfc_irq, nvt_ts_nfc_irq_handler,
+				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, NVT_I2C_NAME, ts);
+		if (ret != 0) {
+			NVT_ERR("request irq (NFC idle) failed. ret = %d\n", ret);
 		}
 	}
 

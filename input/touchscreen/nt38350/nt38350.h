@@ -120,6 +120,10 @@ struct nvt_ts_data {
 	uint32_t irq_flags;
 	int32_t reset_gpio;
 	uint32_t reset_flags;
+	int32_t nfc_gpio;
+	uint32_t nfc_active_jiffies;
+	atomic64_t nfc_last_active;
+	atomic_t log_skipped_touch;
 	struct mutex lock;
 	const struct nvt_ts_mem_map *mmap;
 	uint8_t carrier_system;
