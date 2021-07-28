@@ -1847,7 +1847,7 @@ static ssize_t hbm_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (IS_DSIM_OFF_STATE(dsim)) {
+	if (dsim->state == DSIM_STATE_OFF) {
 		dev_err(dsim->dev, "Cannot set HBM while DSIM is off!\n");
 		return count;
 	}
