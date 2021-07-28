@@ -12,6 +12,7 @@
 		status = "disabled";
 
 		novatek,irq-gpio =<&gpa0 5 GPIO_ACTIVE_LOW>;
+		nfc-idle-gpio = <&gpg0 1 0x00>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_active>;
 	};
