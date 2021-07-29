@@ -471,25 +471,39 @@ int decon_set_out_sd_state(struct decon_device *decon, enum decon_state state)
 				goto err;
 			}
 		} else if (state == DECON_STATE_DOZE) {
-			ret = v4l2_subdev_call(decon->out_sd[i], core, ioctl,
-					DSIM_IOC_DOZE, NULL);
-			if (ret < 0) {
-				decon_err("decon-%d failed to set %s (ret %d)\n",
-						decon->id,
-						decon_state_names[state], ret);
-				goto err;
-			}
-		} else if (state == DECON_STATE_ON) {
 			if (prev_state == DECON_STATE_HIBER) {
-				ret = v4l2_subdev_call(decon->out_sd[i], core, ioctl,
-						DSIM_IOC_ENTER_ULPS, (unsigned long *)0);
+				ret = v4l2_subdev_call(decon->out_sd[i], core,
+						ioctl, DSIM_IOC_ENTER_ULPS,
+						(unsigned long *)0);
 				if (ret) {
 					decon_warn("starting(ulps) stream failed for %s\n",
 							decon->out_sd[i]->name);
 					goto err;
 				}
 			} else {
-				ret = v4l2_subdev_call(decon->out_sd[i], video, s_stream, 1);
+				ret = v4l2_subdev_call(decon->out_sd[i], core,
+						ioctl, DSIM_IOC_DOZE, NULL);
+				if (ret < 0) {
+					decon_err("decon-%d failed to set %s (ret %d)\n",
+							decon->id,
+							decon_state_names[state],
+							ret);
+					goto err;
+				}
+			}
+		} else if (state == DECON_STATE_ON) {
+			if (prev_state == DECON_STATE_HIBER) {
+				ret = v4l2_subdev_call(decon->out_sd[i], core,
+						ioctl, DSIM_IOC_ENTER_ULPS,
+						(unsigned long *)0);
+				if (ret) {
+					decon_warn("starting(ulps) stream failed for %s\n",
+							decon->out_sd[i]->name);
+					goto err;
+				}
+			} else {
+				ret = v4l2_subdev_call(decon->out_sd[i], video,
+						s_stream, 1);
 				if (ret) {
 					decon_err("starting stream failed for %s\n",
 							decon->out_sd[i]->name);

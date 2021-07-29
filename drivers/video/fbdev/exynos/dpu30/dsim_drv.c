@@ -58,6 +58,7 @@
 #endif
 
 int dsim_log_level = 6;
+module_param(dsim_log_level, int, 0644);
 
 struct dsim_device *dsim_drvdata[MAX_DSIM_CNT];
 EXPORT_SYMBOL(dsim_drvdata);

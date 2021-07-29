@@ -1029,7 +1029,7 @@ int decon_exit_hiber(struct decon_device *decon)
 
 	decon_dbg("enable decon-%d\n", decon->id);
 
-	ret = decon_set_out_sd_state(decon, DECON_STATE_ON);
+	ret = decon_set_out_sd_state(decon, decon->hiber.last_state);
 	if (ret < 0) {
 		decon_err("%s decon-%d failed to set subdev EXIT_ULPS state\n",
 				__func__, decon->id);
@@ -1056,12 +1056,7 @@ int decon_exit_hiber(struct decon_device *decon)
 		decon->eint_status = 1;
 	}
 
-
-	if(decon->hiber.last_state == DECON_STATE_DOZE)
-		decon->state = DECON_STATE_DOZE;
-	else
-		decon->state = DECON_STATE_ON;
-
+	decon->state = decon->hiber.last_state;
 	decon_to_psr_info(decon, &psr);
 	decon_reg_set_int(decon->id, &psr, 1);
 
