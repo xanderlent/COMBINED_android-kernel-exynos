@@ -85,8 +85,8 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 	ret = iio_read_channel_raw(ntc_sensor->channel, &val);
 
 	pm_runtime_mark_last_busy(ntcdev->dev);
-	pm_runtime_put_autosuspend(ntcdev->dev);
 	mutex_unlock(&ntcdev->gpiolock);
+	pm_runtime_put_autosuspend(ntcdev->dev);
 
 	if (ret < 0) {
 		dev_err(ntcdev->dev, "IIO channel read failed %d\n", ret);
@@ -237,7 +237,7 @@ static const struct of_device_id of_ntc_thermal_match[] = {
 MODULE_DEVICE_TABLE(of, of_ntc_thermal_match);
 
 static const struct dev_pm_ops ntc_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(ntc_runtime_suspend, ntc_runtime_resume, NULL)
 };
 
