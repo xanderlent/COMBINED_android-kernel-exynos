@@ -536,26 +536,12 @@ static int _decon_enable(struct decon_device *decon, enum decon_state state)
 					__func__, decon->id, decon_state_names[state]);
 			return ret;
 		}
-
-		if (state == DECON_STATE_DOZE &&
-				decon->state != DECON_STATE_DOZE) {
-			pm_relax(decon->dev);
-			dev_warn(decon->dev, "pm_relax");
-		}
-		if (state != DECON_STATE_DOZE &&
-				decon->state == DECON_STATE_DOZE) {
-			pm_stay_awake(decon->dev);
-			dev_warn(decon->dev, "pm_stay_awake");
-		}
-
 		decon->state = state;
 		return 0;
 	}
 
-	if (state != DECON_STATE_DOZE) {
-		pm_stay_awake(decon->dev);
-		dev_warn(decon->dev, "pm_stay_awake");
-	}
+	pm_stay_awake(decon->dev);
+	dev_warn(decon->dev, "pm_stay_awake");
 
 #if defined(CONFIG_EXYNOS_BTS)
 	decon->bts.ops->bts_acquire_bw(decon);
@@ -814,10 +800,8 @@ static int _decon_disable(struct decon_device *decon, enum decon_state state)
 		goto err;
 	}
 
-	if (decon->state != DECON_STATE_DOZE) {
-		pm_relax(decon->dev);
-		dev_warn(decon->dev, "pm_relax");
-	}
+	pm_relax(decon->dev);
+	dev_warn(decon->dev, "pm_relax");
 
 	if (decon->dt.psr_mode != DECON_VIDEO_MODE) {
 		if (decon->res.pinctrl && decon->res.hw_te_off) {
