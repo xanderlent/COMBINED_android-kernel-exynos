@@ -85,8 +85,8 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 	ret = iio_read_channel_raw(ntc_sensor->channel, &val);
 
 	pm_runtime_mark_last_busy(ntcdev->dev);
-	mutex_unlock(&ntcdev->gpiolock);
 	pm_runtime_put_autosuspend(ntcdev->dev);
+	mutex_unlock(&ntcdev->gpiolock);
 
 	if (ret < 0) {
 		dev_err(ntcdev->dev, "IIO channel read failed %d\n", ret);
@@ -215,10 +215,7 @@ static int ntc_thermal_probe(struct platform_device *pdev)
 
 static int ntc_runtime_suspend(struct device *dev) {
 	struct ntc_device *ntc_device = dev_get_drvdata(dev);
-	// Make sure we don't set it to 0 when something else is still reading it
-	mutex_lock(&ntc_device->gpiolock);
 	gpiod_set_value(ntc_device->enable_gpio, 0);
-	mutex_unlock(&ntc_device->gpiolock);
 	return 0;
 }
 
