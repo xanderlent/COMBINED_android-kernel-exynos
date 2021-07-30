@@ -51,7 +51,6 @@
 		clocks = <&clock GATE_SMMU_D_XXXXX_QCH>;
 */
 		port-name = "ABOX";
-		sysmmu,no-suspend;
 		sysmmu,no-rpm-control;
 		sysmmu,tlb_property =
 			<(SYSMMU_PORT_PREFETCH_PREDICTION_READ(0x0) | SYSMMU_BL1) SYSMMU_NOID>;
