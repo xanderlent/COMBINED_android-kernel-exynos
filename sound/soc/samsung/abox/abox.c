@@ -5470,7 +5470,6 @@ static int abox_cpu_pm_ipc(struct device *dev, bool resume)
 
 static void abox_pad_retention(bool retention)
 {
-	/*
 	if (retention) {
 #ifndef EMULATOR
 		exynos_pmu_update(GPIO_MODE_ABOX_SYS_PWR_REG, 0x1, 0x1);
@@ -5478,8 +5477,7 @@ static void abox_pad_retention(bool retention)
 		update_mask_value(pmu_alive + GPIO_MODE_ABOX_SYS_PWR_REG,
 				0x1, 0x1);
 #endif
-*/
-	if (!retention) {
+	} else {
 #ifndef EMULATOR
 		exynos_pmu_update(PAD_RETENTION_ABOX_OPTION,
 				0x10000000, 0x10000000);
@@ -5487,6 +5485,8 @@ static void abox_pad_retention(bool retention)
 #else
 		update_mask_value(pmu_alive + PAD_RETENTION_ABOX_OPTION,
 				0x10000000, 0x10000000);
+		update_mask_value(pmu_alive + GPIO_MODE_ABOX_SYS_PWR_REG,
+				0x1, 0x1);
 #endif
 	}
 }
