@@ -1110,6 +1110,7 @@ static int s2mpw02_charger_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_S2MPW02_RID_DETECT)
 	INIT_DELAYED_WORK(&charger->rid_work, s2mpw02_muic_rid_check);
+	INIT_DELAYED_WORK(&charger->acok_work, s2mpw02_muic_attach_detect);
 
 	ret = s2mpw02_muic_irq_init(charger);
 	if (ret) {
@@ -1124,7 +1125,6 @@ static int s2mpw02_charger_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&charger->usb_work, s2mpw02_muic_usb_detect);
 	schedule_delayed_work(&charger->usb_work, msecs_to_jiffies(13000));
 
-	INIT_DELAYED_WORK(&charger->acok_work, s2mpw02_muic_attach_detect);
 #endif
 
 	/* factory_mode setting */
