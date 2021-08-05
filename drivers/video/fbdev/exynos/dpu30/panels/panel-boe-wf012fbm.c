@@ -218,7 +218,19 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 		}
 	}
 
+	/* Set for brightness ramp/dim timing */
+	// Set for CMD2 page1 parameters
+	dsim_write_data_seq(dsim, false, 0xff, 0x21);
+	// No reload MTP
+	dsim_write_data_seq(dsim, false, 0xfb, 0x01);
+	// Ramp/dim timing: DIM_OTP = 1, step = 18
+	// -> ramp/dim duration = 18 frames (300ms @60Hz, 600ms @30Hz)
+	dsim_write_data_seq(dsim, false, 0x57, 0x92);
+	dsim_write_data_seq(dsim, false, 0x58, 0x12);
+
+	/* Page Select */
 	dsim_write_data_seq_delay(dsim, 55, 0xff, 0x10);
+
 	/* Display on */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_SET_DISPLAY_ON);
 
