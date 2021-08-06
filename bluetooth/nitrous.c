@@ -206,13 +206,13 @@ static int nitrous_lpm_runtime_enable(struct nitrous_bt_lpm *lpm)
 	pm_runtime_use_autosuspend(lpm->dev);
 
 	/* When LPM is enabled, we resume the device right away.
-	It will autosuspend automatically if unused. */
+	We don't autosuspend as this will be done once PROC_WRITE == '0'
+	will be received once the requested Tx transfer will be done. */
 	dev_dbg(lpm->dev, "DEV_WAKE: High - LPM enable");
 	logbuffer_log(lpm->log, "DEV_WAKE: High - LPM enable");
 	pm_runtime_get_sync(lpm->dev);
-	pm_runtime_mark_last_busy(lpm->dev);
-	pm_runtime_put_autosuspend(lpm->dev);
 
+	lpm->uart_tx_dev_pm_resumed = true;
 	lpm->lpm_enabled = true;
 
 	return rc;
