@@ -172,7 +172,8 @@ static struct notifier_block exynos_s3c24xx_panic_block = {
 	.notifier_call = exynos_s3c24xx_panic_handler,
 };
 
-static void uart_sfr_dump(struct s3c24xx_uart_port *ourport)
+static void __attribute__((unused))
+uart_sfr_dump(struct s3c24xx_uart_port *ourport)
 {
 	struct uart_port *port = &ourport->port;
 
@@ -616,7 +617,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 			dbg("rxerr: port ch=0x%02x, rxs=0x%08x\n",
 			    ch, uerstat);
 
-			uart_sfr_dump(ourport);
+			/* uart_sfr_dump(ourport); */
 
 			/* check for break */
 			if (uerstat & S3C2410_UERSTAT_BREAK) {
