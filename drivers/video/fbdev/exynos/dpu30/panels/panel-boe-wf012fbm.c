@@ -15,6 +15,7 @@
 #include <video/mipi_display.h>
 #include "exynos_panel_drv.h"
 #include "../dsim.h"
+#include "../decon.h"
 
 static int wf012fbm_suspend(struct exynos_panel_device *panel)
 {
@@ -40,18 +41,37 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 {
 	struct dsim_device *dsim = get_dsim_drvdata(0);
 	int ret;
-	unsigned char buf[3];
+	unsigned char buf[1];
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
 	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-			MIPI_DCS_GET_POWER_MODE, 3, buf);
+			MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
 	if (ret < 0) {
 		dsim_err("Failed to read PM reg from panel\n");
 	} else {
 		dsim_info("=== Panel's PM Reg Value ===\n");
 		dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
 	}
+	if (buf[0] != 0x08) {
+		dsim_info("Detected unexpected panel status after reset, trying again\n");
+		if (decon_reg_get_run_status(dsim->id)) {
+			dsim_reset_panel(dsim);
+			dpu_hw_recovery_process(get_decon_drvdata(dsim->id));
+		} else {
+			dsim_reset_panel(dsim);
+			dsim_reg_recovery_process(dsim);
+		}
+		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+				MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
+		if (ret < 0) {
+			dsim_err("Failed to read PM reg from panel (second try)\n");
+		} else {
+			dsim_info("=== Panel's PM Reg Value ===\n");
+			dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
+		}
+	}
+
 	/* Page Select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 
@@ -66,7 +86,7 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 
 	/* Write sequence for setting the PWM frequency if necessary*/
 	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-			0xDA, 3, buf);
+			0xDA, sizeof(buf), buf);
 	if (ret < 0) {
 		dsim_err("Failed to read display type\n");
 	} else {
@@ -236,12 +256,22 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 
 	/* Power Mode read */
 	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-			MIPI_DCS_GET_POWER_MODE, 3, buf);
+			MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
 	if (ret < 0) {
 		dsim_err("Failed to read PM reg from panel\n");
 	} else {
 		dsim_info("=== Panel's PM Reg Value ===\n");
 		dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
+	}
+	/* Self Det read */
+	// For debugging display crash issue
+	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+			0xDD, sizeof(buf), buf);
+	if (ret < 0) {
+		dsim_err("Failed to read SELF_DET reg from panel\n");
+	} else {
+		dsim_info("=== Panel's SELF_DET Reg Value ===\n");
+		dsim_info("* 0xDD : buf[0] = %x\n", buf[0]);
 	}
 
 	/* Exit Idle Mode */
