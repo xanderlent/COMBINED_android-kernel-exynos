@@ -222,8 +222,8 @@ static int ntc_runtime_suspend(struct device *dev) {
 static int ntc_runtime_resume(struct device *dev) {
 	struct ntc_device *ntc_device = dev_get_drvdata(dev);
 	gpiod_set_value(ntc_device->enable_gpio, 1);
-	/* Wait for ADC to stabilize, takes ~50ms */
-	usleep_range(50000, 60000);
+	/* Wait for ADC to stabilize, takes ~50ms but occasionally a bit longer */
+	msleep(100);
 	return 0;
 }
 
