@@ -446,8 +446,7 @@ static inline bool IS_DSIM_ON_STATE(struct dsim_device *dsim)
 {
 #ifdef CONFIG_EXYNOS_DOZE
 	return (dsim->state == DSIM_STATE_ON ||
-			dsim->state == DSIM_STATE_DOZE ||
-			dsim->state == DSIM_STATE_DOZE_SUSPEND);
+			dsim->state == DSIM_STATE_DOZE);
 #else
 	return (dsim->state == DSIM_STATE_ON);
 #endif

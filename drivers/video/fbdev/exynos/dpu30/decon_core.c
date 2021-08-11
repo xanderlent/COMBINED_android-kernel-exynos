@@ -3392,7 +3392,7 @@ int decon_runtime_resume(struct device *dev)
 {
 	struct decon_device *decon = dev_get_drvdata(dev);
 
-	decon_dbg("decon%d %s +\n", decon->id, __func__);
+	decon_info("decon%d %s +\n", decon->id, __func__);
 	clk_prepare_enable(decon->res.aclk);
 /*
  * TODO :
@@ -3410,7 +3410,7 @@ int decon_runtime_suspend(struct device *dev)
 {
 	struct decon_device *decon = dev_get_drvdata(dev);
 
-	decon_dbg("decon%d %s +\n", decon->id, __func__);
+	decon_info("decon%d %s +\n", decon->id, __func__);
 	clk_disable_unprepare(decon->res.aclk);
 
 /*
