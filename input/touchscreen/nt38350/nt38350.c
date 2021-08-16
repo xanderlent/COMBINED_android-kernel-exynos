@@ -771,6 +771,8 @@ static void nvt_parse_dt(struct device *dev)
 #endif
 	ts->irq_gpio = of_get_named_gpio_flags(np, "novatek,irq-gpio", 0, &ts->irq_flags);
 	NVT_LOG("novatek,irq-gpio=%d\n", ts->irq_gpio);
+	ts->nfc_gpio = of_get_named_gpio(np, "nfc-idle-gpio", 0);
+	NVT_LOG("nfc-idle-gpio=%d\n", ts->nfc_gpio);
 
 }
 #else
@@ -936,6 +938,12 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	}
 	printk("\n");
 */
+
+	/* Ignore ghost touches if NFC is active */
+	if (gpio_is_valid(ts->nfc_gpio) && gpio_get_value(ts->nfc_gpio)) {
+		mutex_unlock(&ts->lock);
+		return IRQ_HANDLED;
+	}
 
 	if (nvt_fw_recovery(point_data)) {
 #if NVT_TOUCH_ESD_PROTECT
