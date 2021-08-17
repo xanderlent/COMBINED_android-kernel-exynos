@@ -4,6 +4,7 @@
 //
 // Copyright (C) 2018-2020 Cirrus Logic, Inc.
 
+// Google: Changed paths for our kernel directory structure
 #include "linux/mfd/cs40l2x.h"
 
 const unsigned char cs40l2x_bst_k1_table[4][5] = {

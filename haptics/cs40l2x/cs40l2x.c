@@ -4,6 +4,7 @@
 //
 // Copyright (C) 2018-2020 Cirrus Logic, Inc.
 
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>
@@ -31,7 +32,6 @@
 // Google: Changed paths for our kernel directory structure
 #include "linux/platform_data/cs40l2x.h"
 #include "linux/mfd/cs40l2x.h"
-
 #include <linux/uaccess.h>
 
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
@@ -371,7 +371,7 @@ static int cs40l2x_read_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
 		if (entry->type == WT_TYPE_TERMINATOR) {
 			table->nwaves = i;
 			table->bytes = max(dspmem_chunk_bytes(&ch),
-					   (int)((void*)max - buf));
+					   (int)((void *)max - buf));
 
 			return table->bytes;
 		}
@@ -778,7 +778,6 @@ static ssize_t cs40l2x_cp_trigger_index_show(struct device *dev,
 static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 					     unsigned int index)
 {
-	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
 	bool gpio_pol, gpio_rise = false;
 	int ret = 0;
 	unsigned int reg;
@@ -810,7 +809,6 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 
 		cs40l2x->virtual_stored = false;
-		disable_irq(i2c_client->irq);
 	}
 
 	switch (index) {
@@ -954,10 +952,8 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 	cs40l2x->cp_trigger_index = index;
 
 err_exit:
-	if (!cs40l2x->virtual_stored) {
+	if (!cs40l2x->virtual_stored)
 		cs40l2x->virtual_stored = true;
-		enable_irq(i2c_client->irq);
-	}
 
 	return ret;
 }
@@ -1334,6 +1330,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
 		cs40l2x_save_waveform_to_ovwr_struct(cs40l2x,
 				CS40L2X_WT_TYPE_12_PWLE_FILE,
 				feature, zero_pad_size, zero_pad_data);
+		ret = 0;
 	}
 
 	kfree(zero_pad_data);
@@ -4163,29 +4160,19 @@ static int cs40l2x_gpio1_dig_scale_get(struct cs40l2x_private *cs40l2x,
 	unsigned int val, reg;
 	int ret;
 
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
 	reg = cs40l2x_dsp_reg(cs40l2x, "GAIN_CONTROL",
 			      CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
-	if (!reg) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
+	if (!reg)
+		return -EPERM;
 
 	ret = regmap_read(cs40l2x->regmap, reg, &val);
 	if (ret)
-		goto err_mutex;
+		return ret;
 
 	*dig_scale = (val & CS40L2X_GAIN_CTRL_GPIO_MASK)
 			>> CS40L2X_GAIN_CTRL_GPIO_SHIFT;
 
-err_mutex:
-	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(cs40l2x->dev);
-	pm_runtime_put_autosuspend(cs40l2x->dev);
-
-	return ret;
+	return 0;
 }
 
 static int cs40l2x_gpio1_dig_scale_set(struct cs40l2x_private *cs40l2x,
@@ -4194,24 +4181,17 @@ static int cs40l2x_gpio1_dig_scale_set(struct cs40l2x_private *cs40l2x,
 	unsigned int val, reg;
 	int ret;
 
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
 	reg = cs40l2x_dsp_reg(cs40l2x, "GAIN_CONTROL",
 			      CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
-	if (!reg) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
+	if (!reg)
+		return -EPERM;
 
-	if (dig_scale == CS40L2X_DIG_SCALE_RESET) {
-		ret = -EINVAL;
-		goto err_mutex;
-	}
+	if (dig_scale == CS40L2X_DIG_SCALE_RESET)
+		return -EINVAL;
 
 	ret = regmap_read(cs40l2x->regmap, reg, &val);
 	if (ret)
-		goto err_mutex;
+		return ret;
 
 	val &= ~CS40L2X_GAIN_CTRL_GPIO_MASK;
 	val |= CS40L2X_GAIN_CTRL_GPIO_MASK &
@@ -4219,16 +4199,9 @@ static int cs40l2x_gpio1_dig_scale_set(struct cs40l2x_private *cs40l2x,
 
 	ret = regmap_write(cs40l2x->regmap, reg, val);
 	if (ret)
-		goto err_mutex;
+		return ret;
 
-	ret = cs40l2x_dsp_cache(cs40l2x, reg, val);
-
-err_mutex:
-	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(cs40l2x->dev);
-	pm_runtime_put_autosuspend(cs40l2x->dev);
-
-	return ret;
+	return cs40l2x_dsp_cache(cs40l2x, reg, val);
 }
 
 static ssize_t cs40l2x_gpio1_dig_scale_show(struct device *dev,
@@ -4558,9 +4531,6 @@ static ssize_t cs40l2x_gpio3_rise_dig_scale_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
 	ret = cs40l2x_gpio_edge_dig_scale_set(cs40l2x, dig_scale,
 			CS40L2X_INDEXBUTTONPRESS3, CS40L2X_GPIO_RISE);
 	if (ret)
@@ -4575,9 +4545,6 @@ static ssize_t cs40l2x_gpio3_fall_dig_scale_show(struct device *dev,
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	int ret;
 	unsigned int dig_scale;
-
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
 
 	ret = cs40l2x_gpio_edge_dig_scale_get(cs40l2x, &dig_scale,
 			CS40L2X_INDEXBUTTONRELEASE3, CS40L2X_GPIO_FALL);
@@ -5975,6 +5942,38 @@ err_mutex:
 	return ret;
 }
 
+static ssize_t cs40l2x_die_temp_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	unsigned int val;
+	s32 temp;
+	int ret;
+
+	pm_runtime_get_sync(cs40l2x->dev);
+
+	/* Zero value could mean that the device is in standby */
+	ret = regmap_read(cs40l2x->regmap, CS40L2X_ENABLES_AND_CODES_DIG, &val);
+	if (!ret) {
+		temp = sign_extend32(val & CS40L2X_TEMP_RESULT_UNFILT_MASK,
+				     fls(CS40L2X_TEMP_RESULT_UNFILT_MASK) - 1);
+
+		if (temp < CS40L2X_TEMP_RESULT_MIN ||
+		    temp > CS40L2X_TEMP_RESULT_MAX) {
+			dev_err(cs40l2x->dev, "Read invalid die temperature\n");
+			ret = -EINVAL;
+		} else {
+			ret = snprintf(buf, PAGE_SIZE, "%d\n", temp);
+		}
+	}
+
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
+}
+
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l2x_cp_trigger_index_show,
 		cs40l2x_cp_trigger_index_store);
 static DEVICE_ATTR(cp_trigger_queue, 0660, cs40l2x_cp_trigger_queue_show,
@@ -6112,6 +6111,7 @@ static DEVICE_ATTR(virtual_pwle_indexes, 0660,
 	cs40l2x_pwle_indexes_show, NULL);
 static DEVICE_ATTR(available_pwle_segments, 0660,
 	cs40l2x_available_pwle_segs_show, NULL);
+static DEVICE_ATTR(die_temp, 0660, cs40l2x_die_temp_show, NULL);
 
 static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
@@ -6188,6 +6188,7 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_virtual_composite_indexes.attr,
 	&dev_attr_virtual_pwle_indexes.attr,
 	&dev_attr_available_pwle_segments.attr,
+	&dev_attr_die_temp.attr,
 	NULL,
 };
 
@@ -6274,8 +6275,6 @@ static int cs40l2x_enable_classh(struct cs40l2x_private *cs40l2x)
 	if (i == CS40L2X_MAX_WAVEFORMS)
 		return 0;
 
-	/* Add 50 ms delay to settle the waveform */
-	msleep(CS40L2X_SETTLE_DELAY_MS);
 	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
@@ -7629,12 +7628,9 @@ static int cs40l2x_create_led(struct cs40l2x_private *cs40l2x)
 	else
 		name = CS40L2X_DEVICE_NAME;
 
-// Google: Modified to us "vibrator" instead of "cs40l25:vibrator" path.
-//	led_dev->name = devm_kasprintf(cs40l2x->dev, GFP_KERNEL,
-//				       "%s:%s", "cs40l25", name);
+  // Google: Modified to use "vibrator" instead of "cs40l25:vibrator" path.
 	led_dev->name = devm_kasprintf(cs40l2x->dev, GFP_KERNEL,
 				       "%s", name);
-
 	led_dev->max_brightness = LED_FULL;
 	led_dev->brightness_set = cs40l2x_vibe_brightness_set;
 	led_dev->default_trigger = "transient";
@@ -9914,7 +9910,11 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 	if (ret)
 		return ret;
 
-	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CONFIG);
+	ret =  cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CONFIG);
+	if (ret)
+		return ret;
+
+	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VBBR_CONFIG);
 }
 
 static int cs40l2x_otp_unpack(struct cs40l2x_private *cs40l2x)

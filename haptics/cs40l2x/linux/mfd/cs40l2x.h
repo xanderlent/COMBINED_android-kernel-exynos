@@ -22,9 +22,12 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/firmware.h>
+
+// Google: Changed paths for our kernel directory structure
 #include "../platform_data/cs40l2x.h"
 #include <linux/input.h>
 
+// Google: Changed paths for our kernel directory structure
 #include "../mfd/cs40l25-wavetable.h"
 
 #define CS40L2X_FIRSTREG			0x00000000
@@ -567,7 +570,6 @@
 	CS40L2X_WT_NUM_COMP_VSLOTS +\
 	CS40L2X_WT_NUM_GPIO_VSLOTS)
 
-#define CS40L2X_SETTLE_DELAY_MS			50
 #define CS40L2X_MAX_WAVEFORMS			128
 #define CS40L2X_OWT_CALC_SIZE			(CS40L2X_MAX_WAVEFORMS * 2)
 
@@ -957,6 +959,10 @@
  * an open slot to use for open wavetable and chirp scalability
  * if there aren't CS40L2X_PACKED_BYTES_MAX bytes available.
  */
+
+#define CS40L2X_TEMP_RESULT_UNFILT_MASK		0x1FF
+#define CS40L2X_TEMP_RESULT_MIN			-64
+#define CS40L2X_TEMP_RESULT_MAX			176
 
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
