@@ -29,13 +29,13 @@
 #define FREQ_HOP_DISABLE 0x66
 #define FREQ_HOP_ENABLE 0x65
 
-#define MP_LIMIT_CSV_FILE "/data/local/tmp/MP_Criteria_Golden"
+#define MP_LIMIT_CSV_FILE "/vendor/etc/MP_Criteria_Golden"
 
-#define SHORT_TEST_CSV_FILE "/data/local/tmp/ShortTest.csv"
-#define OPEN_TEST_CSV_FILE "/data/local/tmp/OpenTest.csv"
-#define FW_RAWDATA_CSV_FILE "/data/local/tmp/FWMutualTest.csv"
-#define FW_CC_CSV_FILE "/data/local/tmp/FWCCTest.csv"
-#define NOISE_TEST_CSV_FILE "/data/local/tmp/NoiseTest.csv"
+#define SHORT_TEST_CSV_FILE "/data/vendor/touch/ShortTest.csv"
+#define OPEN_TEST_CSV_FILE "/data/vendor/touch/OpenTest.csv"
+#define FW_RAWDATA_CSV_FILE "/data/vendor/touch/FWMutualTest.csv"
+#define FW_CC_CSV_FILE "/data/vendor/touch/FWCCTest.csv"
+#define NOISE_TEST_CSV_FILE "/data/vendor/touch/NoiseTest.csv"
 
 #define nvt_mp_seq_printf(m, fmt, args...) do {	\
 	seq_printf(m, fmt, ##args);	\
