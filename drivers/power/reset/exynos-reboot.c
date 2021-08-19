@@ -132,27 +132,47 @@ static void exynos_power_off(void)
 #define EXYNOS_PMU_SYSIP_DAT0		(0x0810)
 #define REBOOT_MODE_NORMAL		(0x00)
 #define REBOOT_MODE_CHARGE		(0x0A)
-#define REBOOT_MODE_FASTBOOT		(0xFC)
-#define REBOOT_MODE_FACTORY             (0xFD)
+#define REBOOT_MODE_DMVERITY_CORRUPTED	(0x50)
+#define REBOOT_MODE_SHUTDOWN_THERMAL	(0x51)
+#define REBOOT_MODE_RESCUE		(0xF9)
+#define REBOOT_MODE_FASTBOOT		(0xFA)
+#define REBOOT_MODE_BOOTLOADER		(0xFC)
+#define REBOOT_MODE_FACTORY		(0xFD)
 #define REBOOT_MODE_RECOVERY		(0xFF)
 
 static void exynos_reboot_parse(void *cmd)
 {
 	if (cmd) {
-		pr_info("Reboot command: (%s)\n", (char *)cmd);
+		u32 value = U32_MAX;
 
-		if (!strcmp((char *)cmd, "charge")) {
-			regmap_write(pmureg, reboot_cmd_offset, REBOOT_MODE_CHARGE);
-		} else if (!strcmp((char *)cmd, "bootloader") ||
-			   !strcmp((char *)cmd, "fastboot") ||
-			   !strcmp((char *)cmd, "bl") ||
-			   !strcmp((char *)cmd, "fb")) {
-			regmap_write(pmureg, reboot_cmd_offset, REBOOT_MODE_FASTBOOT);
-		} else if (!strcmp((char *)cmd, "recovery")) {
-			regmap_write(pmureg, reboot_cmd_offset, REBOOT_MODE_RECOVERY);
-		} else if (!strcmp((char *)cmd, "sfactory")) {
-			regmap_write(pmureg, reboot_cmd_offset, REBOOT_MODE_FACTORY);
-		}
+		pr_info("Reboot command: '%s'\n", cmd);
+
+		if (!strcmp(cmd, "charge"))
+			value = REBOOT_MODE_CHARGE;
+		else if (!strcmp(cmd, "bootloader"))
+			value = REBOOT_MODE_BOOTLOADER;
+		else if (!strcmp(cmd, "fastboot"))
+			value = REBOOT_MODE_FASTBOOT;
+		else if (!strcmp(cmd, "recovery"))
+			value = REBOOT_MODE_RECOVERY;
+		else if (!strcmp(cmd, "dm-verity device corrupted"))
+			value = REBOOT_MODE_DMVERITY_CORRUPTED;
+		else if (!strcmp(cmd, "rescue"))
+			value = REBOOT_MODE_RESCUE;
+		else if (!strcmp(cmd, "shutdown-thermal"))
+			value = REBOOT_MODE_SHUTDOWN_THERMAL;
+		else if (!strcmp(cmd, "from_fastboot") ||
+			 !strcmp(cmd, "shell") ||
+			 !strcmp(cmd, "userrequested") ||
+			 !strcmp(cmd, "userrequested,fastboot") ||
+			 !strcmp(cmd, "userrequested,recovery") ||
+			 !strcmp(cmd, "userrequested,recovery,ui"))
+			value = REBOOT_MODE_NORMAL;
+		else
+			pr_err("Unknown reboot command: '%s'\n", cmd);
+
+		if (value != U32_MAX)
+			regmap_write(pmureg, reboot_cmd_offset, value);
 	}
 }
 
