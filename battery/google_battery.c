@@ -95,6 +95,11 @@ static enum power_supply_property charging_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 };
 
+static enum power_supply_property wireless_props[] = {
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
+};
 enum battery_voltage_mode {
 	BATTERY_VOLTAGE_AVERAGE = 0,
 	BATTERY_VOLTAGE_OCV,
@@ -188,6 +193,7 @@ struct battery_info {
 	/* charging */
 	bool is_recharging;
 	bool wlc_connected;
+	bool wlc_authentic;
 	struct mutex wlc_state_lock;
 	int wlc_vout_setting;
 	int charge_start_level;
@@ -734,12 +740,23 @@ static int wireless_get_property(struct power_supply *psy,
 {
 	struct battery_info *battery =  power_supply_get_drvdata(psy);
 
-	if (psp != POWER_SUPPLY_PROP_ONLINE && psp != POWER_SUPPLY_PROP_PRESENT)
+	switch(psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+	case POWER_SUPPLY_PROP_PRESENT:
+		if (battery->wlc_authentic && (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS || battery->wlc_connected))
+			val->intval = 1;
+		else
+			val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		if (battery->wlc_authentic)
+			val->intval = 300;
+		else
+			val->intval = 0;
+		break;
+	default:
 		return -EINVAL;
-	if (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS || battery->wlc_connected)
-		val->intval = 1;
-	else
-		val->intval = 0;
+	}
 	return 0;
 }
 
@@ -1240,11 +1257,22 @@ static void battery_external_power_changed(struct power_supply *psy) {
 	}
 	ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_PRESENT, &value);
 	if (ret < 0) {
-		pr_err("%s: Fail to execute property\n", __func__);
+		pr_err("%s: Fail to execute WLC present property\n", __func__);
 	} else {
 		if (value.intval) {
+			if (!battery->wlc_connected)
+				dev_info(battery->dev, "WLC connected\n");
 			battery->wlc_connected = true;
-			dev_info(battery->dev, "WLC connected\n");
+			ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_AUTHENTIC, &value);
+			if (ret < 0) {
+				pr_err("%s: Fail to execute WLC auth property\n", __func__);
+			}
+			if (value.intval) {
+				battery->wlc_authentic = true;
+			} else {
+				dev_info(battery->dev, "WLC inauthentic\n");
+				battery->wlc_authentic = false;
+			}
 		} else {
 			if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
 				battery->is_recharging = false;
@@ -1254,6 +1282,8 @@ static void battery_external_power_changed(struct power_supply *psy) {
 			dev_info(battery->dev, "WLC disconnected\n");
 		}
 	}
+	if (battery->psy_battery)
+		power_supply_changed(battery->psy_battery);
 external_power_changed_fail:
 	power_supply_put(wlc_psy);
 	mutex_unlock(&battery->wlc_state_lock);
@@ -1920,8 +1950,8 @@ static int google_battery_probe(struct platform_device *pdev)
 	/* Register a wireless power supply for WLC power */
 	battery->psy_wireless_desc.name = "wireless";
 	battery->psy_wireless_desc.type = POWER_SUPPLY_TYPE_WIRELESS;
-	battery->psy_wireless_desc.properties = charging_props;
-	battery->psy_wireless_desc.num_properties = ARRAY_SIZE(charging_props);
+	battery->psy_wireless_desc.properties = wireless_props;
+	battery->psy_wireless_desc.num_properties = ARRAY_SIZE(wireless_props);
 	battery->psy_wireless_desc.get_property = wireless_get_property;
 
 	/* Initialize work queue for periodic polling thread */

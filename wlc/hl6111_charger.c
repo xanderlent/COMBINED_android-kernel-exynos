@@ -1139,6 +1139,7 @@ static void hl6111_rx_authentication_work(struct work_struct *work)
 
                 hl6111_send_ept(chg, internal);
                 hl6111_auth_irq_set_state(chg, 0);
+                power_supply_changed(chg->psy_chg);
                 pm_relax(chg->dev);
             }
             break;
