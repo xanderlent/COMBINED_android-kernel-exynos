@@ -1929,7 +1929,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 #ifdef PASS_ALL_MCAST_PKTS
 				allmulti = 0;
 				for (i = 0; i < DHD_MAX_IFS; i++) {
-					if (dhdinfo->iflist[i] && dhdinfo->iflist[i]->net)
+					if (dhdinfo->iflist[i] && dhdinfo->iflist[i]->net) {
 						ret = dhd_iovar(dhd, i, "allmulti",
 								(char *)&allmulti,
 								sizeof(allmulti),
@@ -1938,6 +1938,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 							DHD_ERROR(("%s allmulti failed %d\n",
 								__FUNCTION__, ret));
 						}
+					}
 				}
 #endif /* PASS_ALL_MCAST_PKTS */
 
@@ -2168,14 +2169,15 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 #ifdef PASS_ALL_MCAST_PKTS
 				allmulti = 1;
 				for (i = 0; i < DHD_MAX_IFS; i++) {
-					if (dhdinfo->iflist[i] && dhdinfo->iflist[i]->net)
+					if (dhdinfo->iflist[i] && dhdinfo->iflist[i]->net) {
 						ret = dhd_iovar(dhd, i, "allmulti",
 								(char *)&allmulti,
 								sizeof(allmulti), NULL,
 								0, TRUE);
-					if (ret < 0) {
-						DHD_ERROR(("%s: allmulti failed:%d\n",
-								__FUNCTION__, ret));
+						if (ret < 0) {
+							DHD_ERROR(("%s: allmulti failed:%d\n",
+									__FUNCTION__, ret));
+						}
 					}
 				}
 #endif /* PASS_ALL_MCAST_PKTS */
