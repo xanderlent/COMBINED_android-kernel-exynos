@@ -107,7 +107,7 @@ static int pmucal_rae_wait(struct pmucal_seq *seq)
 			break;
 		timeout++;
 		udelay(1);
-		if (timeout > 5000) {
+		if (timeout > 20000) {
 			u32 reg;
 
 			reg = __raw_readl(seq->base_va + seq->offset);
