@@ -44,6 +44,7 @@ extern void dhdsdio_isr(void * args);
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_linux.h>
+#include <dhd_dbg.h>
 
 /* driver info, initialized when bcmsdh_register is called */
 static bcmsdh_driver_t drvinfo = {NULL, NULL, NULL, NULL};
@@ -379,7 +380,7 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 
 	SDLX_MSG(("%s: Enter\n", __FUNCTION__));
 	if (bcmsdh_osinfo->oob_irq_registered) {
-		SDLX_MSG(("%s: irq is already registered\n", __FUNCTION__));
+		DHD_ERROR(("%s: irq is already registered\n", __FUNCTION__));
 		return -EBUSY;
 	}
 	SDLX_MSG(("%s OOB irq=%d flags=%X \n", __FUNCTION__,
@@ -391,7 +392,7 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 	err = request_irq(bcmsdh_osinfo->oob_irq_num, wlan_oob_irq,
 		bcmsdh_osinfo->oob_irq_flags, "bcmsdh_sdmmc", bcmsdh);
 	if (err) {
-		SDLX_MSG(("%s: request_irq failed with %d\n", __FUNCTION__, err));
+		DHD_ERROR(("%s: request_irq failed with %d\n", __FUNCTION__, err));
 		bcmsdh_osinfo->oob_irq_enabled = FALSE;
 		bcmsdh_osinfo->oob_irq_registered = FALSE;
 		return err;
