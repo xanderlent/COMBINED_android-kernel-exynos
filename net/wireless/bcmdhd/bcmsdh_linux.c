@@ -29,7 +29,6 @@
 
 #define __UNDEF_NO_VERSION__
 
-#include <typedefs.h>
 #include <linuxver.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
@@ -75,6 +74,11 @@ typedef struct bcmsdh_os_info {
 	void			*sdioh;		/* handle to lower layer (sdioh) */
 	void			*dev;		/* handle to the underlying device */
 	bool			dev_wake_enabled;
+#ifdef DHD_WAKE_STATUS
+	spinlock_t		pkt_wake_lock;
+	unsigned int		total_wake_count;
+	int			pkt_wake;
+#endif /* DHD_WAKE_STATUS */
 } bcmsdh_os_info_t;
 
 /* debugging macros */
@@ -170,6 +174,11 @@ void* bcmsdh_probe(osl_t *osh, void *dev, void *sdioh, void *adapter_info, uint 
 	}
 #endif /* defined(BCMLXSDMMC) */
 
+#ifdef DHD_WAKE_STATUS
+	/* Initialize pkt_wake_lock */
+	spin_lock_init(&bcmsdh_osinfo->pkt_wake_lock);
+#endif /* DHD_WAKE_STATUS */
+
 	/* Read the vendor/device ID from the CIS */
 	vendevid = bcmsdh_query_device(bcmsdh);
 	/* try to attach to the target device */
@@ -211,7 +220,9 @@ int bcmsdh_remove(bcmsdh_info_t *bcmsdh)
 #ifdef DHD_WAKE_STATUS
 int bcmsdh_get_total_wake(bcmsdh_info_t *bcmsdh)
 {
-	return bcmsdh->total_wake_count;
+	bcmsdh_os_info_t *bcmsdh_osinfo = bcmsdh->os_cxt;
+
+	return bcmsdh_osinfo->total_wake_count;
 }
 
 int bcmsdh_set_get_wake(bcmsdh_info_t *bcmsdh, int flag)
@@ -220,13 +231,13 @@ int bcmsdh_set_get_wake(bcmsdh_info_t *bcmsdh, int flag)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&bcmsdh_osinfo->oob_irq_spinlock, flags);
+	DHD_PKT_WAKE_LOCK(&bcmsdh_osinfo->pkt_wake_lock, flags);
 
-	ret = bcmsdh->pkt_wake;
-	bcmsdh->total_wake_count += flag;
-	bcmsdh->pkt_wake = flag;
+	ret = bcmsdh_osinfo->pkt_wake;
+	bcmsdh_osinfo->total_wake_count += flag;
+	bcmsdh_osinfo->pkt_wake = flag;
 
-	spin_unlock_irqrestore(&bcmsdh_osinfo->oob_irq_spinlock, flags);
+	DHD_PKT_WAKE_UNLOCK(&bcmsdh_osinfo->pkt_wake_lock, flags);
 	return ret;
 }
 #endif /* DHD_WAKE_STATUS */
