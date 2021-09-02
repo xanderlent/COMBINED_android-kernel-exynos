@@ -4438,8 +4438,10 @@ void abox_request_dram_on(struct device *dev_abox, void *id, bool on)
 		}
 	}
 
+	regcache_cache_bypass(data->regmap, true);
 	regmap_write(data->regmap, ABOX_SYSPOWER_CTRL, val);
-	dev_dbg(dev_abox, "%s: SYSPOWER_CTRL=%08x\n", __func__,
+	regcache_cache_bypass(data->regmap, false);
+	dev_info(dev_abox, "%s: SYSPOWER_CTRL=%08x\n", __func__,
 			({regmap_read(data->regmap, ABOX_SYSPOWER_CTRL, &val);
 			val; }));
 }
