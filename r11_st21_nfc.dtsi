@@ -31,7 +31,7 @@
 		clock-names = "nfc_ref_clk";
 		st,clk_pinctrl;
 		pinctrl-names = "default";
-		pinctrl-0 = <&nfc_irq &nfc_clkreq &nfc_nreset>;
+		pinctrl-0 = <&nfc_irq &nfc_clkreq &nfc_nreset &nfc_pidle>;
 		status = "ok";
 	};
 };
@@ -59,9 +59,6 @@
 };
 
 &pinctrl_5 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&nfc_pidle>;
-
 	/* SOC_NFC_RST_L */
 	nfc_nreset: nfc-nreset {
 		samsung,pins = "gpg1-0";
