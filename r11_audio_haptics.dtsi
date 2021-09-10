@@ -81,6 +81,7 @@
 
 		cirrus,f0-default = <2514000>; /* 153 Hz */
 		cirrus,redc-default = <327728>; /* 15 Ohm */
+		cirrus,hiber-enable = <1>;
 
 		cirrus,refclk-gpio2;
 
@@ -141,6 +142,7 @@
 
 		cirrus,f0-default = <2514000>; /* 153 Hz */
 		cirrus,redc-default = <327728>; /* 15 Ohm */
+		cirrus,hiber-enable = <1>;
 
 		cirrus,refclk-gpio2;
 
