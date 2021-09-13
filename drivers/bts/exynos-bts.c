@@ -2214,6 +2214,8 @@ static int bts_probe(struct platform_device *pdev)
 
 	register_syscore_ops(&exynos_bts_syscore_ops);
 
+	pr_info("%s successfully done.\n", __func__);
+
 	return ret;
 }
 
@@ -2256,4 +2258,4 @@ static int __init exynos_bts_init(void)
 
 	return 0;
 }
-arch_initcall(exynos_bts_init);
+subsys_initcall(exynos_bts_init);
