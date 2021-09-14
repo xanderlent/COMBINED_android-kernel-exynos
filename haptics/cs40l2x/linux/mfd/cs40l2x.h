@@ -1142,6 +1142,7 @@ struct cs40l2x_private {
 	bool par_bin_found;
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
+	unsigned int dyn_reba_slope;
 
 	/* Access to DSP registers */
 	unsigned int (*dsp_reg)(struct cs40l2x_private *cs40l2x,

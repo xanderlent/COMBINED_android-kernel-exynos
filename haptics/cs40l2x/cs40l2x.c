@@ -5549,6 +5549,91 @@ err_mutex:
 	return ret;
 }
 
+// Google: Add reba_disable sysfs control patch
+
+static ssize_t cs40l2x_reba_disable_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val, slope;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret || (val > 1))
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "REBA_SLOPE",
+			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_DYN_F0);
+	if (!reg) {
+		dev_warn(dev, "Can't find REBA_SLOPE\n");
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_read(cs40l2x->regmap, reg, &slope);
+	if (ret)
+		goto err_mutex;
+
+
+	if (val) {
+		if (slope)
+			cs40l2x->dyn_reba_slope = slope;
+		/* Set slope to 0 to disable reba */
+		ret = regmap_write(cs40l2x->regmap, reg, 0);
+		if (ret)
+			goto err_mutex;
+	} else {
+		ret = regmap_write(cs40l2x->regmap, reg,
+					cs40l2x->dyn_reba_slope);
+		if (ret)
+			goto err_mutex;
+	}
+
+	ret = count;
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_reba_disable_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "REBA_SLOPE",
+			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_DYN_F0);
+	if (!reg) {
+		dev_warn(dev, "Can't find REBA_SLOPE\n");
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_read(cs40l2x->regmap, reg, &val);
+	if (ret)
+		goto err_mutex;
+
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", val ? 0 : 1);
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
+}
+
 static ssize_t cs40l2x_clab_enable_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
@@ -6086,6 +6171,8 @@ static DEVICE_ATTR(wt_file, 0660, cs40l2x_wt_file_show, cs40l2x_wt_file_store);
 static DEVICE_ATTR(wt_date, 0660, cs40l2x_wt_date_show, NULL);
 static DEVICE_ATTR(vmon_imon_offs_enable, 0660, cs40l2x_imon_offs_enable_show,
 		cs40l2x_imon_offs_enable_store);
+static DEVICE_ATTR(reba_disable, 0660, cs40l2x_reba_disable_show,
+		cs40l2x_reba_disable_store);
 static DEVICE_ATTR(clab_enable, 0660, cs40l2x_clab_enable_show,
 		cs40l2x_clab_enable_store);
 static DEVICE_ATTR(clab_peak, 0660, cs40l2x_clab_peak_show,
@@ -6175,6 +6262,7 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_wt_date.attr,
 	&dev_attr_vmon_imon_offs_enable.attr,
 	&dev_attr_clab_enable.attr,
+	&dev_attr_reba_disable.attr,
 	&dev_attr_clab_peak.attr,
 	&dev_attr_pwle_regulation_enable.attr,
 	&dev_attr_gain_compensation_enable.attr,
