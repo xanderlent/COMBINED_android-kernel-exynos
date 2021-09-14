@@ -25,9 +25,7 @@
 #include <linux/rtc.h>
 #include <linux/string.h>
 
-// TODO(b/192250990): Do not re-enable PM ops before removing the call to
-// 'flush_scheduled_work' from pat9126_suspend.
-//#define PAT9126_PM_OPS
+#define PAT9126_PM_OPS
 
 struct pixart_pat9126_data {
 	struct i2c_client *client;
@@ -39,23 +37,17 @@ struct pixart_pat9126_data {
 	bool press_en;
 	bool inverse_x;
 	bool inverse_y;
+	int state;
 	struct work_struct work;
 	struct workqueue_struct *workqueue;
 	struct delayed_work polling_work;
 	struct delayed_work resume_work;
+	struct mutex mtx;
 };
 
-/*IRQ Flags*/
-bool is_initialized = false;
-
-/*Persist Flags*/
-extern char *saved_command_line;
-
-struct mutex irq_mutex;
-int en_irq_cnt = 0; /*Calculate times of enable irq*/
-int dis_irq_cnt = 0;/*Calculate times of disable irq*/
-
-struct rtc_time pat9126_tm;
+#define PAT9126_STATE_OFF 0
+#define PAT9126_STATE_ON 1
+#define PAT9126_STATE_RESUMING 2
 
 struct rw_reg_info {
 	char flag; /*R/W char*/
@@ -349,9 +341,22 @@ static void pat9126_work_handler(struct work_struct *work)
 	struct input_dev *ipdev = data->input;
 	struct device *dev = &data->client->dev;
 
+	mutex_lock(&data->mtx);
+
+	if (data->state != PAT9126_STATE_ON) {
+		if (data->state == PAT9126_STATE_RESUMING) {
+			pr_warn("[PAT9126]%s: work handler run before resume complete\n", __func__);
+		} else {
+			// PAT9126_STATE_OFF
+			pr_warn("[PAT9126]%s: work handler run with device suspended\n", __func__);
+		}
+
+		goto end_work_handler;
+	}
+
 	/* check if MOTION bit is set or not */
 	pat9126_read_motion(data->client, &delta_x, &delta_y);
-	pr_debug("[PAT9126]delta_x: %d, delta_y: %d\n", delta_x, delta_y);
+	dev_dbg(dev, "delta_x: %d, delta_y: %d\n", delta_x, delta_y);
 
 	/* Inverse x depending upon the device orientation */
 	delta_x = (data->inverse_x) ? -delta_x : delta_x;
@@ -366,7 +371,10 @@ static void pat9126_work_handler(struct work_struct *work)
 		input_report_rel(ipdev, REL_WHEEL, (s8) delta_x);
 		input_sync(ipdev);
 	}
+
+end_work_handler:
 	enable_irq(data->client->irq);
+	mutex_unlock(&data->mtx);
 }
 
 static irqreturn_t pat9126_irq(int irq, void *dev_data)
@@ -598,26 +606,30 @@ static void pat9126_complete_resume(struct work_struct *work) {
 			container_of(dw, struct pixart_pat9126_data, resume_work);
 	struct device *dev = &data->client->dev;
 
-	printk(KERN_DEBUG "[PAT9126]%s, start\n", __func__);
-	if (is_initialized) {
-		printk(KERN_DEBUG "[PAT9126]%s: Already initialized. \n", __func__);
-	} else {
-		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
+	mutex_lock(&data->mtx);
+
+	pr_info("[PAT9126]%s, start\n", __func__);
+	if (data->state != PAT9126_STATE_RESUMING) {
+		if (data->state == PAT9126_STATE_ON) {
+			pr_warn("[PAT9126]%s: Already resumed\n", __func__);
+		} else {
+			// If suspend is called before resume is complete
+			// resume will be aborted
+			pr_info("[PAT9126]%s: Resume aborted\n", __func__);
+		}
+
+		goto end_complete_resume;
 	}
 
 	pat9126_pd_write(dev, 0);
 	delay(3); // To ensure accuracy, datasheet recommends 3ms delay here
 
-	if (is_initialized) {
-		if (en_irq_cnt == 0){
-			enable_irq(data->client->irq);
-			en_irq_cnt++;
-			dis_irq_cnt = 0;
-		}
-		else {
-			dev_info(dev, "Already in wake state \n");
-		}
-	}
+	data->state = PAT9126_STATE_ON;
+	enable_irq(data->client->irq);
+
+end_complete_resume:
+	pr_info("[PAT9126]%s, end\n", __func__);
+	mutex_unlock(&data->mtx);
 }
 
 static DEVICE_ATTR
@@ -733,22 +745,22 @@ static int pat9126_i2c_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to initialize sensor %d\n", ret);
 		return ret;
 	}
+
+	mutex_init(&data->mtx);
+	data->state = PAT9126_STATE_ON;
+
 	INIT_DELAYED_WORK(&data->polling_work, pat9126_work_handler);
 	INIT_DELAYED_WORK(&data->resume_work, pat9126_complete_resume);
-	if (en_irq_cnt == 0) {
-		pr_err("[PAT9126]: Probe Enable Irq. \n");
-		ret = devm_request_threaded_irq(dev, client->irq, NULL, pat9126_irq,
-				 IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-				"pixart_pat9126_irq", data);
-		is_initialized = true;
 
-		if (ret) {
-			dev_err(dev, "Req irq %d failed, errno:%d\n", client->irq, ret);
-			goto err_request_threaded_irq;
-		}
-		en_irq_cnt++;
-	} else
-		en_irq_cnt = 0;
+	pr_err("[PAT9126]: Probe Enable Irq. \n");
+	ret = devm_request_threaded_irq(dev, client->irq, NULL, pat9126_irq,
+			 IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+			"pixart_pat9126_irq", data);
+
+	if (ret) {
+		dev_err(dev, "Req irq %d failed, errno:%d\n", client->irq, ret);
+		goto err_request_threaded_irq;
+	}
 
 	ret = sysfs_create_group(&client->dev.kobj, &pat9126_attr_grp);
 	if (ret) {
@@ -777,26 +789,26 @@ static int pat9126_suspend(struct device *dev)
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
-	flush_scheduled_work();
+	mutex_lock(&data->mtx);
 
-	printk(KERN_DEBUG "[PAT9126]%s, start\n", __func__);
-	if(is_initialized) {
-		printk(KERN_DEBUG "[PAT9126]%s: Already initialized. \n", __func__);
+	pr_info("[PAT9126]%s, start\n", __func__);
+	if(data->state != PAT9126_STATE_ON) {
+		if (data->state == PAT9126_STATE_OFF) {
+			pr_warn("[PAT9126]%s: Redundant call to suspend\n", __func__);
+		} else {
+			// PAT9126_STATE_RESUMING
+			pr_info("[PAT9126]%s: Aborting resume\n", __func__);
+		}
 
-		if (dis_irq_cnt == 0){
-			disable_irq(data->client->irq);
-			dis_irq_cnt++;
-		}
-		else {
-			dev_info(dev, "Already in suspend state\n");
-			return 0;
-		}
-		en_irq_cnt = 0;
-	} else {
-		printk(KERN_DEBUG "[PAT9126]%s: Not initialize yet. \n", __func__);
+		goto end_suspend;
 	}
 
+	disable_irq(data->client->irq);
 	pat9126_pd_write(dev, 1);
+
+end_suspend:
+	data->state = PAT9126_STATE_OFF;
+	mutex_unlock(&data->mtx);
 	return 0;
 }
 
@@ -805,8 +817,22 @@ static int pat9126_resume(struct device *dev)
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
+	mutex_lock(&data->mtx);
+
+	if (data->state != PAT9126_STATE_OFF) {
+		pr_warn("[PAT9126]%s: Redundant call to resume\n", __func__);
+		mutex_unlock(&data->mtx);
+		return 0;
+	}
+
+	data->state = PAT9126_STATE_RESUMING;
+	mutex_unlock(&data->mtx);
+
 	if (!schedule_delayed_work(&data->resume_work, msecs_to_jiffies(10))) {
-		pr_err("Failed to schedule delayed resume\n");
+		pr_err("[PAT9126]%s: Failed to schedule delayed resume\n", __func__);
+
+		// Note that we must release the mutex (as above) before
+		// calling this function.
 		pat9126_complete_resume(&data->resume_work.work);
 	}
 
