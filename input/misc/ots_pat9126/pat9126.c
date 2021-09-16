@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include "pat9126.h"
+#include <linux/fb.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -24,8 +25,6 @@
 #include<linux/time.h>
 #include <linux/rtc.h>
 #include <linux/string.h>
-
-#define PAT9126_PM_OPS
 
 struct pixart_pat9126_data {
 	struct i2c_client *client;
@@ -38,10 +37,12 @@ struct pixart_pat9126_data {
 	bool inverse_x;
 	bool inverse_y;
 	int state;
+	int display_mode;
 	struct work_struct work;
 	struct workqueue_struct *workqueue;
 	struct delayed_work polling_work;
 	struct delayed_work resume_work;
+	struct notifier_block fb_notif;
 	struct mutex mtx;
 };
 
@@ -58,11 +59,10 @@ struct rw_reg_info {
 
 struct rw_reg_info pat9126_reg_info;
 
-#if defined(PAT9126_PM_OPS)
 /* Declaration of suspend and resume functions */
-static int pat9126_suspend(struct device *dev);
-static int pat9126_resume(struct device *dev);
-#endif
+static int pat9126_fb_callback(struct notifier_block *nb, unsigned long type, void *arg);
+static int pat9126_display_suspend(struct device *dev);
+static int pat9126_display_resume(struct device *dev);
 
 static int pat9126_write(struct i2c_client *client, u8 addr, u8 data)
 {
@@ -345,10 +345,10 @@ static void pat9126_work_handler(struct work_struct *work)
 
 	if (data->state != PAT9126_STATE_ON) {
 		if (data->state == PAT9126_STATE_RESUMING) {
-			pr_warn("[PAT9126]%s: work handler run before resume complete\n", __func__);
+			pr_warn("[PAT9126] %s: work handler run before resume complete\n", __func__);
 		} else {
 			// PAT9126_STATE_OFF
-			pr_warn("[PAT9126]%s: work handler run with device suspended\n", __func__);
+			pr_warn("[PAT9126] %s: work handler run with device suspended\n", __func__);
 		}
 
 		goto end_work_handler;
@@ -608,14 +608,13 @@ static void pat9126_complete_resume(struct work_struct *work) {
 
 	mutex_lock(&data->mtx);
 
-	pr_info("[PAT9126]%s, start\n", __func__);
 	if (data->state != PAT9126_STATE_RESUMING) {
 		if (data->state == PAT9126_STATE_ON) {
-			pr_warn("[PAT9126]%s: Already resumed\n", __func__);
+			pr_warn("[PAT9126] %s: Already resumed\n", __func__);
 		} else {
 			// If suspend is called before resume is complete
 			// resume will be aborted
-			pr_info("[PAT9126]%s: Resume aborted\n", __func__);
+			pr_info("[PAT9126] %s: Resume aborted\n", __func__);
 		}
 
 		goto end_complete_resume;
@@ -628,7 +627,6 @@ static void pat9126_complete_resume(struct work_struct *work) {
 	enable_irq(data->client->irq);
 
 end_complete_resume:
-	pr_info("[PAT9126]%s, end\n", __func__);
 	mutex_unlock(&data->mtx);
 }
 
@@ -748,6 +746,14 @@ static int pat9126_i2c_probe(struct i2c_client *client,
 
 	mutex_init(&data->mtx);
 	data->state = PAT9126_STATE_ON;
+	data->display_mode = FB_BLANK_UNBLANK;
+
+	data->fb_notif.notifier_call = pat9126_fb_callback;
+	ret = fb_register_client(&data->fb_notif);
+
+	if (ret) {
+		pr_err("[PAT9126]: Failed to register FB callback\n");
+	}
 
 	INIT_DELAYED_WORK(&data->polling_work, pat9126_work_handler);
 	INIT_DELAYED_WORK(&data->resume_work, pat9126_complete_resume);
@@ -783,21 +789,51 @@ static int pat9126_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if defined(PAT9126_PM_OPS)
-static int pat9126_suspend(struct device *dev)
+static int pat9126_fb_callback(struct notifier_block *nb, unsigned long type, void *arg) {
+	struct fb_event *event_data = arg;
+	struct pixart_pat9126_data *data =
+		container_of(nb, struct pixart_pat9126_data, fb_notif);
+	struct device *dev = &data->client->dev;
+	int *blank_ptr = event_data->data;
+	int new_mode;
+
+	if (type != FB_EVENT_BLANK) {
+		return 0;
+	}
+
+	if (!blank_ptr) {
+		pr_warn("[PAT9126] 'blank' is NULL\n");
+		return 0;
+	}
+
+	new_mode = *blank_ptr;
+
+	if (new_mode == FB_BLANK_UNBLANK &&
+	    data->display_mode != FB_BLANK_UNBLANK) {
+		pat9126_display_resume(dev);
+	} else if (new_mode != FB_BLANK_UNBLANK &&
+	           data->display_mode == FB_BLANK_UNBLANK) {
+		pat9126_display_suspend(dev);
+    }
+
+	data->display_mode = new_mode;
+	return 0;
+}
+
+static int pat9126_display_suspend(struct device *dev)
 {
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
 	mutex_lock(&data->mtx);
 
-	pr_info("[PAT9126]%s, start\n", __func__);
+	pr_debug("[PAT9126] %s\n", __func__);
 	if(data->state != PAT9126_STATE_ON) {
 		if (data->state == PAT9126_STATE_OFF) {
-			pr_warn("[PAT9126]%s: Redundant call to suspend\n", __func__);
+			pr_warn("[PAT9126] %s: Redundant call to suspend\n", __func__);
 		} else {
 			// PAT9126_STATE_RESUMING
-			pr_info("[PAT9126]%s: Aborting resume\n", __func__);
+			pr_info("[PAT9126] %s: Aborting resume\n", __func__);
 		}
 
 		goto end_suspend;
@@ -812,15 +848,17 @@ end_suspend:
 	return 0;
 }
 
-static int pat9126_resume(struct device *dev)
+static int pat9126_display_resume(struct device *dev)
 {
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
+	pr_debug("[PAT9126] %s\n", __func__);
+
 	mutex_lock(&data->mtx);
 
 	if (data->state != PAT9126_STATE_OFF) {
-		pr_warn("[PAT9126]%s: Redundant call to resume\n", __func__);
+		pr_warn("[PAT9126] %s: Redundant call to resume\n", __func__);
 		mutex_unlock(&data->mtx);
 		return 0;
 	}
@@ -829,7 +867,7 @@ static int pat9126_resume(struct device *dev)
 	mutex_unlock(&data->mtx);
 
 	if (!schedule_delayed_work(&data->resume_work, msecs_to_jiffies(10))) {
-		pr_err("[PAT9126]%s: Failed to schedule delayed resume\n", __func__);
+		pr_err("[PAT9126] %s: Failed to schedule delayed resume\n", __func__);
 
 		// Note that we must release the mutex (as above) before
 		// calling this function.
@@ -838,20 +876,12 @@ static int pat9126_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct i2c_device_id pat9126_device_id[] = {
 	{PAT9126_DEV_NAME, 0},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pat9126_device_id);
-
-#if defined(PAT9126_PM_OPS)
-static const struct dev_pm_ops pat9126_pm_ops = {
-	.suspend = pat9126_suspend,
-	.resume = pat9126_resume
-};
-#endif
 
 static const struct of_device_id pixart_pat9126_match_table[] = {
 	{ .compatible = "pixart,pat9126",},
@@ -862,9 +892,6 @@ static struct i2c_driver pat9126_i2c_driver = {
 	.driver = {
 		   .name = PAT9126_DEV_NAME,
 		   .owner = THIS_MODULE,
-#if defined(PAT9126_PM_OPS)
-		   .pm = &pat9126_pm_ops,
-#endif
 		   .of_match_table = pixart_pat9126_match_table,
 		   },
 	.probe = pat9126_i2c_probe,
