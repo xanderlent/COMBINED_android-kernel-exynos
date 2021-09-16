@@ -1168,7 +1168,7 @@ static ssize_t raydium_i2c_pda_access_store(struct device *dev,
 	} else {
 		goto exit_error;
 	}
-	if (g_ui_length > MAX_WRITE_PACKET_SIZE) {
+	if (data_count > MAX_WRITE_PACKET_SIZE) {
 		return -EINVAL;
 	}
 	g_ui_length = data_count;
