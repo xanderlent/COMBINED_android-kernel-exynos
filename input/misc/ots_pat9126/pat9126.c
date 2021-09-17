@@ -300,6 +300,43 @@ int pat9126_enable_mot(struct i2c_client *client)
 	return 0;
 }
 
+int pat9126_enable_mot_write_protected(struct i2c_client *client) {
+	int result;
+
+	pat9126_write_verified(client, PIXART_PAT9126_WRITE_PROTECT_REG,
+	                       PIXART_PAT9126_DISABLE_WRITE_PROTECT);
+
+	result = pat9126_enable_mot(client);
+
+	pat9126_write_verified(client, PIXART_PAT9126_WRITE_PROTECT_REG,
+	                       PIXART_PAT9126_ENABLE_WRITE_PROTECT);
+
+	if (result) {
+		pr_err("[PAT9126] %s: failed to enable sensor\n", __func__);
+	}
+
+	return result;
+}
+
+int pat9126_disable_mot_write_protected(struct i2c_client *client) {
+	int result;
+
+	pat9126_write_verified(client, PIXART_PAT9126_WRITE_PROTECT_REG,
+	                       PIXART_PAT9126_DISABLE_WRITE_PROTECT);
+
+	result = pat9126_disable_mot(client,
+	    PIXART_PAT9126_SLEEP_MODE_DETECT_FREQ_DEFAULT);
+
+	pat9126_write_verified(client, PIXART_PAT9126_WRITE_PROTECT_REG,
+	                       PIXART_PAT9126_ENABLE_WRITE_PROTECT);
+
+	if (result) {
+		pr_err("[PAT9126] %s: failed to disable sensor\n", __func__);
+	}
+
+	return result;
+}
+
 /* Read motion */
 void pat9126_read_motion(struct i2c_client *client, int16_t *dx16, int16_t *dy16)
 {
@@ -604,7 +641,6 @@ static void pat9126_complete_resume(struct work_struct *work) {
     struct delayed_work *dw = to_delayed_work(work);
 	struct pixart_pat9126_data *data =
 			container_of(dw, struct pixart_pat9126_data, resume_work);
-	struct device *dev = &data->client->dev;
 
 	mutex_lock(&data->mtx);
 
@@ -620,8 +656,7 @@ static void pat9126_complete_resume(struct work_struct *work) {
 		goto end_complete_resume;
 	}
 
-	pat9126_pd_write(dev, 0);
-	delay(3); // To ensure accuracy, datasheet recommends 3ms delay here
+	pat9126_enable_mot_write_protected(data->client);
 
 	data->state = PAT9126_STATE_ON;
 	enable_irq(data->client->irq);
@@ -840,7 +875,7 @@ static int pat9126_display_suspend(struct device *dev)
 	}
 
 	disable_irq(data->client->irq);
-	pat9126_pd_write(dev, 1);
+	pat9126_disable_mot_write_protected(data->client);
 
 end_suspend:
 	data->state = PAT9126_STATE_OFF;
