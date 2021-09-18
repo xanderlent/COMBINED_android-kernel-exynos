@@ -26,6 +26,7 @@
 #include <linux/gpio.h>
 #include <linux/mfd/samsung/s2mpw02.h>
 #include <linux/mfd/samsung/s2mpw02-regulator.h>
+#include <linux/wakeup_reason.h>
 
 #include <sound/soc.h>
 //#include <sound/cod3035x.h>
@@ -310,8 +311,11 @@ static irqreturn_t s2mpw02_irq_thread(int irq, void *data)
 
 	/* Report */
 	for (i = 0; i < S2MPW02_IRQ_NR; i++) {
-		if (irq_reg[s2mpw02_irqs[i].group] & s2mpw02_irqs[i].mask)
+		if (irq_reg[s2mpw02_irqs[i].group] & s2mpw02_irqs[i].mask) {
 			handle_nested_irq(s2mpw02->irq_base + i);
+			log_threaded_irq_wakeup_reason(s2mpw02->irq_base + i,
+						       s2mpw02->irq);
+		}
 	}
 
 	return IRQ_HANDLED;
