@@ -45,6 +45,10 @@
 static LIST_HEAD(drvdata_list);
 #endif
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
+#include <soc/samsung/exynos-cpupm.h>
+#endif
+
 /* see s3c2410x user guide, v1.1, section 9 (p447) for more info */
 
 #define S3C2410_IICCON			0x00
@@ -969,7 +973,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	struct s3c24xx_i2c *i2c = (struct s3c24xx_i2c *)adap->algo_data;
 	int ret, try;
 
-#ifdef CONFIG_ARCH_EXYNOS_PM
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
 #endif
 	ret = clk_enable(i2c->clk);
@@ -985,7 +989,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 
 		if (ret != -EAGAIN) {
 			clk_disable(i2c->clk);
-#ifdef CONFIG_ARCH_EXYNOS_PM
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 			exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
 			return ret;
@@ -999,7 +1003,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	}
 
 	clk_disable(i2c->clk);
-#ifdef CONFIG_ARCH_EXYNOS_PM
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
 	return -EREMOTEIO;
@@ -1334,7 +1338,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	i2c->adap.class = I2C_CLASS_DEPRECATED;
 	i2c->tx_setup = 50;
 
-#ifdef CONFIG_ARCH_EXYNOS_PM
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 #endif
 

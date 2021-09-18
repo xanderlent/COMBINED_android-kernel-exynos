@@ -29,6 +29,10 @@
 /* For struct samsung_timer_variant and samsung_pwm_lock. */
 #include <clocksource/samsung_pwm.h>
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
+#include <soc/samsung/exynos-cpupm.h>
+#endif
+
 #define REG_TCFG0			0x00
 #define REG_TCFG1			0x04
 #define REG_TCON			0x08
@@ -128,7 +132,7 @@ static DEFINE_SPINLOCK(samsung_pwm_lock);
 static void pwm_samsung_update_ip_idle_status(struct samsung_pwm_chip *chip,
 					      int idle)
 {
-#ifdef CONFIG_ARCH_EXYNOS_PM
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(chip->idle_ip_index, idle);
 #endif
 }
@@ -691,7 +695,7 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 	chip->chip.base = -1;
 	chip->chip.npwm = SAMSUNG_PWM_NUM;
 	chip->inverter_mask = BIT(SAMSUNG_PWM_NUM) - 1;
-#ifdef CONFIG_ARCH_EXYNOS_PM
+#ifdef CONFIG_CONFIG_ARM64_EXYNOS_CPUIDLE
 	chip->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 #endif
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {

@@ -43,6 +43,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
+#include <soc/samsung/exynos-cpupm.h>
+#endif
 
 /* Semaphore for peterson algorithm  */
 #define AP_TURN 0
@@ -239,7 +242,7 @@ static int exynos_adc_enable_clk(struct exynos_adc *info)
 }
 static void exynos_adc_update_ip_idle_status(struct exynos_adc *info, int idle)
 {
-#ifdef CONFIG_ARCH_EXYNOS_PM
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(info->idle_ip_index, idle);
 #endif
 }
@@ -1004,7 +1007,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	info->tsirq = irq;
 
 	info->dev = &pdev->dev;
-#ifdef CONFIG_ARCH_EXYNOS_PM
+#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	info->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 #endif
 	init_completion(&info->completion);
