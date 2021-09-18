@@ -113,6 +113,7 @@
 		cirrus,boost-ind-nanohenry = <1000>;
 		cirrus,boost-cap-microfarad = <30>;
 		cirrus,boost-ctl-millivolt = <5500>;
+		cirrus,hibernate-enable = <1>;
 
 		// Mode 3: Hi-Z during unused slots and while all transmit channels disabled
 		cirrus,asp-sdout-hiz = <3>;
