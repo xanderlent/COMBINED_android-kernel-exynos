@@ -145,6 +145,44 @@
 		usbl2_suspend_mode_idx = <12>;	/* SYS_SLEEP_AUD_ON */
 		extra_wakeup_stat = <0x640>;
 		wake_lock = <0>;                /* 1: held wake_lock */
+
+		wakeup_stats {
+			wakeup_stat {
+				ws-name =
+					"EINT",			/* [ 0] */
+					"RTC_ALARM",		/* [ 1] */
+					"RTC_TICK",		/* [ 2] */
+					"TRTC_ALARM",		/* [ 3] */
+					"TRTC_TICK",		/* [ 4] */
+					"RESERVED",		/* [ 5] */
+					"RESERVED",		/* [ 6] */
+					"RESERVED",		/* [ 7] */
+					"RESERVED",		/* [ 8] */
+					"CMGP2PMU_AP_EINT1",	/* [ 9] */
+					"CMGP2PMU_AP_EINT0",	/* [10] */
+					"MMC_CARD",		/* [11] */
+					"MMC_EMBD",		/* [12] */
+					"RESERVED",		/* [13] */
+					"TIMER",		/* [14] */
+					"WLBT_ACTIVE",		/* [15] */
+					"WLBT_RESET_REQ",	/* [16] */
+					"INT_MBOX_WLBT",	/* [17] */
+					"USB20",		/* [18] */
+					"INT_MBOX_IN_APM",	/* [19] */
+					"CP_RESET_REQ",		/* [20] */
+					"GNSS_WAKEUP_REQ",	/* [21] */
+					"GNSS_RESET_REQ",	/* [22] */
+					"GNSS_ACTIVE",		/* [23] */
+					"INT_MBOX_CP",		/* [24] */
+					"CP_ACTIVE",		/* [25] */
+					"INT_MBOX_GNSS",	/* [26] */
+					"APM_CPU",		/* [27] */
+					"RESERVED",		/* [28] */
+					"INT_MBOX_CP_SECURE",	/* [29] */
+					"RESERVED",		/* [30] */
+					"WAKEUP";		/* [31] */
+			};
+		};
 	};
 
 	exynos-powermode {
