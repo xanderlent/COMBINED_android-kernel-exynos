@@ -129,15 +129,7 @@ static int dmabuf_trace_task_release(struct inode *inode, struct file *file)
 	struct dmabuf_trace_task *task = file->private_data;
 	struct dmabuf_trace_ref *ref, *tmp;
 
-	if (!(task->task->flags & PF_EXITING)) {
-		pr_err("%s: Invalid to close '%d' on process '%s'(%x, %x)\n",
-		       __func__, task->task->pid, task->task->comm,
-		       task->task->flags, task->task->state);
-
-		dump_stack();
-	}
-
-	put_task_struct(task->task);
+	WARN_ON(!(current->group_leader->flags & PF_EXITING));
 
 	mutex_lock(&trace_lock);
 
@@ -203,9 +195,6 @@ static struct dmabuf_trace_task *dmabuf_trace_get_task(void)
 	INIT_LIST_HEAD(&task->ref_list);
 
 	scnprintf(name, 10, "%d", current->group_leader->pid);
-
-	get_task_struct(current->group_leader);
-
 	task->task = current->group_leader;
 	task->debug_task = debugfs_create_file(name, 0444,
 					       debug_root, task,
@@ -239,8 +228,6 @@ err_inode:
 err_fd:
 	debugfs_remove(task->debug_task);
 err_debugfs:
-	put_task_struct(current->group_leader);
-
 	kfree(task);
 
 	return ERR_PTR(ret);
