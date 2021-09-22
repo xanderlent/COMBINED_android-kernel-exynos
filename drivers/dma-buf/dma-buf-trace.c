@@ -26,7 +26,6 @@
 #include <linux/anon_inodes.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
-#include <linux/oom.h>
 
 #include "dma-buf-trace.h"
 
@@ -477,44 +476,6 @@ err_unregister:
 	return ret;
 }
 
-
-static int dmabuf_oom_notifier_fn(struct notifier_block *nb,
-				  unsigned long action, void *data)
-{
-	struct dmabuf_trace_task *task = &head_task;
-	struct dmabuf_trace_ref *ref;
-
-	if (!mutex_trylock(&trace_lock))
-		return 0;
-
-	do {
-		pr_err("\nTask %s@%d Objects:\n",
-		       (task->task) ? task->task->comm : "Kernel",
-		       (task->task) ? task->task->pid : 0);
-		pr_err("%10s %12s %12s %10s\n",
-		       "exp_name", "size", "share", "refcount");
-
-		list_for_each_entry(ref, &task->ref_list, task_node) {
-			pr_err("%10s %12zu %12zu %10d\n",
-			       ref->buffer->dmabuf->exp_name,
-			       ref->buffer->dmabuf->size,
-			       ref->buffer->dmabuf->size /
-			       ref->buffer->shared_count,
-			       ref->refcount);
-		}
-
-		task = list_next_entry(task, node);
-	} while (&task->node != &head_task.node);
-
-	mutex_unlock(&trace_lock);
-
-	return 0;
-}
-
-static struct notifier_block dmabuf_oom_notifier = {
-	.notifier_call = dmabuf_oom_notifier_fn,
-};
-
 static int __init dmabuf_trace_create(void)
 {
 	debug_root = debugfs_create_dir("footprint", dma_buf_debugfs_dir);
@@ -541,8 +502,6 @@ static int __init dmabuf_trace_create(void)
 
 	INIT_LIST_HEAD(&head_task.node);
 	INIT_LIST_HEAD(&head_task.ref_list);
-
-	register_oom_notifier(&dmabuf_oom_notifier);
 
 	pr_info("Initialized dma-buf trace successfully.\n");
 
