@@ -179,15 +179,6 @@ static struct dmabuf_trace_task *dmabuf_trace_get_task_noalloc(void)
 	if (!current->mm && (current->flags & PF_KTHREAD))
 		return &head_task;
 
-	/*
-	 * init process, pid 1 closes file descriptor after booting.
-	 * At that time, the trace buffers of init process are released,
-	 * so we use head task to track the buffer of init process instead of
-	 * creating dmabuf_trace_task for init process.
-	 */
-	if (current->group_leader->pid == 1)
-		return &head_task;
-
 	list_for_each_entry(task, &head_task.node, node)
 		if (task->task == current->group_leader)
 			return task;
