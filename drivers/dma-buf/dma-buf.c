@@ -127,7 +127,6 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 		reservation_object_fini(dmabuf->resv);
 
 	module_put(dmabuf->owner);
-	kfree(dmabuf->exp_name);
 	kfree(dmabuf);
 	return 0;
 }
@@ -471,13 +470,10 @@ static inline int is_dma_buf_file(struct file *file)
 	return file->f_op == &dma_buf_fops;
 }
 
-#define MAX_EXP_FILE_NAME (DNAME_INLINE_LEN - 7) /* 7: strlen("dmabuf_") */
-
 static struct file *dma_buf_getfile(struct dma_buf *dmabuf, int flags)
 {
 	struct file *file;
 	struct inode *inode = alloc_anon_inode(dma_buf_mnt->mnt_sb);
-	char filename[MAX_EXP_FILE_NAME];
 
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
@@ -485,9 +481,7 @@ static struct file *dma_buf_getfile(struct dma_buf *dmabuf, int flags)
 	inode->i_size = dmabuf->size;
 	inode_set_bytes(inode, dmabuf->size);
 
-	snprintf(filename, MAX_EXP_FILE_NAME, "dmabuf_%s", dmabuf->exp_name);
-
-	file = alloc_file_pseudo(inode, dma_buf_mnt, filename,
+	file = alloc_file_pseudo(inode, dma_buf_mnt, "dmabuf",
 				 flags, &dma_buf_fops);
 	if (IS_ERR(file))
 		goto err_alloc_file;
@@ -583,15 +577,10 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 		goto err_module;
 	}
 
-	dmabuf->exp_name = kstrdup(exp_info->exp_name, GFP_KERNEL);
-	if (!dmabuf->exp_name) {
-		ret = -ENOMEM;
-		goto err_expname;
-	}
-
 	dmabuf->priv = exp_info->priv;
 	dmabuf->ops = exp_info->ops;
 	dmabuf->size = exp_info->size;
+	dmabuf->exp_name = exp_info->exp_name;
 	dmabuf->owner = exp_info->owner;
 	init_waitqueue_head(&dmabuf->poll);
 	dmabuf->cb_excl.poll = dmabuf->cb_shared.poll = &dmabuf->poll;
@@ -623,8 +612,6 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	return dmabuf;
 
 err_dmabuf:
-	kfree(dmabuf->exp_name);
-err_expname:
 	kfree(dmabuf);
 err_module:
 	module_put(exp_info->owner);
