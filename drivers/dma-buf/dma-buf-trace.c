@@ -66,8 +66,7 @@ static struct list_head buffer_list = LIST_HEAD_INIT(buffer_list);
 static struct dmabuf_trace_task head_task;
 static DEFINE_MUTEX(trace_lock);
 
-#ifdef CONFIG_DEBUG_FS
-static struct dentry *dmabuf_trace_debug_root;
+static struct dentry *debug_root;
 
 static int dmabuf_trace_debug_show(struct seq_file *s, void *unused)
 {
@@ -103,63 +102,6 @@ static const struct file_operations dmabuf_trace_debug_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
-
-static int dmabuf_trace_create_debugfs(struct dmabuf_trace_task *task,
-				       const unsigned char *name)
-{
-	task->debug_task = debugfs_create_file(name, 0444,
-					       dmabuf_trace_debug_root, task,
-					       &dmabuf_trace_debug_fops);
-	if (IS_ERR(task->debug_task))
-		return PTR_ERR(task->debug_task);
-
-	return 0;
-}
-
-static void dmabuf_trace_remove_debugfs(struct dmabuf_trace_task *task)
-{
-	debugfs_remove(task->debug_task);
-}
-
-static int dmabuf_trace_init_debugfs(void)
-{
-	struct dentry *d;
-
-	d = debugfs_create_dir("footprint", dma_buf_debugfs_dir);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
-
-	dmabuf_trace_debug_root = d;
-	/*
-	 * PID 1 is actually the pid of the init process. dma-buf trace borrows
-	 * pid 1 for the buffers allocated by the kernel threads to provide
-	 * full buffer information to Android Memory Tracker.
-	 */
-	d = debugfs_create_file("0", 0444, dmabuf_trace_debug_root, &head_task,
-				&dmabuf_trace_debug_fops);
-	if (IS_ERR(d)) {
-		pr_err("dma_buf_trace: debugfs: failed to create for pid 0\n");
-		debugfs_remove_recursive(dmabuf_trace_debug_root);
-		dmabuf_trace_debug_root = NULL;
-
-		return PTR_ERR(d);
-	}
-	head_task.debug_task = d;
-
-	return 0;
-}
-#else
-#define dmabuf_trace_remove_debugfs(task) do { } while (0)
-static int dmabuf_trace_create_debugfs(struct dmabuf_trace_task *task,
-				       const unsigned char *name)
-{
-	return 0;
-}
-static int dmabuf_trace_init_debugfs(void)
-{
-	return 0;
-}
-#endif
 
 static void dmabuf_trace_free_ref_force(struct dmabuf_trace_ref *ref)
 {
@@ -207,7 +149,7 @@ static int dmabuf_trace_task_release(struct inode *inode, struct file *file)
 
 	mutex_unlock(&trace_lock);
 
-	dmabuf_trace_remove_debugfs(task);
+	debugfs_remove(task->debug_task);
 
 	kfree(task);
 
@@ -275,10 +217,13 @@ static struct dmabuf_trace_task *dmabuf_trace_get_task(void)
 	get_task_struct(current->group_leader);
 
 	task->task = current->group_leader;
-
-	ret = dmabuf_trace_create_debugfs(task, name);
-	if (ret)
+	task->debug_task = debugfs_create_file(name, 0444,
+					       debug_root, task,
+					       &dmabuf_trace_debug_fops);
+	if (IS_ERR(task->debug_task)) {
+		ret = PTR_ERR(task->debug_task);
 		goto err_debugfs;
+	}
 
 	ret = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
 	if (ret < 0)
@@ -302,7 +247,7 @@ static struct dmabuf_trace_task *dmabuf_trace_get_task(void)
 err_inode:
 	put_unused_fd(fd);
 err_fd:
-	dmabuf_trace_remove_debugfs(task);
+	debugfs_remove(task->debug_task);
 err_debugfs:
 	put_task_struct(current->group_leader);
 
@@ -541,6 +486,7 @@ err_unregister:
 	return ret;
 }
 
+
 static int dmabuf_oom_notifier_fn(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
@@ -580,14 +526,30 @@ static struct notifier_block dmabuf_oom_notifier = {
 
 static int __init dmabuf_trace_create(void)
 {
-	int ret;
+	debug_root = debugfs_create_dir("footprint", dma_buf_debugfs_dir);
+	if (IS_ERR(debug_root)) {
+		pr_err("%s : Failed to create directory\n", __func__);
+
+		return PTR_ERR(debug_root);
+	}
+
+	/*
+	 * PID 1 is actually the pid of the init process. dma-buf trace borrows
+	 * pid 1 for the buffers allocated by the kernel threads to provide
+	 * full buffer information to Android Memory Tracker.
+	 */
+	head_task.debug_task = debugfs_create_file("0", 0444,
+						   debug_root, &head_task,
+						   &dmabuf_trace_debug_fops);
+	if (IS_ERR(head_task.debug_task)) {
+		debugfs_remove(debug_root);
+		pr_err("%s: Failed to create task for kernel thread\n",
+		       __func__);
+		return PTR_ERR(head_task.debug_task);
+	}
 
 	INIT_LIST_HEAD(&head_task.node);
 	INIT_LIST_HEAD(&head_task.ref_list);
-
-	ret = dmabuf_trace_init_debugfs();
-	if (ret)
-		return ret;
 
 	register_oom_notifier(&dmabuf_oom_notifier);
 
