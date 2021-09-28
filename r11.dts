@@ -23,6 +23,9 @@
 #include "exynos9110/r11_proto1_crown.dtsi"
 
 / {
+	/* soc revision info */
+	soc_id = <0xe9110000 0x00000000>;
+
 	chosen {
 		bootargs = "earlycon=exynos4210,0x13820000 console=ttySAC0,115200 ecd_setup=disable sec_debug.cp=0";
 	};
