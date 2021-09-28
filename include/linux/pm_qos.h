@@ -9,6 +9,8 @@
 #include <linux/notifier.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
+#include <linux/cpumask.h>
+#include <linux/interrupt.h>
 
 enum {
 	PM_QOS_RESERVED = 0,
@@ -50,6 +52,7 @@ enum {
 	PM_QOS_TNR_THROUGHPUT_MAX,
 	PM_QOS_GPU_THROUGHPUT_MIN,
 	PM_QOS_GPU_THROUGHPUT_MAX,
+
 	/* insert new class ID */
 	PM_QOS_NUM_CLASSES,
 };
@@ -111,16 +114,25 @@ enum pm_qos_flags_status {
 
 #define PM_QOS_FLAG_NO_POWER_OFF	(1 << 0)
 
-#define pm_qos_add_request(arg...)	do {				\
-	pm_qos_add_request_trace((char *)__func__, __LINE__, ##arg);	\
-} while(0)
+enum pm_qos_req_type {
+	PM_QOS_REQ_ALL_CORES = 0,
+	PM_QOS_REQ_AFFINE_CORES,
+#ifdef CONFIG_SMP
+	PM_QOS_REQ_AFFINE_IRQ,
+#endif
+};
 
 struct pm_qos_request {
+	enum pm_qos_req_type type;
+	struct cpumask cpus_affine;
+#ifdef CONFIG_SMP
+	uint32_t irq;
+	/* Internal structure members */
+	struct irq_affinity_notify irq_notify;
+#endif
 	struct plist_node node;
 	int pm_qos_class;
 	struct delayed_work work; /* for pm_qos_update_request_timeout */
-	char *func;
-	unsigned int line;
 };
 
 struct pm_qos_flags_request {
@@ -147,8 +159,8 @@ enum pm_qos_type {
 	PM_QOS_UNITIALIZED,
 	PM_QOS_MAX,		/* return the largest value */
 	PM_QOS_MIN,		/* return the smallest value */
-	PM_QOS_SUM,		/* return sum of values greater than zero */
-	PM_QOS_FORCE_MAX,
+	PM_QOS_SUM,		/* return the sum */
+	PM_QOS_FORCE_MAX
 };
 
 /*
@@ -159,6 +171,7 @@ enum pm_qos_type {
 struct pm_qos_constraints {
 	struct plist_head list;
 	s32 target_value;	/* Do not change to 64 bit */
+	s32 target_per_cpu[NR_CPUS];
 	s32 default_value;
 	s32 no_constraint_value;
 	enum pm_qos_type type;
@@ -196,8 +209,7 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 			 struct pm_qos_flags_request *req,
 			 enum pm_qos_req_action action, s32 val);
-void pm_qos_add_request_trace(char *func, unsigned int line,
-			struct pm_qos_request *req, int pm_qos_class,
+void pm_qos_add_request(struct pm_qos_request *req, int pm_qos_class,
 			s32 value);
 void pm_qos_update_request(struct pm_qos_request *req,
 			   s32 new_value);
@@ -207,6 +219,8 @@ void pm_qos_remove_request(struct pm_qos_request *req);
 
 int pm_qos_read_req_value(int pm_qos_class, struct pm_qos_request *req);
 int pm_qos_request(int pm_qos_class);
+int pm_qos_request_for_cpu(int pm_qos_class, int cpu);
+int pm_qos_request_for_cpumask(int pm_qos_class, struct cpumask *mask);
 int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_request_active(struct pm_qos_request *req);
