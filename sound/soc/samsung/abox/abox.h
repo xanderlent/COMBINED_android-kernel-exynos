@@ -392,6 +392,8 @@
 #define IOVA_DUMP_BUFFER		(0xD0000000)
 #define PHSY_VSS_FIRMWARE		(0xFEE00000)
 #define PHSY_VSS_SIZE			(SZ_4M + SZ_2M)
+#define ABOX_LOG_OFFSET                 (0x600000)
+#define ABOX_LOG_SIZE                   (SZ_1M)
 
 #define AUD_PLL_RATE_HZ_FOR_48000	(1179648040)
 #define AUD_PLL_RATE_HZ_FOR_44100	(1083801600)

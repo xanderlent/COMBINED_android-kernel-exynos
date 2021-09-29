@@ -6133,6 +6133,7 @@ static int abox_disable(struct device *dev)
 	clk_disable(data->clk_cpu);
 	abox_gic_disable_irq(data->dev_gic);
 	abox_failsafe_report_reset(dev);
+	abox_dbg_dump_suspend(dev, data);
 	return 0;
 }
 

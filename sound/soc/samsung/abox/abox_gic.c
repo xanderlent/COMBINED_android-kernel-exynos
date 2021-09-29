@@ -24,6 +24,33 @@
 #include "abox_gic.h"
 
 #define GIC_IS_SECURE_FREE
+#define VERBOSE 0
+
+static u32 gicd_xreadl(struct abox_gic_data *data, unsigned int offset)
+{
+	u32 value;
+
+	if (is_secure_gic()) {
+		unsigned long val;
+		int ret;
+
+		offset += data->gicd_base_phys;
+		ret = exynos_smc_readsfr(offset, &val);
+		if (ret < 0) {
+			dev_err(data->dev, "read fail %#x: %d\n", offset, ret);
+			return 0;
+		}
+
+		value = (u32)val;
+
+		if (VERBOSE)
+			dev_dbg(data->dev, "%#x %#lx\n", offset, val);
+	} else {
+		value = readl(data->gicd_base + offset);
+	}
+
+	return value;
+}
 
 void abox_gic_generate_interrupt(struct device *dev, unsigned int irq)
 {
@@ -189,6 +216,16 @@ void abox_gic_init_gic(struct device *dev)
 }
 EXPORT_SYMBOL(abox_gic_init_gic);
 
+void abox_gicd_dump(struct device *dev, char *dump, size_t off, size_t size)
+{
+	struct abox_gic_data *data = dev_get_drvdata(dev);
+	size_t limit = min(off + size, data->gicd_size);
+	u32 *buf = (u32 *)dump;
+
+	for (; off < limit; off += 4)
+		*buf++ = gicd_xreadl(data, off);
+}
+
 int abox_gic_enable_irq(struct device *dev)
 {
 	struct abox_gic_data *data = dev_get_drvdata(dev);
@@ -230,13 +267,15 @@ static int samsung_abox_gic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, data);
 
+	data->dev = &pdev->dev;
+
 	data->gicd_base = devm_request_and_map_byname(pdev, "gicd",
-			&data->gicd_base_phys, NULL);
+			&data->gicd_base_phys, &data->gicd_size);
 	if (IS_ERR(data->gicd_base))
 		return PTR_ERR(data->gicd_base);
 
 	data->gicc_base = devm_request_and_map_byname(pdev, "gicc",
-			&data->gicc_base_phys, NULL);
+			&data->gicc_base_phys, &data->gicc_size);
 	if (IS_ERR(data->gicc_base))
 		return PTR_ERR(data->gicc_base);
 

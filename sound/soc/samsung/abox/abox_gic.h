@@ -20,15 +20,28 @@ struct abox_gic_irq_handler_t {
 };
 
 struct abox_gic_data {
+	struct device *dev;
 	void __iomem *gicd_base;
 	void __iomem *gicc_base;
 	phys_addr_t gicd_base_phys;
 	phys_addr_t gicc_base_phys;
+	size_t gicd_size;
+	size_t gicc_size;
 	int irq;
 	struct abox_gic_irq_handler_t handler[ABOX_GIC_IRQ_COUNT];
 	bool disabled;
 
 };
+
+/**
+  * Dump ABOX GIC Distributor SFR
+  * @param[in]   dev     pointer to abox_gic device
+  * @param[in]   dump    gpr dump
+  * @param[in]   off     dump start offset
+  * @param[in]   size    size of dump
+  */
+extern void abox_gicd_dump(struct device *dev, char *dump,
+		size_t off, size_t size);
 
 /**
  * Generate interrupt

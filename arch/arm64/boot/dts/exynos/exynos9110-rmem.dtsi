@@ -19,7 +19,7 @@
 
 		abox_rmem: abox_rmem@0x99200000 {
 			compatible = "exynos,abox_rmem";
-			reg = <0x0 0x8D800000 0x180000>;
+			reg = <0x0 0x8D800000 0x200000>;
 		};
 
 		abox_dram_rmem: abox_dram_rmem {

@@ -23,7 +23,27 @@
 #include "abox_dbg.h"
 #include "abox_gic.h"
 
+#define ABOX_DBG_DUMP_MAGIC_SRAM        0x3935303030504D44ull /* DMP00059 */
+#define ABOX_DBG_DUMP_MAGIC_DRAM        0x3231303038504D44ull /* DMP80012 */
+#define ABOX_DBG_DUMP_MAGIC_LOG         0x3142303038504D44ull /* DMP800B1 */
+#define ABOX_DBG_DUMP_MAGIC_SFR         0x5246533030504D44ull /* DMP00SFR */
+
 static struct dentry *abox_dbg_root_dir __read_mostly;
+
+struct abox_dbg_dump_sram {
+	unsigned long long magic;
+	char dump[SZ_512K];
+} __packed;
+
+struct abox_dbg_dump_log {
+	unsigned long long magic;
+	char dump[ABOX_LOG_SIZE];
+} __packed;
+
+struct abox_dbg_dump_sfr {
+	unsigned long long magic;
+	u32 dump[SZ_64K / sizeof(u32)];
+} __packed;
 
 struct dentry *abox_dbg_get_root_dir(void)
 {
@@ -96,6 +116,17 @@ struct abox_dbg_dump_min {
 	char reason[SZ_32];
 };
 
+struct abox_dbg_dump_suspend {
+	struct abox_dbg_dump_sram sram;
+	struct abox_dbg_dump_log log;
+	struct abox_dbg_dump_sfr sfr;
+	u32 sfr_gic_gicd[SZ_4K / sizeof(u32)];
+	unsigned int gpr[17];
+	long long time;
+	char reason[SZ_32];
+};
+
+static struct abox_dbg_dump_suspend *p_abox_dump_suspend;
 static struct abox_dbg_dump (*p_abox_dbg_dump)[ABOX_DBG_DUMP_COUNT];
 static struct abox_dbg_dump_min (*p_abox_dbg_dump_min)[ABOX_DBG_DUMP_COUNT];
 static struct reserved_mem *abox_rmem;
@@ -110,6 +141,7 @@ static int __init abox_rmem_setup(struct reserved_mem *rmem)
 	else if (sizeof(*p_abox_dbg_dump_min) <= abox_rmem->size)
 		p_abox_dbg_dump_min = phys_to_virt(abox_rmem->base);
 
+	p_abox_dump_suspend = phys_to_virt(abox_rmem->base);
 	return 0;
 }
 
@@ -303,6 +335,36 @@ void abox_dbg_dump_simple(struct device *dev, struct abox_data *data,
 }
 
 static atomic_t abox_error_count = ATOMIC_INIT(0);
+
+void abox_dbg_dump_suspend(struct device *dev, struct abox_data *data)
+{
+	int i;
+	dev_info(dev, "%s\n", __func__);
+
+	p_abox_dump_suspend->time = sched_clock();
+	strncpy(p_abox_dump_suspend->reason, "suspend",
+			sizeof(p_abox_dump_suspend->reason) - 1);
+
+	for (i = 0; i <= 14; i++)
+		p_abox_dump_suspend->gpr[i] = readl(data->sfr_base +
+						    ABOX_CPU_R(i));
+	p_abox_dump_suspend->gpr[i++] = readl(data->sfr_base + ABOX_CPU_PC);
+	p_abox_dump_suspend->gpr[i++] = readl(data->sfr_base +
+					      ABOX_CPU_L2C_STATUS);
+
+	memcpy_fromio(p_abox_dump_suspend->sram.dump, data->sram_base,
+			data->sram_size);
+	p_abox_dump_suspend->sram.magic = ABOX_DBG_DUMP_MAGIC_SRAM;
+	memcpy(p_abox_dump_suspend->log.dump, data->dram_base + ABOX_LOG_OFFSET,
+			ABOX_LOG_SIZE);
+	p_abox_dump_suspend->log.magic = ABOX_DBG_DUMP_MAGIC_LOG;
+	memcpy_fromio(p_abox_dump_suspend->sfr.dump, data->sfr_base,
+			sizeof(p_abox_dump_suspend->sfr.dump));
+	p_abox_dump_suspend->sfr.magic = ABOX_DBG_DUMP_MAGIC_SFR;
+	abox_gicd_dump(data->dev_gic, (char *)p_abox_dump_suspend->sfr_gic_gicd,
+			0, sizeof(p_abox_dump_suspend->sfr_gic_gicd));
+	dev_info(dev, "%s end\n", __func__);
+}
 
 void abox_dbg_report_status(struct device *dev, bool ok)
 {
