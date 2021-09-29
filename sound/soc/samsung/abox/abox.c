@@ -6121,6 +6121,7 @@ static int abox_disable(struct device *dev)
 	data->calliope_state = CALLIOPE_DISABLED;
 	abox_log_drain_all(dev);
 	abox_request_dram_on(dev, (void *)DEFAULT_SYS_POWER_ID, false);
+	msleep(5);
 	abox_save_register(data);
 	abox_cfg_gpio(dev, "idle");
 	abox_pad_retention(true);
