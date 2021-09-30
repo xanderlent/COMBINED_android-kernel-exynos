@@ -29,6 +29,10 @@
 #define RESEND_SHORT_DELAY_US   500     /* 500us - 1ms */
 #define RESEND_LONG_DELAY_US    100000  /* 100ms - 200ms */
 
+#define BUSY_DELAY_MIN_US       50
+#define BUSY_DELAY_MAX_US       100000
+#define BUSY_BACKOFF_RATE       2
+
 static const uint32_t crc_table[] = {
 	0x00000000, 0x04C11DB7, 0x09823B6E, 0x0D4326D9,
 	0x130476DC, 0x17C56B6B, 0x1A864DB2, 0x1E475005,
@@ -350,6 +354,7 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 	int packet_size = 0;
 	struct nanohub_packet_pad *pad = packet_alloc(GFP_KERNEL);
 	int delay = 0;
+	int busy_delay = BUSY_DELAY_MIN_US;
 	int ret;
 	uint32_t seq;
 	struct timespec ts;
@@ -386,8 +391,10 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 			if (retrans_cnt >= 0)
 				udelay(retrans_delay);
 		} else if (ret == ERROR_BUSY) {
-			usleep_range(RESEND_LONG_DELAY_US,
-				     RESEND_LONG_DELAY_US * 2);
+			usleep_range(busy_delay, busy_delay * 2);
+			if (busy_delay < BUSY_DELAY_MAX_US) {
+				busy_delay = min(busy_delay * BUSY_BACKOFF_RATE, BUSY_DELAY_MAX_US);
+			}
 		}
 	} while ((ret == ERROR_BUSY)
 		 || (ret == ERROR_NACK && retrans_cnt >= 0));
@@ -406,6 +413,7 @@ int nanohub_comms_tx_rx_retrans(struct nanohub_data *data, uint32_t cmd,
 	int packet_size = 0;
 	struct nanohub_packet_pad *pad = packet_alloc(GFP_KERNEL);
 	int delay = 0;
+	int busy_delay = BUSY_DELAY_MIN_US;
 	int ret;
 	uint32_t seq;
 
@@ -437,8 +445,10 @@ int nanohub_comms_tx_rx_retrans(struct nanohub_data *data, uint32_t cmd,
 			if (retrans_cnt >= 0)
 				udelay(retrans_delay);
 		} else if (ret == ERROR_BUSY) {
-			usleep_range(RESEND_LONG_DELAY_US,
-				     RESEND_LONG_DELAY_US * 2);
+			usleep_range(busy_delay, busy_delay * 2);
+			if (busy_delay < BUSY_DELAY_MAX_US) {
+				busy_delay = min(busy_delay * BUSY_BACKOFF_RATE, BUSY_DELAY_MAX_US);
+			}
 		}
 	} while ((ret == ERROR_BUSY)
 		 || (ret == ERROR_NACK && retrans_cnt >= 0));
