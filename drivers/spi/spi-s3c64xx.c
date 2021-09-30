@@ -1046,7 +1046,8 @@ try_transfer:
 		status = wait_for_xfer(sdd, xfer, use_dma);
 
 		if (status) {
-			dev_err(&spi->dev, "I/O Error: rx-%d tx-%d res:rx-%c tx-%c len-%d\n",
+			dev_err(&spi->dev,
+				"I/O Error: rx-%d tx-%d res:rx-%c tx-%c len-%d\n",
 				xfer->rx_buf ? 1 : 0, xfer->tx_buf ? 1 : 0,
 				(sdd->state & RXBUSY) ? 'f' : 'p',
 				(sdd->state & TXBUSY) ? 'f' : 'p',
