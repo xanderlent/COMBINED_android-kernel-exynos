@@ -417,7 +417,6 @@ static irqreturn_t s2m_rtc_alarm_irq(int irq, void *data)
 	dev_info(info->dev, "%s:irq(%d)\n", __func__, irq);
 
 	rtc_update_irq(info->rtc_dev, 1, RTC_IRQF | RTC_AF);
-	__pm_wakeup_event(rtc_ws, 500);
 	return IRQ_HANDLED;
 }
 
