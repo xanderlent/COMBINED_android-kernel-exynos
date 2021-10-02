@@ -12,12 +12,27 @@
 		status = "disabled";
 
 		novatek,irq-gpio =<&gpa0 5 GPIO_ACTIVE_LOW>;
+		novatek,nfc-active-gpio = <&gpa1 4 0x00>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_active>;
+		novatek,nfc-active-ms = <500>;
 	};
 };
 
 &pinctrl_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&nfc_active>;
+
+	/* SOC_NFC_ZM_L */
+	nfc_active: nfc-active {
+		samsung,pins = "gpa1-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_UP>;
+	};
+
 	/* TP_INT */
 	ts_int_active: ts-int-active {
 		samsung,pins = "gpa0-5";
@@ -25,3 +40,4 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 	};
 };
+
