@@ -25,6 +25,9 @@
 #define SPI_TIMEOUT		65535
 #define SPI_MIN_DMA		48
 #define SPI_MAX_SPEED_HZ	10000000
+#define SPI_BITS_PER_WORD	8
+#define DMA_BURST_WIDTH		4
+#define DMA_PAD			3
 
 struct nanohub_spi_data {
 	struct nanohub_data data;
@@ -246,6 +249,7 @@ int nanohub_spi_write(void *data, uint8_t *tx, int length, int timeout)
 		.rx_buf = comms->rx_buffer,
 		.cs_change = 1,
 	};
+	xfer.len = (xfer.len + DMA_PAD) & ~DMA_PAD;
 	spi_data->rx_offset = max_len;
 	spi_data->rx_length = max_len + timeout;
 	memcpy(comms->tx_buffer, tx, length);
@@ -315,6 +319,7 @@ int nanohub_spi_read(void *data, uint8_t *rx, int max_length, int timeout)
 		}
 	}
 
+	xfer.len = (xfer.len + DMA_PAD) & ~DMA_PAD;
 	if (xfer.len != 1 && xfer.len < SPI_MIN_DMA)
 		xfer.len = SPI_MIN_DMA;
 	memset(comms->tx_buffer, 0xFF, xfer.len);
@@ -380,7 +385,7 @@ static int nanohub_spi_open(void *data)
 	spi_bus_lock(spi_data->device->master);
 	spi_data->device->max_speed_hz = spi_data->data.max_speed_hz;
 	spi_data->device->mode = SPI_MODE_0;
-	spi_data->device->bits_per_word = 8;
+	spi_data->device->bits_per_word = SPI_BITS_PER_WORD;
 	ret = spi_setup(spi_data->device);
 	if (!ret) {
 		udelay(40);
@@ -407,7 +412,7 @@ void nanohub_spi_comms_init(struct nanohub_spi_data *spi_data)
 		      sizeof(struct nanohub_packet_crc);
 
 	comms->seq = 1;
-	comms->timeout_write = 544;
+	comms->timeout_write = 760;
 	comms->timeout_ack = 272;
 	comms->timeout_reply = 512;
 	comms->open = nanohub_spi_open;
@@ -418,6 +423,7 @@ void nanohub_spi_comms_init(struct nanohub_spi_data *spi_data)
 	max_len += comms->timeout_write;
 	max_len = max(max_len, comms->timeout_ack);
 	max_len = max(max_len, comms->timeout_reply);
+	max_len = (max_len + DMA_PAD) & ~DMA_PAD;
 	comms->tx_buffer = kmalloc(max_len, GFP_KERNEL | GFP_DMA);
 	comms->rx_buffer = kmalloc(max_len, GFP_KERNEL | GFP_DMA);
 
