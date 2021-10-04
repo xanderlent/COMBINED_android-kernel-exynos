@@ -10,6 +10,8 @@
 	status = "ok";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi4_bus>;
+	dma-mode;
+	dmas = <&pdma0 2 &pdma0 3>;
 
 	sensorhub_spi4: sensorhub-spi4@0 {
 		compatible = "nanohub";
