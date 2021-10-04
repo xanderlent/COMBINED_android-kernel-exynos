@@ -1852,6 +1852,7 @@ struct iio_dev *nanohub_probe(struct device *dev, struct iio_dev *iio_dev)
 	for (i = 0; i < READ_QUEUE_DEPTH; i++)
 		nanohub_io_put_buf(&data->free_pool, &buf[i]);
 	atomic_set(&data->kthread_run, 0);
+	data->wakesrc_read.name = "nanohub";
 	wakeup_source_add(&data->wakesrc_read);
 
 	/* hold lock until reset completes */
