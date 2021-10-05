@@ -1556,6 +1556,12 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 	unsigned int masks[4];
 	unsigned int i;
 
+	// Google: Abort IRQ processing if we turned interrupts off
+	// b/200958643
+	if (atomic_read(&cs35l41->is_irq_enabled) == 0) {
+		return IRQ_NONE;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(status); i++) {
 		regmap_read(cs35l41->regmap,
 			    CS35L41_IRQ1_STATUS1 + (i * CS35L41_REGSTRIDE),
@@ -3093,7 +3099,12 @@ static int cs35l41_enter_hibernate(struct cs35l41_private *cs35l41)
 
 	/* Disable interrupts */
 	regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1, 0xFFFFFFFF);
-	disable_irq(cs35l41->irq);
+
+	// Google: Remove global disable/enable control of shared IRQ with haptics
+	// b/200958643
+	// disable_irq(cs35l41->irq);
+	// Track IRQ enable state so we can check it in the IRQ handler
+	atomic_set(&cs35l41->is_irq_enabled, 0);
 
 	/* Reset DSP sticky bit */
 	regmap_write(cs35l41->regmap, CS35L41_IRQ2_STATUS2,
@@ -3235,7 +3246,11 @@ static int cs35l41_exit_hibernate(struct cs35l41_private *cs35l41)
 		dev_dbg(cs35l41->dev, "cs35l41 restored in %d attempts\n",
 			6 - retries);
 
-	enable_irq(cs35l41->irq);
+	// Google: Remove global disable/enable control of shared IRQ with haptics
+	// b/200958643
+	// enable_irq(cs35l41->irq);
+	// Track IRQ enable state so we can check it in the IRQ handler
+	atomic_set(&cs35l41->is_irq_enabled, 1);
 
 	return ret;
 }
@@ -3564,6 +3579,10 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 	cs35l41->vol_ctl.ramp_wq =
 		create_singlethread_workqueue("cs35l41_ramp");
 	INIT_WORK(&cs35l41->vol_ctl.ramp_work, cs35l41_vol_ramp);
+
+	// Google: Assume IRQ is enabled normally
+	// b/200958643
+	atomic_set(&cs35l41->is_irq_enabled, 1);
 
 	ret = devm_request_threaded_irq(cs35l41->dev, cs35l41->irq, NULL,
 			cs35l41_irq, IRQF_ONESHOT | IRQF_SHARED | irq_pol,

@@ -987,6 +987,10 @@ const unsigned int cs35l41_ctl_cache_regs[CS35L41_CTRL_CACHE_SIZE] = {
 	CS35L41_PWR_CTRL2,
 	CS35L41_BSTCVRT_VCTRL1,
 	CS35L41_BSTCVRT_VCTRL2,
+	// Google: Add CS35L41_GPIO_PAD_CONTROL to ensure the
+	// state is saved and restored during hibernation.
+	// b/200958643
+	CS35L41_GPIO_PAD_CONTROL,
 };
 
 const struct cs35l41_otp_trim_region_t

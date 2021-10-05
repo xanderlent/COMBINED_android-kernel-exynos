@@ -789,7 +789,10 @@ extern const struct cs35l41_otp_maps cs35l41_otp_maps;
 #define CS35L41_CSPL_MBOX_CMD_DRV		CS35L41_DSP_VIRT1_MBOX_1
 #define CS35L41_CSPL_MBOX_CMD_DRV_SHIFT		CS35L41_DSP_VIRT1_MBOX_SHIFT
 
-#define CS35L41_CTRL_CACHE_SIZE 14
+// Google: Increase size from 14 to 15 to allow saving the state
+// of CS35L41_GPIO_PAD_CONTROL during hibernation.
+// b/200958643
+#define CS35L41_CTRL_CACHE_SIZE 15
 #define CS35L41_TRIM_CACHE_REGIONS 18
 #define CS35L41_TRIM_CACHE_SIZE 38
 
