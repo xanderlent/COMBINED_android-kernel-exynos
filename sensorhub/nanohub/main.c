@@ -1426,10 +1426,10 @@ static void nanohub_process_buffer(struct nanohub_data *data, uint8_t id,
 		*buf = NULL;
 	}
 
-	/* (for wakeup interrupts): hold a wake lock for 250ms so the sensor hal
+	/* (for wakeup interrupts): hold a wake lock for 100ms so the sensor hal
 	 * has time to grab its own wake lock */
 	if (wakeup)
-		__pm_wakeup_event(&data->wakesrc_read, 250);
+		__pm_wakeup_event(&data->wakesrc_read, 100);
 	release_wakeup(data);
 }
 
@@ -1852,7 +1852,7 @@ struct iio_dev *nanohub_probe(struct device *dev, struct iio_dev *iio_dev)
 	for (i = 0; i < READ_QUEUE_DEPTH; i++)
 		nanohub_io_put_buf(&data->free_pool, &buf[i]);
 	atomic_set(&data->kthread_run, 0);
-	data->wakesrc_read.name = "nanohub";
+	data->wakesrc_read.name = "nanohub_wakelock";
 	wakeup_source_add(&data->wakesrc_read);
 
 	/* hold lock until reset completes */
