@@ -438,12 +438,6 @@ int ion_exynos_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	ion_event_begin();
 
-	if (buffer->heap->ops->map_kernel) {
-		mutex_lock(&buffer->lock);
-		vaddr = ion_buffer_kmap_get(buffer);
-		mutex_unlock(&buffer->lock);
-	}
-
 	if (!ion_buffer_cached(buffer))
 		return 0;
 
@@ -469,12 +463,6 @@ int ion_exynos_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	struct ion_buffer *buffer = dmabuf->priv;
 
 	ion_event_begin();
-
-	if (buffer->heap->ops->map_kernel) {
-		mutex_lock(&buffer->lock);
-		ion_buffer_kmap_put(buffer);
-		mutex_unlock(&buffer->lock);
-	}
 
 	if (!ion_buffer_cached(buffer))
 		return 0;
