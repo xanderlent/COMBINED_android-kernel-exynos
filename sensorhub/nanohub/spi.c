@@ -251,9 +251,9 @@ int nanohub_spi_write(void *data, uint8_t *tx, int length, int timeout)
 	};
 	xfer.len = (xfer.len + DMA_PAD) & ~DMA_PAD;
 	spi_data->rx_offset = max_len;
-	spi_data->rx_length = max_len + timeout;
+	spi_data->rx_length = xfer.len;
 	memcpy(comms->tx_buffer, tx, length);
-	memset(comms->tx_buffer + length, 0xFF, max_len + timeout - length);
+	memset(comms->tx_buffer + length, 0xFF, xfer.len - length);
 
 	spi_message_init_with_transfers(&msg, &xfer, 1);
 
