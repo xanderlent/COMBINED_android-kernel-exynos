@@ -116,6 +116,12 @@ enum battery_charger_mode {
 	BAT_CHG_MODE_BUCK_OFF,
 };
 
+enum thermal_trip_level {
+	THERMAL_TRIP_NONE = 0,
+	THERMAL_TRIP_LOW = 1,
+	THERMAL_TRIP_HIGH = 2,
+};
+
 typedef struct battery_platform_data {
 	char *charger_name;
 	char *fuelgauge_name;
@@ -123,6 +129,7 @@ typedef struct battery_platform_data {
 	char *bat_tz_name;
 	char *wlc_tz_name;
 	char *wlc_cdev_name;
+	char *bat_cdev_name;
 
 	/* charging profile */
 	unsigned int num_temp_limits;
@@ -136,6 +143,7 @@ typedef struct battery_platform_data {
 	int wlc_vout_headroom;
 	int wlc_vout_min;
 	int wlc_vout_max;
+	int wlc_reset_soc;
 
 	/* full check */
 	unsigned int full_check_count;
@@ -234,9 +242,14 @@ struct battery_info {
 	int temp_low;
 	int temp_low_recovery;
 
-	struct thermal_cooling_device *tcd;
+	struct thermal_cooling_device *wlc_tcd;
+	struct thermal_cooling_device *bat_tcd;
 	struct thermal_zone_device *wlc_tzd;
+	struct thermal_zone_device *bat_tzd;
+	int wlc_thermal_level;
+	int bat_thermal_level;
 	int thermal_level;
+	int thermal_trigger_level;
 
 	/* DEBUG props */
 	struct dentry *debug_root;
@@ -731,6 +744,10 @@ static int usb_get_property(struct power_supply *psy,
 		break;
 	}
 
+	if (battery->charging_state_override) {
+		val->intval = 0;
+	}
+
 	return 0;
 }
 
@@ -808,6 +825,10 @@ static int battery_handle_notification(struct notifier_block *nb,
 	}
 	set_bat_status_by_cable(battery);
 	mutex_unlock(&battery->wlc_state_lock);
+	if (battery->wlc_tzd && power_supply_type == POWER_SUPPLY_TYPE_WIRELESS)
+		thermal_zone_device_update(battery->wlc_tzd, THERMAL_EVENT_UNSPECIFIED);
+	if (battery->bat_tzd && power_supply_type == POWER_SUPPLY_TYPE_WIRELESS)
+		thermal_zone_device_update(battery->bat_tzd, THERMAL_EVENT_UNSPECIFIED);
 
 	dev_dbg(battery->dev,
 			"%s: Status(%s), Health(%s), Power Supply Type(%s), Recharging(%d))"
@@ -1279,6 +1300,7 @@ static void battery_external_power_changed(struct power_supply *psy) {
 				set_battery_status(battery, POWER_SUPPLY_STATUS_DISCHARGING);
 			}
 			battery->wlc_connected = false;
+			battery->thermal_trigger_level = THERMAL_TRIP_HIGH;
 			dev_info(battery->dev, "WLC disconnected\n");
 		}
 	}
@@ -1310,6 +1332,17 @@ static void bat_monitor_work(struct work_struct *work)
 		pr_err("%s: Fail to get thermal zone device: %s\n",
 		       __func__, battery->pdata->wlc_tz_name);
 	}
+	tzd = thermal_zone_get_zone_by_name(battery->pdata->bat_tz_name);
+	if (tzd) {
+		enum thermal_device_mode mode;
+		tzd->ops->get_mode(tzd, &mode);
+		if (mode == THERMAL_DEVICE_DISABLED) {
+			tzd->ops->set_mode(tzd, THERMAL_DEVICE_ENABLED);
+		}
+	} else {
+		pr_err("%s: Fail to get thermal zone device: %s\n",
+		       __func__, battery->pdata->bat_tz_name);
+	}
 
 	psy = power_supply_get_by_name(battery->pdata->charger_name);
 	if (!psy) {
@@ -1331,6 +1364,11 @@ static void bat_monitor_work(struct work_struct *work)
 	old_health = battery->health;
 	old_temp_index = battery->temp_index;
 	get_battery_info(battery);
+
+	// If capacity drops too much, reset the temperature throttling
+	if (battery->thermal_trigger_level < THERMAL_TRIP_HIGH &&
+			battery->capacity < battery->pdata->wlc_reset_soc)
+		battery->thermal_trigger_level = THERMAL_TRIP_HIGH;
 
 	check_health(battery);
 	if (battery->status == POWER_SUPPLY_STATUS_CHARGING) {
@@ -1432,6 +1470,11 @@ static int google_battery_parse_dt(struct device *dev,
 	if (ret)
 		pr_info("%s: WLC Cooling device name is empty\n", __func__);
 
+	ret = of_property_read_string(np,
+			"battery,bat_cdev_name", (char const **)&pdata->bat_cdev_name);
+	if (ret)
+		pr_info("%s: Battery Cooling device name is empty\n", __func__);
+
 	pdata->num_temp_limits =
 	    of_property_count_elems_of_size(np, "battery,chg_temp_limits",
 					    sizeof(u32));
@@ -1527,7 +1570,14 @@ static int google_battery_parse_dt(struct device *dev,
 			&pdata->wlc_vout_max);
 	if (ret) {
 		pr_debug("%s : WLC VOUT max is empty\n", __func__);
-		pdata->wlc_vout_min = 5000;
+		pdata->wlc_vout_max = 5000;
+	}
+
+	ret = of_property_read_u32(np, "battery,wlc_reset_soc",
+			&pdata->wlc_reset_soc);
+	if (ret) {
+		pr_debug("%s : WLC reset SOC is empty\n", __func__);
+		pdata->wlc_reset_soc = 80;
 	}
 
 	ret = of_property_read_u32(np, "battery,full_check_condition_soc",
@@ -1626,20 +1676,33 @@ static int get_cur_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigne
 static int set_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned long lvl) {
 	struct battery_info *battery = (struct battery_info *) tcd->devdata;
 	bool first_trigger = false;
-	int trigger_level = 2;
+	if (tcd == battery->wlc_tcd) {
+		battery->wlc_thermal_level = lvl;
+	}
+	if (tcd == battery->bat_tcd) {
+		battery->bat_thermal_level = lvl;
+	}
+	// Keep the max of the two
+	if (battery->wlc_thermal_level > battery->bat_thermal_level)
+		lvl = battery->wlc_thermal_level;
+	else
+		lvl = battery->bat_thermal_level;
 	if (lvl < 0 || lvl > 2)
 		return -EINVAL;
-	if (lvl == 0 && battery->thermal_level == 0) {
+	if (lvl == 0 && battery->thermal_level == THERMAL_TRIP_NONE) {
 		// No update needed
 		return 0;
 	}
 	if (battery->voltage_index == battery->pdata->num_volt_limits - 1) {
-		dev_info(battery->dev, "Currently in last voltage stage, lower thermal throttle trip\n");
-		trigger_level = 1;
+		battery->thermal_trigger_level = THERMAL_TRIP_LOW;
 	}
-	if (lvl == trigger_level && battery->thermal_level < trigger_level) {
+	if (lvl == battery->thermal_trigger_level &&
+			battery->thermal_level < battery->thermal_trigger_level) {
 		// Transition from 0->1
 		first_trigger = true;
+		if (battery->thermal_trigger_level == THERMAL_TRIP_LOW) {
+			dev_info(battery->dev, "Thermal throttle trip is lowered\n");
+		}
 		dev_info(battery->dev, "Received cooling device limit: %lu. Last recorded temp: %d\n", lvl, battery->wlc_temperature);
 	}
 	battery->thermal_level = lvl;
@@ -1651,7 +1714,8 @@ static int set_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned lo
 		return 0;
 	}
 
-	if (battery->status == POWER_SUPPLY_STATUS_CHARGING && battery->thermal_level == trigger_level) {
+	if (battery->status == POWER_SUPPLY_STATUS_CHARGING &&
+			battery->thermal_level == battery->thermal_trigger_level) {
 		dev_info(battery->dev, "%s: Temperature high: disable charging.\n", __func__);
 		// Turn off WLC
 		set_wlc_status(battery, POWER_SUPPLY_STATUS_NOT_CHARGING);
@@ -1664,6 +1728,12 @@ static int set_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned lo
 }
 
 static const struct thermal_cooling_device_ops wlc_cooling_ops = {
+	.get_max_state = get_max_charge_cntl_limit,
+	.get_cur_state = get_cur_charge_cntl_limit,
+	.set_cur_state = set_charge_cntl_limit,
+};
+
+static const struct thermal_cooling_device_ops bat_cooling_ops = {
 	.get_max_state = get_max_charge_cntl_limit,
 	.get_cur_state = get_cur_charge_cntl_limit,
 	.set_cur_state = set_charge_cntl_limit,
@@ -2016,6 +2086,7 @@ static int google_battery_probe(struct platform_device *pdev)
 
 	/* Set up wlc related variable */
 	battery->wlc_connected = false;
+	battery->thermal_trigger_level = THERMAL_TRIP_HIGH;
 	mutex_init(&battery->wlc_state_lock);
 
 	/* Set up WLC cooling device */
@@ -2024,15 +2095,33 @@ static int google_battery_probe(struct platform_device *pdev)
 		if (!cooling_node) {
 			pr_err("No %s OF node for cooling device\n", battery->pdata->wlc_cdev_name);
 		} else {
-			battery->tcd = thermal_of_cooling_device_register(cooling_node, battery->pdata->wlc_cdev_name, battery, &wlc_cooling_ops);
-			battery->thermal_level = 0;
+			battery->wlc_tcd = thermal_of_cooling_device_register(cooling_node, battery->pdata->wlc_cdev_name, battery, &wlc_cooling_ops);
+			battery->thermal_level = THERMAL_TRIP_NONE;
 			battery->wlc_tzd = thermal_zone_get_zone_by_name(battery->pdata->wlc_tz_name);
 			if (battery->wlc_tzd) {
 				battery->wlc_tzd->ops->set_mode(battery->wlc_tzd, THERMAL_DEVICE_ENABLED);
 			}
+
 		}
 	}
 
+	if (battery->pdata->bat_cdev_name) {
+		cooling_node = of_find_node_by_name(NULL, battery->pdata->bat_cdev_name);
+		if (!cooling_node) {
+			pr_err("No %s OF node for cooling device\n", battery->pdata->bat_cdev_name);
+		} else {
+			battery->bat_tcd = thermal_of_cooling_device_register(cooling_node, battery->pdata->bat_cdev_name, battery, &bat_cooling_ops);
+			if (!battery->bat_tcd)
+				pr_err("Failed to register battery cooling device\n");
+			battery->thermal_level = THERMAL_TRIP_NONE;
+			battery->bat_tzd = thermal_zone_get_zone_by_name(battery->pdata->bat_tz_name);
+			if (battery->bat_tzd) {
+				battery->bat_tzd->ops->set_mode(battery->bat_tzd, THERMAL_DEVICE_ENABLED);
+			}
+
+		}
+
+	}
 	battery_create_fs_entries(battery);
 
 	/* Kick off monitoring thread */
@@ -2091,6 +2180,15 @@ static int google_battery_prepare(struct device *dev)
 		pr_err("%s: Fail to get thermal zone device: %s\n",
 		       __func__, battery->pdata->wlc_tz_name);
 	}
+
+	tzd = thermal_zone_get_zone_by_name(battery->pdata->bat_tz_name);
+	if (tzd) {
+		tzd->ops->set_mode(tzd, THERMAL_DEVICE_DISABLED);
+	} else {
+		pr_err("%s: Fail to get thermal zone device: %s\n",
+		       __func__, battery->pdata->bat_tz_name);
+	}
+
 	return 0;
 }
 
