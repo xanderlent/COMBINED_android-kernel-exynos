@@ -1,9 +1,14 @@
 &google_battery {
 	battery,wlc_tz_name = "PPG_NTC";
 	battery,wlc_cdev_name = "wlc_cool_dev";
+	battery,charge_reset_soc = <80>;
 };
 
 &wlc_cool_dev {
+	#cooling-cells = <2>;
+};
+
+&batt_cool_dev {
 	#cooling-cells = <2>;
 };
 
@@ -13,11 +18,28 @@
 };
 
 &batt_ntc {
+	governor = "fair_share";
 	trips {
+		batt_throttle_low: batt-throttle-low {
+			temperature = <45000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		batt_throttle_high: batt-throttle-high {
+			temperature = <46000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
 		battery_shutdown: battery-shutdown {
-			temperature = <60000>;
+			temperature = <61000>;
 			hysteresis = <1000>;
 			type = "critical";
+		};
+	};
+	cooling-maps {
+		battery-charge-throttled {
+			trip = <&batt_throttle_low>;
+			cooling-device = <&batt_cool_dev (~0) (~0) >; /* THERMAL_NO_LIMIT THERMAL_NO_LIMIT */
 		};
 	};
 };

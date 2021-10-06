@@ -20,6 +20,7 @@ google_battery: battery {
 	battery,fuelgauge_name = "s2mpw02-fuelgauge";
 	battery,wlc_name = "hl6111-charger";
 	battery,bat_tz_name = "BATT_NTC";
+	battery,bat_cdev_name = "batt_cool_dev";
 
 	battery,vendor = "Desay";
 	battery,chg_volt_limits = <4200 4350>;
@@ -52,6 +53,9 @@ google_battery: battery {
 };
 
 wlc_cool_dev: wlc_cool_dev {
+};
+
+batt_cool_dev: batt_cool_dev {
 };
 
 tsmab104_ntc: thermal-sensor {
