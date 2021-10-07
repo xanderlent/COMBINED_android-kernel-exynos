@@ -412,7 +412,7 @@ void nanohub_spi_comms_init(struct nanohub_spi_data *spi_data)
 		      sizeof(struct nanohub_packet_crc);
 
 	comms->seq = 1;
-	comms->timeout_write = 760;
+	comms->timeout_write = 520;
 	comms->timeout_ack = 272;
 	comms->timeout_reply = 512;
 	comms->open = nanohub_spi_open;
