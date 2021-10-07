@@ -42,7 +42,7 @@
 #define FAKE_BAT_LEVEL	50
 #define DEFAULT_ALARM_INTERVAL	10
 #define SLEEP_ALARM_INTERVAL	300
-#define RESUME_DELAY_MS         300
+#define RESUME_DELAY_MS         200
 #define INITIAL_VOUT_BOOST_MV	100
 #define DEFAULT_CHARGE_STOP_LEVEL	100
 #define DEFAULT_CHARGE_START_LEVEL	0
@@ -2161,6 +2161,7 @@ static int google_battery_prepare(struct device *dev)
 	struct battery_info *battery = dev_get_drvdata(dev);
 	struct thermal_zone_device *tzd;
 
+	flush_delayed_work(&battery->monitor_work);
 	/* If charger is connected, monitoring is required*/
 	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
 		alarm_cancel(&battery->monitor_alarm);
@@ -2211,7 +2212,6 @@ static void google_battery_complete(struct device *dev)
 		dev_info(battery->dev, "%s: Recover battery monitoring interval -> %d\n",
 			__func__, battery->monitor_alarm_interval);
 		alarm_cancel(&battery->monitor_alarm);
-		wake_lock(&battery->monitor_wake_lock);
 		/* We need to delay long enough here to avoid re-enabling the thermal device
 		   before resume is complete. If we don't, we will block resume for 50ms while
 		   we wait for the thermistor reading to stabilize. */
