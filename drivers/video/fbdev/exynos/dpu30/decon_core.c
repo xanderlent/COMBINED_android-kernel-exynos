@@ -584,7 +584,6 @@ static int _decon_enable(struct decon_device *decon, enum decon_state state)
 
 	if ((decon->dt.out_type == DECON_OUT_DSI) && (state != DECON_STATE_DOZE)) {
 		if (psr.trig_mode == DECON_HW_TRIG) {
-			decon_set_black_window(decon);
 			/*
 			 * Blender configuration must be set before DECON start.
 			 * If DECON goes to start without window and
