@@ -85,12 +85,12 @@ static void exynos_show_wakeup_reason_eint(void)
 	int bit;
 	int i, size;
 	long unsigned int ext_int_pend;
-//	u64 eint_wakeup_mask;
+	u32 eint_wakeup_mask;
 	bool found = 0;
 	unsigned int val = 0;
 
 	exynos_pmu_read(EXYNOS_PMU_EINT_WAKEUP_MASK, &val);
-//	eint_wakeup_mask = val;
+	eint_wakeup_mask = val;
 
 	for (i = 0, size = 8; i < pm_info->num_eint; i += size) {
 		ext_int_pend =
@@ -100,8 +100,8 @@ static void exynos_show_wakeup_reason_eint(void)
 			u32 gpio;
 			int irq;
 
-//			if (eint_wakeup_mask & (1 << (i + bit)))
-//				continue;
+			if (eint_wakeup_mask & (1 << (i + bit)))
+				continue;
 
 			gpio = exynos_eint_to_pin_num(i + bit);
 			irq = gpio_to_irq(gpio);
