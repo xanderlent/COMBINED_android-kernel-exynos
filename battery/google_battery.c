@@ -838,10 +838,11 @@ static int battery_handle_notification(struct notifier_block *nb,
 			power_supply_type_str[battery->power_supply_type],
 			battery->is_recharging
 		  );
-
-	power_supply_changed(battery->psy_battery);
-	alarm_cancel(&battery->monitor_alarm);
-	wake_lock(&battery->monitor_wake_lock);
+	if (!battery->wlc_connected) {
+		power_supply_changed(battery->psy_battery);
+		alarm_cancel(&battery->monitor_alarm);
+		wake_lock(&battery->monitor_wake_lock);
+	}
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 	return 0;
 }
@@ -1387,8 +1388,7 @@ static void bat_monitor_work(struct work_struct *work)
 	check_charging_full(battery);
 
 	if (old_capacity != battery->soc_spoof ||
-			old_health != battery->health ||
-			old_temp_index != battery->temp_index) {
+			old_health != battery->health) {
 		power_supply_changed(battery->psy_battery);
 	}
 
