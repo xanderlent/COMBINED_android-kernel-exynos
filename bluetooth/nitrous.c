@@ -156,7 +156,7 @@ static irqreturn_t nitrous_host_wake_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ntirous_timesync_isr(int irq, void *data)
+static irqreturn_t nitrous_timesync_isr(int irq, void *data)
 {
 	struct nitrous_bt_lpm *lpm = data;
 	ktime_t timestamp;
@@ -174,11 +174,6 @@ static irqreturn_t ntirous_timesync_isr(int irq, void *data)
 
 static int nitrous_lpm_runtime_enable(struct nitrous_bt_lpm *lpm)
 {
-	int rc;
-
-	if (lpm->irq_host_wake <= 0)
-		return -EOPNOTSUPP;
-
 	if (lpm->rfkill_blocked) {
 		dev_err(lpm->dev, "Unexpected LPM request\n");
 		logbuffer_log(lpm->log, "Unexpected LPM request");
@@ -190,17 +185,6 @@ static int nitrous_lpm_runtime_enable(struct nitrous_bt_lpm *lpm)
 		return 0;
 	}
 
-	/* Set irq_host_wake as a trigger edge interrupt. */
-	rc = devm_request_irq(lpm->dev, lpm->irq_host_wake, nitrous_host_wake_isr,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, "bt_host_wake", lpm);
-	if (unlikely(rc)) {
-		dev_err(lpm->dev, "Unable to request IRQ for bt_host_wake GPIO\n");
-		logbuffer_log(lpm->log, "Unable to request IRQ for bt_host_wake GPIO");
-		lpm->irq_host_wake = rc;
-		return rc;
-	}
-
-	device_init_wakeup(lpm->dev, true);
 	pm_runtime_enable(lpm->dev);
 	pm_runtime_set_autosuspend_delay(lpm->dev, NITROUS_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(lpm->dev);
@@ -215,19 +199,14 @@ static int nitrous_lpm_runtime_enable(struct nitrous_bt_lpm *lpm)
 	lpm->uart_tx_dev_pm_resumed = true;
 	lpm->lpm_enabled = true;
 
-	return rc;
+	return 0;
 }
 
 static void nitrous_lpm_runtime_disable(struct nitrous_bt_lpm *lpm)
 {
-	if (lpm->irq_host_wake <= 0)
-		return;
-
 	if (!lpm->lpm_enabled)
 		return;
 
-	devm_free_irq(lpm->dev, lpm->irq_host_wake, lpm);
-	device_init_wakeup(lpm->dev, false);
 	pm_relax(lpm->dev);
 	/* Check whether usage_counter got out of sync */
 	if (atomic_read(&lpm->dev->power.usage_count)) {
@@ -381,17 +360,9 @@ static int nitrous_lpm_init(struct nitrous_bt_lpm *lpm)
 	struct proc_dir_entry *entry;
 	struct nitrous_lpm_proc *data;
 
-	lpm->irq_host_wake = gpiod_to_irq(lpm->gpio_host_wake);
-	dev_info(lpm->dev, "IRQ: %d active: %s\n", lpm->irq_host_wake,
-		(lpm->wake_polarity ? "High" : "Low"));
-	logbuffer_log(lpm->log, "init: IRQ: %d active: %s", lpm->irq_host_wake,
-		(lpm->wake_polarity ? "High" : "Low"));
-
 	lpm->is_suspended = true;
 
 	if (lpm->timesync_state) {
-		lpm->irq_timesync = gpiod_to_irq(lpm->gpio_timesync);
-
 		fifo_size = TIMESYNC_TIMESTAMP_MAX_QUEUE * sizeof(ktime_t);
 		fifo_size = roundup_pow_of_two(fifo_size);
 		if (kfifo_alloc(&lpm->timestamp_queue, fifo_size, GFP_KERNEL)) {
@@ -483,35 +454,11 @@ fail:
 static void nitrous_lpm_cleanup(struct nitrous_bt_lpm *lpm)
 {
 	nitrous_lpm_runtime_disable(lpm);
-	lpm->irq_host_wake = 0;
-	if (lpm->timesync_state) {
-		lpm->irq_timesync = 0;
+	device_init_wakeup(lpm->dev, false);
+	if (lpm->timesync_state)
 		kfifo_free(&lpm->timestamp_queue);
-	}
 
 	nitrous_lpm_remove_proc_entries(lpm);
-}
-
-static void toggle_timesync(struct nitrous_bt_lpm *lpm, bool enable) {
-	int rc;
-
-	if (!lpm || lpm->timesync_state == TIMESYNC_NOT_SUPPORTED)
-		return;
-	if (enable) {
-		rc = devm_request_irq(lpm->dev, lpm->irq_timesync, ntirous_timesync_isr,
-				IRQF_TRIGGER_RISING, "bt_timesync", lpm);
-		if (unlikely(rc)) {
-			lpm->timesync_state = TIMESYNC_SUPPORTED;
-			dev_err(lpm->dev, "Unable to request IRQ for bt_timesync GPIO\n");
-			logbuffer_log(lpm->log, "Unable to request IRQ for bt_timesync GPIO");
-		} else {
-			lpm->timesync_state = TIMESYNC_ENABLED;
-		}
-	} else {
-		if (lpm->timesync_state != TIMESYNC_ENABLED)
-			return;
-		devm_free_irq(lpm->dev, lpm->irq_timesync, lpm);
-	}
 }
 
 /*
@@ -570,8 +517,6 @@ static int nitrous_rfkill_set_power(void *data, bool blocked)
 	}
 	lpm->rfkill_blocked = blocked;
 
-	toggle_timesync(lpm, !blocked);
-
 	/* wait for device to power cycle and come out of reset */
 	usleep_range(10000, 20000);
 
@@ -586,7 +531,7 @@ static int nitrous_rfkill_init(struct nitrous_bt_lpm *lpm)
 {
 	int rc;
 
-	lpm->gpio_power = devm_gpiod_get_optional(lpm->dev, "shutdown", GPIOD_OUT_LOW);
+	lpm->gpio_power = devm_gpiod_get(lpm->dev, "shutdown", GPIOD_OUT_LOW);
 	if (IS_ERR(lpm->gpio_power))
 		return PTR_ERR(lpm->gpio_power);
 
@@ -652,13 +597,31 @@ static int nitrous_probe(struct platform_device *pdev)
 			dev_warn(lpm->dev, "Can't get default pinctrl state\n");
 	}
 
-	lpm->gpio_dev_wake = devm_gpiod_get_optional(dev, "device-wakeup", GPIOD_OUT_LOW);
+	lpm->gpio_dev_wake = devm_gpiod_get(dev, "device-wakeup", GPIOD_OUT_LOW);
 	if (IS_ERR(lpm->gpio_dev_wake))
 		return PTR_ERR(lpm->gpio_dev_wake);
 
-	lpm->gpio_host_wake = devm_gpiod_get_optional(dev, "host-wakeup", GPIOD_IN);
+	lpm->gpio_host_wake = devm_gpiod_get(dev, "host-wakeup", GPIOD_IN);
 	if (IS_ERR(lpm->gpio_host_wake))
 		return PTR_ERR(lpm->gpio_host_wake);
+
+	lpm->irq_host_wake = gpiod_to_irq(lpm->gpio_host_wake);
+	if (lpm->irq_host_wake <= 0) {
+		dev_err(lpm->dev, "bt_host_wake gpiod_to_irq request failed\n");
+		return lpm->irq_host_wake;
+	}
+	dev_info(lpm->dev, "IRQ: %d active: %s\n", lpm->irq_host_wake,
+		(lpm->wake_polarity ? "High" : "Low"));
+
+	/* Set irq_host_wake as a trigger edge interrupt. */
+	rc = devm_request_irq(lpm->dev, lpm->irq_host_wake, nitrous_host_wake_isr,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, "bt_host_wake", lpm);
+	if (unlikely(rc)) {
+		dev_err(lpm->dev, "Unable to request IRQ for bt_host_wake GPIO\n");
+		return rc;
+	}
+
+	device_init_wakeup(lpm->dev, true);
 
 	lpm->gpio_timesync = devm_gpiod_get_optional(dev, "timesync", GPIOD_IN);
 	lpm->timesync_state = TIMESYNC_NOT_SUPPORTED;
@@ -668,6 +631,23 @@ static int nitrous_probe(struct platform_device *pdev)
 		lpm->timesync_state = TIMESYNC_SUPPORTED;
 	}
 	dev_dbg(lpm->dev, "Timesync support: %x", lpm->timesync_state);
+
+	if (lpm->timesync_state) {
+		lpm->irq_timesync = gpiod_to_irq(lpm->gpio_timesync);
+		if (lpm->irq_timesync <= 0) {
+			dev_err(lpm->dev, "gpio_timesync gpiod_to_irq request failed\n");
+			lpm->timesync_state = TIMESYNC_ENABLED;
+		} else {
+			rc = devm_request_irq(lpm->dev, lpm->irq_timesync, nitrous_timesync_isr,
+					IRQF_TRIGGER_RISING, "bt_timesync", lpm);
+			if (unlikely(rc)) {
+				lpm->timesync_state = TIMESYNC_SUPPORTED;
+				dev_err(lpm->dev, "Unable to request IRQ for bt_timesync GPIO\n");
+			} else {
+				lpm->timesync_state = TIMESYNC_ENABLED;
+			}
+		}
+	}
 
 	lpm->log = logbuffer_register("btlpm");
 	if (IS_ERR_OR_NULL(lpm->log)) {
