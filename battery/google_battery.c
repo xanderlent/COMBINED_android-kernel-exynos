@@ -34,6 +34,7 @@
 #include <linux/thermal.h>
 #include <linux/debugfs.h>
 #include <linux/timekeeping.h>
+#include <linux/suspend.h>
 
 #if defined(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/muic_notifier.h>
@@ -42,7 +43,6 @@
 #define FAKE_BAT_LEVEL	50
 #define DEFAULT_ALARM_INTERVAL	10
 #define SLEEP_ALARM_INTERVAL	300
-#define RESUME_DELAY_MS         200
 #define INITIAL_VOUT_BOOST_MV	100
 #define DEFAULT_CHARGE_STOP_LEVEL	100
 #define DEFAULT_CHARGE_START_LEVEL	0
@@ -177,7 +177,6 @@ struct battery_info {
 
 	struct mutex iolock;
 
-	struct wake_lock monitor_wake_lock;
 	struct workqueue_struct *monitor_wqueue;
 	struct delayed_work monitor_work;
 	struct wake_lock vbus_wake_lock;
@@ -195,6 +194,7 @@ struct battery_info {
 #if defined(CONFIG_MUIC_NOTIFIER)
 	struct notifier_block batt_nb;
 #endif
+	struct notifier_block pm_nb;
 
 	int full_check_cnt;
 
@@ -841,7 +841,6 @@ static int battery_handle_notification(struct notifier_block *nb,
 	if (!battery->wlc_connected) {
 		power_supply_changed(battery->psy_battery);
 		alarm_cancel(&battery->monitor_alarm);
-		wake_lock(&battery->monitor_wake_lock);
 	}
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 	return 0;
@@ -1413,7 +1412,6 @@ continue_monitor:
 	power_supply_put(psy);
 	alarm_cancel(&battery->monitor_alarm);
 	alarm_start_relative(&battery->monitor_alarm, ktime_set(battery->monitor_alarm_interval, 0));
-	wake_unlock(&battery->monitor_wake_lock);
 }
 
 static int google_battery_parse_dt(struct device *dev,
@@ -1656,7 +1654,6 @@ static enum alarmtimer_restart bat_monitor_alarm(
 	struct battery_info *battery = container_of(alarm,
 				struct battery_info, monitor_alarm);
 
-	wake_lock(&battery->monitor_wake_lock);
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 
 	return ALARMTIMER_NORESTART;
@@ -1721,7 +1718,6 @@ static int set_charge_cntl_limit(struct thermal_cooling_device *tcd, unsigned lo
 		set_wlc_status(battery, POWER_SUPPLY_STATUS_NOT_CHARGING);
 		// Immediately run a battery monitoring iteration
 		alarm_cancel(&battery->monitor_alarm);
-		wake_lock(&battery->monitor_wake_lock);
 		queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 	}
 	return 0;
@@ -1781,7 +1777,6 @@ static int current_override_set(void *data, u64 val)
 	battery->voltage_index = -1;
 	battery->charging_current = -1;
 	alarm_cancel(&battery->monitor_alarm);
-	wake_lock(&battery->monitor_wake_lock);
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 	return 0;
 }
@@ -1910,6 +1905,25 @@ static int battery_create_fs_entries(struct battery_info *battery)
 	return ret;
 }
 
+static int batt_pm_notify(struct notifier_block *nb,
+		unsigned long mode, void *_unused)
+{
+	struct battery_info *battery =
+		container_of(nb, struct battery_info, pm_nb);
+	switch(mode) {
+	case PM_POST_SUSPEND:
+		// Start the work here instead of in the suspend complete op
+		// because the thaw_workqueues will otherwise block resume
+		// while waiting for this work to finish
+		queue_delayed_work(battery->monitor_wqueue,
+		                   &battery->monitor_work,
+		                   msecs_to_jiffies(0));
+		break;
+	}
+
+	return 0;
+}
+
 static int google_battery_probe(struct platform_device *pdev)
 {
 	struct battery_info *battery;
@@ -1957,8 +1971,6 @@ static int google_battery_probe(struct platform_device *pdev)
 
 	mutex_init(&battery->iolock);
 
-	wake_lock_init(&battery->monitor_wake_lock, WAKE_LOCK_SUSPEND,
-			"sec-battery-monitor");
 	wake_lock_init(&battery->vbus_wake_lock, WAKE_LOCK_SUSPEND,
 			"sec-battery-vbus");
 
@@ -2083,6 +2095,8 @@ static int google_battery_probe(struct platform_device *pdev)
 	muic_notifier_register(&battery->batt_nb, battery_handle_notification,
 			MUIC_NOTIFY_DEV_CHARGER);
 #endif
+	battery->pm_nb.notifier_call = batt_pm_notify;
+	register_pm_notifier(&battery->pm_nb);
 
 	/* Set up wlc related variable */
 	battery->wlc_connected = false;
@@ -2139,7 +2153,6 @@ err_unreg_battery:
 err_workqueue:
 	destroy_workqueue(battery->monitor_wqueue);
 err_irr:
-	wake_lock_destroy(&battery->monitor_wake_lock);
 	wake_lock_destroy(&battery->vbus_wake_lock);
 	mutex_destroy(&battery->iolock);
 err_parse_dt_nomem:
@@ -2212,12 +2225,6 @@ static void google_battery_complete(struct device *dev)
 		dev_info(battery->dev, "%s: Recover battery monitoring interval -> %d\n",
 			__func__, battery->monitor_alarm_interval);
 		alarm_cancel(&battery->monitor_alarm);
-		/* We need to delay long enough here to avoid re-enabling the thermal device
-		   before resume is complete. If we don't, we will block resume for 50ms while
-		   we wait for the thermistor reading to stabilize. */
-		queue_delayed_work(battery->monitor_wqueue,
-		                   &battery->monitor_work,
-		                   msecs_to_jiffies(RESUME_DELAY_MS));
 	}
 }
 
