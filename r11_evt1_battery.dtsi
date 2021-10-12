@@ -1,3 +1,6 @@
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
 &google_battery {
 	battery,wlc_tz_name = "PPG_NTC";
 	battery,wlc_cdev_name = "wlc_cool_dev";
@@ -15,6 +18,19 @@
 &tsmab104_ntc {
 	io-channels = <&exynos_adc 0>, <&exynos_adc 1>, <&exynos_adc 5>, <&exynos_adc 4>, <&exynos_adc 6>;
 	io-channel-names = "soc-ntc", "batt-ntc", "lte-ntc", "audio-ntc", "ppg-ntc";
+	pinctrl-names = "default";
+	pinctrl-0 = <&adc_en>;
+};
+
+&pinctrl_5 {
+	adc_en: adc-en {
+		samsung,pins = "gpg2-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <1>;	/* LVL2 DRV */
+	};
 };
 
 &batt_ntc {
