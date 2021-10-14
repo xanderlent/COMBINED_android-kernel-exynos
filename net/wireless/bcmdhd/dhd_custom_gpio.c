@@ -129,21 +129,20 @@ dhd_custom_get_mac_address(void *adapter, unsigned char *buf)
 /* Customized Locale table : OPTIONAL feature */
 const struct cntry_locales_custom translate_custom_table[] = {
 /* Table should be filled out based on custom platform regulatory requirement */
-/* ccode list: AU/1 CA/1 EU/1 GB/1 IN/1 JP/1 MX/1 NZ/1 US/1 WW/1 */
+/* ccode list: AU/0 CA/0 DE/0 FR/0 GB/0 JP/0 SG/0 TW/0 US/0 */
 	{"",   "XV", 0},  /* Universal if Country code is unknown or empty */
-	{"AU", "AU", 1},
-	{"CA", "CA", 1},
-	{"EU", "EU", 1},
-	{"GB", "GB", 1},
-	{"IN", "IN", 1},
-	{"JP", "JP", 1},
-	{"MX", "MX", 1},
-	{"NZ", "NZ", 1},
-	{"US", "US", 1},
-	{"WW", "WW", 1},
+	{"AU", "AU", 0},
+	{"CA", "CA", 0},
+	{"DE", "DE", 0},
+	{"FR", "FR", 0},
+	{"GB", "GB", 0},
+	{"JP", "JP", 0},
+	{"SG", "SG", 0},
+	{"TW", "TW", 0},
+	{"US", "US", 0},
 };
 
-/* Customized Locale convertor
+/* Customized Locale converter
 *  input : ISO 3166-1 country abbreviation
 *  output: customized cspec
 */
