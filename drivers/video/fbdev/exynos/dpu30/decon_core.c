@@ -316,33 +316,6 @@ static void decon_free_dma_buf(struct decon_device *decon,
 	memset(dma, 0, sizeof(struct decon_dma_buf_data));
 }
 
-static void decon_set_black_window(struct decon_device *decon)
-{
-	struct decon_window_regs win_regs;
-	struct exynos_panel_info *lcd = decon->lcd_info;
-
-	memset(&win_regs, 0, sizeof(struct decon_window_regs));
-	win_regs.wincon = wincon(decon->dt.dft_win);
-	win_regs.start_pos = win_start_pos(0, 0);
-	win_regs.end_pos = win_end_pos(0, 0, lcd->xres, lcd->yres);
-	decon_info("xres %d yres %d win_start_pos %x win_end_pos %x\n",
-			lcd->xres, lcd->yres, win_regs.start_pos,
-			win_regs.end_pos);
-	win_regs.colormap = 0x000000;
-	win_regs.pixel_count = lcd->xres * lcd->yres;
-	win_regs.whole_w = lcd->xres;
-	win_regs.whole_h = lcd->yres;
-	win_regs.offset_x = 0;
-	win_regs.offset_y = 0;
-	decon_info("pixel_count(%d), whole_w(%d), whole_h(%d), x(%d), y(%d)\n",
-			win_regs.pixel_count, win_regs.whole_w,
-			win_regs.whole_h, win_regs.offset_x,
-			win_regs.offset_y);
-	decon_reg_set_window_control(decon->id, decon->dt.dft_win,
-			&win_regs, true);
-	decon_reg_all_win_shadow_update_req(decon->id);
-}
-
 int decon_tui_protection(bool tui_en)
 {
 	int ret = 0;
