@@ -6284,10 +6284,12 @@ static int abox_pm_notifier(struct notifier_block *nb,
 	switch (action) {
 	case PM_SUSPEND_PREPARE:
 		if (abox_is_clearable(dev, data)) {
+			enum calliope_state state;
+
 			pm_runtime_barrier(dev);
-			if (dev->power.runtime_status != 0) {
-				dev_info(dev, "calliope state: %d\n",
-						dev->power.runtime_status);
+			state = data->calliope_state;
+			if (state == CALLIOPE_ENABLING) {
+				dev_info(dev, "calliope state: %d\n", state);
 				return NOTIFY_BAD;
 			}
 			/* clear cpu gears to abox power off */
