@@ -1024,9 +1024,6 @@ int decon_exit_hiber(struct decon_device *decon)
 	if (decon->state != DECON_STATE_HIBER)
 		goto err;
 
-	pm_stay_awake(decon->dev);
-	decon_dbg("decon-%d pm_stay_awake", decon->id);
-
 	decon_dbg("enable decon-%d\n", decon->id);
 
 	ret = decon_set_out_sd_state(decon, decon->hiber.last_state);
@@ -1142,9 +1139,6 @@ int decon_enter_hiber(struct decon_device *decon)
 	decon->hiber.enter_cnt++;
 	DPU_EVENT_LOG(DPU_EVT_ENTER_HIBER, &decon->sd, start);
 	decon_hiber_start(decon);
-
-	pm_relax(decon->dev);
-	decon_dbg("decon-%d pm_relax", decon->id);
 
 err:
 	decon_hiber_unblock(decon);
