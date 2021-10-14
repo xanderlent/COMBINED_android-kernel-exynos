@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 
-#define NTC_AUTOSUSPEND_DELAY		100 /* autosuspend delay 100ms */
+#define NTC_AUTOSUSPEND_DELAY		3000 /* autosuspend delay 3000ms */
 
 struct ntc_device;
 
@@ -221,6 +221,7 @@ static int ntc_runtime_suspend(struct device *dev) {
 
 static int ntc_runtime_resume(struct device *dev) {
 	struct ntc_device *ntc_device = dev_get_drvdata(dev);
+	dev_info(dev, "%s: Setting up ntc\n", __func__);
 	gpiod_set_value(ntc_device->enable_gpio, 1);
 	/* Wait for ADC to stabilize, takes ~50ms but occasionally a bit longer */
 	msleep(100);
