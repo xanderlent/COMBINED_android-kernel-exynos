@@ -20,6 +20,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/exynos9110.h>
 
+#include "r11_btwifi_power.dtsi"
+
 #include "r11_proto1_battery.dtsi"
 #include "r11_proto1_sound.dtsi"
 #include "r11_proto1_speaker.dtsi"

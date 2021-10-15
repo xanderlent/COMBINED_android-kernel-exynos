@@ -1,0 +1,35 @@
+/*
+* Device Tree config for power railes controlled by CP and FEM_RF - BTWIFI SKU
+*/
+
+/* Disable power railes controlled by CP and FEM_RF */
+&regulators {
+	buck4_reg: BUCK4 {
+		regulator-name = "vdd_buck4";
+		regulator-initial-mode = <0>;
+	};
+
+	ldo11_reg: LDO11 {
+		regulator-name = "vdd_ldo11";
+		regulator-initial-mode = <0>;
+	};
+
+	ldo12_reg: LDO12 {
+		regulator-name = "vdd_ldo12";
+		regulator-initial-mode = <0>;
+	};
+
+	ldo13_reg: LDO13 {
+		regulator-name = "vdd_ldo13";
+		regulator-initial-mode = <0>;
+	};
+
+	ldo14_reg: LDO14 {
+		regulator-name = "vdd_ldo14";
+		regulator-initial-mode = <0>;
+	};
+};
+
+&ldo16_reg {
+	regulator-initial-mode = <0>;
+};

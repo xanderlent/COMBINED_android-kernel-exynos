@@ -65,3 +65,7 @@
 &ese_spi4 {
 	status = "ok";
 };
+
+&ldo16_reg {
+	regulator-always-on;
+};
