@@ -21,6 +21,7 @@
 #include <linux/input/mt.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
+#include <linux/timer.h>
 
 #if defined(CONFIG_FB)
 #ifdef CONFIG_DRM_MSM
@@ -897,6 +898,23 @@ static void nvt_esd_check_func(struct work_struct *work)
 }
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
+void stats_timer_func(struct timer_list *arg) {
+	unsigned long flags;
+	struct nvt_ts_touch_stats local;
+
+	spin_lock_irqsave(&ts->stats_lock, flags);
+	local = ts->stats;
+	ts->stats.count = 0;
+	spin_unlock_irqrestore(&ts->stats_lock, flags);
+
+	if (local.count) {
+		NVT_LOG("%u touch events in %u ms (last was %u ms ago)\n",
+		        local.count,
+		        jiffies_to_msecs((long)local.last - (long)local.first),
+		        jiffies_to_msecs((long)jiffies - (long)local.last));
+	}
+}
+
 #define POINT_DATA_LEN 17
 /*******************************************************
 Description:
@@ -922,12 +940,27 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	int32_t finger_cnt = 0;
 	bool log_skipped_touch;
 	unsigned long nfc_last_active;
+	unsigned long flags;
+	unsigned long current_time;
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
 		pm_wakeup_event(&ts->input_dev->dev, 5000);
 	}
 #endif
+
+	current_time = jiffies;
+	spin_lock_irqsave(&ts->stats_lock, flags);
+
+	if (ts->stats.count == 0) {
+		ts->stats.first = current_time;
+	}
+	ts->stats.last = current_time;
+	ts->stats.count += 1;
+
+	spin_unlock_irqrestore(&ts->stats_lock, flags);
+
+	mod_timer(&ts->stats_timer, jiffies + TOUCH_CLUSTER_GAP_JIFFIES);
 
 	mutex_lock(&ts->lock);
 
@@ -1304,6 +1337,9 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 		goto err_check_functionality_failed;
 	}
 
+	timer_setup(&ts->stats_timer, stats_timer_func, 0);
+
+	spin_lock_init(&ts->stats_lock);
 	mutex_init(&ts->lock);
 	mutex_init(&ts->xbuf_lock);
 
@@ -1840,6 +1876,22 @@ static int32_t nvt_ts_resume(struct device *dev)
 }
 
 static int nvt_ts_wake_enable(struct device *dev) {
+	unsigned long flags;
+	struct nvt_ts_touch_stats local;
+
+	spin_lock_irqsave(&ts->stats_lock, flags);
+	local = ts->stats;
+	ts->stats.count = 0;
+	spin_unlock_irqrestore(&ts->stats_lock, flags);
+
+	if (local.count) {
+		NVT_LOG("%u touch events in %u ms (last was %u ms ago)\n",
+		        local.count,
+		        jiffies_to_msecs((long)local.last - (long)local.first),
+		        jiffies_to_msecs((long)jiffies - (long)local.last));
+		del_timer(&ts->stats_timer);
+	}
+
 	NVT_LOG("enabling wake irq %d\n", ts->client->irq);
 	enable_irq_wake(ts->client->irq);
 	return 0;

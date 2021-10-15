@@ -93,6 +93,16 @@ extern const uint16_t gesture_key_array[];
 #define NVT_TOUCH_ESD_PROTECT 0
 #define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
 
+#define TOUCH_CLUSTER_GAP_JIFFIES msecs_to_jiffies(5000)
+
+// Tracks basic information about the most recent
+// cluster of touch events
+struct nvt_ts_touch_stats {
+	unsigned long first; // Time of first touch in jiffies
+	unsigned long last; // Time of last touch in jiffies
+	uint32_t count; // Number of events in cluster
+};
+
 struct nvt_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
@@ -124,6 +134,9 @@ struct nvt_ts_data {
 	uint32_t nfc_active_jiffies;
 	atomic64_t nfc_last_active;
 	atomic_t log_skipped_touch;
+	struct nvt_ts_touch_stats stats;
+	spinlock_t stats_lock;
+	struct timer_list stats_timer;
 	struct mutex lock;
 	const struct nvt_ts_mem_map *mmap;
 	uint8_t carrier_system;
