@@ -18,6 +18,7 @@
 #include <linux/pm_runtime.h>
 
 #define NTC_AUTOSUSPEND_DELAY		3000 /* autosuspend delay 3000ms */
+#define NTC_MAX_RETRIES			5
 
 struct ntc_device;
 
@@ -72,9 +73,8 @@ static int ntc_thermal_adc_to_temp(struct ntc_device *ntcdev, s64 val)
 	return temp;
 }
 
-static int ntc_thermal_get_temp(void *data, int *temp)
+static int ntc_thermal_try_temp(struct ntc_sensor *ntc_sensor, int* temp)
 {
-	struct ntc_sensor *ntc_sensor = data;
 	struct ntc_device *ntcdev = ntc_sensor->ntcdev;
 	int val;
 	s64 long_val;
@@ -102,6 +102,26 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 		return -EINVAL;
 	}
 
+	return ret;
+}
+
+static int ntc_thermal_get_temp(void *data, int *temp)
+{
+	struct ntc_sensor *ntc_sensor = data;
+	struct ntc_device *ntcdev = ntc_sensor->ntcdev;
+	int ret = 0;
+	int retries = 0;
+
+	ret = ntc_thermal_try_temp(ntc_sensor, temp);
+	while (ret < 0 && retries++ < NTC_MAX_RETRIES) {
+		dev_err(ntcdev->dev, "Retrying NTC read,  %d of %d\n", retries, NTC_MAX_RETRIES);
+		msleep(10);
+		ret = ntc_thermal_try_temp(ntc_sensor, temp);
+	}
+
+	if (ret < 0) {
+		return ret;
+	}
 	return 0;
 }
 
@@ -223,7 +243,7 @@ static int ntc_runtime_resume(struct device *dev) {
 	struct ntc_device *ntc_device = dev_get_drvdata(dev);
 	dev_info(dev, "%s: Setting up ntc\n", __func__);
 	gpiod_set_value(ntc_device->enable_gpio, 1);
-	/* Wait for ADC to stabilize, takes ~50ms but occasionally a bit longer */
+	/* Wait for ADC to stabilize, takes ~30ms but long tail to 100ms */
 	msleep(100);
 	return 0;
 }
