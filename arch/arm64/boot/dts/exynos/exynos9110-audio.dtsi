@@ -28,7 +28,7 @@
 		pinctrl-names = "default", "idle";
 		pinctrl-0 = <&aud_codec_mclk>;
 		pinctrl-1 = <&aud_codec_mclk_idle>;
-		quirks = "try to asrc off", "off on suspend", "use lsi codec";
+		quirks = "try to asrc off", "use lsi codec";
 		#sound-dai-cells = <1>;
 		sound-name-prefix = "ABOX";
 		samsung,power-domain = <&pd_dispaud>;
