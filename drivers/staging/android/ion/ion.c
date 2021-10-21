@@ -450,8 +450,6 @@ const struct dma_buf_ops ion_dma_buf_ops = {
 	.vunmap = ion_dma_buf_vunmap,
 };
 
-#define ION_EXPNAME_LEN (4 + 4 + 1) /* strlen("ion-") + strlen("2048") + '\0' */
-
 struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 			    unsigned int flags)
 {
@@ -459,7 +457,6 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 	struct ion_buffer *buffer = NULL;
 	struct ion_heap *heap;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
-	char expname[ION_EXPNAME_LEN];
 	struct dma_buf *dmabuf;
 
 	ion_event_begin();
@@ -498,9 +495,6 @@ struct dma_buf *__ion_alloc(size_t len, unsigned int heap_id_mask,
 
 	if (IS_ERR(buffer))
 		return ERR_CAST(buffer);
-
-	snprintf(expname, ION_EXPNAME_LEN, "ion-%d", buffer->id);
-	exp_info.exp_name = expname;
 
 	exp_info.ops = &ion_dma_buf_ops;
 	exp_info.size = buffer->size;
