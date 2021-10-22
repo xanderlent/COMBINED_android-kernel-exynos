@@ -683,11 +683,14 @@ struct abox_data {
 	struct work_struct download_work;
 	struct work_struct boot_done_work;
 	struct delayed_work tickle_work;
+	struct delayed_work resume_work;
 	enum audio_mode audio_mode;
 	enum sound_type sound_type;
 	unsigned int bootargs_offset;
 	const char *bootargs;
 	atomic_t suspend_state;
+	atomic_t completion_running;
+	struct completion abox_enabled;
 	int cmpnt_reg_cnt;
 	const char *sram_name;
 	const char *dram_name;

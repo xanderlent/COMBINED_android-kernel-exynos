@@ -5079,6 +5079,9 @@ static void abox_boot_done(struct device *dev, unsigned int version)
 	schedule_work(&data->boot_done_work);
 
 	wake_up(&data->ipc_wait_queue);
+
+	if (atomic_cmpxchg(&data->completion_running, 1, 0))
+		complete(&data->abox_enabled);
 }
 
 static irqreturn_t abox_dma_irq_handler(int irq, struct abox_data *data)
@@ -6271,6 +6274,22 @@ static int abox_print_power_usage(struct device *dev, void *data)
 	return 0;
 }
 
+static void abox_resume_work_func(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct abox_data *data = container_of(dwork, struct abox_data,
+			resume_work);
+	struct device *dev = data->dev;
+
+	atomic_set(&data->suspend_state, 0);
+	reinit_completion(&data->abox_enabled);
+	atomic_set(&data->completion_running, 1);
+	if (!pm_runtime_get_sync(data->dev))
+		wait_for_completion(&data->abox_enabled);
+	atomic_set(&data->completion_running, 0);
+}
+static DECLARE_DELAYED_WORK(abox_resume_work, abox_resume_work_func);
+
 static int abox_pm_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
@@ -6282,7 +6301,9 @@ static int abox_pm_notifier(struct notifier_block *nb,
 
 	switch (action) {
 	case PM_SUSPEND_PREPARE:
-		if (abox_is_clearable(dev, data)) {
+		cancel_delayed_work_sync(&data->resume_work);
+		if (abox_is_clearable(dev, data) &&
+		    !atomic_read(&data->suspend_state)) {
 			pm_runtime_barrier(dev);
 			if (dev->power.runtime_status != 0) {
 				dev_info(dev, "calliope state: %d\n",
@@ -6324,7 +6345,8 @@ static int abox_pm_notifier(struct notifier_block *nb,
 				}
 			}
 		} else {
-			dev_info(dev, "abox is not clearable()\n");
+			if (!abox_is_clearable(dev, data))
+				dev_info(dev, "abox is not clearable()\n");
 		}
 		break;
 	case PM_POST_SUSPEND:
@@ -6332,8 +6354,9 @@ static int abox_pm_notifier(struct notifier_block *nb,
 			dev_info(dev, "(%d)r suspend_state: %d\n", __LINE__,
 					atomic_read(&data->suspend_state));
 			if (atomic_read(&data->suspend_state) == 1) {
-				pm_runtime_get_sync(data->dev);
-				atomic_set(&data->suspend_state, 0);
+				// Schedule delayed work to resume abox.
+				schedule_delayed_work(&data->resume_work,
+					msecs_to_jiffies(1000));
 			}
 		}
 		break;
@@ -6522,8 +6545,11 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	INIT_WORK(&data->boot_done_work, abox_boot_done_work_func);
 	INIT_WORK(&data->l2c_work, abox_l2c_work_func);
 	INIT_DELAYED_WORK(&data->tickle_work, abox_tickle_work_func);
+	INIT_DELAYED_WORK(&data->resume_work, abox_resume_work_func);
 	INIT_LIST_HEAD(&data->irq_actions);
 	INIT_LIST_HEAD(&data->firmware_extra);
+
+	init_completion(&data->abox_enabled);
 
 	data->gear_workqueue = alloc_ordered_workqueue("abox_gear",
 			WQ_HIGHPRI | WQ_FREEZABLE | WQ_MEM_RECLAIM);
