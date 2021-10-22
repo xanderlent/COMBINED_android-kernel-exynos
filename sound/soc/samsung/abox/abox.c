@@ -6284,7 +6284,7 @@ static void abox_resume_work_func(struct work_struct *work)
 	atomic_set(&data->suspend_state, 0);
 	reinit_completion(&data->abox_enabled);
 	atomic_set(&data->completion_running, 1);
-	if (!pm_runtime_get_sync(data->dev))
+	if (!pm_runtime_get_sync(dev))
 		wait_for_completion(&data->abox_enabled);
 	atomic_set(&data->completion_running, 0);
 }
