@@ -31,6 +31,7 @@
 #include <linux/of_address.h>
 #include <linux/debugfs.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/suspend.h>
 #include <video/mipi_display.h>
 #include <media/v4l2-subdev.h>
 #if defined(CONFIG_CAL_IF)
@@ -449,7 +450,7 @@ int decon_set_out_sd_state(struct decon_device *decon, enum decon_state state)
 						ioctl, DSIM_IOC_ENTER_ULPS,
 						(unsigned long *)0);
 				if (ret) {
-					decon_warn("starting(ulps) stream failed for %s\n",
+					decon_warn("stopping(ulps) stream failed for %s\n",
 							decon->out_sd[i]->name);
 					goto err;
 				}
@@ -470,7 +471,7 @@ int decon_set_out_sd_state(struct decon_device *decon, enum decon_state state)
 						ioctl, DSIM_IOC_ENTER_ULPS,
 						(unsigned long *)0);
 				if (ret) {
-					decon_warn("starting(ulps) stream failed for %s\n",
+					decon_warn("stopping(ulps) stream failed for %s\n",
 							decon->out_sd[i]->name);
 					goto err;
 				}
@@ -496,7 +497,7 @@ int decon_set_out_sd_state(struct decon_device *decon, enum decon_state state)
 			ret = v4l2_subdev_call(decon->out_sd[i], core, ioctl,
 					DSIM_IOC_ENTER_ULPS, (unsigned long *)1);
 			if (ret) {
-				decon_warn("stopping(ulps) stream failed for %s\n",
+				decon_warn("starting(ulps) stream failed for %s\n",
 						decon->out_sd[i]->name);
 				goto err;
 			}
@@ -4112,6 +4113,20 @@ static int decon_itmon_notifier(struct notifier_block *nb,
 }
 #endif
 
+static int decon_pm_notifier(struct notifier_block *nb,
+		unsigned long mode, void *_unused)
+{
+	struct decon_device *decon;
+	decon = container_of(nb, struct decon_device, pm_nb);
+	switch(mode) {
+	case PM_SUSPEND_PREPARE:
+		if (decon_enter_hiber(decon))
+			decon_err("decon%d %s: failed to enter hiber during suspend\n",
+					decon->id, __func__);
+	}
+	return 0;
+}
+
 static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 {
 	struct decon_param p;
@@ -4360,6 +4375,8 @@ static int decon_probe(struct platform_device *pdev)
 	decon->itmon_nb.notifier_call = decon_itmon_notifier;
 	itmon_notifier_chain_register(&decon->itmon_nb);
 #endif
+	decon->pm_nb.notifier_call = decon_pm_notifier;
+	register_pm_notifier(&decon->pm_nb);
 
 	dpu_init_freq_hop(decon);
 

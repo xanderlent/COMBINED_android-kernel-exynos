@@ -1131,6 +1131,7 @@ struct decon_device {
 	struct notifier_block itmon_nb;
 	bool notified;
 #endif
+	struct notifier_block pm_nb;
 #if defined(CONFIG_EXYNOS_PD)
 	struct exynos_pm_domain *pm_domain;
 #endif
