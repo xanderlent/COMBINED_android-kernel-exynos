@@ -146,6 +146,7 @@ static void update_mask_value(void __iomem *sfr,
 #define BOOT_DONE_TIMEOUT_MS		(10000)
 #define IPC_RETRY			(10)
 #define CMPNT_REGISTER_TRY_CNT		(10)
+#define DISPAUD_CONTROLLER_OPTION	(0x800)
 
 #define ERAP(wname, wcontrols, event_fn, wparams) \
 {	.id = snd_soc_dapm_dai_link, .name = wname, \
@@ -156,6 +157,7 @@ static void update_mask_value(void __iomem *sfr,
 
 /* For only external static functions */
 static struct abox_data *p_abox_data;
+static void __iomem *cmu_dispaud;
 
 struct abox_data *abox_get_abox_data(void)
 {
@@ -6099,6 +6101,7 @@ static int abox_disable(struct device *dev)
 	struct abox_data *data = dev_get_drvdata(dev);
 	enum calliope_state state = data->calliope_state;
 	int ret = 0;
+	unsigned int val = 0x0;
 
 	dev_info(dev, "%s\n", __func__);
 
@@ -6133,6 +6136,9 @@ static int abox_disable(struct device *dev)
 	abox_gic_disable_irq(data->dev_gic);
 	abox_failsafe_report_reset(dev);
 	abox_dbg_dump_suspend(dev, data);
+
+	val = readl(cmu_dispaud + DISPAUD_CONTROLLER_OPTION);
+	dev_info(dev, "DISPAUD_CONTROLLER_OPTION(0x%08x)\n", val);
 	return 0;
 }
 
@@ -6504,6 +6510,7 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	struct abox_data *data;
 	phys_addr_t paddr;
 	unsigned int i;
+	unsigned int val = 0x0;
 	int ret;
 
 	dev_info(dev, "%s\n", __func__);
@@ -6673,6 +6680,16 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	data->clk_bus = devm_clk_get_and_prepare(pdev, "bus");
 	if (IS_ERR(data->clk_bus))
 		return PTR_ERR(data->clk_bus);
+
+	cmu_dispaud = ioremap(0x14980000, SZ_4K);
+	val = readl(cmu_dispaud + DISPAUD_CONTROLLER_OPTION);
+	dev_info(dev, "%s:s DISPAUD_CONTROLLER_OPTION(0x%08x)\n", __func__, val);
+
+	val |= 1 << 31;
+	writel(val, cmu_dispaud + DISPAUD_CONTROLLER_OPTION);
+
+	val = readl(cmu_dispaud + DISPAUD_CONTROLLER_OPTION);
+	dev_info(dev, "%s:e DISPAUD_CONTROLLER_OPTION(0x%08x)\n", __func__, val);
 
 	ret = of_property_read_u32(np, "uaif_max_div", &data->uaif_max_div);
 	if (ret < 0) {
@@ -6909,6 +6926,7 @@ static int samsung_abox_remove(struct platform_device *pdev)
 #ifdef EMULATOR
 	iounmap(pmu_alive);
 #endif
+	iounmap(cmu_dispaud);
 	return 0;
 }
 
