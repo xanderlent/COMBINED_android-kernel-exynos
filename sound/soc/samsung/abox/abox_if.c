@@ -489,6 +489,7 @@ static int abox_uaif_trigger(struct snd_pcm_substream *substream,
 	int id = data->id;
 	unsigned long mask, shift;
 	int ret = 0;
+	unsigned int val = 0x0;
 
 	dev_info(dev, "%s[%c](%d)\n", __func__,
 			(substream->stream == SNDRV_PCM_STREAM_CAPTURE) ?
@@ -507,15 +508,26 @@ static int abox_uaif_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
+		dev_info(dev, "%s:s/R %d abox_uaif_ctrl0=%08x\n",
+			__func__, id, val);
 		ret = snd_soc_component_update_bits(cmpnt, ABOX_UAIF_CTRL0(id),
 				mask, 1 << shift);
+		regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
+		dev_info(dev, "%s:e/R abox_uaif_ctrl0=%08x\n", __func__, val);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
+			dev_info(dev, "%s:s/P %d abox_uaif_ctrl0=%08x\n",
+				__func__, id, val);
 			ret = snd_soc_component_update_bits(cmpnt,
 					ABOX_UAIF_CTRL0(id), mask, 0 << shift);
+			regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
+			dev_info(dev, "%s:e/P abox_uaif_ctrl0=%08x\n",
+				__func__, val);
 		}
 		break;
 	default:
@@ -542,9 +554,16 @@ static void abox_uaif_shutdown(struct snd_pcm_substream *substream,
 
 	/* dpcm_be_dai_trigger doesn't call trigger stop on paused stream. */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		unsigned int val = 0x0;
 		regcache_cache_bypass(cmpnt->regmap, true);
+		regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
+		dev_info(dev, "%s:s %d abox_uaif_ctrl0=%08x\n",
+			__func__, id, val);
 		snd_soc_component_update_bits(cmpnt, ABOX_UAIF_CTRL0(id),
 				ABOX_SPK_ENABLE_MASK, 0 << ABOX_SPK_ENABLE_L);
+		regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
+		dev_info(dev, "%s:e %d abox_uaif_ctrl0=%08x\n",
+			__func__, id, val);
 		regcache_cache_bypass(cmpnt->regmap, false);
 	}
 
