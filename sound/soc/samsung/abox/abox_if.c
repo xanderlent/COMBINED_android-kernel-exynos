@@ -502,6 +502,7 @@ static int abox_uaif_trigger(struct snd_pcm_substream *substream,
 		shift = ABOX_SPK_ENABLE_L;
 	}
 
+	regcache_cache_bypass(cmpnt->regmap, true);
 	switch (trigger) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -520,6 +521,7 @@ static int abox_uaif_trigger(struct snd_pcm_substream *substream,
 	default:
 		ret = -EINVAL;
 	}
+	regcache_cache_bypass(cmpnt->regmap, false);
 	if (ret < 0)
 		dev_err(dev, "sfr access failed: %d\n", ret);
 
@@ -539,9 +541,13 @@ static void abox_uaif_shutdown(struct snd_pcm_substream *substream,
 			'C' : 'P');
 
 	/* dpcm_be_dai_trigger doesn't call trigger stop on paused stream. */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regcache_cache_bypass(cmpnt->regmap, true);
 		snd_soc_component_update_bits(cmpnt, ABOX_UAIF_CTRL0(id),
 				ABOX_SPK_ENABLE_MASK, 0 << ABOX_SPK_ENABLE_L);
+		regcache_cache_bypass(cmpnt->regmap, false);
+	}
+
 	abox_if_shutdown(substream, dai);
 }
 

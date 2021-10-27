@@ -271,10 +271,13 @@ void abox_enable_mclk(unsigned int on)
 			({regmap_read(data->regmap, ABOX_UAIF_CTRL0(ABOX_UAIF1), &on);
 			 on; }));
 #endif
-	if (on)
+	if (on) {
 		abox_disable_qchannel(data->dev, data, ABOX_BCLK_UAIF0, 1);
-	else
+		abox_disable_qchannel(data->dev, data, ABOX_BCLK_UAIF1, 1);
+	} else {
 		abox_disable_qchannel(data->dev, data, ABOX_BCLK_UAIF0, 0);
+		abox_disable_qchannel(data->dev, data, ABOX_BCLK_UAIF1, 0);
+	}
 
 }
 EXPORT_SYMBOL(abox_enable_mclk);
@@ -282,7 +285,7 @@ EXPORT_SYMBOL(abox_enable_mclk);
 int abox_disable_qchannel(struct device *dev, struct abox_data *data,
 		enum qchannel clk, int disable)
 {
-	dev_dbg(dev, "%s : %d qch Disable(%d)\n", __func__,
+	dev_info(dev, "%s : %d qch Disable(%d)\n", __func__,
 			clk, disable);
 	return regmap_update_bits(data->regmap, ABOX_QCHANNEL_DISABLE,
 			ABOX_QCHANNEL_DISABLE_MASK(clk),
@@ -6102,6 +6105,8 @@ static int abox_disable(struct device *dev)
 	enum calliope_state state = data->calliope_state;
 	int ret = 0;
 	unsigned int val = 0x0;
+	unsigned int val0 = 0x0;
+	unsigned int val1 = 0x0;
 
 	dev_info(dev, "%s\n", __func__);
 
@@ -6128,6 +6133,27 @@ static int abox_disable(struct device *dev)
 	abox_cpu_gear_barrier(data);
 	abox_log_drain_all(dev);
 	abox_request_dram_on(dev, (void *)DEFAULT_SYS_POWER_ID, false);
+
+	regcache_cache_bypass(data->regmap, true);
+	regmap_read(data->regmap, ABOX_UAIF_CTRL0(0), &val0);
+	regmap_read(data->regmap, ABOX_UAIF_CTRL0(1), &val1);
+	val = val0 | val1;
+	dev_info(dev, "%s: val0=%08x, val1=%08x\n", __func__, val0, val1);
+
+	while (val & 0x3) {
+		regmap_update_bits(data->regmap, ABOX_UAIF_CTRL0(0),
+				ABOX_SPK_ENABLE_MASK | ABOX_MIC_ENABLE_MASK, 0x0);
+		regmap_update_bits(data->regmap, ABOX_UAIF_CTRL0(1),
+				ABOX_SPK_ENABLE_MASK | ABOX_MIC_ENABLE_MASK, 0x0);
+		mdelay(1);
+		val = 0x0;
+		regmap_read(data->regmap, ABOX_UAIF_CTRL0(0), &val0);
+		regmap_read(data->regmap, ABOX_UAIF_CTRL0(1), &val1);
+		val = val0 | val1;
+		dev_info(dev, "%s: val0=%08x, val1=%08x\n", __func__, val0, val1);
+	}
+	regcache_cache_bypass(data->regmap, false);
+
 	abox_save_register(data);
 	abox_cfg_gpio(dev, "idle");
 	abox_pad_retention(true);
