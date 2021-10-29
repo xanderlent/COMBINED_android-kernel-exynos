@@ -9,7 +9,7 @@
 	#size-cells = <0>;
 	status = "ok";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi4_bus>;
+	pinctrl-0 = <&sensorhub_spi4_clk_mosi &sensorhub_spi4_miso>;
 	dma-mode;
 	dmas = <&pdma0 2 &pdma0 3>;
 
@@ -49,6 +49,20 @@
 };
 
 &pinctrl_5 {
+	sensorhub_spi4_clk_mosi: sensorhub-spi4-clk-mosi {
+		samsung,pins = "gpp4-0", "gpp4-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+	};
+	sensorhub_spi4_miso: sensorhub-spi4-miso {
+		samsung,pins = "gpp4-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
 	sensorhub_spi4_cs: sensorhub-spi4-cs {
 		samsung,pins = "gpp4-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
