@@ -6099,11 +6099,13 @@ static void abox_wait_suspend_done(struct device *dev, struct abox_data *data)
 	dev_info(dev, "%s(0x%x)\n", __func__, readl(suspend_ack));
 }
 
+#define MAX_TRY 10
 static int abox_disable(struct device *dev)
 {
 	struct abox_data *data = dev_get_drvdata(dev);
 	enum calliope_state state = data->calliope_state;
 	int ret = 0;
+	unsigned int count = 0;
 	unsigned int val = 0x0;
 	unsigned int val0 = 0x0;
 	unsigned int val1 = 0x0;
@@ -6141,6 +6143,11 @@ static int abox_disable(struct device *dev)
 	dev_info(dev, "%s: val0=%08x, val1=%08x\n", __func__, val0, val1);
 
 	while (val & 0x3) {
+		if (count++ > MAX_TRY) {
+			ret = -1;
+			break;
+		}
+
 		regmap_update_bits(data->regmap, ABOX_UAIF_CTRL0(0),
 				ABOX_SPK_ENABLE_MASK | ABOX_MIC_ENABLE_MASK, 0x0);
 		regmap_update_bits(data->regmap, ABOX_UAIF_CTRL0(1),
@@ -6165,6 +6172,10 @@ static int abox_disable(struct device *dev)
 
 	val = readl(cmu_dispaud + DISPAUD_CONTROLLER_OPTION);
 	dev_info(dev, "DISPAUD_CONTROLLER_OPTION(0x%08x)\n", val);
+
+	if (ret < 0)
+		panic("Fatal error setting ABOX_UAIF_CTRL0(0/1)");
+
 	return 0;
 }
 
