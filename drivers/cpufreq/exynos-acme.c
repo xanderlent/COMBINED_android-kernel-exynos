@@ -773,8 +773,6 @@ static int exynos_cpufreq_policy_callback(struct notifier_block *nb,
 			if (cpufreq_constraint_flag) {
 				if (cpufreq_constraint_flag & CPUFREQ_RESTART)
 					freq = domain->min_freq;
-				else if (cpufreq_constraint_flag & CPUFREQ_SUSPEND)
-					freq = domain->resume_freq;
 				else
 					return NOTIFY_DONE;
 
