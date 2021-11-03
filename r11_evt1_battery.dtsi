@@ -79,7 +79,7 @@
 	governor = "fair_share";
 	trips {
 		wlc_throttle_low: wlc-throttle-low {
-			temperature = <47000>;
+			temperature = <49000>;
 			hysteresis = <2000>;
 			type = "passive";
 		};
