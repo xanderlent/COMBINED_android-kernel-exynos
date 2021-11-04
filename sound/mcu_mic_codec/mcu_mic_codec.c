@@ -38,16 +38,21 @@
 enum dmic_mcu_channel {
 	DMIC_MCU_CHANNEL_LEFT,
 	DMIC_MCU_CHANNEL_RIGHT,
+	DMIC_MCU_CHANNEL_FALSE_STEREO,
 };
 
 static const char *const mcu_dmic_channel_enum_texts[] = {
 	"Left",
 	"Right",
+	"False Stereo",
 };
+
 static const unsigned int mcu_dmic_channel_enum_values[] = {
 	DMIC_MCU_CHANNEL_LEFT,
 	DMIC_MCU_CHANNEL_RIGHT,
+	DMIC_MCU_CHANNEL_FALSE_STEREO,
 };
+
 SOC_VALUE_ENUM_SINGLE_DECL(mcu_dmic_channel_enum, SND_SOC_NOPM, 0, 0,
 			   mcu_dmic_channel_enum_texts,
 			   mcu_dmic_channel_enum_values);
@@ -167,10 +172,12 @@ static int dmic_mcu_channel_put(struct snd_kcontrol *kcontrol,
 
 	dev_info(component->dev, "Called dmic_mcu_channel_put\n");
 
-	if (value != DMIC_MCU_CHANNEL_LEFT && value != DMIC_MCU_CHANNEL_RIGHT) {
+	if (value != DMIC_MCU_CHANNEL_LEFT &&
+		value != DMIC_MCU_CHANNEL_RIGHT &&
+	 	value != DMIC_MCU_CHANNEL_FALSE_STEREO) {
 		dev_info(component->dev,
-			 "Invalid value: %d, it must be %d or %d.\n", value,
-			 DMIC_MCU_CHANNEL_LEFT, DMIC_MCU_CHANNEL_RIGHT);
+			 "Invalid value: %d, it must be Left, Right or 'False Stereo'.\n",
+			 value);
 		return -EINVAL;
 	}
 
