@@ -132,6 +132,7 @@ int dhd_msg_level = DHD_ERROR_VAL | DHD_PNO_VAL
 
 #ifdef CONFIG_CHECK_MODEM_SKU
 #include <linux/of.h>
+#include <linux/libfdt_env.h>
 #endif /* CONFIG_CHECK_MODEM_SKU */
 
 #ifdef SOFTAP
@@ -8781,33 +8782,36 @@ exit:
 
 modem_sku_type dhd_get_modem_sku(void)
 {
-    unsigned int size;
-    struct device_node *node;
-    unsigned char *modem_sku_code = NULL;
-    modem_sku_type modem_sku = MODEM_SKU_UNKNOWN;
+	unsigned int size;
+	struct device_node *node;
+	void *modem_sku_code;
+	modem_sku_type modem_sku = MODEM_SKU_UNKNOWN;
 
-    node = of_find_node_by_path(CDB_PLAT_PATH);
-    if (!node) {
-        DHD_ERROR(("CDB_PLAT Node not created under %s\n", CDB_PLAT_PATH));
-        return modem_sku;
-    } else {
-        modem_sku_code = (unsigned char *)
-                of_get_property(node, MODEM_SKU, &size);
-    }
+	node = of_find_node_by_path(CDB_PLAT_PATH);
+	if (!node) {
+		DHD_ERROR(("CDB_PLAT Node not created under %s\n", CDB_PLAT_PATH));
+		return modem_sku;
+	} else {
+		modem_sku_code = (void *)of_get_property(node, MODEM_SKU, &size);
+	}
 
-    /* In case Missing Provisioned Modem SKU, exit with error */
-    if (!modem_sku_code) {
-        DHD_ERROR(("Missing Provisioned Modem SKU\n"));
-        return modem_sku;
-    }
+	/* In case Missing Provisioned Modem SKU, exit with error */
+	if (!modem_sku_code) {
+		DHD_ERROR(("Missing Provisioned Modem SKU\n"));
+		return modem_sku;
+	}
 
-    if (strcmp(modem_sku_code, "<0x0>") == 0) {
-        modem_sku = MODEM_SKU_NA;
-    } else {
-        modem_sku = MODEM_SKU_ROW;
-    }
+	if (fdt32_to_cpu(*(int *)modem_sku_code) == 0) {
+		modem_sku = MODEM_SKU_NA;
+	} else if (fdt32_to_cpu(*(int *)modem_sku_code) == 1) {
+		modem_sku = MODEM_SKU_ROW;
+	} else if (strcmp(modem_sku_code, "<0x0>") == 0) {
+		modem_sku = MODEM_SKU_NA;
+	} else if (strcmp(modem_sku_code, "<0x1>") == 0) {
+		modem_sku = MODEM_SKU_ROW;
+	}
 
-    return modem_sku;
+	return modem_sku;
 }
 
 #endif /* CONFIG_CHECK_MODEM_SKU */
