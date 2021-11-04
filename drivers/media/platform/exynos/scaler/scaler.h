@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/videodev2.h>
+#include <linux/videodev2_exynos_media.h>
 #include <linux/io.h>
 #include <linux/pm_qos.h>
 #include <linux/dma-buf.h>
@@ -24,8 +25,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-ctrls.h>
-
-#include "videodev2_exynos_media.h"
 
 extern int sc_log_level;
 #define sc_dbg(fmt, args...)						\
