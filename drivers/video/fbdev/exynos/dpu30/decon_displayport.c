@@ -10,7 +10,7 @@
 */
 
 #include <linux/clk-provider.h>
-#include <linux/videodev2_exynos_media.h>
+#include <uapi/linux/videodev2_exynos_media.h>
 #include <media/v4l2-subdev.h>
 #if defined(CONFIG_CAL_IF)
 #include <soc/samsung/cal-if.h>

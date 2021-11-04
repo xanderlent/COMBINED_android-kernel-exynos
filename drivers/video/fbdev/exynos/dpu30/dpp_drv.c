@@ -14,8 +14,8 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/exynos_iovmm.h>
-#include <linux/videodev2_exynos_media.h>
 #include <linux/console.h>
+#include <uapi/linux/videodev2_exynos_media.h>
 
 #include "dpp.h"
 #include "decon.h"
