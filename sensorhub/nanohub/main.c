@@ -1935,6 +1935,7 @@ int nanohub_remove(struct iio_dev *iio_dev)
 int nanohub_suspend(struct iio_dev *iio_dev)
 {
 	struct nanohub_data *data = iio_priv(iio_dev);
+	const struct nanohub_platform_data *pdata = data->pdata;
 	int ret;
 
 	ret = nanohub_wakeup_lock(data, LOCK_MODE_SUSPEND_RESUME);
@@ -1950,6 +1951,7 @@ int nanohub_suspend(struct iio_dev *iio_dev)
 		if (cnt < max_cnt) {
 			dev_dbg(&iio_dev->dev, "%s: cnt=%d\n", __func__, cnt);
 			enable_irq_wake(data->irq1);
+			gpio_set_value(pdata->boot0_gpio, 1);
 			return 0;
 		}
 		ret = -EBUSY;
@@ -1980,8 +1982,10 @@ int nanohub_suspend_noirq(struct iio_dev *iio_dev)
 int nanohub_resume(struct iio_dev *iio_dev)
 {
 	struct nanohub_data *data = iio_priv(iio_dev);
+	const struct nanohub_platform_data *pdata = data->pdata;
 
 	disable_irq_wake(data->irq1);
+	gpio_set_value(pdata->boot0_gpio, 0);
 	nanohub_wakeup_unlock(data);
 
 	return 0;
