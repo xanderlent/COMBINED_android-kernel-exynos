@@ -18,12 +18,14 @@
 
 #include <soc/samsung/exynos-cpu_hotplug.h>
 
+struct device *cpu_dev[NR_CPUS];
+
 static int cpu_hotplug_in(const struct cpumask *mask)
 {
 	int cpu, ret = 0;
 
 	for_each_cpu(cpu, mask) {
-		ret = cpu_up(cpu);
+		ret = device_online(cpu_dev[cpu]);
 		if (ret) {
 			/*
 			 * -EIO means core fail to come online by itself
@@ -56,7 +58,7 @@ static int cpu_hotplug_out(const struct cpumask *mask)
 		if (!cpumask_test_cpu(cpu, mask))
 			continue;
 
-		ret = cpu_down(cpu);
+		ret = device_offline(cpu_dev[cpu]);
 		if (ret) {
 			pr_err("%s: Failed to hotplug out CPU%d with error %d\n", __func__, cpu, ret);
 			break;
@@ -638,6 +640,11 @@ static void __init cpu_hotplug_sysfs_init(void)
 
 static int __init cpu_hotplug_init(void)
 {
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		cpu_dev[cpu] = get_cpu_device(cpu);
+
 	/* Initialize delayed work */
 	INIT_DELAYED_WORK(&cpu_hotplug.delayed_work, cpu_hotplug_work);
 
@@ -662,4 +669,4 @@ static int __init cpu_hotplug_init(void)
 
 	return 0;
 }
-arch_initcall(cpu_hotplug_init);
+device_initcall(cpu_hotplug_init);
