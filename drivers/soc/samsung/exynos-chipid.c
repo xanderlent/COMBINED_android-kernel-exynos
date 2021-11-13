@@ -20,6 +20,9 @@
 #include <linux/sys_soc.h>
 #include <linux/soc/samsung/exynos-soc.h>
 #include <linux/module.h>
+#include <linux/smc.h>
+
+#define ASV_TABLE_BASE  (0x10009000)
 
 struct exynos_chipid_info exynos_soc_info;
 EXPORT_SYMBOL(exynos_soc_info);
@@ -156,12 +159,19 @@ static ssize_t evt_ver_show(struct device *dev,
 				exynos_soc_info.sub_rev);
 }
 
+static ssize_t asv_tbl_str_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s\n", exynos_soc_info.asv_tbl_str);
+}
+
 static DEVICE_ATTR_RO(product_id);
 static DEVICE_ATTR_RO(unique_id);
 static DEVICE_ATTR_RO(lot_id);
 static DEVICE_ATTR_RO(lot_id2);
 static DEVICE_ATTR_RO(revision);
 static DEVICE_ATTR_RO(evt_ver);
+static DEVICE_ATTR_RO(asv_tbl_str);
 
 static struct attribute *chipid_sysfs_attrs[] = {
 	&dev_attr_product_id.attr,
@@ -170,6 +180,7 @@ static struct attribute *chipid_sysfs_attrs[] = {
 	&dev_attr_lot_id2.attr,
 	&dev_attr_revision.attr,
 	&dev_attr_evt_ver.attr,
+	&dev_attr_asv_tbl_str.attr,
 	NULL,
 };
 
@@ -204,6 +215,8 @@ static void exynos_chipid_get_chipid_info(void)
 	const struct exynos_chipid_variant *data = exynos_soc_info.drv_data;
 	u64 val;
 	u32 temp;
+	int i;
+	int str_pos = 0;
 
 	val = __raw_readl(exynos_soc_info.reg);
 
@@ -232,6 +245,14 @@ static void exynos_chipid_get_chipid_info(void)
 	temp = (temp >> 11) & EXYNOS_LOTID_MASK;
 	chipid_dec_to_36(temp, lot_id);
 	exynos_soc_info.lot_id2 = lot_id;
+
+	for (i = 0; i < ASV_TBL_HEX_STR_SIZE/2; i += 4) {
+		unsigned long tmp;
+		exynos_smc_readsfr((unsigned long)(ASV_TABLE_BASE + i), &tmp);
+		str_pos += scnprintf(exynos_soc_info.asv_tbl_str + str_pos,
+				     ASV_TBL_HEX_STR_SIZE - str_pos, "%08x",
+				     cpu_to_be32(tmp));
+	}
 }
 
 /**

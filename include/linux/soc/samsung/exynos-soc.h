@@ -25,6 +25,8 @@
 #define EXYNOS_SUB_REV1		0x1
 #define EXYNOS_SUB_REV2		0x2
 
+#define ASV_TBL_HEX_STR_SIZE	48
+
 struct exynos_chipid_variant {
 	int product_ver;
 	int unique_id_reg;
@@ -47,6 +49,7 @@ struct exynos_chipid_info {
 	u32 lot_id;
 	char *lot_id2;
 	u64 unique_id;
+	char asv_tbl_str[ASV_TBL_HEX_STR_SIZE+1];
 	struct exynos_chipid_variant *drv_data;
 	struct platform_device *pdev;
 };
