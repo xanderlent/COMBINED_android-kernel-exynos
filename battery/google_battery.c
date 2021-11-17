@@ -784,6 +784,7 @@ static int battery_handle_notification(struct notifier_block *nb,
 	muic_attached_dev_t attached_dev = *(muic_attached_dev_t *)data;
 	const char *cmd;
 	int power_supply_type;
+	int old_status;
 	struct battery_info *battery =
 		container_of(nb, struct battery_info, batt_nb);
 
@@ -823,6 +824,7 @@ static int battery_handle_notification(struct notifier_block *nb,
 	if (battery->wlc_connected) {
 		set_wlc_online(battery);
 	}
+	old_status = battery->status;
 	set_bat_status_by_cable(battery);
 	mutex_unlock(&battery->wlc_state_lock);
 	if (battery->wlc_tzd && power_supply_type == POWER_SUPPLY_TYPE_WIRELESS)
@@ -838,7 +840,7 @@ static int battery_handle_notification(struct notifier_block *nb,
 			power_supply_type_str[battery->power_supply_type],
 			battery->is_recharging
 		  );
-	if (!battery->wlc_connected) {
+	if (battery->status != old_status) {
 		power_supply_changed(battery->psy_battery);
 		alarm_cancel(&battery->monitor_alarm);
 	}
@@ -1270,6 +1272,8 @@ static void battery_external_power_changed(struct power_supply *psy) {
 	struct power_supply *wlc_psy;
 	int ret;
 	struct battery_info *battery = power_supply_get_drvdata(psy);
+	bool old_wlc_connected = battery->wlc_connected;
+	bool old_wlc_authentic = battery->wlc_authentic;
 	mutex_lock(&battery->wlc_state_lock);
 	wlc_psy = power_supply_get_by_name(battery->pdata->wlc_name);
 	if (!wlc_psy) {
@@ -1304,7 +1308,7 @@ static void battery_external_power_changed(struct power_supply *psy) {
 			dev_info(battery->dev, "WLC disconnected\n");
 		}
 	}
-	if (battery->psy_battery)
+	if (battery->psy_battery && (old_wlc_connected != battery->wlc_connected || old_wlc_authentic != battery->wlc_authentic))
 		power_supply_changed(battery->psy_battery);
 external_power_changed_fail:
 	power_supply_put(wlc_psy);
@@ -1318,7 +1322,7 @@ static void bat_monitor_work(struct work_struct *work)
 	union power_supply_propval value;
 	struct power_supply *psy;
 	struct thermal_zone_device *tzd;
-	int old_charging_current, old_temp_index, old_capacity, old_health;
+	int old_charging_current, old_temp_index, old_capacity, old_health, old_status;
 	int ret;
 
 	tzd = thermal_zone_get_zone_by_name(battery->pdata->wlc_tz_name);
@@ -1362,6 +1366,7 @@ static void bat_monitor_work(struct work_struct *work)
 	}
 	old_capacity = battery->soc_spoof;
 	old_health = battery->health;
+	old_status = battery->status;
 	old_temp_index = battery->temp_index;
 	get_battery_info(battery);
 
@@ -1387,7 +1392,8 @@ static void bat_monitor_work(struct work_struct *work)
 	check_charging_full(battery);
 
 	if (old_capacity != battery->soc_spoof ||
-			old_health != battery->health) {
+			old_health != battery->health ||
+			old_status != battery->status) {
 		power_supply_changed(battery->psy_battery);
 	}
 
