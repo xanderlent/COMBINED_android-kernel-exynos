@@ -347,8 +347,7 @@ static int wf012fbm_exit_hbm(struct exynos_panel_device *panel)
 static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 {
 	struct dsim_device *dsim = get_dsim_drvdata(0);
-	int ret;
-	unsigned char buf[1];
+	unsigned char buf[1] = {0};
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
@@ -358,10 +357,9 @@ static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_IDLE_MODE);
 
 	/* Read brightness */
-	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ, 0x51, sizeof(buf), buf);
-	if (ret < 0) {
-		dsim_err("Failed to read brightness reg from panel\n");
-	} else {
+	dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+			MIPI_DCS_GET_DISPLAY_BRIGHTNESS, sizeof(buf), buf);
+	if (buf[0] != 0) {
 		panel->bl->props.brightness = buf[0];
 	}
 	mutex_unlock(&panel->ops_lock);
