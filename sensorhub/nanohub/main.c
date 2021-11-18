@@ -44,7 +44,7 @@
 #include "bl.h"
 #include "spi.h"
 
-#define READ_QUEUE_DEPTH	10
+#define READ_QUEUE_DEPTH	20
 #define APP_FROM_HOST_EVENTID	0x000000F8
 #define FIRST_SENSOR_EVENTID	0x00000200
 #define LAST_SENSOR_EVENTID	0x000002FF
@@ -1536,6 +1536,7 @@ static int nanohub_kthread(void *arg)
 				nanohub_set_state(data, ST_IDLE);
 				continue;
 			}
+			pr_warn_ratelimited("nanohub: buffers exhausted");
 			/* pending interrupt, but no room to read data -
 			 * clear interrupts */
 			if (request_wakeup(data))
