@@ -292,6 +292,9 @@ static int wf012fbm_doze(struct exynos_panel_device *panel)
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 	/* Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_ENTER_IDLE_MODE);
+	/* Exit HBM in case it's on */
+	dsim_write_data_seq(dsim, false, 0x66, 0x00);
+
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
