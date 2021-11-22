@@ -651,6 +651,9 @@ ifneq ($(CONFIG_ARCH_EXYNOS),)
 	DHDCFLAGS += -DBOARD_EXYNOS
 endif
 
+# Debugability
+DHDCFLAGS += -DDEBUGABILITY
+
 # For Debug
 ifneq ($(CONFIG_BCMDHD_DEBUG),)
 	DHDCFLAGS += -DDHD_DEBUG
@@ -688,9 +691,6 @@ ifneq ($(CONFIG_BCMDHD_DEBUG),)
 
 	# Debug for DPC Thread watchdog bark
 	DHDCFLAGS += -DDEBUG_DPC_THREAD_WATCHDOG
-
-	# Debugability
-	DHDCFLAGS += -DDEBUGABILITY
 endif
 
 EXTRA_CFLAGS += $(DHDCFLAGS)
