@@ -95,6 +95,8 @@ struct nanohub_data {
 
 	void *vbuf;
 	struct task_struct *thread;
+
+	int wakeup_event_msec;
 };
 
 enum {

@@ -1088,6 +1088,27 @@ static ssize_t nanohub_unlock_bl(struct device *dev,
 }
 #endif
 
+static ssize_t nanohub_wakeup_event_msec_get(struct device *dev,
+					     struct device_attribute *attr, char *buf)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", data->wakeup_event_msec);
+}
+
+static ssize_t nanohub_wakeup_event_msec_set(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	u32 value;
+
+	if (kstrtou32(buf, 0, &value))
+		return -EINVAL;
+
+	data->wakeup_event_msec = value;
+	return count;
+}
+
 static struct device_attribute attributes[] = {
 	__ATTR(wakeup, 0440, nanohub_wakeup_query, NULL),
 	__ATTR(app_info, 0440, nanohub_app_info, NULL),
@@ -1113,6 +1134,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(lock, 0220, NULL, nanohub_lock_bl),
 	__ATTR(unlock, 0220, NULL, nanohub_unlock_bl),
 #endif
+	__ATTR(wakeup_event_msec, 0660, nanohub_wakeup_event_msec_get, nanohub_wakeup_event_msec_set),
 };
 
 static inline int nanohub_create_sensor(struct nanohub_data *data)
@@ -1426,10 +1448,8 @@ static void nanohub_process_buffer(struct nanohub_data *data, uint8_t id,
 		*buf = NULL;
 	}
 
-	/* (for wakeup interrupts): hold a wake lock for 100ms so the sensor hal
-	 * has time to grab its own wake lock */
 	if (wakeup)
-		__pm_wakeup_event(&data->wakesrc_read, 100);
+		__pm_wakeup_event(&data->wakesrc_read, data->wakeup_event_msec);
 	release_wakeup(data);
 }
 
@@ -1838,6 +1858,8 @@ struct iio_dev *nanohub_probe(struct device *dev, struct iio_dev *iio_dev)
 	data = iio_priv(iio_dev);
 	data->iio_dev = iio_dev;
 	data->pdata = pdata;
+
+	data->wakeup_event_msec = 100; /* Default 100 msec timed wakelock per event */
 
 	init_waitqueue_head(&data->kthread_wait);
 
