@@ -237,12 +237,24 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 					0x03, 0xAF, 0x03, 0xF9);
 		}
 	}
+	/* Page select 0x21 */
+	dsim_write_data_seq(dsim, false, 0xff, 0x21);
+	/* Enable PWM dimming for Normal mode */
+	dsim_write_data_seq(dsim, false, 0x5b, 0xb8);
+	/* set PWM duty @ Normal */
+	dsim_write_data_seq(dsim, false, 0x6e, 0x01);
+	dsim_write_data_seq(dsim, false, 0x6f, 0x90);
+	dsim_write_data_seq(dsim, false, 0x84, 0x01);
+	dsim_write_data_seq(dsim, false, 0x85, 0x90);
+	dsim_write_data_seq(dsim, false, 0x86, 0x01);
+	dsim_write_data_seq(dsim, false, 0x87, 0x90);
+	dsim_write_data_seq(dsim, false, 0x8b, 0x11);
+	dsim_write_data_seq(dsim, false, 0x8d, 0x20);
+	dsim_write_data_seq(dsim, false, 0x93, 0x11);
+	/* Set 0 nits for AOD DBV0 and DBV1 */
+	dsim_write_data_seq(dsim, false, 0x66, 0x01);
 
 	/* Set for brightness ramp/dim timing */
-	// Set for CMD2 page1 parameters
-	dsim_write_data_seq(dsim, false, 0xff, 0x21);
-	// No reload MTP
-	dsim_write_data_seq(dsim, false, 0xfb, 0x01);
 	// Ramp/dim timing: DIM_OTP = 1, step = 18
 	// -> ramp/dim duration = 18 frames (300ms @60Hz, 600ms @30Hz)
 	dsim_write_data_seq(dsim, false, 0x57, 0x92);
