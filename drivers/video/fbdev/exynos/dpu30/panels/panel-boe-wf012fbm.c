@@ -365,6 +365,9 @@ static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 	if (buf[0] != 0) {
 		panel->bl->props.brightness = buf[0];
 	}
+	/* Wait for display to be ready. Any brightness command sent
+	before this point can result in a steep brightness ramp. */
+	msleep(25);
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
