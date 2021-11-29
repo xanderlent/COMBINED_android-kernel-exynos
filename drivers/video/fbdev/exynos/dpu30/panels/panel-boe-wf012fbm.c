@@ -84,6 +84,12 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 	/* Write 0x81 to register 0x6F to set 30Hz */
 	dsim_write_data_seq(dsim, false, 0x6F, 0x81);
 
+	/* Disable clock gating feature: b/204842000 */
+	dsim_write_data_seq(dsim, false, 0xff, 0xf0);
+	dsim_write_data_seq(dsim, false, 0xfb, 0x01);
+	dsim_write_data_seq(dsim, false, 0x57, 0x30);
+	dsim_write_data_seq(dsim, false, 0xff, 0x10);
+
 	/* Write sequence for setting the PWM frequency if necessary*/
 	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
 			0xDA, sizeof(buf), buf);
