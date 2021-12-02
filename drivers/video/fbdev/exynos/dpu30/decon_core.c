@@ -918,6 +918,30 @@ out:
 	return ret;
 }
 
+static ssize_t idle_state_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct decon_device *decon = dev_get_drvdata(dev);
+	const char *statestr = "active";
+	int cnt;
+	enum decon_state panel_state = decon->state;
+
+	switch (panel_state) {
+	case DECON_STATE_HIBER:
+	case DECON_STATE_OFF:
+	case DECON_STATE_DOZE:
+	case DECON_STATE_DOZE_SUSPEND:
+		statestr = "idle";
+		break;
+	default:
+		statestr = "active";
+	}
+
+	cnt = snprintf(buf, PAGE_SIZE, "%s\n", statestr);
+
+	return cnt;
+}
+
 static ssize_t decon_power_state_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -958,15 +982,20 @@ static ssize_t decon_power_state_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RO(decon_power_state);
+static DEVICE_ATTR_RO(idle_state);
 
 int decon_create_power_state_sysfs(struct decon_device *decon)
 {
 	int ret = 0;
 
 	ret = device_create_file(decon->dev, &dev_attr_decon_power_state);
-
 	if (ret) {
 		decon_err("failed to create decon power state sysfs\n");
+	}
+
+	ret = device_create_file(decon->dev, &dev_attr_idle_state);
+	if (ret) {
+		decon_err("failed to create decon idle state sysfs\n");
 	}
 
 	return ret;
@@ -975,6 +1004,7 @@ int decon_create_power_state_sysfs(struct decon_device *decon)
 static inline void pwr_state_changed(struct decon_device *decon)
 {
 	sysfs_notify(&decon->dev->kobj, NULL, "decon_power_state");
+	sysfs_notify(&decon->dev->kobj, NULL, "idle_state");
 }
 
 struct disp_pwr_state decon_pwr_state[] = {
