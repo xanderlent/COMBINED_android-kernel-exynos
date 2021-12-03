@@ -3414,9 +3414,29 @@ int decon_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+int decon_suspend(struct device *dev)
+{
+	struct decon_device *decon = dev_get_drvdata(dev);
+	struct dsim_device *dsim = v4l2_get_subdevdata(decon->out_sd[0]);
+	int ret = 0;
+	decon_info("decon%d %s + state=%d\n",
+			decon->id, __func__, decon->state);
+	if (!IS_DECON_OFF_STATE(decon))
+		ret = -EINVAL;
+	if (atomic_read(&dsim->dev->power.usage_count) > 1) {
+		decon_err("decon%d %s: usage count was %d during suspend\n",
+				decon->id, __func__,
+				dsim->dev->power.usage_count);
+		ret = -EINVAL;
+	}
+	WARN_ON(ret != 0);
+	return ret;
+}
+
 const struct dev_pm_ops decon_pm_ops = {
 	.runtime_suspend = decon_runtime_suspend,
 	.runtime_resume	 = decon_runtime_resume,
+	.suspend = decon_suspend,
 };
 
 static int decon_register_subdevs(struct decon_device *decon)
@@ -4122,6 +4142,9 @@ static int decon_pm_notifier(struct notifier_block *nb,
 	case PM_SUSPEND_PREPARE:
 		if (decon_enter_hiber(decon))
 			decon_err("decon%d %s: failed to enter hiber during suspend\n",
+					decon->id, __func__);
+		if (!IS_DECON_OFF_STATE(decon))
+		       decon_err("decon%d %s: decon still on after attempting to enter hiber!\n",
 					decon->id, __func__);
 	}
 	return 0;
