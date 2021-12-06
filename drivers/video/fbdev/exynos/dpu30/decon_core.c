@@ -4140,6 +4140,7 @@ static int decon_pm_notifier(struct notifier_block *nb,
 	decon = container_of(nb, struct decon_device, pm_nb);
 	switch(mode) {
 	case PM_SUSPEND_PREPARE:
+		kthread_flush_worker(&decon->up.worker);
 		if (decon_enter_hiber(decon))
 			decon_err("decon%d %s: failed to enter hiber during suspend\n",
 					decon->id, __func__);
