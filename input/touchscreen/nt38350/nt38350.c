@@ -1947,13 +1947,18 @@ static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long e
 
 	if (evdata && evdata->data && event == FB_EARLY_EVENT_BLANK) {
 		blank = evdata->data;
+		NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
 		if (*blank == FB_BLANK_POWERDOWN) {
-			NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
 			nvt_ts_suspend(&ts->client->dev);
 		} else if ((*blank == FB_BLANK_VSYNC_SUSPEND) || (*blank == FB_BLANK_NORMAL)) {
 			ts->idle_mode = true;
-			NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
 			NVT_LOG("setting idle_mode = true\n");
+			nvt_ts_resume(&ts->client->dev);
+		} else if (*blank == FB_BLANK_UNBLANK) {
+			if(ts->idle_mode) {
+				NVT_LOG("Early unblank - setting idle_mode = false\n");
+				ts->idle_mode = false;
+			}
 			nvt_ts_resume(&ts->client->dev);
 		}
 	} else if (evdata && evdata->data && event == FB_EVENT_BLANK) {
