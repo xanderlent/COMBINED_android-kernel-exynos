@@ -692,6 +692,7 @@ void dbg_snapshot_register_debug_ops(void *halt, void *arraydump,
 }
 EXPORT_SYMBOL(dbg_snapshot_register_debug_ops);
 
+#ifdef CONFIG_DEBUG_SNAPSHOT_CRASH_KEY
 static inline bool is_event_supported(unsigned int type, unsigned int code)
 {
        return (type == EV_KEY) && (code == KEY_VOLUMEDOWN ||
@@ -793,7 +794,7 @@ static struct input_handler dbg_snapshot_input_handler = {
 	.name		= "dss_input_handler",
 	.id_table	= dbg_snanpshot_ids,
 };
-
+#endif
 void dbg_snapshot_init_utils(void)
 {
 	size_t vaddr;
@@ -816,8 +817,9 @@ void dbg_snapshot_init_utils(void)
 	register_restart_handler(&nb_restart_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_pre_panic_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_post_panic_block);
+#ifdef CONFIG_DEBUG_SNAPSHOT_CRASH_KEY
 	input_register_handler(&dbg_snapshot_input_handler);
-
+#endif
 	smp_call_function(dbg_snapshot_save_system, NULL, 1);
 	dbg_snapshot_save_system(NULL);
 }

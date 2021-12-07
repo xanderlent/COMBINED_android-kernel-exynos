@@ -8,6 +8,11 @@ menuconfig DEBUG_SNAPSHOT
 	depends on EXYNOS_DEBUG
 	default n
 
+config DEBUG_SNAPSHOT_CRASH_KEY
+	bool "Support Crash Key to artificial panic for debugging"
+	depends on DEBUG_SNAPSHOT
+	default n
+
 config DEBUG_SNAPSHOT_FREQ_DOMAIN_NUM
 	int "Number of freq logging domain type"
 	depends on DEBUG_SNAPSHOT
