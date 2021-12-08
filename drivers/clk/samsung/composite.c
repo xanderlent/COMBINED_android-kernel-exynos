@@ -1306,7 +1306,7 @@ static struct clk * __init _samsung_register_comp_usermux(struct samsung_usermux
 {
 	struct clk_samsung_usermux *usermux;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	usermux = kzalloc(sizeof(struct clk_samsung_usermux), GFP_KERNEL);
 	if (!usermux) {
@@ -1693,7 +1693,7 @@ static struct clk * __init _samsung_register_vclk(struct init_vclk *list)
 {
 	struct samsung_vclk *vclk;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	vclk = kzalloc(sizeof(struct samsung_vclk), GFP_KERNEL);
 	if (!vclk) {
