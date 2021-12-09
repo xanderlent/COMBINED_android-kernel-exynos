@@ -28,48 +28,18 @@ extern struct kbase_device *pkbdev;
 int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation)
 {
 	struct exynos_context *platform;
-
-	int mif, i;
-	int *mif_min_table;
-	int table_size;
-
 	platform = (struct exynos_context *) kbdev->platform_context;
-	mif_min_table = get_mif_table(&table_size);
 
 	DVFS_ASSERT(platform);
 
-	if (!platform->perf_gathering_status) {
-		mutex_lock(&platform->gpu_dvfs_handler_lock);
-		if (gpu_control_is_power_on(kbdev)) {
-			int clk = 0;
-			gpu_dvfs_calculate_env_data(kbdev);
-			clk = gpu_dvfs_decide_next_freq(kbdev, platform->env_data.utilization);
-			gpu_set_target_clk_vol(clk, true);
-		}
-		mutex_unlock(&platform->gpu_dvfs_handler_lock);
-		return 0;
-	} else {
-		mutex_lock(&platform->gpu_dvfs_handler_lock);
-		gpu_dvfs_calculate_env_data_ppmu(kbdev);
-		mif = platform->table[platform->step].mem_freq;
-		if (platform->env_data.perf < 300) {
-			for (i = 0 ; i < table_size; i++) {
-				if (mif == mif_min_table[i])
-					break;
-			}
-			if (i > 0)
-				mif = mif_min_table[i-1];
-		}
-
-		if (gpu_control_is_power_on(kbdev)) {
-			int clk = 0;
-			gpu_dvfs_calculate_env_data(kbdev);
-			clk = gpu_dvfs_decide_next_freq(kbdev, platform->env_data.utilization);
-			gpu_set_target_clk_vol(clk, true);
-			gpu_mif_pmqos(platform, mif);
-		}
-		mutex_unlock(&platform->gpu_dvfs_handler_lock);
+	mutex_lock(&platform->gpu_dvfs_handler_lock);
+	if (gpu_control_is_power_on(kbdev)) {
+		int clk = 0;
+		gpu_dvfs_calculate_env_data(kbdev);
+		clk = gpu_dvfs_decide_next_freq(kbdev, platform->env_data.utilization);
+		gpu_set_target_clk_vol(clk, true);
 	}
+	mutex_unlock(&platform->gpu_dvfs_handler_lock);
 
 	GPU_LOG(DVFS_DEBUG, DUMMY, 0u, 0u, "dvfs hanlder is called\n");
 

@@ -27,10 +27,6 @@
 #include "gpu_hwcnt_sec.h"
 #endif
 
-#ifdef CONFIG_MALI_EXYNOS_SECURE_RENDERING
-#include <mali_kbase_ioctl.h>
-#endif
-
 /* kctx initialized with zero from vzalloc, so initialized value required only */
 #define CTX_UNINITIALIZED 0x0
 #define CTX_INITIALIZED 0x1
@@ -51,9 +47,6 @@
 
 uintptr_t gpu_get_callbacks(void);
 int gpu_vendor_dispatch(struct kbase_context *kctx, u32 flags);
-#ifdef CONFIG_MALI_EXYNOS_SECURE_RENDERING
-int gpu_vendor_secure_rendering_dispatch(struct kbase_context *kctx, struct kbase_ioctl_slsi_secure_flag *flags);
-#endif
 void gpu_cacheclean(struct kbase_device *kbdev);
 void kbase_mem_free_list_cleanup(struct kbase_context *kctx);
 void kbase_mem_set_max_size(struct kbase_context *kctx);

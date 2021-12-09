@@ -32,13 +32,6 @@
 #endif /* CONFIG_CPU_THERMAL_IPA */
 #include "gpu_custom_interface.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-#include <mach/pm_domains-cal.h>
-#else
-#include <soc/samsung/exynos-pd.h>
-#endif
-
-
 extern struct kbase_device *pkbdev;
 
 int gpu_pmqos_dvfs_min_lock(int level)
@@ -70,21 +63,14 @@ static ssize_t show_clock(struct device *dev, struct device_attribute *attr, cha
 	if (!platform)
 		return -ENODEV;
 
-#ifdef CONFIG_MALI_RT_PM
-	if (platform->exynos_pm_domain) {
-		mutex_lock(&platform->exynos_pm_domain->access_lock);
-		if(!platform->dvs_is_enabled && gpu_is_power_on())
-			clock = gpu_get_cur_clock(platform);
-		mutex_unlock(&platform->exynos_pm_domain->access_lock);
-	}
-#else
 	if (gpu_control_is_power_on(pkbdev) == 1) {
 		mutex_lock(&platform->gpu_clock_lock);
+#ifdef CONFIG_MALI_DVFS
 		if (!platform->dvs_is_enabled)
 			clock = gpu_get_cur_clock(platform);
+#endif
 		mutex_unlock(&platform->gpu_clock_lock);
 	}
-#endif
 
 	ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d", clock);
 
@@ -1358,58 +1344,6 @@ static ssize_t set_hwcnt_gpr(struct device *dev, struct device_attribute *attr, 
 	return count;
 }
 
-static ssize_t show_hwcnt_profile(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ssize_t ret = 0;
-	struct kbase_device *kbdev;
-	struct exynos_context *platform;
-
-	kbdev = dev_get_drvdata(dev);
-	if (!kbdev)
-		return -ENODEV;
-
-	platform = (struct exynos_context *)kbdev->platform_context;
-	if (!platform)
-		return -ENODEV;
-
-	ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d", platform->hwcnt_profile);
-
-	if (ret < PAGE_SIZE - 1) {
-		ret += snprintf(buf+ret, PAGE_SIZE-ret, "\n");
-	} else {
-		buf[PAGE_SIZE-2] = '\n';
-		buf[PAGE_SIZE-1] = '\0';
-		ret = PAGE_SIZE-1;
-	}
-	return ret;
-}
-
-static ssize_t set_hwcnt_profile(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct kbase_device *kbdev;
-	struct exynos_context *platform;
-
-	kbdev = dev_get_drvdata(dev);
-	if (!kbdev)
-		return -ENODEV;
-
-	platform = (struct exynos_context *)kbdev->platform_context;
-	if (!platform)
-		return -ENODEV;
-
-	mutex_lock(&kbdev->hwcnt.mlock);
-
-	if (sysfs_streq("0", buf))
-		platform->hwcnt_profile = false;
-	else if (sysfs_streq("1", buf))
-		platform->hwcnt_profile = true;
-	else
-		GPU_LOG(DVFS_WARNING, DUMMY, 0u, 0u, "invalid val -only [0 or 1] is accepted\n");
-
-	mutex_unlock(&kbdev->hwcnt.mlock);
-	return count;
-}
-
 static ssize_t show_hwcnt_bt_state(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t ret = 0;
@@ -1555,12 +1489,11 @@ DEVICE_ATTR(hwcnt_dvfs, S_IRUGO|S_IWUSR, show_hwcnt_dvfs, set_hwcnt_dvfs);
 DEVICE_ATTR(hwcnt_gpr, S_IRUGO|S_IWUSR, show_hwcnt_gpr, set_hwcnt_gpr);
 DEVICE_ATTR(hwcnt_bt_state, S_IRUGO, show_hwcnt_bt_state, NULL);
 DEVICE_ATTR(hwcnt_tripipe, S_IRUGO, show_hwcnt_tripipe, NULL);
-DEVICE_ATTR(hwcnt_profile, S_IRUGO|S_IWUSR, show_hwcnt_profile, set_hwcnt_profile);
 #endif
 DEVICE_ATTR(gpu_status, S_IRUGO, show_gpu_status, NULL);
 
 #ifdef CONFIG_MALI_DEBUG_KERNEL_SYSFS
-#if defined(CONFIG_MALI_DVFS)
+#ifdef CONFIG_MALI_DVFS
 static ssize_t show_kernel_sysfs_max_lock_dvfs(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	ssize_t ret = 0;
@@ -1633,10 +1566,6 @@ static ssize_t show_kernel_sysfs_available_governor(struct kobject *kobj, struct
 	ssize_t ret = 0;
 	gpu_dvfs_governor_info *governor_info;
 	int i;
-	struct exynos_context *platform = (struct exynos_context *)pkbdev->platform_context;
-
-	if (!platform)
-		return -ENODEV;
 
 	governor_info = (gpu_dvfs_governor_info *)gpu_dvfs_get_governor_info();
 
@@ -1755,14 +1684,6 @@ static ssize_t show_kernel_sysfs_clock(struct kobject *kobj, struct kobj_attribu
 	if (!platform)
 		return -ENODEV;
 
-#ifdef CONFIG_MALI_RT_PM
-	if (platform->exynos_pm_domain) {
-		mutex_lock(&platform->exynos_pm_domain->access_lock);
-		if (!platform->dvs_is_enabled && gpu_is_power_on())
-			clock = gpu_get_cur_clock(platform);
-		mutex_unlock(&platform->exynos_pm_domain->access_lock);
-	}
-#else
 	if (gpu_control_is_power_on(pkbdev) == 1) {
 		mutex_lock(&platform->gpu_clock_lock);
 #ifdef CONFIG_MALI_DVFS
@@ -1771,7 +1692,6 @@ static ssize_t show_kernel_sysfs_clock(struct kobject *kobj, struct kobj_attribu
 #endif
 		mutex_unlock(&platform->gpu_clock_lock);
 	}
-#endif
 
 	ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d", clock);
 
@@ -1876,7 +1796,7 @@ static ssize_t set_kernel_sysfs_governor(struct kobject *kobj, struct kobj_attri
 
 static ssize_t show_kernel_sysfs_gpu_model(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-	/* COPY from mali_kbase_core_linux.c : 2595 line, last updated: 20180102, r21p0-01rel0 */
+	/* COPY from mali_kbase_core_linux.c : 2873 line, last updated: 20170317, r12p1-03dev0 */
 	static const struct gpu_product_id_name {
 		unsigned id;
 		char *name;
@@ -1891,12 +1811,6 @@ static ssize_t show_kernel_sysfs_gpu_model(struct kobject *kobj, struct kobj_att
 		{ .id = GPU_ID_PI_TFRX, .name = "Mali-T88x" },
 		{ .id = GPU_ID2_PRODUCT_TMIX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
 		  .name = "Mali-G71" },
-		{ .id = GPU_ID2_PRODUCT_THEX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
-		  .name = "Mali-G72" },
-		{ .id = GPU_ID2_PRODUCT_TSIX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
-		  .name = "Mali-G51" },
-		{ .id = GPU_ID2_PRODUCT_TNOX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
-		  .name = "Mali-TNOx" },
 	};
 	const char *product_name = "(Unknown Mali GPU)";
 	struct kbase_device *kbdev;
@@ -1930,16 +1844,12 @@ static ssize_t show_kernel_sysfs_gpu_model(struct kobject *kobj, struct kobj_att
 		}
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%s %d cores r%dp%d 0x%04X\n",
-		product_name, kbdev->gpu_props.num_cores,
-		(gpu_id & GPU_ID_VERSION_MAJOR) >> GPU_ID_VERSION_MAJOR_SHIFT,
-		(gpu_id & GPU_ID_VERSION_MINOR) >> GPU_ID_VERSION_MINOR_SHIFT,
-		product_id);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", product_name);
 }
 
 #if defined(CONFIG_EXYNOS_THERMAL_V2) && defined(CONFIG_GPU_THERMAL)
 
-extern struct thermal_sensor_conf *gpu_thermal_conf_ptr;
+extern struct exynos_tmu_data *gpu_thermal_data;
 
 static ssize_t show_kernel_sysfs_gpu_temp(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -1947,18 +1857,18 @@ static ssize_t show_kernel_sysfs_gpu_temp(struct kobject *kobj, struct kobj_attr
 	int gpu_temp = 0;
 	int gpu_temp_int = 0;
 	int gpu_temp_point = 0;
-	void *data = NULL;
 
-
-	if (!gpu_thermal_conf_ptr) {
+	if (!gpu_thermal_data) {
 		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "[Kernel group SYSFS] thermal driver does not ready\n");
 		return -ENODEV;
 	}
 
-	data = gpu_thermal_conf_ptr->driver_data;
-	gpu_temp = gpu_thermal_conf_ptr->read_temperature(data);
+	mutex_lock(&gpu_thermal_data->lock);
 
-	gpu_temp = gpu_temp * MCELSIUS;
+	if (gpu_thermal_data->num_of_sensors)
+		gpu_temp = gpu_thermal_data->tmu_read(gpu_thermal_data) * MCELSIUS;
+
+	mutex_unlock(&gpu_thermal_data->lock);
 
 	gpu_temp_int = gpu_temp / 1000;
 	gpu_temp_point = gpu_temp % gpu_temp_int;
@@ -1979,7 +1889,7 @@ static struct kobj_attribute gpu_temp_attribute =
 	__ATTR(gpu_tmu, S_IRUGO, show_kernel_sysfs_gpu_temp, NULL);
 #endif
 
-#if defined(CONFIG_MALI_DVFS)
+#ifdef CONFIG_MALI_DVFS
 static struct kobj_attribute gpu_max_lock_attribute =
 	__ATTR(gpu_max_clock, S_IRUGO|S_IWUSR, show_kernel_sysfs_max_lock_dvfs, set_kernel_sysfs_max_lock_dvfs);
 
@@ -1991,7 +1901,7 @@ static struct kobj_attribute gpu_governor_attribute =
 
 static struct kobj_attribute gpu_available_governor_attribute =
 	__ATTR(gpu_available_governor, S_IRUGO, show_kernel_sysfs_available_governor, NULL);
-#endif
+#endif /* #ifdef CONFIG_MALI_DVFS */
 
 static struct kobj_attribute gpu_busy_attribute =
 	__ATTR(gpu_busy, S_IRUGO, show_kernel_sysfs_utilization, NULL);
@@ -2010,12 +1920,12 @@ static struct attribute *attrs[] = {
 #if defined(CONFIG_EXYNOS_THERMAL_V2) && defined(CONFIG_GPU_THERMAL)
 	&gpu_temp_attribute.attr,
 #endif
-#if defined(CONFIG_MALI_DVFS)
+#ifdef CONFIG_MALI_DVFS
 	&gpu_max_lock_attribute.attr,
 	&gpu_min_lock_attribute.attr,
 	&gpu_governor_attribute.attr,
 	&gpu_available_governor_attribute.attr,
-#endif
+#endif /* #ifdef CONFIG_MALI_DVFS */
 	&gpu_busy_attribute.attr,
 	&gpu_clock_attribute.attr,
 	&gpu_freq_table_attribute.attr,
@@ -2026,8 +1936,7 @@ static struct attribute *attrs[] = {
 static struct attribute_group attr_group = {
 	.attrs = attrs,
 };
-
-static struct kobject *external_kobj;
+static struct kobject *external_kobj = NULL;
 #endif
 
 int gpu_create_sysfs_file(struct device *dev)
@@ -2194,11 +2103,6 @@ int gpu_create_sysfs_file(struct device *dev)
 		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "couldn't create sysfs file [hwcnt_tripipe]\n");
 		goto out;
 	}
-
-	if (device_create_file(dev, &dev_attr_hwcnt_profile)) {
-		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "Couldn't create sysfs file [hwcnt_profile]\n");
-		goto out;
-	}
 #endif
 
 	if (device_create_file(dev, &dev_attr_gpu_status)) {
@@ -2268,7 +2172,6 @@ void gpu_remove_sysfs_file(struct device *dev)
 	device_remove_file(dev, &dev_attr_hwcnt_gpr);
 	device_remove_file(dev, &dev_attr_hwcnt_bt_state);
 	device_remove_file(dev, &dev_attr_hwcnt_tripipe);
-	device_remove_file(dev, &dev_attr_hwcnt_profile);
 #endif
 	device_remove_file(dev, &dev_attr_gpu_status);
 #ifdef CONFIG_MALI_DEBUG_KERNEL_SYSFS

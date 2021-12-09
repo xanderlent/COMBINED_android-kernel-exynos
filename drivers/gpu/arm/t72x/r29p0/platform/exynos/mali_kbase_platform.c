@@ -28,7 +28,6 @@
 #ifdef CONFIG_MALI_EXYNOS_SECURE_RENDERING
 #include <linux/smc.h>
 #include <asm/cacheflush.h>
-#include <protected_mode_switcher.h>
 #ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
 #include <linux/exynos_ion.h>
 extern struct ion_device *ion_exynos;
@@ -123,16 +122,9 @@ bool gpu_check_trace_code(int code)
 	case KBASE_TRACE_CODE(LSI_ZAP_TIMEOUT):
 	case KBASE_TRACE_CODE(LSI_RESET_GPU_EARLY_DUPE):
 	case KBASE_TRACE_CODE(LSI_RESET_RACE_DETECTED_EARLY_OUT):
+	case KBASE_TRACE_CODE(LSI_PM_SUSPEND):
 	case KBASE_TRACE_CODE(LSI_SUSPEND):
 	case KBASE_TRACE_CODE(LSI_RESUME):
-	case KBASE_TRACE_CODE(LSI_GPU_RPM_RESUME_API):
-	case KBASE_TRACE_CODE(LSI_GPU_RPM_SUSPEND_API):
-	case KBASE_TRACE_CODE(LSI_SUSPEND_CALLBACK):
-	case KBASE_TRACE_CODE(KBASE_DEVICE_SUSPEND):
-	case KBASE_TRACE_CODE(KBASE_DEVICE_SUSPEND_RESTORE):
-	case KBASE_TRACE_CODE(KBASE_DEVICE_RESUME):
-	case KBASE_TRACE_CODE(KBASE_DEVICE_PM_WAIT_WQ_RUN):
-	case KBASE_TRACE_CODE(KBASE_DEVICE_PM_WAIT_WQ_QUEUE_WORK):
 	case KBASE_TRACE_CODE(LSI_TMU_VALUE):
 		level = TRACE_NOTIFIER;
 		break;
@@ -352,10 +344,6 @@ static int gpu_context_init(struct kbase_device *kbdev)
 	kbdev->platform_context = (void *) platform;
 	pkbdev = kbdev;
 
-#ifdef CONFIG_MALI_SEC_HWCNT
-	mutex_init(&kbdev->hwcnt.dvs_lock);
-#endif
-
 	mutex_init(&platform->gpu_clock_lock);
 	mutex_init(&platform->gpu_dvfs_handler_lock);
 	spin_lock_init(&platform->gpu_dvfs_spinlock);
@@ -396,9 +384,6 @@ static int kbase_platform_exynos5_init(struct kbase_device *kbdev)
 		goto init_fail;
 
 #ifdef CONFIG_MALI_DVFS
-	/* gpu utilization moduel init */
-	gpu_dvfs_utilization_init(kbdev);
-
 	/* dvfs governor init */
 	gpu_dvfs_governor_init(kbdev);
 
@@ -433,8 +418,6 @@ static void kbase_platform_exynos5_term(struct kbase_device *kbdev)
 #ifdef CONFIG_MALI_DVFS
 	gpu_dvfs_handler_deinit(kbdev);
 #endif /* CONFIG_MALI_DVFS */
-
-	gpu_dvfs_utilization_deinit(kbdev);
 
 	gpu_control_module_term(kbdev);
 
@@ -487,12 +470,9 @@ static int exynos_secure_mode_enable(struct protected_mode_device *pdev)
 
 	GPU_LOG(DVFS_INFO, LSI_SECURE_WORLD_ENTER, 0u, 0u, "LSI_SECURE_WORLD_ENTER\n");
 
-	if (ret == SMC_TZPC_OK) {
+	if (ret == SMC_TZPC_OK)
 		ret = 0;
-		GPU_LOG(DVFS_INFO, DUMMY, 0u, 0u, "%s: Enter Secure World by GPU\n", __func__);
-	} else {
-		GPU_LOG(DVFS_ERROR, LSI_GPU_SECURE, 0u, 0u, "%s: failed exynos_smc() ret : %d\n", __func__, ret);
-	}
+
 #endif /* defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) */
 secure_out:
 	return ret;
@@ -532,31 +512,32 @@ static int exynos_secure_mode_disable(struct protected_mode_device *pdev)
 
 	GPU_LOG(DVFS_INFO, LSI_SECURE_WORLD_EXIT, 0u, 0u, "LSI_SECURE_WORLD_EXIT\n");
 
-	if (ret == SMC_TZPC_OK) {
+	if (ret == SMC_TZPC_OK)
 		ret = 0;
-		GPU_LOG(DVFS_INFO, DUMMY, 0u, 0u, "%s: Exit Secure World by GPU\n", __func__);
-	} else {
-		GPU_LOG(DVFS_ERROR, LSI_GPU_SECURE, 0u, 0u, "%s: failed exynos_smc() ret : %d\n", __func__, ret);
-	}
 
 #endif /* defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) */
 secure_out:
 	return ret;
 }
 
-#ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
-static bool exynos_secure_mem_init(struct kbase_device *kbdev)
+static bool exynos_secure_mode_init(struct kbase_device *kbdev)
 {
 	int ret = -EINVAL;
 
 #if defined(CONFIG_ION) && defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+#ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
 	ret = ion_exynos_contig_heap_info(SMC_GPU_CRC_REGION_NUM,
 			&kbdev->sec_sr_info.secure_crc_phys, &kbdev->sec_sr_info.secure_crc_sizes);
 
 	if (!ret) {
-		GPU_LOG(DVFS_WARNING, LSI_GPU_SECURE, 0u, 0u, "%s: supporting Secure Rendering ASP : region - 0x%08x, sizes - 0x%x\n",
+		GPU_LOG(DVFS_WARNING, LSI_GPU_SECURE, 0u, 0u, "%s: supporting Secure Rendering : region - 0x%08x, sizes - 0x%x\n",
 				__func__, (unsigned int)kbdev->sec_sr_info.secure_crc_phys, (unsigned int)kbdev->sec_sr_info.secure_crc_sizes);
 	}
+#else
+	ret = 0;
+
+	GPU_LOG(DVFS_WARNING, LSI_GPU_SECURE, 0u, 0u, "%s: supporting Secure Rendering, NO use ASP feature.\n", __func__);
+#endif
 #endif
 	if (ret) {
 		GPU_LOG(DVFS_ERROR, LSI_GPU_SECURE, 0u, 0u, "%s: can NOT support Secure Rendering, error %d\n", __func__, ret);
@@ -586,6 +567,7 @@ static int exynos_secure_mem_enable(struct kbase_device *kbdev, int ion_fd, u64 
 		goto secure_out;
 	}
 #if defined(CONFIG_ION) && defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+#ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
 	{
 		struct ion_client *client;
 		struct ion_handle *ion_handle;
@@ -642,6 +624,11 @@ static int exynos_secure_mem_enable(struct kbase_device *kbdev, int ion_fd, u64 
 		reg->len_by_ion = len;
 	}
 #else
+	ret = 0;
+
+	reg->flags |= KBASE_REG_SECURE;
+#endif
+#else
 	GPU_LOG(DVFS_ERROR, LSI_GPU_SECURE, 0u, 0u, "%s: wrong operation! DDK cannot support Secure Rendering\n", __func__);
 	ret = -EINVAL;
 #endif /* defined(CONFIG_ION) && defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) */
@@ -673,6 +660,7 @@ static int exynos_secure_mem_disable(struct kbase_device *kbdev, struct kbase_va
 		goto secure_out;
 	}
 #if defined(CONFIG_ION) && defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+#ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
 	if ((reg->flags & KBASE_REG_SECURE) &&
 	    !(reg->flags & KBASE_REG_SECURE_CRC)) {
 		int ret;
@@ -686,6 +674,7 @@ static int exynos_secure_mem_disable(struct kbase_device *kbdev, struct kbase_va
 			BUG();
 		}
 	}
+#endif
 #else
 	GPU_LOG(DVFS_ERROR, LSI_GPU_SECURE, 0u, 0u, "%s: wrong operation! DDK cannot support Secure Rendering\n", __func__);
 	ret = -EINVAL;
@@ -694,18 +683,17 @@ static int exynos_secure_mem_disable(struct kbase_device *kbdev, struct kbase_va
 secure_out:
 	return ret;
 }
-#endif /* defined(CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL) */
 
 struct protected_mode_ops exynos_protected_ops = {
-	.protected_mode_enable  = exynos_secure_mode_enable,
-	.protected_mode_disable = exynos_secure_mode_disable,
-#ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
-	.secure_mem_init     = exynos_secure_mem_init,
+	.protected_mode_enable = exynos_secure_mode_enable,
+	.protected_mode_disable = exynos_secure_mode_disable
+#if defined(CONFIG_MALI_EXYNOS_SECURE_RENDERING) && defined(CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL)
+	.protected_mode_supported = exynos_secure_mode_init,
 	.secure_mem_enable   = exynos_secure_mem_enable,
 	.secure_mem_disable  = exynos_secure_mem_disable,
 #endif
 };
-#endif /* defined(CONFIG_MALI_EXYNOS_SECURE_RENDERING) */
+#endif
 
 int kbase_platform_early_init(void)
 {

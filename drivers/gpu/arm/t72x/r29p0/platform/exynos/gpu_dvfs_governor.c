@@ -17,16 +17,8 @@
 
 #include <mali_kbase.h>
 
-#ifdef CONFIG_MALI_DVFS
-#ifdef CONFIG_PWRCAL
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-#include <../pwrcal/S5E8890/S5E8890-vclk.h>
-#include <../pwrcal/pwrcal.h>
-#else
-#include <S5E7570/S5E7570-vclk.h>
-#include <pwrcal.h>
-#endif
-#endif
+#ifdef CONFIG_CAL_IF
+#include <soc/samsung/cal-if.h>
 #endif
 
 #include "mali_kbase_platform.h"
@@ -257,6 +249,11 @@ int gpu_dvfs_decide_next_freq(struct kbase_device *kbdev, int utilization)
 	gpu_dvfs_get_next_level(platform, utilization);
 	spin_unlock_irqrestore(&platform->gpu_dvfs_spinlock, flags);
 
+#ifdef CONFIG_MALI_SEC_CL_BOOST
+	if (kbdev->pm.backend.metrics.is_full_compute_util)
+		platform->step = gpu_dvfs_get_level(platform->gpu_max_clock);
+#endif
+
 #ifdef CONFIG_CPU_THERMAL_IPA
 	ipa_mali_dvfs_requested(platform->table[platform->step].clock);
 #endif /* CONFIG_CPU_THERMAL_IPA */
@@ -266,24 +263,28 @@ int gpu_dvfs_decide_next_freq(struct kbase_device *kbdev, int utilization)
 
 static int gpu_dvfs_update_asv_table(struct exynos_context *platform)
 {
+#ifdef CONFIG_CAL_IF
 	int i, voltage, dvfs_table_size;
 	gpu_dvfs_info *dvfs_table;
-
-#ifdef CONFIG_PWRCAL
 	struct dvfs_rate_volt g3d_rate_volt[48];
+	int cal_get_dvfs_lv_num;
 	int cal_table_size;
 	int j;
 
 	dvfs_table = platform->table;
 	dvfs_table_size = platform->table_size;
+	cal_get_dvfs_lv_num = cal_dfs_get_lv_num(platform->g3d_cmu_cal_id);
+	cal_table_size = cal_dfs_get_rate_asv_table(platform->g3d_cmu_cal_id, g3d_rate_volt);
 
-	cal_table_size = cal_dfs_get_rate_asv_table(dvfs_g3d, g3d_rate_volt);
+	if (dvfs_table_size != cal_get_dvfs_lv_num)
+		GPU_LOG(DVFS_WARNING, DUMMY, 0u, 0u, "mismatch gpu dvfs lv num!!! : between ect table(%d) and gpu driver(%d)\n", cal_get_dvfs_lv_num, dvfs_table_size);
+
 	if (!cal_table_size)
 		GPU_LOG(DVFS_WARNING, DUMMY, 0u, 0u, "Failed get G3D ASV table\n");
 
 	for (i = 0; i < dvfs_table_size; i++) {
 		for (j = 0; j < cal_table_size; j++) {
-			if (dvfs_table[i].clock * 1000 == g3d_rate_volt[j].rate) {
+			if (dvfs_table[i].clock * 1000 == g3d_rate_volt[j].rate && platform->gpu_max_clock >= dvfs_table[i].clock) {
 				voltage = g3d_rate_volt[j].volt;
 				if (voltage > 0) {
 					dvfs_table[i].voltage = g3d_rate_volt[j].volt;
@@ -292,27 +293,9 @@ static int gpu_dvfs_update_asv_table(struct exynos_context *platform)
 			}
 		}
 	}
-
-#else
-	DVFS_ASSERT(platform);
-
-	dvfs_table = platform->table;
-	dvfs_table_size = platform->table_size;
-	for (i = 0; i < dvfs_table_size; i++) {
-		if (platform->dynamic_abb_status) {
-			dvfs_table[i].asv_abb = get_match_abb(ID_G3D, dvfs_table[i].clock*1000);
-			GPU_LOG(DVFS_WARNING, DUMMY, 0u, 0u, "DEVFREQ: %uKhz, ABB %u\n", dvfs_table[i].clock*1000, dvfs_table[i].asv_abb);
-		}
-
-		voltage = get_match_volt(ID_G3D, dvfs_table[i].clock*1000);
-		if (voltage > 0)
-			dvfs_table[i].voltage = voltage;
-		GPU_LOG(DVFS_WARNING, DUMMY, 0u, 0u, "G3D %dKhz ASV is %duV\n", dvfs_table[i].clock*1000, dvfs_table[i].voltage);
-	}
 #endif
 	return 0;
 }
-#endif /* CONFIG_MALI_DVFS */
 
 int gpu_dvfs_governor_setting(struct exynos_context *platform, int governor_type)
 {
@@ -377,13 +360,13 @@ int gpu_dvfs_governor_init(struct kbase_device *kbdev)
 
 	/* share table_size among governors, as every single governor has same table_size. */
 	platform->save_cpu_max_freq = kmalloc(sizeof(int) * platform->table_size, GFP_KERNEL);
-#ifdef CONFIG_MALI_DVFS
 	gpu_dvfs_update_asv_table(platform);
 	gpu_dvfs_decide_max_clock(platform);
-#endif
 #if defined(CONFIG_MALI_DVFS) && defined(CONFIG_CPU_THERMAL_IPA)
 	gpu_ipa_dvfs_calc_norm_utilisation(kbdev);
 #endif /* CONFIG_MALI_DVFS && CONFIG_CPU_THERMAL_IPA */
 
 	return 0;
 }
+
+#endif /* CONFIG_MALI_DVFS */

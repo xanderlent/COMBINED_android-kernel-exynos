@@ -21,6 +21,7 @@
 struct gpu_control_ops {
 	int (*is_power_on)(void);
 
+	int (*set_dvfs)(struct exynos_context *platform, int clk);
 	int (*set_voltage)(struct exynos_context *platform, int vol);
 	int (*set_voltage_pre)(struct exynos_context *platform, bool is_up);
 	int (*set_voltage_post)(struct exynos_context *platform, bool is_up);
@@ -36,6 +37,7 @@ struct gpu_control_ops {
 
 int get_cpu_clock_speed(u32 *cpu_clock);
 int gpu_control_set_voltage(struct kbase_device *kbdev, int voltage);
+int gpu_control_set_dvfs(struct kbase_device *kbdev, int clock);
 int gpu_control_set_clock(struct kbase_device *kbdev, int clock);
 int gpu_control_enable_clock(struct kbase_device *kbdev);
 int gpu_control_disable_clock(struct kbase_device *kbdev);
@@ -62,6 +64,4 @@ int gpu_control_module_init(struct kbase_device *kbdev);
 void gpu_control_module_term(struct kbase_device *kbdev);
 
 int gpu_device_specific_init(struct kbase_device *kbdev);
-
-int *get_mif_table(int *size);
 #endif /* _GPU_CONTROL_H_ */

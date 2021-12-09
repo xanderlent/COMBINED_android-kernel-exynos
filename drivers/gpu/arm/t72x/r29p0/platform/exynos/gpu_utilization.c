@@ -20,7 +20,6 @@
 #include "mali_kbase_platform.h"
 #include "gpu_control.h"
 #include "gpu_dvfs_handler.h"
-#include "gpu_perf.h"
 #include "gpu_ipa.h"
 #ifdef CONFIG_MALI_SEC_HWCNT
 #include "gpu_hwcnt_sec.h"
@@ -61,58 +60,6 @@ static void gpu_dvfs_update_utilization(struct kbase_device *kbdev)
 #endif /* CONFIG_MALI_DVFS && CONFIG_CPU_THERMAL_IPA */
 }
 #endif /* CONFIG_MALI_DVFS */
-
-static int gpu_dvfs_update_perf(struct kbase_device *kbdev)
-{
-	unsigned long flags;
-	unsigned int pmcnt;
-	u64 perfmon;
-	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
-
-	DVFS_ASSERT(platform);
-
-	if (!platform->perf_gathering_status)
-		return 0;
-
-	if (!gpu_control_is_power_on(kbdev))
-		return 0;
-
-	if (platform->dvs_is_enabled)
-		return 0;
-
-	exynos_gpu_perf_update(&pmcnt);
-	exynos_gpu_perf_reset();
-	perfmon = div_u64((u64)pmcnt*1000,  platform->cur_clock);
-
-	spin_lock_irqsave(&platform->gpu_dvfs_spinlock, flags);
-	platform->env_data.perf = perfmon;
-	spin_unlock_irqrestore(&platform->gpu_dvfs_spinlock, flags);
-
-	GPU_LOG(DVFS_INFO, DUMMY, 0u, 0u, "Current PERF: %d\n", platform->env_data.perf);
-
-	return 0;
-}
-
-int gpu_dvfs_start_env_data_gathering(struct kbase_device *kbdev)
-{
-	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
-
-	DVFS_ASSERT(platform);
-
-	if (platform->perf_gathering_status)
-		exynos_gpu_perf_reset();
-
-	return 0;
-}
-
-int gpu_dvfs_stop_env_data_gathering(struct kbase_device *kbdev)
-{
-	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
-
-	DVFS_ASSERT(platform);
-
-	return 0;
-}
 
 #ifdef CONFIG_MALI_DVFS
 int gpu_dvfs_reset_env_data(struct kbase_device *kbdev)
@@ -165,40 +112,3 @@ int gpu_dvfs_calculate_env_data(struct kbase_device *kbdev)
 	return 0;
 }
 #endif
-
-int gpu_dvfs_calculate_env_data_ppmu(struct kbase_device *kbdev)
-{
-	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
-
-	DVFS_ASSERT(platform);
-
-	gpu_dvfs_update_perf(kbdev);
-
-	return 0;
-}
-
-int gpu_dvfs_utilization_init(struct kbase_device *kbdev)
-{
-	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
-
-	DVFS_ASSERT(platform);
-
-	exynos_gpu_perf_init();
-
-	GPU_LOG(DVFS_INFO, DUMMY, 0u, 0u, "utilization module initialized\n");
-
-	return 0;
-}
-
-int gpu_dvfs_utilization_deinit(struct kbase_device *kbdev)
-{
-	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
-
-	DVFS_ASSERT(platform);
-
-	exynos_gpu_perf_deinit();
-
-	GPU_LOG(DVFS_INFO, DUMMY, 0u, 0u, "utilization module de-initialized\n");
-
-	return 0;
-}

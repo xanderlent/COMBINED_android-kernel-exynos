@@ -29,6 +29,7 @@ struct pm_qos_request exynos5_g3d_int_qos;
 struct pm_qos_request exynos5_g3d_cpu_cluster_min_qos;
 struct pm_qos_request exynos5_g3d_cpu_cluster_max_qos;
 
+#ifdef CONFIG_MALI_PM_QOS
 int gpu_pm_qos_command(struct exynos_context *platform, gpu_pmqos_state state)
 {
 
@@ -113,3 +114,4 @@ int gpu_mif_pmqos(struct exynos_context *platform, int mem_freq)
 
 	return 0;
 }
+#endif

@@ -1362,7 +1362,6 @@ static inline void kbase_clear_dma_addr(struct page *p)
  *
  * This function will process a fault on a specific address space
  */
-
 void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 		struct kbase_context *kctx, struct kbase_as *as,
 		struct kbase_fault *fault);

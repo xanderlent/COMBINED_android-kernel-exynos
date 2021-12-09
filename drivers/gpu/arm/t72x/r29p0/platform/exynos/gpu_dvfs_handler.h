@@ -52,24 +52,20 @@ int gpu_dvfs_governor_change(int governor_type);
 int gpu_dvfs_init_time_in_state(void);
 int gpu_dvfs_update_time_in_state(int clock);
 int gpu_dvfs_get_level(int clock);
-int gpu_dvfs_get_max_freq(void);
-int gpu_dvfs_get_min_freq(void);
 int gpu_dvfs_get_level_clock(int clock);
 int gpu_dvfs_get_voltage(int clock);
 int gpu_dvfs_get_cur_asv_abb(void);
 int gpu_dvfs_get_clock(int level);
 int gpu_dvfs_get_step(void);
+int gpu_dvfs_get_cur_clock(void);
+int gpu_dvfs_get_utilization(void);
+int gpu_dvfs_get_max_freq(void);
 
 int gpu_dvfs_decide_max_clock(struct exynos_context *platform);
 
 /* gpu_utilization */
-int gpu_dvfs_start_env_data_gathering(struct kbase_device *kbdev);
-int gpu_dvfs_stop_env_data_gathering(struct kbase_device *kbdev);
 int gpu_dvfs_reset_env_data(struct kbase_device *kbdev);
 int gpu_dvfs_calculate_env_data(struct kbase_device *kbdev);
-int gpu_dvfs_calculate_env_data_ppmu(struct kbase_device *kbdev);
-int gpu_dvfs_utilization_init(struct kbase_device *kbdev);
-int gpu_dvfs_utilization_deinit(struct kbase_device *kbdev);
 
 /* gpu_pmqos.c */
 typedef enum {

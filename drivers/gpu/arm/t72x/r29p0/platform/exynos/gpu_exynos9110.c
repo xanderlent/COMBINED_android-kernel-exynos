@@ -42,7 +42,7 @@
 extern struct kbase_device *pkbdev;
 
 #ifdef CONFIG_MALI_DVFS
-#define CPU_MAX PM_QOS_CLUSTER1_FREQ_MAX_DEFAULT_VALUE
+#define CPU_MAX 0
 #else
 #define CPU_MAX -1
 #endif
@@ -177,6 +177,7 @@ int gpu_power_init(struct kbase_device *kbdev)
 	return 0;
 }
 
+#ifdef CONFIG_MALI_DVFS
 int gpu_get_cur_clock(struct exynos_context *platform)
 {
 	if (!platform)
@@ -184,6 +185,7 @@ int gpu_get_cur_clock(struct exynos_context *platform)
 
 	return cal_dfs_get_rate(platform->g3d_cmu_cal_id)/KHZ;
 }
+#endif
 
 int gpu_register_dump(void)
 {

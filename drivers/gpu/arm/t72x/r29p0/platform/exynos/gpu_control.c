@@ -21,18 +21,10 @@
 #include <linux/pm_qos.h>
 #include <linux/pm_domain.h>
 #include <linux/clk.h>
-#if defined(CONFIG_SOC_EXYNOS7570) && defined(CONFIG_PWRCAL)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
-#include <../pwrcal/pwrcal.h>
-#include <../pwrcal/S5E7570/S5E7570-vclk.h>
-#include <mach/pm_domains-cal.h>
-#else
+#if defined(CONFIG_SOC_EXYNOS9110) && defined(CONFIG_PWRCAL)
 #include <pwrcal.h>
-#include <S5E7570/S5E7570-vclk.h>
-#include <S5E7570/S5E7570-vclk-internal.h>
+#endif /* CONFIG_SOC_EXYNOS9110 && CONFIG_PWRCAL */
 #include <soc/samsung/exynos-pd.h>
-#endif /* LINUX_VERSION */
-#endif /* CONFIG_SOC_EXYNOS7570 && CONFIG_PWRCAL */
 
 #include "mali_kbase_platform.h"
 #include "gpu_dvfs_handler.h"
@@ -48,13 +40,14 @@ static struct exynos_pm_domain *gpu_get_pm_domain(void)
 	struct device_node *np = NULL;
 	struct exynos_pm_domain *pd_temp, *pd = NULL;
 
-	for_each_compatible_node(np, NULL, "samsung,exynos-pd") {
+	for_each_compatible_node(np, NULL, "samsung,exynos-pd")
+	{
 		if (!of_device_is_available(np))
 			continue;
 
 		pdev = of_find_device_by_node(np);
-		pd_temp = platform_get_drvdata(pdev);
-		if (!strcmp("pd-g3d", pd_temp->genpd.name)) {
+		pd_temp = (struct exynos_pm_domain *)platform_get_drvdata(pdev);
+		if (!strcmp("pd-g3d",(const char*)(pd_temp->genpd.name)))  {
 			pd = pd_temp;
 			break;
 		}
@@ -100,6 +93,47 @@ int gpu_control_set_voltage(struct kbase_device *kbdev, int voltage)
 	return ret;
 }
 
+int gpu_control_set_dvfs(struct kbase_device *kbdev, int clock)
+{
+	int ret = 0;
+	bool is_up = false;
+	static int prev_clock = -1;
+	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
+	if (!platform) {
+		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "%s: platform context is null\n", __func__);
+		return -ENODEV;
+	}
+
+#ifdef CONFIG_MALI_DVFS
+	if (gpu_dvfs_get_level(clock) < 0) {
+		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "%s: mismatch clock error (%d)\n", __func__, clock);
+		return -1;
+	}
+#endif
+
+	is_up = prev_clock < clock;
+
+#ifdef CONFIG_MALI_PM_QOS
+	if (is_up)
+		gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_SET);
+#endif /* CONFIG_MALI_PM_QOS */
+
+	if (ctr_ops->set_dvfs)
+		ret = ctr_ops->set_dvfs(platform, clock);
+
+#ifdef CONFIG_MALI_PM_QOS
+	if (is_up && ret)	/* set dvfs fail */
+		gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_SET);
+	else if (!is_up && !ret)	/* is_down */
+		gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_SET);
+#endif /* CONFIG_MALI_PM_QOS */
+
+	gpu_dvfs_update_time_in_state(prev_clock);
+	prev_clock = clock;
+
+	return ret;
+}
+
 int gpu_control_set_clock(struct kbase_device *kbdev, int clock)
 {
 	int ret = 0;
@@ -134,12 +168,12 @@ int gpu_control_set_clock(struct kbase_device *kbdev, int clock)
 	if (ctr_ops->set_clock_post)
 		ctr_ops->set_clock_post(platform, clock, is_up);
 
-#ifdef CONFIG_MALI_DVFS
+#ifdef CONFIG_MALI_PM_QOS
 	if (is_up && ret)
 		gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_SET);
 	else if (!is_up && !ret)
 		gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_SET);
-#endif /* CONFIG_MALI_DVFS */
+#endif /* CONFIG_MALI_PM_QOS */
 
 	gpu_dvfs_update_time_in_state(prev_clock);
 	prev_clock = clock;
@@ -184,9 +218,9 @@ int gpu_control_disable_clock(struct kbase_device *kbdev)
 	dvfs_hwcnt_clear_tripipe(kbdev);
 #endif
 	gpu_dvfs_update_time_in_state(platform->cur_clock);
-#ifdef CONFIG_MALI_DVFS
+#ifdef CONFIG_MALI_PM_QOS
 	gpu_pm_qos_command(platform, GPU_CONTROL_PM_QOS_RESET);
-#endif /* CONFIG_MALI_DVFS */
+#endif /* CONFIG_MALI_PM_QOS */
 
 	return ret;
 }
