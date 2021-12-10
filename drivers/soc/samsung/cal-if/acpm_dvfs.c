@@ -158,7 +158,7 @@ int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp)
 
 static void acpm_noti_mif_callback(unsigned int *cmd, unsigned int size)
 {
-	pr_info("%s : req %d KHz\n", __func__, cmd[1]);
+	pr_debug("%s : req %d KHz\n", __func__, cmd[1]);
 	pm_qos_update_request(&mif_request_from_acpm, cmd[1]);
 }
 
