@@ -48,6 +48,10 @@
 	status = "ok";
 };
 
+&exynos_rtc {
+	status = "ok";
+};
+
 &proto1_cs40l25 {
 	status = "ok";
 };

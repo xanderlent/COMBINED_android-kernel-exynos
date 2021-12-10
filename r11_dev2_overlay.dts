@@ -46,6 +46,10 @@
 	status = "ok";
 };
 
+&exynos_rtc {
+	status = "ok";
+};
+
 &dev2_cs40l25 {
 	status = "ok";
 };
