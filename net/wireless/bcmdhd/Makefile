@@ -35,8 +35,7 @@ KBUILD_FLAGS += -DANDROID_PLATFORM_VERSION=11
 
 # Debug flag. This flag is only used in KBuild.
 # Comment out to disable debugging logs and processes.
-# STOPSHIP: 188463502 disable CONFIG_BCMDHD_DEBUG.
-KBUILD_OPTIONS += CONFIG_BCMDHD_DEBUG=y
+#KBUILD_OPTIONS += CONFIG_BCMDHD_DEBUG=y
 
 all:
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) modules $(KBUILD_OPTIONS) KCFLAGS='$(KBUILD_FLAGS)'

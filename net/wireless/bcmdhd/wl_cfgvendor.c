@@ -1317,14 +1317,14 @@ wl_cfgvendor_get_wake_reason_stats(struct wiphy *wiphy,
 	struct net_device *ndev = wdev_to_ndev(wdev);
 	wake_counts_t *pwake_count_info;
 	int ret, mem_needed;
-#if defined(DHD_DEBUG) && defined(DHD_WAKE_EVENT_STATUS)
+#ifdef DHD_WAKE_EVENT_STATUS
 	int flowid;
 #ifdef CUSTOM_WAKE_REASON_STATS
 	int tmp_rc_event[MAX_WAKE_REASON_STATS];
 	int rc_event_used_cnt = 0;
 	int front = 0;
 #endif /* CUSTOM_WAKE_REASON_STATS */
-#endif /* DHD_DEBUG && DHD_WAKE_EVENT_STATUS */
+#endif /* DHD_WAKE_EVENT_STATUS */
 	struct sk_buff *skb = NULL;
 	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(ndev);
 

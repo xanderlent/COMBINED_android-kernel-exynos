@@ -716,6 +716,10 @@ static int dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *s
 #define DHD_MEMDUMP_TYPE_LONGSTR_LEN 180
 #define DHD_MEMDUMP_PATH_STR_LEN 128
 
+#if defined(WL_CFGVENDOR_SEND_HANG_EVENT)
+char hang_reason_str[DHD_MEMDUMP_TYPE_LONGSTR_LEN];
+#endif
+
 #ifdef DHD_TX_PROFILE
 /* process layer 3 headers, to ultimately determine if a
  * dhd_tx_profile_protocol_t matches
@@ -18348,9 +18352,7 @@ void dhd_schedule_memdump(dhd_pub_t *dhdp, uint8 *buf, uint32 size)
 	dhd_deferred_schedule_work(dhdp->info->dhd_deferred_wq, (void *)dump,
 		DHD_WQ_WORK_SOC_RAM_DUMP, (void *)dhd_mem_dump, DHD_WQ_WORK_PRIORITY_HIGH);
 }
-#if defined(WL_CFGVENDOR_SEND_HANG_EVENT)
-char hang_reason_str[DHD_MEMDUMP_TYPE_LONGSTR_LEN];
-#endif
+
 static int
 dhd_mem_dump(void *handle, void *event_info, u8 event)
 {

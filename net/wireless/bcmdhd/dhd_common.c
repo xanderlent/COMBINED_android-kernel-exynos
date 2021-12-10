@@ -113,9 +113,8 @@
 int log_print_threshold = 0;
 #endif /* DHD_LOG_PRINT_RATE_LIMIT */
 
-// TODO (mullerf): b/180659832: Revert DHD_PNO_VAL when done debugging
 /* For CUSTOMER_HW4/Hikey do not enable DHD_ERROR_MEM_VAL by default */
-int dhd_msg_level = DHD_ERROR_VAL | DHD_PNO_VAL
+int dhd_msg_level = DHD_ERROR_VAL
 	/* For CUSTOMER_HW4 do not enable DHD_IOVAR_MEM_VAL by default */
 #if !defined(CUSTOMER_HW4) && !defined(BOARD_HIKEY) && !defined(BOARD_EXYNOS)
 	| DHD_IOVAR_MEM_VAL
