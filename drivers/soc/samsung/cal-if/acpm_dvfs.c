@@ -127,7 +127,7 @@ int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 }
 
 #if 0
-#if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
+#if defined(CONFIG_EXYNOS_THERMAL_V2) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp)
 {
 	struct ipc_config config;
@@ -163,7 +163,7 @@ static void acpm_noti_mif_callback(unsigned int *cmd, unsigned int size)
 }
 
 #if 0
-#if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
+#if defined(CONFIG_EXYNOS_THERMAL_V2) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 static int acpm_cpu_tmu_notifier(struct notifier_block *nb, unsigned long event, void *v)
 {
 	unsigned int *is_cold_temp = v;
@@ -184,7 +184,7 @@ static int acpm_cpu_tmu_notifier(struct notifier_block *nb, unsigned long event,
 }
 #endif
 
-#if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
+#if defined(CONFIG_EXYNOS_THERMAL_V2) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 static int acpm_gpu_tmu_notifier(struct notifier_block *nb, unsigned long event, void *v)
 {
 	unsigned int *is_cold_temp = v;
@@ -205,7 +205,7 @@ static int acpm_gpu_tmu_notifier(struct notifier_block *nb, unsigned long event,
 }
 #endif
 
-#if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
+#if defined(CONFIG_EXYNOS_THERMAL_V2) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 static void acpm_dvfs_get_cpu_cold_temp_list(struct device *dev)
 {
 	struct device_node *node = dev->of_node;
@@ -235,7 +235,7 @@ static void acpm_dvfs_get_cpu_cold_temp_list(struct device *dev)
 }
 #endif
 
-#if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
+#if defined(CONFIG_EXYNOS_THERMAL_V2) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 static void acpm_dvfs_get_gpu_cold_temp_list(struct device *dev)
 {
 	struct device_node *node = dev->of_node;
@@ -281,7 +281,7 @@ static int acpm_dvfs_probe(struct platform_device *pdev)
 
 	pm_qos_add_request(&mif_request_from_acpm, PM_QOS_BUS_THROUGHPUT, 0);
 
-#if defined(CONFIG_EXYNOS_THERMAL) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
+#if defined(CONFIG_EXYNOS_THERMAL_V2) && !defined(CONFIG_EXYNOS_ACPM_THERMAL)
 //	acpm_dvfs_get_cpu_cold_temp_list(dev);
 //	acpm_dvfs_get_gpu_cold_temp_list(dev);
 #endif

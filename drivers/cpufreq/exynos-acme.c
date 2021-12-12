@@ -19,7 +19,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/tick.h>
 #include <linux/pm_opp.h>
-#include <linux/cpu_cooling.h>
+#include <soc/samsung/cpu_cooling.h>
 #include <linux/suspend.h>
 
 #include <soc/samsung/cal-if.h>

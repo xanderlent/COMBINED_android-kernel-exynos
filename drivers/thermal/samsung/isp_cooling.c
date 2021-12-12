@@ -25,13 +25,13 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
-#include <linux/isp_cooling.h>
+#include <soc/samsung/isp_cooling.h>
 
 #include <soc/samsung/tmu.h>
 #if defined(CONFIG_ECT)
 #include <soc/samsung/ect_parser.h>
 #endif
-#include "samsung/exynos_tmu.h"
+#include "exynos_tmu.h"
 
 /**
  * struct isp_cooling_device - data for cooling device with isp

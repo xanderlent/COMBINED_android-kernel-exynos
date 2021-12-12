@@ -24,20 +24,20 @@
 #include "gpu_notifier.h"
 #include "gpu_control.h"
 
-#ifdef CONFIG_EXYNOS_THERMAL
+#ifdef CONFIG_EXYNOS_THERMAL_V2
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 #include <mach/tmu.h>
 #else
 #include <soc/samsung/tmu.h>
 #endif
-#endif /* CONFIG_EXYNOS_THERMAL */
+#endif /* CONFIG_EXYNOS_THERMAL_V2 */
 
 #ifdef CONFIG_EXYNOS_BUSMONITOR
 #include <linux/exynos-busmon.h>
 #endif
 extern struct kbase_device *pkbdev;
 
-#if defined (CONFIG_EXYNOS_THERMAL) && defined(CONFIG_GPU_THERMAL)
+#if defined (CONFIG_EXYNOS_THERMAL_V2) && defined(CONFIG_GPU_THERMAL)
 static int gpu_tmu_hot_check_and_work(struct kbase_device *kbdev,
 		unsigned long event, unsigned long index) {
 #ifdef CONFIG_MALI_DVFS
@@ -120,7 +120,7 @@ static int gpu_tmu_notifier(struct notifier_block *notifier,
 static struct notifier_block gpu_tmu_nb = {
 	.notifier_call = gpu_tmu_notifier,
 };
-#endif /* CONFIG_EXYNOS_THERMAL */
+#endif /* CONFIG_EXYNOS_THERMAL_V2 */
 
 static int gpu_power_on(struct kbase_device *kbdev)
 {
@@ -440,9 +440,9 @@ int gpu_notifier_init(struct kbase_device *kbdev)
 		return -ENODEV;
 
 	platform->voltage_margin = 0;
-#if defined (CONFIG_EXYNOS_THERMAL) && defined(CONFIG_GPU_THERMAL)
+#if defined (CONFIG_EXYNOS_THERMAL_V2) && defined(CONFIG_GPU_THERMAL)
 	exynos_gpu_add_notifier(&gpu_tmu_nb);
-#endif /* CONFIG_EXYNOS_THERMAL */
+#endif /* CONFIG_EXYNOS_THERMAL_V2 */
 
 #ifdef CONFIG_MALI_RT_PM
 	if (register_pm_notifier(&gpu_pm_nb))

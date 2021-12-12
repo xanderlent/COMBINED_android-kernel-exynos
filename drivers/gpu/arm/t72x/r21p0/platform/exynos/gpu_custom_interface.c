@@ -19,7 +19,7 @@
 
 #include <linux/fb.h>
 
-#if defined(CONFIG_EXYNOS_THERMAL) && defined(CONFIG_GPU_THERMAL) && defined(CONFIG_MALI_DEBUG_KERNEL_SYSFS)
+#if defined(CONFIG_EXYNOS_THERMAL_V2) && defined(CONFIG_GPU_THERMAL) && defined(CONFIG_MALI_DEBUG_KERNEL_SYSFS)
 #include "exynos_tmu.h"
 #endif
 
@@ -1038,7 +1038,7 @@ static ssize_t set_tmu_control(struct device *dev, struct device_attribute *attr
 static ssize_t show_norm_utilization(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t ret = 0;
-#ifdef CONFIG_EXYNOS_THERMAL
+#ifdef CONFIG_EXYNOS_THERMAL_V2
 
 	ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d", gpu_ipa_dvfs_get_norm_utilisation(pkbdev));
 
@@ -1051,7 +1051,7 @@ static ssize_t show_norm_utilization(struct device *dev, struct device_attribute
 	}
 #else
 	GPU_LOG(DVFS_WARNING, DUMMY, 0u, 0u, "%s: EXYNOS THERMAL build config is disabled\n", __func__);
-#endif /* CONFIG_EXYNOS_THERMAL */
+#endif /* CONFIG_EXYNOS_THERMAL_V2 */
 
 	return ret;
 }
@@ -1059,7 +1059,7 @@ static ssize_t show_norm_utilization(struct device *dev, struct device_attribute
 static ssize_t show_utilization_stats(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t ret = 0;
-#ifdef CONFIG_EXYNOS_THERMAL
+#ifdef CONFIG_EXYNOS_THERMAL_V2
 	struct mali_debug_utilisation_stats stats;
 
 	gpu_ipa_dvfs_get_utilisation_stats(&stats);
@@ -1078,7 +1078,7 @@ static ssize_t show_utilization_stats(struct device *dev, struct device_attribut
 	}
 #else
 	GPU_LOG(DVFS_WARNING, DUMMY, 0u, 0u, "%s: EXYNOS THERMAL build config is disabled\n", __func__);
-#endif /* CONFIG_EXYNOS_THERMAL */
+#endif /* CONFIG_EXYNOS_THERMAL_V2 */
 
 	return ret;
 }

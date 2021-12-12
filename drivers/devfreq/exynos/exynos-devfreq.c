@@ -45,9 +45,7 @@
 
 #include "exynos-ppc.h"
 
-#if IS_ENABLED(CONFIG_DEVFREQ_THERMA)
-#include <linux/dev_cooling.h>
-#endif
+#include <soc/samsung/dev_cooling.h>
 
 #ifdef CONFIG_SND_SOC_SAMSUNG_ABOX
 #include <sound/samsung/abox.h>

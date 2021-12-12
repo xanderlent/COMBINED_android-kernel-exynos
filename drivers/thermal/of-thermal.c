@@ -34,6 +34,61 @@
 
 #include "thermal_core.h"
 
+/***   Private data structures to represent thermal device tree data ***/
+
+/**
+ * struct __thermal_bind_param - a match between trip and cooling device
+ * @cooling_device: a pointer to identify the referred cooling device
+ * @trip_id: the trip point index
+ * @usage: the percentage (from 0 to 100) of cooling contribution
+ * @min: minimum cooling state used at this trip point
+ * @max: maximum cooling state used at this trip point
+ * @value: cooling value corresponding to max state
+ */
+
+struct __thermal_bind_params {
+	struct device_node *cooling_device;
+	unsigned int trip_id;
+	unsigned int usage;
+	unsigned long min;
+	unsigned long max;
+	unsigned long value;
+};
+
+/**
+ * struct __thermal_zone - internal representation of a thermal zone
+ * @mode: current thermal zone device mode (enabled/disabled)
+ * @passive_delay: polling interval while passive cooling is activated
+ * @polling_delay: zone polling interval
+ * @slope: slope of the temperature adjustffset of the temperature adjustment curve
+ * @ntrips: number of trip points
+ * @trips: an array of trip points (0..ntrips - 1)
+ * @num_tbps: number of thermal bind params
+ * @tbps: an array of thermal bind params (0..num_tbps - 1)
+ * @sensor_data: sensor private data used while reading temperature and trend
+ * @ops: set of callbacks to handle the thermal zone based on DT
+ */
+
+struct __thermal_zone {
+	enum thermal_device_mode mode;
+	int passive_delay;
+	int polling_delay;
+	int slope;
+	int offset;
+
+	/* trip data */
+	int ntrips;
+	struct thermal_trip *trips;
+
+	/* cooling binding data */
+	int num_tbps;
+	struct __thermal_bind_params *tbps;
+
+	/* sensor interface */
+	void *sensor_data;
+	const struct thermal_zone_of_device_ops *ops;
+};
+
 /***   DT thermal zone device callbacks   ***/
 
 static int of_thermal_get_temp(struct thermal_zone_device *tz,
@@ -191,7 +246,7 @@ static int of_thermal_bind(struct thermal_zone_device *thermal,
 		if (tbp->cooling_device == cdev->np) {
 			int ret;
 
-#if defined(CONFIG_EXYNOS_THERMAL)
+#if defined(CONFIG_EXYNOS_THERMAL_V2)
 			/* if governor is not power_allocator */
 			if (strncasecmp(thermal->tzp->governor_name, "power_allocator",
 						THERMAL_NAME_LENGTH)) {
@@ -368,6 +423,19 @@ static int of_thermal_get_crit_temp(struct thermal_zone_device *tz,
 	return -EINVAL;
 }
 
+static int of_thermal_set_tbp_value(struct thermal_zone_device *tz, int tbp,
+				    int value)
+{
+	struct __thermal_zone *data = tz->devdata;
+
+	if (tbp >= data->num_tbps || tbp < 0)
+		return -EDOM;
+
+	data->tbps[tbp].value = value;
+
+	return 0;
+}
+
 static struct thermal_zone_device_ops of_thermal_ops = {
 	.get_mode = of_thermal_get_mode,
 	.set_mode = of_thermal_set_mode,
@@ -378,6 +446,7 @@ static struct thermal_zone_device_ops of_thermal_ops = {
 	.get_trip_hyst = of_thermal_get_trip_hyst,
 	.set_trip_hyst = of_thermal_set_trip_hyst,
 	.get_crit_temp = of_thermal_get_crit_temp,
+	.set_tbp_value = of_thermal_set_tbp_value,
 
 	.bind = of_thermal_bind,
 	.unbind = of_thermal_unbind,

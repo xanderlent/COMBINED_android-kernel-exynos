@@ -495,6 +495,7 @@
 		g3d_cmu_cal_id = <ACPM_DVFS_G3D>;
 		power-domains = <&pd_g3d>;
 		#cooling-cells = <2>; /* min followed by max */
+		ect-coeff-index = <0x01>;
 	};
 
 	iommu-domain_disp {
@@ -910,6 +911,8 @@
 			pm_qos-max-class = <4>;
 
 			#cooling-cells = <2>; /* min followed by max */
+			ect-coeff-index = <0x00>;
+			tz-cooling-name = "CPU";
 
 			dm-constraints {
 				mif-perf {
@@ -1136,7 +1139,7 @@
 				map1 {
 				     trip = <&gpu_alert1>;
 				     cooling-device = <&mali 0 0>;
-			       };
+				};
 				map2 {
 				     trip = <&gpu_alert2>;
 				     cooling-device = <&mali 0 0>;
@@ -1152,7 +1155,7 @@
 				map5 {
 				     trip = <&gpu_alert5>;
 				     cooling-device = <&mali 0 0>;
-			       };
+				};
 				map6 {
 				     trip = <&gpu_alert6>;
 				     cooling-device = <&mali 0 0>;

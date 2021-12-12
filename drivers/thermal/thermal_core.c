@@ -73,6 +73,13 @@ static void start_poll_queue(struct thermal_zone_device *tz, int delay)
 
 static struct thermal_governor *def_governor;
 
+/*
+ * Governor section: set of functions to handle thermal governors
+ *
+ * Functions to help in the life cycle of thermal governors within
+ * the thermal core and by the thermal governor code.
+ */
+
 static struct thermal_governor *__find_governor(const char *name)
 {
 	struct thermal_governor *pos;
@@ -151,11 +158,16 @@ int thermal_register_governor(struct thermal_governor *governor)
 	mutex_lock(&thermal_governor_lock);
 
 	err = -EBUSY;
-	if (__find_governor(governor->name) == NULL) {
+	if (!__find_governor(governor->name)) {
+		bool match_default;
+
 		err = 0;
 		list_add(&governor->governor_list, &thermal_governor_list);
-		if (!def_governor && !strncmp(governor->name,
-			DEFAULT_THERMAL_GOVERNOR, THERMAL_NAME_LENGTH))
+		match_default = !strncmp(governor->name,
+					 DEFAULT_THERMAL_GOVERNOR,
+					 THERMAL_NAME_LENGTH);
+
+		if (!def_governor && match_default)
 			def_governor = governor;
 	}
 
@@ -197,14 +209,14 @@ void thermal_unregister_governor(struct thermal_governor *governor)
 
 	mutex_lock(&thermal_governor_lock);
 
-	if (__find_governor(governor->name) == NULL)
+	if (!__find_governor(governor->name))
 		goto exit;
 
 	mutex_lock(&thermal_list_lock);
 
 	list_for_each_entry(pos, &thermal_tz_list, node) {
 		if (!strncasecmp(pos->governor->name, governor->name,
-						THERMAL_NAME_LENGTH))
+				 THERMAL_NAME_LENGTH))
 			thermal_set_governor(pos, NULL);
 	}
 
@@ -212,7 +224,79 @@ void thermal_unregister_governor(struct thermal_governor *governor)
 	list_del(&governor->governor_list);
 exit:
 	mutex_unlock(&thermal_governor_lock);
-	return;
+}
+
+int thermal_zone_device_set_policy(struct thermal_zone_device *tz,
+                                   char *policy)
+{
+	struct thermal_governor *gov;
+	int ret = -EINVAL;
+
+	mutex_lock(&thermal_governor_lock);
+	mutex_lock(&tz->lock);
+
+	gov = __find_governor(strim(policy));
+	if (!gov)
+		goto exit;
+
+	ret = thermal_set_governor(tz, gov);
+
+exit:
+	mutex_unlock(&tz->lock);
+	mutex_unlock(&thermal_governor_lock);
+
+	return ret;
+}
+
+int thermal_build_list_of_policies(char *buf)
+{
+	struct thermal_governor *pos;
+	ssize_t count = 0;
+	ssize_t size = PAGE_SIZE;
+
+	mutex_lock(&thermal_governor_lock);
+
+	list_for_each_entry(pos, &thermal_governor_list, governor_list) {
+		size = PAGE_SIZE - count;
+		count += scnprintf(buf + count, size, "%s ", pos->name);
+	}
+	count += scnprintf(buf + count, size, "\n");
+
+	mutex_unlock(&thermal_governor_lock);
+
+	return count;
+}
+
+static int __init thermal_register_governors(void)
+{
+	int result;
+
+	result = thermal_gov_step_wise_register();
+	if (result)
+		return result;
+
+	result = thermal_gov_fair_share_register();
+	if (result)
+		return result;
+
+	result = thermal_gov_bang_bang_register();
+	if (result)
+		return result;
+
+	result = thermal_gov_user_space_register();
+	if (result)
+		return result;
+
+	return thermal_gov_power_allocator_register();
+}
+
+static void thermal_unregister_governors(void)
+{
+	thermal_gov_step_wise_unregister();
+	thermal_gov_fair_share_unregister();
+	thermal_gov_bang_bang_unregister();
+	thermal_gov_user_space_unregister();
+	thermal_gov_power_allocator_unregister();
 }
 
 static int get_idr(struct idr *idr, struct mutex *lock, int *id)
@@ -1315,7 +1399,53 @@ thermal_cooling_device_weight_store(struct device *dev,
 
 	return count;
 }
-/* Device management */
+
+void thermal_zone_device_rebind_exception(struct thermal_zone_device *tz,
+                                          const char *cdev_type, size_t size)
+{
+	struct thermal_cooling_device *cdev = NULL;
+
+	mutex_lock(&thermal_list_lock);
+	list_for_each_entry(cdev, &thermal_cdev_list, node) {
+		/* skip non matching cdevs */
+		if (strncmp(cdev_type, cdev->type, size))
+			continue;
+
+		/* re binding the exception matching the type pattern */
+		thermal_zone_bind_cooling_device(tz, THERMAL_TRIPS_NONE, cdev,
+						 THERMAL_NO_LIMIT,
+						 THERMAL_NO_LIMIT,
+						 THERMAL_WEIGHT_DEFAULT);
+	}
+	mutex_unlock(&thermal_list_lock);
+}
+
+void thermal_zone_device_unbind_exception(struct thermal_zone_device *tz,
+					  const char *cdev_type, size_t size)
+{
+	struct thermal_cooling_device *cdev = NULL;
+
+	mutex_lock(&thermal_list_lock);
+	list_for_each_entry(cdev, &thermal_cdev_list, node) {
+		/* skip non matching cdevs */
+		if (strncmp(cdev_type, cdev->type, size))
+			continue;
+		/* unbinding the exception matching the type pattern */
+		thermal_zone_unbind_cooling_device(tz, THERMAL_TRIPS_NONE,
+						   cdev);
+	}
+	mutex_unlock(&thermal_list_lock);
+}
+
+/*
+ * Device management section: cooling devices, zones devices, and binding
+ *
+ * Set of functions provided by the thermal core for:
+ * - cooling devices lifecycle: registration, unregistration,
+ *				binding, and unbinding.
+ * - thermal zone devices lifecycle: registration, unregistration,
+ *				     binding, and unbinding.
+ */
 
 /**
  * thermal_zone_bind_cooling_device() - bind a cooling device to a thermal zone
@@ -2151,38 +2281,6 @@ exit:
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_name);
 
-struct thermal_zone_device *
-thermal_zone_get_zone_by_cool_np(struct device_node *cool_np)
-{
-	struct thermal_zone_device *pos = NULL, *ref = ERR_PTR(-EINVAL);
-	unsigned int i;
-
-	if (!cool_np)
-		goto exit;
-
-	mutex_lock(&thermal_list_lock);
-	list_for_each_entry(pos, &thermal_tz_list, node) {
-		struct __thermal_zone *data = pos->devdata;
-
-		for (i = 0; i < data->num_tbps; i++) {
-			struct __thermal_bind_params *tbp = data->tbps + i;
-			if (tbp->cooling_device == cool_np) {
-				ref = pos;
-				mutex_unlock(&thermal_list_lock);
-				goto exit;
-			}
-		}
-	}
-	mutex_unlock(&thermal_list_lock);
-
-	/* nothing has been found, thus an error code for it */
-	ref = ERR_PTR(-ENODEV);
-exit:
-	return ref;
-
-}
-EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_cool_np);
-
 /**
  * thermal_zone_get_slope - return the slope attribute of the thermal zone
  * @tz: thermal zone device with the slope attribute
@@ -2303,38 +2401,6 @@ static void genetlink_exit(void)
 static inline int genetlink_init(void) { return 0; }
 static inline void genetlink_exit(void) {}
 #endif /* !CONFIG_NET */
-
-static int __init thermal_register_governors(void)
-{
-	int result;
-
-	result = thermal_gov_step_wise_register();
-	if (result)
-		return result;
-
-	result = thermal_gov_fair_share_register();
-	if (result)
-		return result;
-
-	result = thermal_gov_bang_bang_register();
-	if (result)
-		return result;
-
-	result = thermal_gov_user_space_register();
-	if (result)
-		return result;
-
-	return thermal_gov_power_allocator_register();
-}
-
-static void thermal_unregister_governors(void)
-{
-	thermal_gov_step_wise_unregister();
-	thermal_gov_fair_share_unregister();
-	thermal_gov_bang_bang_unregister();
-	thermal_gov_user_space_unregister();
-	thermal_gov_power_allocator_unregister();
-}
 
 static int thermal_pm_notify(struct notifier_block *nb,
 				unsigned long mode, void *_unused)

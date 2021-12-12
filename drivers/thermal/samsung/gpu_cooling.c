@@ -26,13 +26,13 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
-#include <linux/gpu_cooling.h>
+#include <soc/samsung/gpu_cooling.h>
 #include <soc/samsung/tmu.h>
-#include <trace/events/thermal.h>
+#include <trace/events/thermal_exynos.h>
 
 #include <soc/samsung/cal-if.h>
 #include <soc/samsung/ect_parser.h>
-#include "samsung/exynos_tmu.h"
+#include "exynos_tmu.h"
 
 #if defined(CONFIG_SOC_EXYNOS8895) && defined(CONFIG_SOC_EMULATOR8895)
 #include <dt-bindings/clock/emulator8895.h>
@@ -83,7 +83,6 @@ struct gpufreq_cooling_device {
 	u32 last_load;
 	struct power_table *dyn_power_table;
 	int dyn_power_table_entries;
-	get_static_t plat_get_static_power;
 	int *var_table;
 	int *var_coeff;
 	int *asv_coeff;
@@ -715,8 +714,8 @@ static int gpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	if (ret)
 		return ret;
 
-	if (trace_thermal_power_gpu_get_power_enabled()) {
-		trace_thermal_power_gpu_get_power(
+	if (trace_thermal_exynos_power_gpu_get_power_enabled()) {
+		trace_thermal_exynos_power_gpu_get_power(
 			freq, load_gpu, dynamic_power, static_power);
 	}
 
@@ -807,7 +806,7 @@ static int gpufreq_power2state(struct thermal_cooling_device *cdev,
 		return -EINVAL;
 	}
 
-	trace_thermal_power_gpu_limit(target_freq, *state, power);
+	trace_thermal_exynos_power_gpu_limit(target_freq, *state, power);
 	return 0;
 }
 
@@ -831,8 +830,6 @@ int exynos_gpu_add_notifier(struct notifier_block *n)
  * @np: a valid struct device_node to the cooling device device tree node
  * @clip_gpus: gpumask of gpus where the frequency constraints will happen.
  * @capacitance: dynamic power coefficient for these gpus
- * @plat_static_func: function to calculate the static power consumed by these
- *                    gpus (optional)
  *
  * This interface function registers the gpufreq cooling device with the name
  * "thermal-gpufreq-%x". This api can support multiple instances of gpufreq
@@ -844,8 +841,7 @@ int exynos_gpu_add_notifier(struct notifier_block *n)
  */
 static struct thermal_cooling_device *
 __gpufreq_cooling_register(struct device_node *np,
-			   const struct cpumask *clip_gpus, u32 capacitance,
-			   get_static_t plat_static_func)
+			   const struct cpumask *clip_gpus, u32 capacitance)
 {
 	struct thermal_cooling_device *cool_dev;
 	struct gpufreq_cooling_device *gpufreq_dev = NULL;
@@ -914,7 +910,7 @@ __gpufreq_cooling_register(struct device_node *np,
 struct thermal_cooling_device *
 gpufreq_cooling_register(const struct cpumask *clip_gpus)
 {
-	return __gpufreq_cooling_register(NULL, clip_gpus, 0, NULL);
+	return __gpufreq_cooling_register(NULL, clip_gpus, 0);
 }
 EXPORT_SYMBOL_GPL(gpufreq_cooling_register);
 
@@ -938,7 +934,7 @@ of_gpufreq_cooling_register(struct device_node *np,
 	if (!np)
 		return ERR_PTR(-EINVAL);
 
-	return __gpufreq_cooling_register(np, clip_gpus, 0, NULL);
+	return __gpufreq_cooling_register(np, clip_gpus, 0);
 }
 EXPORT_SYMBOL_GPL(of_gpufreq_cooling_register);
 
@@ -946,8 +942,6 @@ EXPORT_SYMBOL_GPL(of_gpufreq_cooling_register);
  * gpufreq_power_cooling_register() - create gpufreq cooling device with power extensions
  * @clip_gpus:	gpumask of gpus where the frequency constraints will happen
  * @capacitance:	dynamic power coefficient for these gpus
- * @plat_static_func:	function to calculate the static power consumed by these
- *			gpus (optional)
  *
  * This interface function registers the gpufreq cooling device with
  * the name "thermal-gpufreq-%x".  This api can support multiple
@@ -956,19 +950,13 @@ EXPORT_SYMBOL_GPL(of_gpufreq_cooling_register);
  * simple gpu power model.  The gpus must have registered their OPPs
  * using the OPP library.
  *
- * An optional @plat_static_func may be provided to calculate the
- * static power consumed by these gpus.  If the platform's static
- * power consumption is unknown or negligible, make it NULL.
- *
  * Return: a valid struct thermal_cooling_device pointer on success,
  * on failure, it returns a corresponding ERR_PTR().
  */
 struct thermal_cooling_device *
-gpufreq_power_cooling_register(const struct cpumask *clip_gpus, u32 capacitance,
-			       get_static_t plat_static_func)
+gpufreq_power_cooling_register(const struct cpumask *clip_gpus, u32 capacitance)
 {
-	return __gpufreq_cooling_register(NULL, clip_gpus, capacitance,
-				plat_static_func);
+	return __gpufreq_cooling_register(NULL, clip_gpus, capacitance);
 }
 EXPORT_SYMBOL(gpufreq_power_cooling_register);
 
@@ -977,8 +965,6 @@ EXPORT_SYMBOL(gpufreq_power_cooling_register);
  * @np:	a valid struct device_node to the cooling device device tree node
  * @clip_gpus:	gpumask of gpus where the frequency constraints will happen
  * @capacitance:	dynamic power coefficient for these gpus
- * @plat_static_func:	function to calculate the static power consumed by these
- *			gpus (optional)
  *
  * This interface function registers the gpufreq cooling device with
  * the name "thermal-gpufreq-%x".  This api can support multiple
@@ -988,24 +974,18 @@ EXPORT_SYMBOL(gpufreq_power_cooling_register);
  * extensions by using a simple gpu power model.  The gpus must have
  * registered their OPPs using the OPP library.
  *
- * An optional @plat_static_func may be provided to calculate the
- * static power consumed by these gpus.  If the platform's static
- * power consumption is unknown or negligible, make it NULL.
- *
  * Return: a valid struct thermal_cooling_device pointer on success,
  * on failure, it returns a corresponding ERR_PTR().
  */
 struct thermal_cooling_device *
 of_gpufreq_power_cooling_register(struct device_node *np,
 				  const struct cpumask *clip_gpus,
-				  u32 capacitance,
-				  get_static_t plat_static_func)
+				  u32 capacitance)
 {
 	if (!np)
 		return ERR_PTR(-EINVAL);
 
-	return __gpufreq_cooling_register(np, clip_gpus, capacitance,
-				plat_static_func);
+	return __gpufreq_cooling_register(np, clip_gpus, capacitance);
 }
 EXPORT_SYMBOL(of_gpufreq_power_cooling_register);
 
@@ -1086,10 +1066,9 @@ static int __init exynos_gpu_cooling_init(void)
 {
 	struct device_node *np;
 	struct thermal_cooling_device *dev;
-	struct thermal_zone_device *tz;
 	void *gen_block;
 	struct ect_gen_param_table *pwr_coeff;
-	u32 capacitance = 0;
+	u32 capacitance = 0, index;
 	int ret = 0;
 
 	ret = gpu_cooling_table_init();
@@ -1106,9 +1085,12 @@ static int __init exynos_gpu_cooling_init(void)
 		return -EINVAL;
 	}
 
-	tz = thermal_zone_get_zone_by_cool_np(np);
+	of_property_read_u32(np, "gpu_power_coeff", &capacitance);
 
-	if (tz) {
+	if (of_property_read_bool(np, "use-em-coeff"))
+		goto regist;
+
+	if (!of_property_read_u32(np, "ect-coeff-index", &index)) {
 		gen_block = ect_get_block("GEN");
 		if (gen_block == NULL) {
 			pr_err("%s: Failed to get gen block from ECT\n", __func__);
@@ -1119,13 +1101,13 @@ static int __init exynos_gpu_cooling_init(void)
 			pr_err("%s: Failed to get power coeff from ECT\n", __func__);
 			goto regist;
 		}
-		capacitance = pwr_coeff->parameter[tz->id];
+		capacitance = pwr_coeff->parameter[index];
 	} else {
 		pr_err("%s: could not find thermal zone\n", __func__);
 	}
 
 regist:
-	dev = __gpufreq_cooling_register(np, NULL, capacitance, NULL);
+	dev = __gpufreq_cooling_register(np, NULL, capacitance);
 
 	if (IS_ERR(dev)) {
 		pr_err("Fail to register gpufreq cooling\n");

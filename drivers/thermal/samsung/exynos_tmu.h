@@ -23,8 +23,8 @@
 #ifndef _EXYNOS_TMU_H
 #define _EXYNOS_TMU_H
 #include <linux/cpu_cooling.h>
-#include <linux/gpu_cooling.h>
-#include <linux/isp_cooling.h>
+#include <soc/samsung/gpu_cooling.h>
+#include <soc/samsung/isp_cooling.h>
 #include <dt-bindings/thermal/thermal_exynos.h>
 
 #define NR_HOTPLUG_CPUS	4
