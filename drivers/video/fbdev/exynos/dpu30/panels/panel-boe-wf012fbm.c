@@ -369,23 +369,41 @@ static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 {
 	struct dsim_device *dsim = get_dsim_drvdata(0);
 	unsigned char buf[1] = {0};
+	u8 normalized_brightness = 0;
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
 	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
-	/* Exit Idle Mode */
-	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_IDLE_MODE);
-
 	/* Read brightness */
 	dsim_read_data(dsim, MIPI_DSI_DCS_READ,
 			MIPI_DCS_GET_DISPLAY_BRIGHTNESS, sizeof(buf), buf);
 	if (buf[0] != 0) {
 		panel->bl->props.brightness = buf[0];
+		/* Calculate interactive DBV that would yield the same
+		brightness nits to the current AOD DBV.
+		As both interactive and AOD DBV-nits conversion are linear,
+		this can be done by scaling with the max brightness nits
+		(150 nits for AOD and 650 nits for interactive at DBV255) */
+		normalized_brightness = DIV_ROUND_CLOSEST(buf[0] * 150, 650);
 	}
-	/* Wait for display to be ready. Any brightness command sent
-	before this point can result in a steep brightness ramp. */
-	msleep(25);
+	/* Exit Idle Mode */
+	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_IDLE_MODE);
+	/* Flatten mode-change brightness ramp */
+	if (normalized_brightness != 0) {
+		/* Delay until mode-change frame.
+		This requires an exact delay of 16.6ms after exit-doze cmd */
+		mdelay(16);
+		udelay(600);
+		/* Disable brightness dimming */
+		dsim_write_data_seq(dsim, false, 0x53, 0x20);
+		/* Set normalized brightness */
+		dsim_write_data_seq(dsim, false, 0x51, normalized_brightness);
+		/* Delay until mode-change frame ends */
+		mdelay(17);
+		/* Enable brightness dimming */
+		dsim_write_data_seq(dsim, false, 0x53, 0x28);
+	}
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
