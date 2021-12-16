@@ -45,7 +45,6 @@ struct abox_dump_buffer_info {
 static struct device *abox_dump_dev_abox;
 static struct abox_dump_buffer_info abox_dump_list[BUFFER_MAX];
 static LIST_HEAD(abox_dump_list_head);
-static void abox_dump_register_card_work_func(struct work_struct *work);
 
 static struct abox_dump_buffer_info *abox_dump_get_buffer_info(int id)
 {
@@ -298,7 +297,7 @@ void abox_dump_register_buffer_work_func(struct work_struct *work)
 				"samsung-abox-dump", -1, NULL, 0);
 	}
 
-	dev_info(abox_dump_card.dev, "%s\n", __func__);
+	dev_dbg(abox_dump_card.dev, "%s\n", __func__);
 
 	for (info = &abox_dump_list[0]; (info - &abox_dump_list[0]) <
 			ARRAY_SIZE(abox_dump_list); info++) {
@@ -506,20 +505,21 @@ static struct snd_pcm_ops abox_dump_ops = {
 	.pointer	= abox_dump_pointer,
 };
 
-DECLARE_DELAYED_WORK(abox_dump_register_card_work,
-		abox_dump_register_card_work_func);
-
 static void abox_dump_register_card_work_func(struct work_struct *work)
 {
 	int i;
-	struct abox_data *data = dev_get_drvdata(abox_dump_dev_abox);
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
-	if (data->cmpnt == NULL) {
-		pr_info("abox : not register sound card\n", __func__);
-		//cancel_delayed_work_sync(&abox_dump_register_card_work);
-		schedule_delayed_work(&abox_dump_register_card_work, HZ);
+	// Skipping registering the fake sound card, because otherwise it may
+	// get registered as Sound Card Id 0 and used by Audio HAL instead of
+	//  the Exynos9110 Sound Card, see: b/161492847.
+	// Abox dump debugfs API keeps working fine without the sound card being
+	// registered (though the pcm interface is not available),
+	// see: b/162263264.
+	if (true) {
+		pr_info("%s: Skip registering abox-dump Sound Card!\n",
+			__func__);
 		return;
 	}
 
@@ -541,13 +541,16 @@ static void abox_dump_register_card_work_func(struct work_struct *work)
 	snd_soc_register_card(&abox_dump_card);
 }
 
+DECLARE_DELAYED_WORK(abox_dump_register_card_work,
+		abox_dump_register_card_work_func);
+
 static void abox_dump_add_dai_link(struct device *dev)
 {
 	int id = to_platform_device(dev)->id;
 	struct abox_dump_buffer_info *info = NULL;
 	struct snd_soc_dai_link *link = NULL;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	if (id >= ARRAY_SIZE(abox_dump_dai_links)) {
 		dev_err(dev, "Too many dump request\n");
@@ -635,7 +638,7 @@ static int samsung_abox_dump_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int id = to_platform_device(dev)->id;
 
-	dev_info(dev, "%s[%d]\n", __func__, id);
+	dev_dbg(dev, "%s[%d]\n", __func__, id);
 
 	if (id >= 0) {
 		pm_runtime_no_callbacks(dev);
