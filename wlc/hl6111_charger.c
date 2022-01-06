@@ -851,8 +851,8 @@ static void hl6111_charge_power_detected(struct hl6111_charger *chg) {
         if (chg->last_off_time != 0) {
             time_diff = current_time - chg->last_off_time;
             dev_info(chg->dev, "Shutdown duration: %lu\n", time_diff);
-            if (time_diff > 90 && time_diff < 150) {
-                // Shutdown was around 2min, authentication probably reset
+            if (time_diff > 90) {
+                // Shutdown was over 1.5min, authentication may have reset
                 chg->tx_authenticated = false;
                 chg->timer_id = TIMER_ID_NONE;
             }
