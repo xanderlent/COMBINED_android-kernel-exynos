@@ -42,6 +42,8 @@
 #include <asm/thread_info.h>
 #include <asm/stacktrace.h>
 
+#include <asm/mach/time.h>
+
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	struct stackframe frame;
@@ -63,6 +65,32 @@ unsigned long profile_pc(struct pt_regs *regs)
 	return frame.pc;
 }
 EXPORT_SYMBOL(profile_pc);
+
+static void dummy_clock_access(struct timespec64 *ts)
+{
+	ts->tv_sec = 0;
+	ts->tv_nsec = 0;
+}
+
+static clock_access_fn __read_persistent_clock = dummy_clock_access;
+
+void read_persistent_clock64(struct timespec64 *ts)
+{
+	__read_persistent_clock(ts);
+}
+
+int register_persistent_clock(clock_access_fn read_persistent)
+{
+	/* Only allow the clockaccess functions to be registered once */
+	if (__read_persistent_clock == dummy_clock_access) {
+		if (read_persistent)
+			__read_persistent_clock = read_persistent;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(register_persistent_clock);
 
 void __init time_init(void)
 {
