@@ -218,27 +218,6 @@ int pat9126_disable_mot(struct i2c_client *client, int16_t detect_freq)
 	pat9126_read(client, PIXART_PAT9126_SENSOR_MODE_SELECT_REG, &tmp_1);
 	pr_debug("[PAT9126]: Open drain mode motion: 0x%2x. \n", tmp_1);
 
-	/*Switch to bank1*/
-	pat9126_write(client, PIXART_PAT9126_SELECT_BANK_REG,
-		PIXART_PAT9126_SELECT_BANK_VAL2);
-
-	pat9126_write_verified(client, PIXART_PAT9126_BANK_FTWK,
-		PIXART_PAT9126_BANK_FTWK_VAL1);
-
-	pat9126_write_verified(client, PIXART_PAT9126_BANK_FTWK_D2,
-		PIXART_PAT9126_BANK_FTWK_D2_VAL1);
-
-	pat9126_write_verified(client, PIXART_PAT9126_BANK_CTB,
-		PIXART_PAT9126_BANK_CTB_VAL1);
-
-	pat9126_write_verified(client, PIXART_PAT9126_BANK_HI_SAD_K,
-		PIXART_PAT9126_BANK_HI_SAD_K_VAL1);
-
-	pat9126_write(client, PIXART_PAT9126_SELECT_BANK_REG,
-		PIXART_PAT9126_SELECT_BANK_VAL1);
-
-	delay(1);				  /* delay 1ms */
-
 	pat9126_write_verified(client, PIXART_PAT9126_SLEEP2_MODE_FREQ_REG,
 		detect_freq);
 
@@ -263,33 +242,11 @@ int pat9126_enable_mot(struct i2c_client *client)
 	pat9126_read(client, PIXART_PAT9126_SENSOR_MODE_SELECT_REG, &tmp_1);
 	pr_debug("[PAT9126]: Drive mode motion: 0x%2x. \n", tmp_1);
 
-	delay(1);				  /* delay 1ms */
-
 	/*Read Register for Pulling Up Motion IRQ*/
 	pat9126_read(client, PIXART_PAT9126_MOTION_STATUS_REG, &tmp_1);
 	pat9126_read(client, PIXART_PAT9126_DELTA_X_LO_REG, &tmp_1);
 	pat9126_read(client, PIXART_PAT9126_DELTA_Y_LO_REG, &tmp_1);
 	pat9126_read(client, PIXART_PAT9126_DELTA_XY_HI_REG, &tmp_1);
-
-	/*Write Register for Active Mode*/
-	/*Switch to bank1*/
-	pat9126_write(client, PIXART_PAT9126_SELECT_BANK_REG,
-		PIXART_PAT9126_SELECT_BANK_VAL2);
-
-	pat9126_write_verified(client, PIXART_PAT9126_BANK_FTWK,
-		PIXART_PAT9126_BANK_FTWK_DEFAULT_VAL);
-
-	pat9126_write_verified(client, PIXART_PAT9126_BANK_FTWK_D2,
-		PIXART_PAT9126_BANK_FTWK_D2_DEFAULT_VAL);
-
-	pat9126_write_verified(client, PIXART_PAT9126_BANK_CTB,
-		PIXART_PAT9126_BANK_CTB_DEFAULT_VAL);
-
-	pat9126_write_verified(client, PIXART_PAT9126_BANK_HI_SAD_K,
-		PIXART_PAT9126_BANK_HI_SAD_K_DEFAULT_VAL);
-
-	pat9126_write(client, PIXART_PAT9126_SELECT_BANK_REG,
-		PIXART_PAT9126_SELECT_BANK_VAL1);
 
 	delay(1);				  /* delay 1ms */
 
