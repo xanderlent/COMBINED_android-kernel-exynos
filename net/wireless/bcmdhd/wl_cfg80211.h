@@ -1463,9 +1463,9 @@ struct bcm_cfg80211 {
 	s32 tdls_mgmt_freq;
 #endif /* WLTDLS */
 	bool need_wait_afrx;
-#ifdef QOS_MAP_SET
+#if defined(QOS_MAP_SET) || defined(WL_CUSTOM_MAPPING_OF_DSCP)
 	uint8	 *up_table;	/* user priority table, size is UP_TABLE_MAX */
-#endif /* QOS_MAP_SET */
+#endif /* QOS_MAP_SET || WL_CUSTOM_MAPPING_OF_DSCP */
 	struct ether_addr last_roamed_addr;
 	bool rcc_enabled;	/* flag for Roam channel cache feature */
 #if defined(DHD_ENABLE_BIGDATA_LOGGING)
@@ -2500,9 +2500,9 @@ do {                                    \
 	}                               \
 } while (0)
 
-#ifdef QOS_MAP_SET
+#if defined(QOS_MAP_SET) || defined(WL_CUSTOM_MAPPING_OF_DSCP)
 extern uint8 *wl_get_up_table(dhd_pub_t * dhdp, int idx);
-#endif /* QOS_MAP_SET */
+#endif /* QOS_MAP_SET || WL_CUSTOM_MAPPING_OF_DSCP */
 
 #define P2PO_COOKIE     65535
 u64 wl_cfg80211_get_new_roc_id(struct bcm_cfg80211 *cfg);

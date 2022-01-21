@@ -8544,6 +8544,166 @@ exit:
 }
 #endif /* WL_SAR_TX_POWER */
 
+#ifdef WL_CUSTOM_MAPPING_OF_DSCP
+#define UNUSED_PRIO	0xffu
+
+enum andr_user_ac {
+	BEST_EFFORT = 0,
+	BACKGROUND = 1,
+	VIDEO = 2,
+	VOICE = 3
+};
+
+const uint8 default_dscp_mapping_table[UP_TABLE_MAX] =
+{
+	PRIO_8021D_BE, UNUSED_PRIO, UNUSED_PRIO,   UNUSED_PRIO,		/* 00 ~ 03 */
+	UNUSED_PRIO,   UNUSED_PRIO, UNUSED_PRIO,   UNUSED_PRIO,		/* 04 ~ 07 */
+	PRIO_8021D_BK, UNUSED_PRIO, PRIO_8021D_BE, UNUSED_PRIO,		/* 08 ~ 11 */
+	PRIO_8021D_BE, UNUSED_PRIO, PRIO_8021D_BE, UNUSED_PRIO,		/* 12 ~ 15 */
+	PRIO_8021D_BE, UNUSED_PRIO, PRIO_8021D_EE, UNUSED_PRIO,		/* 16 ~ 19 */
+	PRIO_8021D_EE, UNUSED_PRIO, PRIO_8021D_EE, UNUSED_PRIO,		/* 20 ~ 23 */
+	PRIO_8021D_CL, UNUSED_PRIO, PRIO_8021D_CL, UNUSED_PRIO,		/* 24 ~ 27 */
+	PRIO_8021D_CL, UNUSED_PRIO, PRIO_8021D_CL, UNUSED_PRIO,		/* 28 ~ 31 */
+	PRIO_8021D_CL, UNUSED_PRIO, PRIO_8021D_CL, UNUSED_PRIO,		/* 32 ~ 35 */
+	PRIO_8021D_CL, UNUSED_PRIO, PRIO_8021D_CL, UNUSED_PRIO,		/* 36 ~ 39 */
+	PRIO_8021D_VI, UNUSED_PRIO, UNUSED_PRIO,   UNUSED_PRIO,		/* 40 ~ 43 */
+	PRIO_8021D_VO, UNUSED_PRIO, PRIO_8021D_VO, UNUSED_PRIO,		/* 44 ~ 47 */
+	PRIO_8021D_NC, UNUSED_PRIO, UNUSED_PRIO,   UNUSED_PRIO,		/* 48 ~ 51 */
+	UNUSED_PRIO,   UNUSED_PRIO, UNUSED_PRIO,   UNUSED_PRIO,		/* 52 ~ 55 */
+	PRIO_8021D_NC, UNUSED_PRIO, UNUSED_PRIO,   UNUSED_PRIO,		/* 56 ~ 59 */
+	UNUSED_PRIO,   UNUSED_PRIO, UNUSED_PRIO,   UNUSED_PRIO		/* 60 ~ 63 */
+};
+
+static uint8 custom_dscp2priomap[UP_TABLE_MAX];
+
+static int
+wl_set_dscp_default_priority(uint8* table)
+{
+	int err = BCME_ERROR;
+	err = memcpy_s(table, UP_TABLE_MAX, default_dscp_mapping_table,
+			sizeof(default_dscp_mapping_table));
+	if (unlikely(err)) {
+		WL_ERR(("Fail to set the default dscp.\n"));
+	}
+	return err;
+}
+
+static int
+wl_cfgvendor_custom_mapping_of_dscp(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	struct bcm_cfg80211 *cfg;
+	int err = BCME_OK, rem, type;
+	const struct nlattr *iter;
+	uint32 dscp_start = 0;
+	uint32 dscp_end = 0;
+	uint32 access_category = 0;
+	uint32 priority = 0;
+	uint32 dscp;
+	int32 def_dscp_pri;
+
+	cfg = wl_cfg80211_get_bcmcfg();
+	if (!cfg || !cfg->wdev) {
+		 err = BCME_NOTUP;
+		 goto exit;
+	}
+	if (!cfg->up_table) {
+		cfg->up_table = (uint8 *) custom_dscp2priomap;
+	}
+
+	nla_for_each_attr(iter, data, len, rem) {
+		type = nla_type(iter);
+		if (type == CUSTOM_SETTING_ATTRIBUTE_DSCP_START) {
+			dscp_start = nla_get_u32(iter);
+			WL_INFORM(("got to dscp_stat value [%d]\n", dscp_start));
+			if (dscp_start >= UP_TABLE_MAX) {
+				err = -EINVAL;
+				goto exit;
+			}
+		} else if (type == CUSTOM_SETTING_ATTRIBUTE_DSCP_END) {
+			dscp_end = nla_get_u32(iter);
+			WL_INFORM(("got to dscp_end value [%d]\n", dscp_end));
+			if (dscp_end >= UP_TABLE_MAX) {
+				err = -EINVAL;
+				goto exit;
+			}
+		} else if (type == CUSTOM_SETTING_ATTRIBUTE_ACCESS_CATEGORY) {
+			access_category = nla_get_u32(iter);
+			WL_INFORM(("got to access_category value [%d]\n", access_category));
+			switch (access_category) {
+				case BEST_EFFORT:
+					priority = PRIO_8021D_BE;
+					break;
+				case BACKGROUND:
+					priority = PRIO_8021D_BK;
+					break;
+				case VIDEO:
+					priority = PRIO_8021D_VI;
+					break;
+				case VOICE:
+					priority = PRIO_8021D_VO;
+					break;
+				default:
+					err = -EINVAL;
+					goto exit;
+					break;
+			}
+		} else {
+			WL_ERR(("Unknown attr type: %d\n", type));
+			err = -EINVAL;
+			goto exit;
+		}
+	}
+
+	if (dscp_end < dscp_start) {
+		WL_ERR(("dscp_end is lower than dscp_start.\n"));
+		return -EINVAL;
+	}
+
+	/* Verify to set DSCP of user priority. */
+	for (dscp = dscp_start; dscp <= dscp_end; dscp++) {
+		def_dscp_pri = default_dscp_mapping_table[dscp];
+		if ((def_dscp_pri != 0xff) && (def_dscp_pri != priority)) {
+			err = -EINVAL;
+			WL_ERR(("Request priority is %d from %d to %d.\n",
+				priority, dscp_start, dscp_end));
+			WL_ERR(("But conflict with default priority of DSCP %d and priority %d.\n",
+				dscp, def_dscp_pri));
+			goto exit;
+		}
+	}
+
+	/* Set the custom DSCP of user priority. */
+	err = memset_s(cfg->up_table + dscp_start, UP_TABLE_MAX - dscp_start, priority,
+			dscp_end - dscp_start + 1);
+	if (unlikely(err)) {
+		WL_ERR(("Fail to set table\n"));
+	}
+
+exit:
+	return err;
+}
+
+static int
+wl_cfgvendor_custom_mapping_of_dscp_reset(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	struct bcm_cfg80211 *cfg;
+
+	cfg = wl_cfg80211_get_bcmcfg();
+	if (!cfg || !cfg->wdev) {
+		return BCME_NOTUP;
+	}
+
+	if (!cfg->up_table) {
+		WL_INFORM(("Custom table not set yet.\n"));
+		return BCME_NOTREADY;
+	}
+
+	return wl_set_dscp_default_priority(cfg->up_table);
+}
+#endif /* WL_CUSTOM_MAPPING_OF_DSCP */
+
 static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 	{
 		{
@@ -9228,9 +9388,27 @@ static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV,
 		.doit = wl_cfgvendor_tx_power_scenario
-	}
+	},
 #endif /* WL_SAR_TX_POWER */
 
+#ifdef WL_CUSTOM_MAPPING_OF_DSCP
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = WIFI_SUBCMD_CUSTOM_MAPPING_OF_DSCP
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV,
+		.doit = wl_cfgvendor_custom_mapping_of_dscp,
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = WIFI_SUBCMD_CUSTOM_MAPPING_OF_DSCP_RESET
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV,
+		.doit = wl_cfgvendor_custom_mapping_of_dscp_reset,
+	}
+#endif /* WL_CUSTOM_MAPPING_OF_DSCP */
 };
 
 static const struct  nl80211_vendor_cmd_info wl_vendor_events [] = {
@@ -9296,6 +9474,9 @@ int wl_cfgvendor_attach(struct wiphy *wiphy, dhd_pub_t *dhd)
 #ifdef DHD_LOG_DUMP
 	dhd_os_dbg_register_urgent_notifier(dhd, wl_cfgvendor_dbg_send_file_dump_evt);
 #endif /* DHD_LOG_DUMP */
+#ifdef WL_CUSTOM_MAPPING_OF_DSCP
+	(void)wl_set_dscp_default_priority(custom_dscp2priomap);
+#endif
 
 	return 0;
 }

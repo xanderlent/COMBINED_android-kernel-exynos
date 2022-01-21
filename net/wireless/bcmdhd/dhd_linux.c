@@ -3339,11 +3339,11 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 		if (PKTPRIO(pktbuf) == 0)
 #endif /* !PKTPRIO_OVERRIDE */
 		{
-#if defined(QOS_MAP_SET)
+#if (!defined(BCM_ROUTER_DHD) && (defined(QOS_MAP_SET) || defined(WL_CUSTOM_MAPPING_OF_DSCP)))
 			pktsetprio_qms(pktbuf, wl_get_up_table(dhdp, ifidx), FALSE);
 #else
 			pktsetprio(pktbuf, FALSE);
-#endif /* QOS_MAP_SET */
+#endif /* !BCM_ROUTER_DHD && (QOS_MAP_SET || WL_CUSTOM_MAPPING_OF_DSCP) */
 		}
 #ifndef PKTPRIO_OVERRIDE
 		else {
