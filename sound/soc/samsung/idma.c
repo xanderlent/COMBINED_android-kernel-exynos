@@ -290,6 +290,7 @@ static int idma_open(struct snd_pcm_substream *substream)
 	struct idma_ctrl *prtd;
 	int ret;
 
+	substream->wait_time = msecs_to_jiffies(1000);
 	snd_soc_set_runtime_hwparams(substream, &idma_hardware);
 
 	prtd = kzalloc(sizeof(struct idma_ctrl), GFP_KERNEL);

@@ -378,6 +378,7 @@ static int abox_dump_open(struct snd_pcm_substream *substream)
 	abox_dump_hardware.period_bytes_max = dmab->bytes /
 			abox_dump_hardware.periods_min;
 
+	substream->wait_time = msecs_to_jiffies(1000);
 	snd_soc_set_runtime_hwparams(substream, &abox_dump_hardware);
 
 	info->substream = substream;

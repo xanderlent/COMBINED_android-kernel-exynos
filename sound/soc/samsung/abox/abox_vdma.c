@@ -119,6 +119,7 @@ static int abox_vdma_open(struct snd_pcm_substream *substream)
 
 	dev_dbg(dev, "%s[%d:%c]\n", __func__, id, substream_to_char(substream));
 
+	substream->wait_time = msecs_to_jiffies(1000);
 	snd_soc_set_runtime_hwparams(substream, &rtd->hardware);
 
 	msg.ipcid = abox_stream_to_ipcid(substream->stream);

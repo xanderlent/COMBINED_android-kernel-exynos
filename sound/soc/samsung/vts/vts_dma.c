@@ -192,6 +192,7 @@ static int vts_platform_open(struct snd_pcm_substream *substream)
 	}
 
 	pm_runtime_get_sync(dev);
+	substream->wait_time = msecs_to_jiffies(1000);
 	snd_soc_set_runtime_hwparams(substream, &vts_platform_hardware);
 	if (data->type == PLATFORM_VTS_NORMAL_RECORD) {
 		dev_info(dev, "%s open --\n", __func__);

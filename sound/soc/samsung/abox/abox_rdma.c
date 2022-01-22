@@ -1572,6 +1572,7 @@ static int abox_rdma_open(struct snd_pcm_substream *substream)
 	}
 	abox_request_cpu_gear(dev, abox_data, dev, abox_data->cpu_gear_min);
 
+	substream->wait_time = msecs_to_jiffies(1000);
 	snd_soc_set_runtime_hwparams(substream, &abox_rdma_hardware);
 
 	data->substream = substream;
