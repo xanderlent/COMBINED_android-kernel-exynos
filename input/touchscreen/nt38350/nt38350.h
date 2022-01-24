@@ -132,7 +132,8 @@ struct nvt_ts_data {
 	uint32_t reset_flags;
 	int32_t nfc_gpio;
 	uint32_t nfc_active_jiffies;
-	atomic64_t nfc_last_active;
+	uint32_t nfc_debounce_jiffies;
+	atomic64_t nfc_inactive_time;
 	atomic_t log_skipped_touch;
 	struct nvt_ts_touch_stats stats;
 	spinlock_t stats_lock;

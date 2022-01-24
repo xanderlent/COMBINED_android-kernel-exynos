@@ -765,6 +765,7 @@ return:
 static void nvt_parse_dt(struct device *dev)
 {
 	uint32_t nfc_active_ms;
+	uint32_t nfc_debounce_ms;
 	struct device_node *np = dev->of_node;
 
 #if NVT_TOUCH_SUPPORT_HW_RST
@@ -777,8 +778,11 @@ static void nvt_parse_dt(struct device *dev)
 	NVT_LOG("novatek,nfc-active-gpio=%d\n", ts->nfc_gpio);
 	of_property_read_u32(np, "novatek,nfc-active-ms", &nfc_active_ms);
 	NVT_LOG("novatek,nfc-active-ms=%u\n", nfc_active_ms);
+	of_property_read_u32(np, "novatek,nfc-debounce-ms", &nfc_debounce_ms);
+	NVT_LOG("novatek,nfc-debounce-ms=%u\n", nfc_debounce_ms);
 
 	ts->nfc_active_jiffies = msecs_to_jiffies(nfc_active_ms);
+	ts->nfc_debounce_jiffies = msecs_to_jiffies(nfc_debounce_ms);
 }
 #else
 static void nvt_parse_dt(struct device *dev)
@@ -939,7 +943,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
 	bool log_skipped_touch;
-	unsigned long nfc_last_active;
+	unsigned long nfc_inactive_time;
 	unsigned long flags;
 	unsigned long current_time;
 
@@ -972,8 +976,8 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 	/* Ignore any ghost touches introduced by NFC */
 	log_skipped_touch = atomic_xchg(&ts->log_skipped_touch, false);
-	nfc_last_active = atomic64_read(&ts->nfc_last_active);
-	if (nfc_last_active && time_before(jiffies, nfc_last_active + ts->nfc_active_jiffies)) {
+	nfc_inactive_time = atomic64_read(&ts->nfc_inactive_time);
+	if (nfc_inactive_time && time_before(jiffies, nfc_inactive_time)) {
 		if (log_skipped_touch) {
 			NVT_LOG("Touch event discarded (NFC active)\n");
 		}
@@ -1126,21 +1130,23 @@ XFER_ERROR:
 
 static irqreturn_t nvt_ts_nfc_irq_handler(int irq, void *data) {
 	uint32_t nfc_active_ms;
+	uint32_t nfc_debounce_ms;
 	unsigned long nfc_inactive_time;
 
 	if (gpio_get_value(ts->nfc_gpio)) {
-		nfc_inactive_time = atomic64_read(&ts->nfc_last_active) + ts->nfc_active_jiffies;
+		nfc_inactive_time = atomic64_read(&ts->nfc_inactive_time);
 		if (time_before(jiffies, nfc_inactive_time)) {
 			/* If touch reporting has not already resumed, do so now */
+			nfc_debounce_ms = jiffies_to_msecs(ts->nfc_debounce_jiffies);
 			dev_info(&ts->client->dev,
-				"NFC inactive, touch reporting resumed\n");
-			atomic64_set(&ts->nfc_last_active, 0);
+				"NFC inactive, touch reporting will resume in %u ms\n", nfc_debounce_ms);
+			atomic64_set(&ts->nfc_inactive_time, jiffies + ts->nfc_debounce_jiffies);
 		}
 	} else {
 		nfc_active_ms = jiffies_to_msecs(ts->nfc_active_jiffies);
 		dev_info(&ts->client->dev,
 			"NFC active, touch supressed for up to %u ms\n", nfc_active_ms);
-		atomic64_set(&ts->nfc_last_active, jiffies);
+		atomic64_set(&ts->nfc_inactive_time, jiffies + ts->nfc_active_jiffies);
 		atomic_set(&ts->log_skipped_touch, true);
 	}
 
