@@ -15,7 +15,8 @@
 		novatek,nfc-active-gpio = <&gpa1 4 0x00>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_active &nfc_active>;
-		novatek,nfc-active-ms = <500>;
+		novatek,nfc-active-ms = <10000>;
+		novatek,nfc-debounce-ms = <40>;
 	};
 };
 
