@@ -17,6 +17,8 @@
 #include "../dsim.h"
 #include "../decon.h"
 
+#define PANEL_MAX_TRIES 3
+
 static int wf012fbm_suspend(struct exynos_panel_device *panel)
 {
 	struct dsim_device *dsim = get_dsim_drvdata(0);
@@ -37,49 +39,30 @@ static int wf012fbm_suspend(struct exynos_panel_device *panel)
 	return 0;
 }
 
-static int wf012fbm_displayon(struct exynos_panel_device *panel)
+void panel_recovery(struct dsim_device *dsim)
 {
-	struct dsim_device *dsim = get_dsim_drvdata(0);
+	if (decon_reg_get_run_status(dsim->id)) {
+		dsim_reset_panel(dsim);
+		dpu_hw_recovery_process(get_decon_drvdata(dsim->id));
+	} else {
+		dsim_reset_panel(dsim);
+		dsim_reg_recovery_process(dsim);
+	}
+}
+
+int wf012fbm_panel_init(struct dsim_device *dsim)
+{
 	int ret;
 	unsigned char buf[1];
-
-	DPU_INFO_PANEL("%s +\n", __func__);
-	mutex_lock(&panel->ops_lock);
-	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-			MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
-	if (ret < 0) {
-		dsim_err("Failed to read PM reg from panel\n");
-	} else {
-		dsim_info("=== Panel's PM Reg Value ===\n");
-		dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
-	}
-	if (buf[0] != 0x08) {
-		dsim_info("Detected unexpected panel status after reset, trying again\n");
-		if (decon_reg_get_run_status(dsim->id)) {
-			dsim_reset_panel(dsim);
-			dpu_hw_recovery_process(get_decon_drvdata(dsim->id));
-		} else {
-			dsim_reset_panel(dsim);
-			dsim_reg_recovery_process(dsim);
-		}
-		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-				MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
-		if (ret < 0) {
-			dsim_err("Failed to read PM reg from panel (second try)\n");
-		} else {
-			dsim_info("=== Panel's PM Reg Value ===\n");
-			dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
-		}
-	}
-
 	/* Page Select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 
 	/* Sleep out , wait 15ms*/
 	dsim_write_data_seq_delay(dsim, 15, MIPI_DCS_EXIT_SLEEP_MODE);
 
-	/* Set display to 30Hz, wait the rest of the 70ms after sleep out */
-	/* These values were provided from the vendor. Page select: */
+	/* Set display to 30Hz */
+	/* These values were provided from the vendor. */
+	/* Page select: */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 	/* Write 0x81 to register 0x6F to set 30Hz */
 	dsim_write_data_seq(dsim, false, 0x6F, 0x81);
@@ -272,15 +255,6 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 	/* Display on */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_SET_DISPLAY_ON);
 
-	/* Power Mode read */
-	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-			MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
-	if (ret < 0) {
-		dsim_err("Failed to read PM reg from panel\n");
-	} else {
-		dsim_info("=== Panel's PM Reg Value ===\n");
-		dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
-	}
 	/* Self Det read */
 	// For debugging display crash issue
 	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
@@ -292,6 +266,69 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 		dsim_info("* 0xDD : buf[0] = %x\n", buf[0]);
 	}
 
+	/* Power Mode read */
+	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+			MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
+	if (ret < 0) {
+		dsim_err("Failed to read PM reg from panel\n");
+		return -EINVAL;
+	} else {
+		dsim_info("=== Panel's PM Reg Value ===\n");
+		dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
+		if (buf[0] == 0x9c) {
+			return 0;
+		} else {
+			return -EINVAL;
+		}
+	}
+}
+
+static int wf012fbm_displayon(struct exynos_panel_device *panel)
+{
+	struct dsim_device *dsim = get_dsim_drvdata(0);
+	int ret;
+	unsigned char buf[1];
+	int retry;
+
+	DPU_INFO_PANEL("%s +\n", __func__);
+	mutex_lock(&panel->ops_lock);
+
+	// Check initial state
+	ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+			MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
+	if (ret < 0) {
+		dsim_err("Failed to read PM reg from panel\n");
+	} else {
+		dsim_info("=== Panel's PM Reg Value ===\n");
+		dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
+	}
+	if (buf[0] != 0x08) {
+		dsim_info("Detected unexpected panel status after reset, trying again\n");
+		panel_recovery(dsim);
+		ret = dsim_read_data(dsim, MIPI_DSI_DCS_READ,
+				MIPI_DCS_GET_POWER_MODE, sizeof(buf), buf);
+		if (ret < 0) {
+			dsim_err("Failed to read PM reg from panel (second try)\n");
+		} else {
+			dsim_info("=== Panel's PM Reg Value ===\n");
+			dsim_info("* 0x0A : buf[0] = %x\n", buf[0]);
+		}
+	}
+
+	// Run initialization sequence up to 3 tries
+	for (retry = 0; retry < PANEL_MAX_TRIES; retry++) {
+		ret = wf012fbm_panel_init(dsim);
+		if (ret == 0) {
+			break;
+		} else if (retry == 0) {
+			dsim_err("Invalid display power mode, re-running init sequence\n");
+		} else if (retry == 1) {
+			dsim_err("Invalid display power mode on second try, resetting display\n");
+			panel_recovery(dsim);
+		} else {
+			dsim_err("Display didn't recover after reset, giving up\n");
+		}
+	}
 	/* Exit Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_IDLE_MODE);
 
