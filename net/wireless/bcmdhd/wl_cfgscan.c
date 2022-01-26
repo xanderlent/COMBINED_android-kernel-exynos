@@ -3349,7 +3349,10 @@ wl_cfg80211_scan_mac_disable(struct net_device *dev)
 #define PNO_TIME                    5
 #define PNO_REPEAT                  10
 #define PNO_FREQ_EXPO_MAX           2
-#define PNO_ADAPTIVE_SCAN_LIMIT     60
+/* Android default value is 60. So keeping this below default value */
+#define PNO_ADAPTIVE_SCAN_LIMIT     30
+/* This is Android's max scan iteration number */
+#define PNO_REPEAT_HOST_MAX         3
 static bool
 is_ssid_in_list(struct cfg80211_ssid *ssid, struct cfg80211_ssid *ssid_list, int count)
 {
@@ -3403,8 +3406,13 @@ wl_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		 * scan interval that host gives.
 		 */
 		pno_time = request->scan_plans->interval;
-		pno_repeat = 0;
-		pno_freq_expo_max = 0;
+		/* Use host provided iterations */
+		pno_repeat = request->scan_plans->iterations;
+		if (!pno_repeat || pno_repeat > PNO_REPEAT_HOST_MAX) {
+			/* (scan_plan->iterations == zero) means infinite */
+			pno_repeat = PNO_REPEAT_HOST_MAX;
+		}
+		pno_freq_expo_max = PNO_FREQ_EXPO_MAX;
 	} else {
 		/* Run adaptive PNO */
 		pno_time = PNO_TIME;
