@@ -654,7 +654,6 @@ static void hl6111_get_ioutlim(struct hl6111_charger *chg)
     } else if (ilim == 0x13) {
         chg->iout_lim = 1100;
     } else {
-        pr_err("Unknown ioutlim value\n");
         return;
     }
 
@@ -1158,6 +1157,7 @@ static void hl6111_rx_authentication_work(struct work_struct *work)
                 hl6111_device_init(chg);
             }
             hl6111_auth_irq_set_state(chg, 0);
+            power_supply_changed(chg->psy_chg);
             pm_relax(chg->dev);
             break;
 
