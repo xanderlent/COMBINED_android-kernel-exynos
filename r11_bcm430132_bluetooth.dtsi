@@ -85,6 +85,7 @@
 
 &serial_5 {
 	pinctrl-0 = <&uart5_cts &uart5_rts &uart5_tx &uart5_rx>;
+	samsung,uart-logging;
 	status = "okay";
 };
 
