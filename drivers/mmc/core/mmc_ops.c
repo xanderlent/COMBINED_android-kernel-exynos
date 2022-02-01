@@ -446,6 +446,48 @@ int mmc_switch_status(struct mmc_card *card)
 	return __mmc_switch_status(card, true);
 }
 
+int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+			int (*busy_cb)(void *cb_data, bool *busy),
+			void *cb_data)
+{
+	struct mmc_host *host = card->host;
+	int err;
+	unsigned long timeout;
+	unsigned int udelay = 32, udelay_max = 32768;
+	bool expired = false;
+	bool busy = false;
+
+	timeout = jiffies + msecs_to_jiffies(timeout_ms) + 1;
+	do {
+		/*
+		 * Due to the possibility of being preempted while polling,
+		 * check the expiration time first.
+		 */
+		expired = time_after(jiffies, timeout);
+
+		err = (*busy_cb)(cb_data, &busy);
+		if (err)
+			return err;
+
+		/* Timeout if the device still remains busy. */
+		if (expired && busy) {
+			pr_err("%s: Card stuck being busy! %s\n",
+				mmc_hostname(host), __func__);
+			return -ETIMEDOUT;
+		}
+
+		/* Throttle the polling rate to avoid hogging the CPU. */
+		if (busy) {
+			usleep_range(udelay, udelay * 2);
+			if (udelay < udelay_max)
+				udelay *= 2;
+		}
+	} while (busy);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__mmc_poll_for_busy);
+
 static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 			bool send_status, bool retry_crc_err)
 {
