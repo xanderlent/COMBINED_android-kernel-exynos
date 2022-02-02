@@ -111,7 +111,6 @@ static int exynos_panel_parse_gpios(struct exynos_panel_device *panel)
 	struct device *dev = panel->dev;
 	struct device_node *n = panel->dev->of_node;
 	struct exynos_panel_resources *res = &panel->res;
-	int mux_select, mux_output_enable;
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 
@@ -134,36 +133,36 @@ static int exynos_panel_parse_gpios(struct exynos_panel_device *panel)
 		}
 	}
 
-	mux_select = of_get_named_gpio(n, "mux-gpios", 0);
-	if (mux_select < 0) {
+	res->mux_select = of_get_named_gpio(n, "mux-gpios", 0);
+	if (res->mux_select < 0) {
 		dev_err(dev, "Couldn't find mux select GPIO\n");
 	} else {
 		// Set mux select GPIO to high so that the
 		// DSI lines are connected to AP
-		if (devm_gpio_request_one(dev, mux_select,
+		if (devm_gpio_request_one(dev, res->mux_select,
 		      GPIOF_OUT_INIT_HIGH, "mux_select") < 0) {
 			dev_err(dev, "Failed to get mux select GPIO\n");
 			return -ENODEV;
 		}
-		if (devm_gpio_export(dev, mux_select, 0)) {
+		if (devm_gpio_export(dev, res->mux_select, 0)) {
 			dev_err(dev, "Failed to export mux select GPIO\n");
 			return -ENODEV;
 		}
-		if (gpio_export_link(dev, "mux_select", mux_select)) {
+		if (gpio_export_link(dev, "mux_select", res->mux_select)) {
 			dev_err(dev, "Failed to create link for mux select GPIO\n");
 			return -ENODEV;
 		}
 	}
-	mux_output_enable = of_get_named_gpio(n, "mux-gpios", 1);
-	if (mux_output_enable < 0) {
+	res->mux_output_enable = of_get_named_gpio(n, "mux-gpios", 1);
+	if (res->mux_output_enable < 0) {
 		dev_err(dev, "Couldn't find mux output enable GPIO\n");
 	} else {
-		if (devm_gpio_request_one(dev, mux_output_enable,
+		if (devm_gpio_request_one(dev, res->mux_output_enable,
 		      GPIOF_OUT_INIT_LOW, "mux_output_enable") < 0) {
 			dev_err(dev, "Failed to get mux output enable GPIO\n");
 			return -ENODEV;
 		}
-		if (devm_gpio_export(dev, mux_output_enable, 0)) {
+		if (devm_gpio_export(dev, res->mux_output_enable, 0)) {
 			dev_err(dev, "Failed to export output enable GPIO\n");
 			return -ENODEV;
 		}
@@ -204,6 +203,25 @@ static int exynos_panel_parse_regulators(struct exynos_panel_device *panel)
 	return 0;
 }
 
+bool check_mux_state(struct exynos_panel_device *panel)
+{
+	int val;
+	struct exynos_panel_resources *res = &panel->res;
+	val = gpio_get_value(res->mux_select);
+	if (val == 0) {
+		pr_info("Display MUX select state = 0, forcing to 1\n");
+		gpio_set_value(res->mux_select, 1);
+		return false;
+	}
+	val = gpio_get_value(res->mux_output_enable);
+	if (val == 1) {
+		pr_info("Display MUX OE state = 1, forcing to 0\n");
+		gpio_set_value(res->mux_output_enable, 0);
+		return false;
+	}
+	return true;
+}
+
 static int exynos_panel_reset(struct exynos_panel_device *panel)
 {
 	struct exynos_panel_resources *res = &panel->res;
@@ -211,6 +229,7 @@ static int exynos_panel_reset(struct exynos_panel_device *panel)
 
 	DPU_DEBUG_PANEL("%s +\n", __func__);
 
+	check_mux_state(panel);
 	ret = gpio_request_one(res->lcd_reset, GPIOF_OUT_INIT_HIGH, "lcd_reset");
 	if (ret < 0) {
 		DPU_ERR_PANEL("failed to get LCD reset GPIO\n");
@@ -744,7 +763,6 @@ static long exynos_panel_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *a
 
 	panel = container_of(sd, struct exynos_panel_device, sd);
 
-
 	switch (cmd) {
 	case EXYNOS_PANEL_IOC_REGISTER:
 		ret = exynos_panel_register(panel, *(u32 *)arg);
@@ -759,6 +777,8 @@ static long exynos_panel_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *a
 		ret = exynos_panel_reset(panel);
 		break;
 	case EXYNOS_PANEL_IOC_DISPLAYON:
+		if (!check_mux_state(panel))
+			exynos_panel_reset(panel);
 		call_panel_ops(panel, displayon, panel);
 		break;
 	case EXYNOS_PANEL_IOC_SUSPEND:
@@ -768,6 +788,10 @@ static long exynos_panel_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *a
 		call_panel_ops(panel, mres, panel, *(int *)arg);
 		break;
 	case EXYNOS_PANEL_IOC_DOZE:
+		if (!check_mux_state(panel)) {
+			exynos_panel_reset(panel);
+			call_panel_ops(panel, displayon, panel);
+		}
 		call_panel_ops(panel, doze, panel);
 		break;
 	case EXYNOS_PANEL_IOC_DOZE_SUSPEND:
@@ -789,6 +813,10 @@ static long exynos_panel_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *a
 		call_panel_ops(panel, exit_hbm, panel);
 		break;
 	case EXYNOS_PANEL_IOC_WAKE:
+		if (!check_mux_state(panel)) {
+			exynos_panel_reset(panel);
+			call_panel_ops(panel, displayon, panel);
+		}
 		call_panel_ops(panel, exit_doze, panel);
 		break;
 	default:

@@ -57,6 +57,8 @@ extern struct exynos_panel_ops panel_hb120blx01_ops;
 struct exynos_panel_resources {
 	int lcd_reset;
 	int lcd_power[2];
+	int mux_select;
+	int mux_output_enable;
 	struct regulator *regulator[MAX_REGULATORS];
 };
 
