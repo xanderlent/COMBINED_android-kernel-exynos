@@ -253,19 +253,25 @@ static int exynos_panel_set_power(struct exynos_panel_device *panel, bool on)
 {
 	struct exynos_panel_resources *res = &panel->res;
 	int ret;
+	int val;
 
 	DPU_DEBUG_PANEL("%s(%d) +\n", __func__, on);
 
 	if (on) {
 		if (res->lcd_power[0] > 0) {
-			ret = gpio_request_one(res->lcd_power[0],
-					GPIOF_OUT_INIT_HIGH, "lcd_power0");
+			ret = gpio_request(res->lcd_power[0], "lcd_power0");
 			if (ret < 0) {
-				DPU_ERR_PANEL("failed LCD power on\n");
+				DPU_ERR_PANEL("failed LCD power get\n");
 				return -EINVAL;
 			}
+			val = gpio_get_value(res->lcd_power[0]);
+			if (val != 1) {
+				DPU_DEBUG_PANEL("turn LCD power on, val=%d\n",
+						val);
+				gpio_direction_output(res->lcd_power[0], 1);
+				usleep_range(10000, 11000);
+			}
 			gpio_free(res->lcd_power[0]);
-			usleep_range(10000, 11000);
 		}
 
 		if (res->lcd_power[1] > 0) {

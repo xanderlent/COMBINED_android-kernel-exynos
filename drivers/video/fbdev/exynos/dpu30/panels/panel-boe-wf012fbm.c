@@ -32,7 +32,8 @@ static int wf012fbm_suspend(struct exynos_panel_device *panel)
 	dsim_write_data_seq(dsim, false, MIPI_DCS_SET_DISPLAY_OFF);
 
 	/* Sleep In */
-	dsim_write_data_seq_delay(dsim, 70, MIPI_DCS_ENTER_SLEEP_MODE);
+	dsim_write_data_seq(dsim, false, MIPI_DCS_ENTER_SLEEP_MODE);
+	usleep_range(70000, 70000);
 
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
@@ -58,7 +59,8 @@ int wf012fbm_panel_init(struct dsim_device *dsim)
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 
 	/* Sleep out , wait 15ms*/
-	dsim_write_data_seq_delay(dsim, 15, MIPI_DCS_EXIT_SLEEP_MODE);
+	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_SLEEP_MODE);
+	usleep_range(15000, 15000);
 
 	/* Set display to 30Hz */
 	/* These values were provided from the vendor. */
@@ -250,7 +252,8 @@ int wf012fbm_panel_init(struct dsim_device *dsim)
 	dsim_write_data_seq(dsim, false, 0x58, 0x12);
 
 	/* Page Select */
-	dsim_write_data_seq_delay(dsim, 55, 0xff, 0x10);
+	dsim_write_data_seq(dsim, false, 0xff, 0x10);
+	usleep_range(55000, 55000);
 
 	/* Display on */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_SET_DISPLAY_ON);
