@@ -90,7 +90,7 @@
 		};
 
 		skin_backup_shutdown: skin-backup-shutdown {
-			temperature = <53000>;
+			temperature = <54000>;
 			hysteresis = <1000>;
 			type = "critical";
 		};
