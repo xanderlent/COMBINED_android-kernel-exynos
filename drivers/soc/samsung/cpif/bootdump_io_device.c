@@ -514,6 +514,12 @@ static ssize_t bootdump_write(struct file *filp, const char __user *data,
 			tailroom = 0;
 
 		alloc_size += tailroom;
+		tx_bytes = alloc_size - headroom - tailroom;
+
+		if (unlikely(tx_bytes > alloc_size)) {
+			mif_err("%s: tx_bytes overflow\n", iod->name);
+			return -EINVAL;
+		}
 
 		skb = alloc_skb(alloc_size, GFP_KERNEL);
 		if (!skb) {
@@ -521,8 +527,6 @@ static ssize_t bootdump_write(struct file *filp, const char __user *data,
 				iod->name, alloc_size);
 			return -ENOMEM;
 		}
-
-		tx_bytes = alloc_size - headroom - tailroom;
 
 		/* Reserve the space for a link header */
 		skb_reserve(skb, headroom);
