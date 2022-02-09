@@ -1820,6 +1820,7 @@ static ssize_t set_charge_stop_level(struct device *dev,
 		return count;
 
 	battery->charge_stop_level = val;
+	check_charging_full(battery);
 	if (battery->psy_battery)
 		power_supply_changed(battery->psy_battery);
 
@@ -1859,6 +1860,7 @@ static ssize_t set_charge_start_level(struct device *dev,
 		return count;
 
 	battery->charge_start_level = val;
+	check_charging_full(battery);
 	if (battery->psy_battery)
 		power_supply_changed(battery->psy_battery);
 
@@ -2091,7 +2093,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	}
 	power_supply_put(psy);
 	// Assume lower bound of charge full spoofing
-	battery->soc_spoof_full = (battery->pdata->chg_recharge_soc - 1) * 100;
+	battery->soc_spoof_full = battery->pdata->chg_recharge_soc * 100;
 	/* Initialize battery level */
 	get_battery_info(battery);
 
