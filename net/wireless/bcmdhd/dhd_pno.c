@@ -441,7 +441,7 @@ _dhd_pno_set(dhd_pub_t *dhd, const dhd_pno_params_t *pno_params, dhd_pno_mode_t 
 	/* set pfn parameters */
 	pfn_param.version = htod32(PFN_VERSION);
 	pfn_param.flags = ((PFN_LIST_ORDER << SORT_CRITERIA_BIT) |
-		(ENABLE << IMMEDIATE_SCAN_BIT) | (ENABLE << REPORT_SEPERATELY_BIT));
+		(ENABLE << REPORT_SEPERATELY_BIT));
 	if (mode == DHD_PNO_LEGACY_MODE) {
 		/* check and set extra pno params */
 		if ((pno_params->params_legacy.pno_repeat != 0) ||
