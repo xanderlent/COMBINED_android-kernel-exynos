@@ -150,7 +150,7 @@ static irqreturn_t nitrous_host_wake_isr(int irq, void *data)
 	} else {
 		logbuffer_log(lpm->log, "host_wake_isr de-asserted");
 		exynos_update_ip_idle_status(lpm->idle_bt_rx_ip_index, STATUS_IDLE);
-		pm_wakeup_dev_event(lpm->dev, NITROUS_AUTOSUSPEND_DELAY, false);
+		pm_relax(lpm->dev);
 	}
 
 	return IRQ_HANDLED;
