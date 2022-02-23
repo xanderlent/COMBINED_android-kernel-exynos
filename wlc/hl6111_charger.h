@@ -217,9 +217,10 @@ struct hl6111_charger{
 
     u32  debug_address;
     bool online;
-    bool tx_det;
-    bool tx_valid;
-    bool tx_authenticated;
+    bool tx_det; // whether the tx is physically detected
+    bool tx_valid; // whether the full authentication has passed once
+    // sometimes the authentication resets on the TX side so we have to resend
+    bool tx_authenticated; // whether the full authentication is still active
     bool auth_chok;
     int irq_state;
 

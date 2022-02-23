@@ -862,7 +862,7 @@ static void hl6111_charge_power_detected(struct hl6111_charger *chg) {
                 pm_stay_awake(chg->dev);
                 dev_info(chg->dev, "%s: Start timer for Authentication!\n", __func__);
                 chg->timer_id = TIMER_PRESET_AUTH;
-                schedule_delayed_work(&chg->auth_work, msecs_to_jiffies(1000));
+                schedule_delayed_work(&chg->auth_work, msecs_to_jiffies(0));
                 if (gpio_get_value(chg->pdata->auth_gpio) == 0) {
                     chg->auth_chok = true;
                 }
@@ -909,6 +909,10 @@ static int hl6111_psy_set_property(struct power_supply *psy, enum power_supply_p
     LOG_DBG("Start!, prop==[%d], val==[%d]\n", psp, val->intval);
     switch(psp) {
         case POWER_SUPPLY_PROP_ONLINE:
+            if (!chg->tx_det) {
+                // if WLC is not present, ignore power changes
+                break;
+            }
             dev_info(chg->dev, "Setting WLC online: %d\n", val->intval);
             if (val->intval == 0 ) {      //charging off
                 chg->online = false;
@@ -962,8 +966,9 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
     sts = gpio_get_value(chg->pdata->det_gpio);
     if (sts == 0){
         dev_info(chg->dev, "TX connection detected\n");
+        // Make sure we don't go back to sleep before the WLC power establishes
+        pm_stay_awake(chg->dev);
         chg->tx_det = true;
-        chg->tx_valid = true;
     } else if (sts == 1) {
         dev_info(chg->dev, "TX disconnection detected\n");
         chg->last_off_time = 0;
@@ -974,11 +979,12 @@ static irqreturn_t hl6111_pad_detect_handler(int irq, void *data)
         if (chg->irq_state == 0) {
             // Just in case authntication didn't get cleaned up properly
             hl6111_auth_irq_set_state(chg, 0);
-            pm_relax(chg->dev);
         }
+        // In case WLC power never established
+        pm_relax(chg->dev);
+        power_supply_changed(chg->psy_chg);
     }
 
-    power_supply_changed(chg->psy_chg);
     return IRQ_HANDLED;
 }
 
@@ -998,14 +1004,16 @@ static irqreturn_t hl6111_auth_irq_handler(int irq, void *data)
             dev_info(chg->dev, "%s: Start timer for Authentication!\n", __func__);
             chg->timer_id = TIMER_PRESET_AUTH;
 
-            schedule_delayed_work(&chg->auth_work, msecs_to_jiffies(1000));
+            schedule_delayed_work(&chg->auth_work, msecs_to_jiffies(0));
         } else if (chg->timer_id == TIMER_DETECT_LOW) {
 
             LOG_DBG("%s: TIMR_END_AUTH!, Google TX Connected!\n", __func__);
 
+            chg->tx_valid = true;
             chg->timer_id = TIMER_END_AUTH;
+            power_supply_changed(chg->psy_chg);
 
-            schedule_delayed_work(&chg->auth_work, msecs_to_jiffies(0));
+            schedule_delayed_work(&chg->auth_work, msecs_to_jiffies(100));
         }
     } else if (sts == 1 && chg->auth_chok) {
         chg->auth_chok = false;
@@ -1149,7 +1157,6 @@ static void hl6111_rx_authentication_work(struct work_struct *work)
             chg->timer_id = TIMER_GOOGLE_TX;
 
             chg->tx_authenticated = true;
-            chg->tx_valid = true;
             chg->auth_retry = 0;
             if (chg->online) {
                 hl6111_write_reg(chg, REG_INTERRUPT_ENABLE, 0xFF);
@@ -1157,7 +1164,6 @@ static void hl6111_rx_authentication_work(struct work_struct *work)
                 hl6111_device_init(chg);
             }
             hl6111_auth_irq_set_state(chg, 0);
-            power_supply_changed(chg->psy_chg);
             pm_relax(chg->dev);
             break;
 
@@ -1215,7 +1221,10 @@ static int hl6111_psy_get_property(struct power_supply *psy, enum power_supply_p
 
         case POWER_SUPPLY_PROP_PRESENT:
             LOG_DBG("PRESENT!!\r\n");
-            val->intval = chg->tx_det;
+            if (chg->tx_det)
+                val->intval = chg->tx_valid;
+            else
+                val->intval = false;
             break;
 
         case POWER_SUPPLY_PROP_AUTHENTIC:
@@ -1823,8 +1832,7 @@ static int hl6111_charger_probe(struct i2c_client *client, const struct i2c_devi
 
             dev_info(charger->dev, "TX connection initially detected\n");
             charger->tx_det = true;
-            charger->tx_valid = true;
-
+            charger->tx_valid = false;
         } else {
             dev_info(charger->dev, "TX connection was not detected\n");
             charger->tx_det = false;

@@ -854,7 +854,7 @@ static int wireless_get_property(struct power_supply *psy,
 	switch(psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 	case POWER_SUPPLY_PROP_PRESENT:
-		if (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS || battery->wlc_connected)
+		if (battery->wlc_connected)
 			val->intval = 1;
 		else
 			val->intval = 0;
@@ -915,9 +915,7 @@ static int battery_handle_notification(struct notifier_block *nb,
 
 	mutex_lock(&battery->wlc_state_lock);
 
-	if (battery->wlc_connected) {
-		set_wlc_online(battery);
-	}
+	set_wlc_online(battery);
 	old_status = battery->status;
 	set_bat_status_by_cable(battery);
 	mutex_unlock(&battery->wlc_state_lock);
