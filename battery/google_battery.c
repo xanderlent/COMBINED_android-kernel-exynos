@@ -93,6 +93,7 @@ static enum power_supply_property google_battery_props[] = {
 static enum power_supply_property charging_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 static enum power_supply_property wireless_props[] = {
@@ -727,9 +728,7 @@ static int usb_get_property(struct power_supply *psy,
 		union power_supply_propval *val)
 {
 	struct battery_info *battery =  power_supply_get_drvdata(psy);
-
-	if (psp != POWER_SUPPLY_PROP_ONLINE && psp != POWER_SUPPLY_PROP_PRESENT)
-		return -EINVAL;
+	bool usb_connected = false;
 
 	/* Set enable=1 only if the AC charger is connected */
 	switch (battery->power_supply_type) {
@@ -737,17 +736,33 @@ static int usb_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_TYPE_UNKNOWN:
 	case POWER_SUPPLY_TYPE_PREPARE_TA:
 	case POWER_SUPPLY_TYPE_HV_MAINS:
-		val->intval = 1;
+		usb_connected = true;
 		break;
 	default:
-		val->intval = 0;
+		usb_connected = false;
 		break;
 	}
-
 	if (battery->charging_state_override) {
-		val->intval = 0;
+		usb_connected = false;
 	}
 
+	switch(psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+	case POWER_SUPPLY_PROP_PRESENT:
+		if (usb_connected)
+			val->intval = 1;
+		else
+			val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		if (usb_connected)
+			val->intval = 300;
+		else
+			val->intval = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -760,7 +775,7 @@ static int wireless_get_property(struct power_supply *psy,
 	switch(psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 	case POWER_SUPPLY_PROP_PRESENT:
-		if (battery->wlc_authentic && (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS || battery->wlc_connected))
+		if (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS || battery->wlc_connected)
 			val->intval = 1;
 		else
 			val->intval = 0;
@@ -2108,6 +2123,7 @@ static int google_battery_probe(struct platform_device *pdev)
 
 	/* Set up wlc related variable */
 	battery->wlc_connected = false;
+	battery->wlc_authentic = false;
 	battery->thermal_trigger_level = THERMAL_TRIP_HIGH;
 	mutex_init(&battery->wlc_state_lock);
 
