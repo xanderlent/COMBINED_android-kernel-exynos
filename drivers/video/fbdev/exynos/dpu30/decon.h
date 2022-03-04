@@ -1085,6 +1085,7 @@ struct decon_device {
 	unsigned long dpp_err_stat;
 
 	struct mutex lock;
+	struct mutex display_lock;
 	struct mutex pm_lock;
 	spinlock_t slock;
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
@@ -1147,6 +1148,15 @@ struct decon_device {
 	bool tui_buf_protected;
 #endif
 	bool report_regs_update;
+
+	struct workqueue_struct *displayon_wqueue;
+	struct work_struct displayon_work;
+	struct delayed_work displayoff_work;
+	int ttw_gpio;
+	int irq_ttw;
+	atomic_t displayon_requested;
+	atomic_t in_suspend;
+	bool ttw_disabled;
 };
 
 static inline struct decon_device *get_decon_drvdata(u32 id)

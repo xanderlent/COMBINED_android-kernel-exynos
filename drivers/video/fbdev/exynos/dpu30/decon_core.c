@@ -32,6 +32,8 @@
 #include <linux/debugfs.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/suspend.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <video/mipi_display.h>
 #include <media/v4l2-subdev.h>
 #if defined(CONFIG_CAL_IF)
@@ -1124,6 +1126,57 @@ err:
 	return ret;
 }
 
+static void decon_displayon(struct work_struct *work)
+{
+	struct decon_device *decon =
+		container_of(work, struct decon_device, displayon_work);
+	int ret;
+	mutex_lock(&decon->display_lock);
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	mutex_lock(&decon->esd.lock);
+#endif
+	atomic_set(&decon->displayon_requested, 0);
+	DPU_EVENT_LOG(DPU_EVT_UNBLANK, &decon->sd, ktime_set(0, 0));
+	lcd_status_notifier(LCD_ON);
+	ret = decon_update_pwr_state(decon, DISP_PWR_NORMAL);
+	if (ret) {
+		decon_err("failed to enable decon\n");
+		goto displayon_exit;
+	}
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	if (decon->esd.thread)
+		wake_up_process(decon->esd.thread);
+#endif
+displayon_exit:
+#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
+	mutex_unlock(&decon->esd.lock);
+#endif
+	mutex_unlock(&decon->display_lock);
+}
+
+static int decon_displayoff(struct decon_device *decon)
+{
+	int ret;
+	mutex_lock(&decon->display_lock);
+	DPU_EVENT_LOG(DPU_EVT_BLANK, &decon->sd, ktime_set(0, 0));
+	ret = decon_update_pwr_state(decon, DISP_PWR_OFF);
+	if (ret) {
+		decon_err("failed to disable decon\n");
+		goto displayoff_exit;
+	}
+	lcd_status_notifier(LCD_OFF);
+displayoff_exit:
+	mutex_unlock(&decon->display_lock);
+	return ret;
+}
+
+static void decon_displayoff_timeout(struct work_struct *work)
+{
+	struct decon_device *decon =
+		container_of(work, struct decon_device, displayoff_work.work);
+	decon_err("decon%d: Hit display off timeout!\n", decon->id);
+	decon_displayoff(decon);
+}
 static int decon_blank(int blank_mode, struct fb_info *info)
 {
 	struct decon_win *win = info->par;
@@ -1145,31 +1198,16 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 		return 0;
 	}
 	decon_hiber_block_exit(decon);
-#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
-	mutex_lock(&decon->esd.lock);
-#endif
 	switch (blank_mode) {
 	case FB_BLANK_POWERDOWN:
-		DPU_EVENT_LOG(DPU_EVT_BLANK, &decon->sd, ktime_set(0, 0));
-		ret = decon_update_pwr_state(decon, DISP_PWR_OFF);
-		if (ret) {
-			decon_err("failed to disable decon\n");
+		ret = decon_displayoff(decon);
+		if (ret)
 			goto blank_exit;
-		}
-		lcd_status_notifier(LCD_OFF);
 		break;
 	case FB_BLANK_UNBLANK:
-		DPU_EVENT_LOG(DPU_EVT_UNBLANK, &decon->sd, ktime_set(0, 0));
-		lcd_status_notifier(LCD_ON);
-		ret = decon_update_pwr_state(decon, DISP_PWR_NORMAL);
-		if (ret) {
-			decon_err("failed to enable decon\n");
-			goto blank_exit;
-		}
-#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
-		if (decon->esd.thread)
-			wake_up_process(decon->esd.thread);
-#endif
+		cancel_delayed_work_sync(&decon->displayoff_work);
+		queue_work(decon->displayon_wqueue, &decon->displayon_work);
+		flush_work(&decon->displayon_work);
 		break;
 	case FB_BLANK_NORMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
@@ -1181,9 +1219,6 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 	}
 
 blank_exit:
-#if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
-	mutex_unlock(&decon->esd.lock);
-#endif
 	decon_hiber_unblock(decon);
 	decon_info("%s -\n", __func__);
 	return ret;
@@ -3460,13 +3495,24 @@ int decon_suspend(struct device *dev)
 		ret = -EINVAL;
 	}
 	WARN_ON(ret != 0);
+	if (decon->irq_ttw >= 0 && !decon->ttw_disabled)
+		enable_irq_wake(decon->irq_ttw);
 	return ret;
+}
+
+int decon_resume(struct device *dev)
+{
+	struct decon_device *decon = dev_get_drvdata(dev);
+	if (decon->irq_ttw >= 0 && !decon->ttw_disabled)
+		disable_irq_wake(decon->irq_ttw);
+	return 0;
 }
 
 const struct dev_pm_ops decon_pm_ops = {
 	.runtime_suspend = decon_runtime_suspend,
 	.runtime_resume	 = decon_runtime_resume,
 	.suspend = decon_suspend,
+	.resume = decon_resume,
 };
 
 static int decon_register_subdevs(struct decon_device *decon)
@@ -3932,6 +3978,37 @@ int decon_create_irq_err_sysfs(struct decon_device *decon)
 }
 #endif
 
+static ssize_t ttw_disable_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	bool cmd;
+	struct decon_device *decon = dev_get_drvdata(dev);
+
+	ret = kstrtobool(buf, &cmd);
+	if (ret) {
+		decon_err("decon0: failed to write to ttw disable node\n");
+		return ret;
+	} else {
+		decon_info("decon0: ttw_disabled=%d\n", cmd);
+		decon->ttw_disabled = cmd;
+	}
+	return count;
+}
+
+static DEVICE_ATTR_WO(ttw_disable);
+
+int decon_create_ttw_disable_sysfs(struct decon_device *decon)
+{
+	int ret = 0;
+
+	ret = device_create_file(decon->dev, &dev_attr_ttw_disable);
+	if (ret) {
+		decon_err("failed to create decon irq err sysfs\n");
+	}
+
+	return ret;
+}
 static void decon_parse_dt(struct decon_device *decon)
 {
 	struct device_node *te_eint;
@@ -3991,6 +4068,7 @@ static void decon_parse_dt(struct decon_device *decon)
 	of_property_read_u32(dev->of_node, "dpp_cnt", &decon->dt.dpp_cnt);
 	of_property_read_u32(dev->of_node, "dsim_cnt", &decon->dt.dsim_cnt);
 	of_property_read_u32(dev->of_node, "decon_cnt", &decon->dt.decon_cnt);
+	decon->ttw_gpio = of_get_named_gpio(dev->of_node, "decon,ttw-gpio", 0);
 	decon_info("chip_ver %d, dpp cnt %d, dsim cnt %d\n", decon->dt.chip_ver,
 			decon->dt.dpp_cnt, decon->dt.dsim_cnt);
 
@@ -4163,6 +4241,24 @@ static int decon_itmon_notifier(struct notifier_block *nb,
 }
 #endif
 
+int decon_spec_powerup(void)
+{
+	struct decon_device *decon = get_decon_drvdata(0);
+	// Make sure everything we need is initialized
+	if (!decon || !decon->displayon_wqueue) {
+		decon_err("Decon is not fully initialized\n");
+		return -EINVAL;
+	}
+	if (decon->state == DECON_STATE_OFF) {
+		decon_info("decon0: starting speculative display on\n");
+		queue_work(decon->displayon_wqueue, &decon->displayon_work);
+		queue_delayed_work(decon->displayon_wqueue,
+				&decon->displayoff_work, 1000);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(decon_spec_powerup);
+
 static int decon_pm_notifier(struct notifier_block *nb,
 		unsigned long mode, void *_unused)
 {
@@ -4177,8 +4273,31 @@ static int decon_pm_notifier(struct notifier_block *nb,
 		if (!IS_DECON_OFF_STATE(decon))
 		       decon_err("decon%d %s: decon still on after attempting to enter hiber!\n",
 					decon->id, __func__);
+		atomic_set(&decon->in_suspend, 1);
+		break;
+	case PM_POST_SUSPEND:
+		atomic_set(&decon->in_suspend, 0);
+		if (atomic_read(&decon->displayon_requested)) {
+			decon_spec_powerup();
+		}
+		break;
 	}
 	return 0;
+}
+
+static irqreturn_t ttw_irq_handler(int irq, void *data)
+{
+	struct decon_device *decon = data;
+	if (decon->ttw_disabled) {
+		return IRQ_HANDLED;
+	}
+	decon_info("decon0 ttw irq occurred!\n");
+	if (atomic_read(&decon->in_suspend)) {
+		atomic_set(&decon->displayon_requested, 1);
+	} else {
+		decon_spec_powerup();
+	}
+	return IRQ_HANDLED;
 }
 
 static int decon_initial_display(struct decon_device *decon, bool is_colormap)
@@ -4320,6 +4439,7 @@ static int decon_probe(struct platform_device *pdev)
 	struct decon_device *decon;
 	int ret = 0;
 	char device_name[MAX_NAME_SIZE];
+	int ttw_irq;
 
 	dev_info(dev, "%s start\n", __func__);
 
@@ -4342,6 +4462,7 @@ static int decon_probe(struct platform_device *pdev)
 	init_waitqueue_head(&decon->wait_vstatus);
 	mutex_init(&decon->vsync.lock);
 	mutex_init(&decon->lock);
+	mutex_init(&decon->display_lock);
 	mutex_init(&decon->pm_lock);
 	mutex_init(&decon->up.lock);
 	mutex_init(&decon->cursor.lock);
@@ -4442,6 +4563,29 @@ static int decon_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_display;
 
+	decon->displayon_wqueue = create_singlethread_workqueue("decon0");
+	if (!decon->displayon_wqueue) {
+		decon_err("decon failed to create workqueue\n");
+		goto err_display;
+	}
+	INIT_WORK(&decon->displayon_work, decon_displayon);
+	INIT_DELAYED_WORK(&decon->displayoff_work, decon_displayoff_timeout);
+
+	if (gpio_is_valid(decon->ttw_gpio)) {
+		ttw_irq = gpio_to_irq(decon->ttw_gpio);
+		ret = devm_request_irq(dev, ttw_irq, ttw_irq_handler,
+				IRQF_TRIGGER_FALLING, "decon-ttw", decon);
+		decon->irq_ttw = ttw_irq;
+		if (ret) {
+			decon_err("Failed to request TTW irq\n");
+			decon->irq_ttw = -1;
+		} else {
+			decon->ttw_disabled = 0;
+			decon_create_ttw_disable_sysfs(decon);
+		}
+	} else {
+		decon->irq_ttw = -1;
+	}
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 	ret = decon_create_esd_thread(decon);
 	if (ret)
@@ -4459,6 +4603,7 @@ static int decon_probe(struct platform_device *pdev)
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 err_esd:
 	decon_destroy_esd_thread(decon);
+	destroy_workqueue(decon->displayon_wqueue);
 #endif
 err_display:
 	decon_destroy_update_thread(decon);
