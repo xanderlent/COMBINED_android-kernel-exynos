@@ -1889,6 +1889,16 @@ static int32_t nvt_ts_resume(struct device *dev)
 static int nvt_ts_wake_enable(struct device *dev) {
 	unsigned long flags;
 	struct nvt_ts_touch_stats local;
+	int irq = ts->client->irq;
+
+	NVT_LOG("enabling wake on irq %d\n", irq);
+	enable_irq_wake(irq);
+
+	// This avoids a race condition where an irq mid-suspend
+	// causes us to read from i2c while it is unavailable
+	// Note that disable_irq will block until the IRQ handler is
+	// not running so after this point we are safe to suspend i2c
+	nvt_irq_enable(false);
 
 	spin_lock_irqsave(&ts->stats_lock, flags);
 	local = ts->stats;
@@ -1903,14 +1913,17 @@ static int nvt_ts_wake_enable(struct device *dev) {
 		del_timer(&ts->stats_timer);
 	}
 
-	NVT_LOG("enabling wake irq %d\n", ts->client->irq);
-	enable_irq_wake(ts->client->irq);
 	return 0;
 }
 
 static int nvt_ts_wake_disable(struct device *dev) {
-	NVT_LOG("disabling wake irq %d\n", ts->client->irq);
-	disable_irq_wake(ts->client->irq);
+	int irq = ts->client->irq;
+
+	nvt_irq_enable(true);
+
+	NVT_LOG("disabling wake on irq %d\n", irq);
+	disable_irq_wake(irq);
+
 	return 0;
 }
 
@@ -2007,7 +2020,6 @@ static void nvt_ts_late_resume(struct early_suspend *h)
 	nvt_ts_resume(ts->client);
 }
 #endif
-
 
 static SIMPLE_DEV_PM_OPS(nvt_ts_pm_ops, nvt_ts_wake_enable, nvt_ts_wake_disable);
 
