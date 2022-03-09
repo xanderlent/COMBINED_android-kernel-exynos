@@ -83,6 +83,7 @@ const uint16_t touch_key_array[TOUCH_KEY_NUM] = {
 #endif
 
 #if WAKEUP_GESTURE
+// Slide gestures produce a key press in the opposite direction of finger travel
 const uint16_t gesture_key_array[] = {
 	KEY_POWER,  //GESTURE_WORD_C
 	KEY_POWER,  //GESTURE_WORD_W
@@ -93,10 +94,10 @@ const uint16_t gesture_key_array[] = {
 	KEY_POWER,  //GESTURE_WORD_O
 	KEY_POWER,  //GESTURE_WORD_e
 	KEY_POWER,  //GESTURE_WORD_S
-	KEY_UP, //GESTURE_SLIDE_UP
-	KEY_DOWN, //GESTURE_SLIDE_DOWN
-	KEY_LEFT, //GESTURE_SLIDE_LEFT
-	KEY_RIGHT, //GESTURE_SLIDE_RIGHT
+	KEY_DOWN,   //GESTURE_SLIDE_UP
+	KEY_UP,     //GESTURE_SLIDE_DOWN
+	KEY_RIGHT,  //GESTURE_SLIDE_LEFT
+	KEY_LEFT,   //GESTURE_SLIDE_RIGHT
 };
 #endif
 
