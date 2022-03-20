@@ -128,6 +128,13 @@ struct cs35l41_private {
 	u32 trim_cache[CS35L41_TRIM_CACHE_SIZE];
 	u32 sample_rate_hz;
 	atomic_t is_irq_enabled;
+	struct power_supply *wlc_power_supply;
+	int wlc_present;
+	struct power_supply *batt_power_supply;
+	struct notifier_block batt_nb;
+	bool batt_nb_registered;
+	int batt_capacity;
+	int batt_status;
 };
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,

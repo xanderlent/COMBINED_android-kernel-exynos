@@ -41,6 +41,7 @@
 #include <linux/err.h>
 #include <linux/firmware.h>
 #include <linux/timekeeping.h>
+#include <linux/power_supply.h>
 
 #include "wm_adsp.h"
 #include "cs35l41.h"
@@ -3440,6 +3441,41 @@ static int cs35l41_restore(struct cs35l41_private *cs35l41)
 	return 0;
 }
 
+static int battery_handle_notification(struct notifier_block *nb,
+				      unsigned long val, void *v)
+{
+	struct cs35l41_private *cs35l41 =
+		container_of(nb, struct cs35l41_private, batt_nb);
+	struct power_supply *psy_wlc = cs35l41->wlc_power_supply;
+	struct power_supply *psy_batt = cs35l41->batt_power_supply;
+	union power_supply_propval value;
+	int ret;
+
+	ret = power_supply_get_property(psy_wlc, POWER_SUPPLY_PROP_PRESENT, &value);
+	if (ret < 0)
+		dev_err(cs35l41->dev, "%s: Fail to execute WLC present property", __func__);
+	else
+		cs35l41->wlc_present = value.intval;
+
+	ret = power_supply_get_property(psy_batt, POWER_SUPPLY_PROP_CAPACITY, &value);
+	if (ret < 0)
+		dev_err(cs35l41->dev, "%s: Fail to execute battery capacity property", __func__);
+	else
+		cs35l41->batt_capacity = value.intval;
+
+	ret = power_supply_get_property(psy_batt, POWER_SUPPLY_PROP_STATUS, &value);
+	if (ret < 0)
+		dev_err(cs35l41->dev, "%s: Fail to execute battery status property", __func__);
+	else
+		cs35l41->batt_status = value.intval;
+
+	dev_dbg(cs35l41->dev, "%s: wlc_present: %d batt_capacity: %d batt_status:%d",
+		__func__, cs35l41->wlc_present, cs35l41->batt_capacity, cs35l41->batt_status);
+
+	return NOTIFY_OK;
+}
+
+
 int cs35l41_probe(struct cs35l41_private *cs35l41,
 				struct cs35l41_platform_data *pdata)
 {
@@ -3769,6 +3805,36 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 
 	INIT_DELAYED_WORK(&cs35l41->hb_work, cs35l41_hibernate_work);
 	mutex_init(&cs35l41->hb_lock);
+
+	/************************************/
+	/* Register to battery power supply */
+	/************************************/
+	cs35l41->wlc_present = 0;
+	cs35l41->batt_capacity = 100;
+	cs35l41->batt_status = POWER_SUPPLY_STATUS_DISCHARGING;
+	cs35l41->wlc_power_supply = power_supply_get_by_name("wireless");
+	if (IS_ERR(cs35l41->wlc_power_supply) || !cs35l41->wlc_power_supply) {
+		dev_err(cs35l41->dev, "Couldn't get the wireless power supply\n");
+	} else {
+		cs35l41->batt_power_supply = power_supply_get_by_name("battery");
+		if (IS_ERR(cs35l41->batt_power_supply) || !cs35l41->batt_power_supply) {
+			dev_err(cs35l41->dev, "Couldn't get the battery power supply\n");
+			power_supply_put(cs35l41->wlc_power_supply); // Drop ref to wlc_power_supply
+		} else {
+			cs35l41->batt_nb.notifier_call = battery_handle_notification;
+			cs35l41->batt_nb.priority = 0;
+			ret = power_supply_reg_notifier(&cs35l41->batt_nb);
+			if (ret) {
+				dev_err(cs35l41->dev, "Register power_supply failed\n");
+				power_supply_put(cs35l41->wlc_power_supply); // Drop ref to wlc_power_supply
+				power_supply_put(cs35l41->batt_power_supply); // Drop ref to batt_power_supply
+			} else {
+				dev_dbg(cs35l41->dev, "Registered power_supply successfully\n");
+				cs35l41->batt_nb_registered = true;
+			}
+		}
+	}
+
 err:
 	regulator_bulk_disable(cs35l41->num_supplies, cs35l41->supplies);
 	return ret;
@@ -3776,6 +3842,13 @@ err:
 
 int cs35l41_remove(struct cs35l41_private *cs35l41)
 {
+	if (cs35l41->batt_nb_registered) {
+		power_supply_unreg_notifier(&cs35l41->batt_nb);
+		power_supply_put(cs35l41->wlc_power_supply); // Drop ref to wlc_power_supply
+		power_supply_put(cs35l41->batt_power_supply); // Drop ref to batt_power_supply
+		cs35l41->batt_nb_registered = false;
+	}
+
 	destroy_workqueue(cs35l41->wq);
 	mutex_destroy(&cs35l41->hb_lock);
 	regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1, 0xFFFFFFFF);
