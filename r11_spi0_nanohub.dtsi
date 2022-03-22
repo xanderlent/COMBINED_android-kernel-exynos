@@ -21,10 +21,9 @@
 		sensorhub,nreset-gpio = <&gpg3 0 0>;
 		sensorhub,boot0-gpio = <&gpg7 2 0>;
 		sensorhub,irq1-gpio = <&gpa0 7 0>;
-		sensorhub,irq2-gpio = <&gpa0 6 0>;
 		sensorhub,spi-cs-gpio = <&gpm3 0 0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sensorhub_spi0_nreset &sensorhub_spi0_boot0 &sensorhub_spi0_wakeup &sensorhub_spi0_irq1 &sensorhub_spi0_irq2 &sensorhub_spi0_cs>;
+		pinctrl-0 = <&sensorhub_spi0_nreset &sensorhub_spi0_boot0 &sensorhub_spi0_wakeup &sensorhub_spi0_irq1 &sensorhub_spi0_cs>;
 		status = "disabled";
 
 		controller-data {
