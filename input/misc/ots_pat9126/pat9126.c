@@ -46,7 +46,7 @@ struct pixart_pat9126_data {
 	struct mutex mtx;
 };
 
-#define PAT9126_WAKE_IRQ
+//#define PAT9126_WAKE_IRQ
 #define PAT9126_STATE_OFF 0
 #define PAT9126_STATE_ON 1
 #define PAT9126_STATE_RESUMING 2
