@@ -560,6 +560,7 @@ static void abox_dump_add_dai_link(struct device *dev)
 
 	cancel_delayed_work_sync(&abox_dump_register_card_work);
 	info->dev = dev;
+	link->id = id;
 	kfree(link->name);
 	link->name = link->stream_name = kstrdup(info->name, GFP_KERNEL);
 	link->cpu_name = "snd-soc-dummy";
