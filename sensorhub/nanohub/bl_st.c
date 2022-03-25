@@ -16,7 +16,7 @@
 
 #include "nanohub.h"
 #include "main.h"
-#include "bl.h"
+#include "bl_st.h"
 
 #define MAX_BUFFER_SIZE		1024
 #define MAX_FLASH_BANKS		16

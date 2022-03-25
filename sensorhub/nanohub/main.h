@@ -23,7 +23,15 @@
 #include <linux/semaphore.h>
 
 #include "comms.h"
-#include "bl.h"
+
+#ifdef CONFIG_NANOHUB_BL_ST
+#include "bl_st.h"
+#endif
+
+#ifdef CONFIG_NANOHUB_BL_NXP
+#include "bl_nxp.h"
+#endif
+
 
 #define NANOHUB_NAME "nanohub"
 
@@ -43,6 +51,24 @@ struct nanohub_io {
 	atomic_t busy;
 	uint8_t id;
 };
+
+#ifdef CONFIG_NANOHUB_BL_NXP
+enum fw_state {
+	FW_IDLE,
+	FW_PENDING,
+	FW_REQUESTED,
+	FW_IN_PROGRESS,
+	FW_COMPLETE,
+};
+
+#define FW_NAME_SIZE		64
+struct firmware_request {
+	char fw_name[FW_NAME_SIZE];
+	atomic_t state;
+	int result;
+	struct completion fw_complete;
+};
+#endif
 
 struct nanohub_data {
 	/* indices for io[] array */
@@ -97,6 +123,10 @@ struct nanohub_data {
 	struct task_struct *thread;
 
 	int wakeup_event_msec;
+
+#ifdef CONFIG_NANOHUB_BL_NXP
+	struct firmware_request firmware_request;
+#endif
 };
 
 enum {

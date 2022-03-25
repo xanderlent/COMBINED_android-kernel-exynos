@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/iio/iio.h>
 #include <linux/firmware.h>
@@ -41,8 +42,15 @@
 #include "nanohub_exports.h"
 #include "main.h"
 #include "comms.h"
-#include "bl.h"
 #include "spi.h"
+
+#ifdef CONFIG_NANOHUB_BL_ST
+#include "bl_st.h"
+#endif
+
+#ifdef CONFIG_NANOHUB_BL_NXP
+#include "bl_nxp.h"
+#endif
 
 #define READ_QUEUE_DEPTH	20
 #define APP_FROM_HOST_EVENTID	0x000000F8
@@ -722,7 +730,7 @@ static inline int nanohub_wakeup_lock(struct nanohub_data *data, int mode)
 		return ret;
 	}
 
-#ifdef CONFIG_NANOHUB_BL
+#if defined(CONFIG_NANOHUB_BL_ST) || defined(CONFIG_NANOHUB_BL_NXP)
 	if (mode == LOCK_MODE_IO || mode == LOCK_MODE_IO_BL)
 		ret = nanohub_bl_open(data);
 	if (ret < 0) {
@@ -747,7 +755,7 @@ static inline int nanohub_wakeup_unlock(struct nanohub_data *data)
 	atomic_set(&data->lock_mode, LOCK_MODE_NONE);
 	if (mode != LOCK_MODE_SUSPEND_RESUME)
 		enable_irq(data->irq1);
-#ifdef CONFIG_NANOHUB_BL
+#if defined(CONFIG_NANOHUB_BL_ST) || defined(CONFIG_NANOHUB_BL_NXP)
 	if (mode == LOCK_MODE_IO || mode == LOCK_MODE_IO_BL)
 		nanohub_bl_close(data);
 #endif
@@ -763,16 +771,11 @@ static inline int nanohub_wakeup_unlock(struct nanohub_data *data)
 
 static void __nanohub_hw_reset(struct nanohub_data *data, int boot0)
 {
-	//const struct nanohub_platform_data *pdata = data->pdata;
-
-	//gpio_set_value(pdata->nreset_gpio, 0);
-	//gpio_set_value(pdata->boot0_gpio, boot0 > 0);
-	//usleep_range(30, 40);
-	//gpio_set_value(pdata->nreset_gpio, 1);
-	//if (boot0 > 0)
-	//	usleep_range(70000, 75000);
-	//else if (!boot0)
-	//	usleep_range(750000, 800000);
+	const struct nanohub_platform_data *pdata = data->pdata;
+	gpio_set_value(pdata->nreset_gpio, 0);
+	usleep_range(1000, 2000);
+	gpio_set_value(pdata->nreset_gpio, 1);
+	usleep_range(10000, 20000);
 	nanohub_clear_err_cnt(data);
 }
 
@@ -801,7 +804,7 @@ static ssize_t nanohub_try_hw_reset(struct device *dev,
 	return ret < 0 ? ret : count;
 }
 
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 static ssize_t nanohub_erase_shared(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
@@ -906,7 +909,7 @@ static ssize_t nanohub_download_kernel(struct device *dev,
 
 }
 
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 static ssize_t nanohub_download_kernel_bl(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
@@ -950,6 +953,92 @@ static ssize_t nanohub_download_kernel_bl(struct device *dev,
 
 	return ret < 0 ? ret : count;
 }
+#endif
+
+#ifdef CONFIG_NANOHUB_BL_NXP
+
+static ssize_t nanohub_download_firmware_request(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t count)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	struct firmware_request *fw_request = &data->firmware_request;
+	char *fw_name = fw_request->fw_name;
+	int ret;
+
+	if (atomic_cmpxchg(&fw_request->state, FW_IDLE, FW_PENDING) !=
+	    FW_IDLE) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (count == 0 || count >= FW_NAME_SIZE) {
+		ret = -ENAMETOOLONG;
+		goto out;
+	}
+
+	// Handle \n or unterminated name.
+	memcpy(fw_name, buf, count);
+	if (fw_name[count - 1] == '\n')
+		fw_name[count - 1] = 0;
+	fw_name[count] = 0;
+
+	atomic_set(&fw_request->state, FW_REQUESTED);
+	nanohub_notify_thread(data);
+	wait_for_completion(&fw_request->fw_complete);
+	ret = fw_request->result;
+
+out:
+	if (ret < 0)
+		pr_err("nanohub: firmware request failed: %s err=%d\n", fw_name,
+		       ret);
+
+	atomic_set(&fw_request->state, FW_IDLE);
+	return ret < 0 ? ret : count;
+}
+
+static void nanohub_download_firmware(struct device *dev)
+{
+	struct nanohub_data *data = dev_get_drvdata(dev);
+	struct firmware_request *fw_request = &data->firmware_request;
+	const struct firmware *fw_entry;
+	int ret;
+
+	pr_info("nanohub: firmware download: %s\n", fw_request->fw_name);
+
+	atomic_set(&fw_request->state, FW_IN_PROGRESS);
+	ret = request_firmware(&fw_entry, fw_request->fw_name, dev);
+	if (ret < 0)
+		goto out;
+
+	ret = nanohub_wakeup_lock(data, LOCK_MODE_IO_BL);
+	if (ret < 0)
+		goto release_firmware;
+
+	// Disable irq1 as its GPIO is used by the bootloader.
+	if (data->irq1)
+		disable_irq(data->irq1);
+
+	__nanohub_hw_reset(data, -1);
+
+	ret = nanohub_bl_download_firmware(data, fw_entry->data,
+					   fw_entry->size);
+
+	mcu_wakeup_gpio_set_value(data, 1);
+	if (data->irq1)
+		enable_irq(data->irq1);
+	nanohub_wakeup_unlock(data);
+
+release_firmware:
+	release_firmware(fw_entry);
+out:
+	pr_info("nanohub: firmware download complete: %s err=%d\n",
+		fw_request->fw_name, ret);
+	fw_request->result = ret;
+	atomic_set(&fw_request->state, FW_COMPLETE);
+	complete(&fw_request->fw_complete);
+}
+
 #endif
 
 static ssize_t nanohub_download_app(struct device *dev,
@@ -1040,7 +1129,7 @@ static ssize_t nanohub_download_app(struct device *dev,
 	return count;
 }
 
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 static ssize_t nanohub_lock_bl(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
@@ -1119,24 +1208,27 @@ static struct device_attribute attributes[] = {
 	__ATTR(firmware_version, 0440, nanohub_firmware_query, NULL),
 	__ATTR(time_sync, 0440, nanohub_time_sync, NULL),
 	__ATTR(wake_lock, 0220, NULL, nanohub_mcu_wake_lock),
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 	__ATTR(download_bl, 0220, NULL, nanohub_download_bl),
 #endif
 	__ATTR(download_kernel, 0220, NULL, nanohub_download_kernel),
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 	__ATTR(download_kernel_bl, 0220, NULL, nanohub_download_kernel_bl),
 #endif
 	__ATTR(download_app, 0220, NULL, nanohub_download_app),
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 	__ATTR(erase_shared, 0220, NULL, nanohub_erase_shared),
 	__ATTR(erase_shared_bl, 0220, NULL, nanohub_erase_shared_bl),
 #endif
 	__ATTR(hw_reset, 0220, NULL, nanohub_try_hw_reset),
 	__ATTR(nreset, 0660, nanohub_pin_nreset_get, nanohub_pin_nreset_set),
 	__ATTR(boot0, 0660, nanohub_pin_boot0_get, nanohub_pin_boot0_set),
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 	__ATTR(lock, 0220, NULL, nanohub_lock_bl),
 	__ATTR(unlock, 0220, NULL, nanohub_unlock_bl),
+#endif
+#ifdef CONFIG_NANOHUB_BL_NXP
+	__ATTR(download_firmware, 0220, NULL, nanohub_download_firmware_request),
 #endif
 	__ATTR(wakeup_event_msec, 0660, nanohub_wakeup_event_msec_get, nanohub_wakeup_event_msec_set),
 };
@@ -1508,6 +1600,15 @@ static int nanohub_kthread(void *arg)
 			break;
 		}
 		atomic_set(&data->kthread_run, 0);
+
+#ifdef CONFIG_NANOHUB_BL_NXP
+		if (atomic_read(&data->firmware_request.state) == FW_REQUESTED) {
+			nanohub_download_firmware(dev);
+			nanohub_set_state(data, ST_IDLE);
+			continue;
+		}
+#endif
+
 		if (!buf)
 			buf = nanohub_io_get_buf(&data->free_pool,
 						 false);
@@ -1589,7 +1690,7 @@ static struct nanohub_platform_data *nanohub_parse_dt(struct device *dev)
 {
 	struct nanohub_platform_data *pdata;
 	struct device_node *dt = dev->of_node;
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 	const uint32_t *tmp;
 	struct property *prop;
 	uint32_t u, i;
@@ -1635,7 +1736,7 @@ static struct nanohub_platform_data *nanohub_parse_dt(struct device *dev)
 	/* optional (spi) */
 	pdata->spi_cs_gpio = of_get_named_gpio(dt, "sensorhub,spi-cs-gpio", 0);
 
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 	/* optional (bl-max-frequency) */
 	pdata->bl_max_speed_hz = BL_MAX_SPEED_HZ;
 	ret = of_property_read_u32(dt, "sensorhub,bl-max-frequency", &u);
@@ -1714,7 +1815,7 @@ static struct nanohub_platform_data *nanohub_parse_dt(struct device *dev)
 
 	return pdata;
 
-#ifdef CONFIG_NANOHUB_BL
+#ifdef CONFIG_NANOHUB_BL_ST
 no_mem_shared:
 	devm_kfree(dev, pdata->flash_banks);
 no_mem:
@@ -1906,6 +2007,11 @@ struct iio_dev *nanohub_probe(struct device *dev, struct iio_dev *iio_dev)
 	ret = nanohub_create_devices(data);
 	if (ret)
 		goto fail_dev;
+
+#ifdef CONFIG_NANOHUB_BL_NXP
+	atomic_set(&data->firmware_request.state, FW_IDLE);
+	init_completion(&data->firmware_request.fw_complete);
+#endif
 
 	data->thread = kthread_create(nanohub_kthread, data, "nanohub");
 	if (!IS_ERR(data->thread)) {
