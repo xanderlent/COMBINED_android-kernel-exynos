@@ -507,13 +507,17 @@ static void __nanohub_interrupt_cfg(struct nanohub_data *data,
 static inline void nanohub_mask_interrupt(struct nanohub_data *data,
 					  u8 interrupt)
 {
-	__nanohub_interrupt_cfg(data, interrupt, true);
+	// not supported in r11
+	//__nanohub_interrupt_cfg(data, interrupt, true);
+	return;
 }
 
 static inline void nanohub_unmask_interrupt(struct nanohub_data *data,
 					    u8 interrupt)
 {
-	__nanohub_interrupt_cfg(data, interrupt, false);
+	// not supported in r11
+	//__nanohub_interrupt_cfg(data, interrupt, false);
+	return;
 }
 
 static ssize_t nanohub_wakeup_query(struct device *dev,
