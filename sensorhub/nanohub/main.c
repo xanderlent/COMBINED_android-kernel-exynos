@@ -772,6 +772,7 @@ static inline int nanohub_wakeup_unlock(struct nanohub_data *data)
 static void __nanohub_hw_reset(struct nanohub_data *data, int boot0)
 {
 	const struct nanohub_platform_data *pdata = data->pdata;
+	gpio_set_value(pdata->boot0_gpio, 0);
 	gpio_set_value(pdata->nreset_gpio, 0);
 	usleep_range(1000, 2000);
 	gpio_set_value(pdata->nreset_gpio, 1);
