@@ -1,13 +1,14 @@
 #include <dt-bindings/gpio/gpio.h>
 
 &decon_f {
-
+	depends-on = <&dsim_0>;
 	pinctrl-names = "hw_te_on", "hw_te_off", "default";
 	decon,ttw-gpio = <&gpa0 6 0>;
 	pinctrl-0 = <&ttw_irq &decon_f_te_on>;
 };
 
 &dsim_0 {
+	depends-on = <&panel_0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&disp_power &disp_reset &mux_sel &mux_oe>;
 };
