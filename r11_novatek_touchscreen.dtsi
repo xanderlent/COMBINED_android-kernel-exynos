@@ -11,6 +11,7 @@
 		reg = <0x62>;
 		status = "disabled";
 
+		depends-on = <&decon_f>;
 		novatek,irq-gpio =<&gpa0 5 GPIO_ACTIVE_LOW>;
 		novatek,nfc-active-gpio = <&gpa1 4 0x00>;
 		pinctrl-names = "default";
