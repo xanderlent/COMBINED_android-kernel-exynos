@@ -433,14 +433,13 @@ static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 	if (normalized_brightness != 0) {
 		/* Delay until mode-change frame.
 		This requires an exact delay of 16.6ms after exit-doze cmd */
-		mdelay(16);
-		udelay(600);
+		usleep_range(16600, 16600);
 		/* Disable brightness dimming */
 		dsim_write_data_seq(dsim, false, 0x53, 0x20);
 		/* Set normalized brightness */
 		dsim_write_data_seq(dsim, false, 0x51, normalized_brightness);
 		/* Delay until mode-change frame ends */
-		mdelay(17);
+		usleep_range(17000, 17000);
 		/* Enable brightness dimming */
 		dsim_write_data_seq(dsim, false, 0x53, 0x28);
 	}

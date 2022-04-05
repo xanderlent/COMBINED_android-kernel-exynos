@@ -34,6 +34,7 @@
 #include <linux/suspend.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/workqueue.h>
 #include <video/mipi_display.h>
 #include <media/v4l2-subdev.h>
 #if defined(CONFIG_CAL_IF)
@@ -4563,7 +4564,8 @@ static int decon_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_display;
 
-	decon->displayon_wqueue = create_singlethread_workqueue("decon0");
+	decon->displayon_wqueue = alloc_workqueue("decon0",
+			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI, 1);
 	if (!decon->displayon_wqueue) {
 		decon_err("decon failed to create workqueue\n");
 		goto err_display;
