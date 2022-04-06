@@ -23,14 +23,16 @@
 #include <linux/kfifo.h>
 #include <linux/slab.h>
 #include <soc/samsung/exynos-cpupm.h>
+#include <linux/wakelock.h>
 
 #define STATUS_IDLE	1
 #define STATUS_BUSY	0
 
-#define NITROUS_AUTOSUSPEND_DELAY   	1000 /* autosleep delay 1000 ms */
+#define TX_SUSPEND_DELAY		100 /* Tx wakelock timeout 100 ms */
+#define NITROUS_AUTOSUSPEND_DELAY	1000 /* autosleep delay 1000 ms */
 #define TIMESYNC_TIMESTAMP_MAX_QUEUE	16
 #define TIMESYNC_NOT_SUPPORTED		0
-#define TIMESYNC_SUPPORTED 		1
+#define TIMESYNC_SUPPORTED		1
 #define TIMESYNC_ENABLED		2
 
 struct nitrous_lpm_proc;
@@ -60,6 +62,8 @@ struct nitrous_bt_lpm {
 	struct logbuffer *log;
 	int idle_bt_tx_ip_index;
 	int idle_bt_rx_ip_index;
+
+	struct wake_lock tx_wake_lock;
 };
 
 #define PROC_BTWAKE	0
@@ -204,6 +208,8 @@ static int nitrous_lpm_runtime_enable(struct nitrous_bt_lpm *lpm)
 
 static void nitrous_lpm_runtime_disable(struct nitrous_bt_lpm *lpm)
 {
+	wake_unlock(&lpm->tx_wake_lock);
+
 	if (!lpm->lpm_enabled)
 		return;
 
@@ -280,6 +286,7 @@ static ssize_t nitrous_proc_write(struct file *file, const char *buf,
 	switch (data->operation) {
 	case PROC_LPM:
 		if (lbuf[0] == '1') {
+			wake_lock(&lpm->tx_wake_lock);
 			dev_info(lpm->dev, "LPM enabling\n");
 			logbuffer_log(lpm->log, "PROC_LPM: enable");
 			rc = nitrous_lpm_runtime_enable(lpm);
@@ -302,6 +309,7 @@ static ssize_t nitrous_proc_write(struct file *file, const char *buf,
 			return count;
 		}
 		if (lbuf[0] == '1') {
+			wake_lock(&lpm->tx_wake_lock);
 			dev_dbg(lpm->dev, "LPM waking up for Tx\n");
 			ktime_get_real_ts64(&ts);
 			logbuffer_log(lpm->log, "PROC_BTWRITE: waking up %ptTt", &ts);
@@ -311,6 +319,7 @@ static ssize_t nitrous_proc_write(struct file *file, const char *buf,
 			ktime_get_real_ts64(&ts);
 			logbuffer_log(lpm->log, "PROC_BTWRITE: Tx done %ptTt", &ts);
 			nitrous_prepare_uart_tx_locked(lpm, false);
+			wake_lock_timeout(&lpm->tx_wake_lock, __msecs_to_jiffies(TX_SUSPEND_DELAY));
 		}
 		break;
 	default:
@@ -361,6 +370,9 @@ static int nitrous_lpm_init(struct nitrous_bt_lpm *lpm)
 	struct nitrous_lpm_proc *data;
 
 	lpm->is_suspended = true;
+
+	wake_lock_init(&lpm->tx_wake_lock, WAKE_LOCK_SUSPEND,
+			"bt_dev_wake");
 
 	if (lpm->timesync_state) {
 		fifo_size = TIMESYNC_TIMESTAMP_MAX_QUEUE * sizeof(ktime_t);
@@ -459,6 +471,7 @@ static void nitrous_lpm_cleanup(struct nitrous_bt_lpm *lpm)
 		kfifo_free(&lpm->timestamp_queue);
 
 	nitrous_lpm_remove_proc_entries(lpm);
+	wake_lock_destroy(&lpm->tx_wake_lock);
 }
 
 /*
