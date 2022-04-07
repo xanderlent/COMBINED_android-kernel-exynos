@@ -357,7 +357,6 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 	int busy_delay = BUSY_DELAY_MIN_US;
 	int ret;
 	uint32_t seq;
-	struct timespec ts;
 	s64 boottime;
 
 	if (pad == NULL)
@@ -367,8 +366,7 @@ int nanohub_comms_rx_retrans_boottime(struct nanohub_data *data, uint32_t cmd,
 
 	do {
 		data->comms.open(data);
-		get_monotonic_boottime(&ts);
-		boottime = timespec_to_ns(&ts);
+		boottime = ktime_to_ns(ktime_get_boottime());
 		packet_size =
 		    packet_create(&pad->packet, seq, cmd, tx_id,
 				  sizeof(boottime), (uint8_t *)&boottime,
