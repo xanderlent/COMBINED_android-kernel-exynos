@@ -2864,7 +2864,9 @@ static int cs35l41_handle_of_data(struct device *dev,
 				"Invalid Boost Voltage %u mV\n", val);
 			return -EINVAL;
 		}
-		pdata->bst_vctrl = ((val - 2550) / 100) + 1;
+		pdata->bst_vctrl = ((val - 2550) / 50) + 1;
+		dev_info(dev, "Boost Voltage set to %u mV | 0x3800: 0x%02x\n",
+			val, pdata->bst_vctrl);
 	}
 
 	ret = of_property_read_u32(np, "cirrus,boost-peak-milliamp", &val);
