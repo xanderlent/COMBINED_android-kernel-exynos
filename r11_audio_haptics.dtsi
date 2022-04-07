@@ -112,7 +112,7 @@
 		cirrus,boost-peak-milliamp = <1600>;
 		cirrus,boost-ind-nanohenry = <1000>;
 		cirrus,boost-cap-microfarad = <30>;
-		cirrus,boost-ctl-millivolt = <5500>;
+		cirrus,boost-ctl-millivolt = <4000>;
 		cirrus,hibernate-enable = <1>;
 
 		// Mode 3: Hi-Z during unused slots and while all transmit channels disabled
