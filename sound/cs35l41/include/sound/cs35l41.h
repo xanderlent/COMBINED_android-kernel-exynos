@@ -79,6 +79,7 @@ struct cs35l41_vol_ctl {
 	unsigned int ramp_knee_time;
 	unsigned int ramp_end_time;
 	int dig_vol;
+	int dig_unscaled_vol;
 	unsigned int auto_ramp_timeout;
 	unsigned int output_dev;
 	unsigned int prev_active_dev;
@@ -135,6 +136,7 @@ struct cs35l41_private {
 	bool batt_nb_registered;
 	int batt_capacity;
 	int batt_status;
+	struct work_struct scale_vol_work;
 };
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,

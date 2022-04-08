@@ -47,6 +47,11 @@
 #include "cs35l41.h"
 #include <sound/cs35l41.h>
 
+#define BATT_THRESHOLD		30 // Battery threshold at which we want to scale SPK vol
+#define VOL_ATT_IN_MDB		8000 // mdB
+#define VOL_STEP_IN_MDB		125 // mdB
+#define VOL_ATT			(VOL_ATT_IN_MDB / VOL_STEP_IN_MDB)
+
 static const char * const cs35l41_supplies[] = {
 	"VA",
 	"VP",
@@ -894,6 +899,25 @@ static void cs35l41_set_vol(int vol, struct cs35l41_private *cs35l41)
 	int ret;
 
 	mutex_lock(&cs35l41->vol_ctl.vol_mutex);
+
+	/* Scale volume if needed */
+	cs35l41->vol_ctl.dig_unscaled_vol = vol;
+	if ((cs35l41->batt_capacity <= BATT_THRESHOLD) ||
+		(cs35l41->batt_status != POWER_SUPPLY_STATUS_DISCHARGING) ||
+		cs35l41->wlc_present) {
+		vol = vol - VOL_ATT;
+		if (vol < 0)
+			vol = 0;
+		if (vol > CS35L41_MAX_PCM_VOL)
+			vol = CS35L41_MAX_PCM_VOL;
+		dev_info(cs35l41->dev,
+			"Scaled volume from %d down to %d\n",
+			cs35l41->vol_ctl.dig_vol, vol);
+		cs35l41->vol_ctl.dig_vol = vol;
+	} else {
+		dev_info(cs35l41->dev,
+			"Volume is not scaled: %d\n", vol);
+	}
 
 	if (vol < 0 || vol > CS35L41_MAX_PCM_VOL) {
 		dev_err(cs35l41->dev,
@@ -3441,6 +3465,46 @@ static int cs35l41_restore(struct cs35l41_private *cs35l41)
 	return 0;
 }
 
+static void scale_vol_work_func(struct work_struct *work)
+{
+	struct cs35l41_private *cs35l41 =
+		container_of(work, struct cs35l41_private, scale_vol_work);
+	static int old_batt_capacity = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	static int old_batt_status = POWER_SUPPLY_STATUS_DISCHARGING;
+	int new_batt_capacity, new_batt_status;
+
+	if (cs35l41->batt_capacity <= BATT_THRESHOLD)
+		new_batt_capacity = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+	else
+		new_batt_capacity = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+
+	switch (cs35l41->batt_status) {
+	case POWER_SUPPLY_STATUS_DISCHARGING:
+		// Only case where no external power supply is connected.
+		// That includes USB cable, wireless charger, etc.
+		new_batt_status = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
+	case POWER_SUPPLY_STATUS_UNKNOWN:
+	case POWER_SUPPLY_STATUS_CHARGING:
+	case POWER_SUPPLY_STATUS_NOT_CHARGING:
+	case POWER_SUPPLY_STATUS_FULL:
+	default:
+		// All cases where an external power supply is connected
+		new_batt_status = POWER_SUPPLY_STATUS_CHARGING;
+		break;
+	}
+	// Consider battery is "charging" when in WLC no matter what
+	if (cs35l41->wlc_present)
+		new_batt_status = POWER_SUPPLY_STATUS_CHARGING;
+
+	if ((new_batt_capacity != old_batt_capacity) ||
+	(new_batt_status != old_batt_status)) {
+		cs35l41_set_vol(cs35l41->vol_ctl.dig_unscaled_vol, cs35l41);
+		old_batt_capacity = new_batt_capacity;
+		old_batt_status = new_batt_status;
+	}
+}
+
 static int battery_handle_notification(struct notifier_block *nb,
 				      unsigned long val, void *v)
 {
@@ -3471,6 +3535,9 @@ static int battery_handle_notification(struct notifier_block *nb,
 
 	dev_dbg(cs35l41->dev, "%s: wlc_present: %d batt_capacity: %d batt_status:%d",
 		__func__, cs35l41->wlc_present, cs35l41->batt_capacity, cs35l41->batt_status);
+
+	/* Schedule work to scale volume according to battery level */
+	schedule_work(&cs35l41->scale_vol_work);
 
 	return NOTIFY_OK;
 }
@@ -3806,6 +3873,7 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 	INIT_DELAYED_WORK(&cs35l41->hb_work, cs35l41_hibernate_work);
 	mutex_init(&cs35l41->hb_lock);
 
+	INIT_WORK(&cs35l41->scale_vol_work, scale_vol_work_func);
 	/************************************/
 	/* Register to battery power supply */
 	/************************************/
