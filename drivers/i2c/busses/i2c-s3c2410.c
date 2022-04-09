@@ -1318,6 +1318,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
+	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
 
 	init_waitqueue_head(&i2c->wait);
