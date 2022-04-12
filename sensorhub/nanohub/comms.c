@@ -162,18 +162,18 @@ static void packet_free(struct nanohub_packet_pad *packet)
 static int read_ack(struct nanohub_data *data, struct nanohub_packet *response,
 		    int timeout)
 {
-	int ret, i;
+	int ret, i, empty_pkts;
 	const int max_size = sizeof(struct nanohub_packet) + MAX_UINT8 +
 	    sizeof(struct nanohub_packet_crc);
 	unsigned long end = jiffies + msecs_to_jiffies(READ_ACK_TIMEOUT_MS);
 
-	for (i = 0; time_before_eq(jiffies, end); i++) {
+	for (i = 0, empty_pkts = 0; time_before_eq(jiffies, end); i++) {
 		ret =
 		    data->comms.read(data, (uint8_t *) response, max_size,
 				     timeout);
 
 		if (ret == 0) {
-			pr_debug("nanohub: read_ack: %d: empty packet\n", i);
+			empty_pkts++;
 			ret = ERROR_NACK;
 			continue;
 		} else if (ret < sizeof(struct nanohub_packet)) {
@@ -200,6 +200,9 @@ static int read_ack(struct nanohub_data *data, struct nanohub_packet *response,
 		} else {
 			break;
 		}
+	}
+	if (empty_pkts > 0) {
+		pr_debug("nanohub: read_ack: %d retries\n", empty_pkts);
 	}
 
 	return ret;
