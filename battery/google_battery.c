@@ -46,6 +46,7 @@
 #define INITIAL_VOUT_BOOST_MV	100
 #define DEFAULT_CHARGE_STOP_LEVEL	100
 #define DEFAULT_CHARGE_START_LEVEL	0
+#define MS_TO_US (1000)
 
 static char *bat_status_str[] = {
 	"Unknown",
@@ -1395,7 +1396,7 @@ static void bat_monitor_work(struct work_struct *work)
 		old_charging_current = battery->charging_current;
 		ret = check_charging_current(battery);
 		if (battery->charging_current != old_charging_current) {
-			mdelay(250);
+			usleep_range(250 * MS_TO_US, (250 + 10) * MS_TO_US);
 		}
 		if (battery->wlc_connected) {
 			check_wlc_vout(battery);
