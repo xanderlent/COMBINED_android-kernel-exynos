@@ -490,6 +490,10 @@ static void __nanohub_interrupt_cfg(struct nanohub_data *data,
 	struct device *dev = data->io[ID_NANOHUB_COMMS].dev;
 	int cmd = mask ? CMD_COMMS_MASK_INTR : CMD_COMMS_UNMASK_INTR;
 
+	// interrupt config is not supported in r11, keeping for later use
+	if (true)
+		return;
+
 	do {
 		ret = request_wakeup_timeout(data, WAKEUP_TIMEOUT_MS);
 		if (ret) {
@@ -515,16 +519,14 @@ static void __nanohub_interrupt_cfg(struct nanohub_data *data,
 static inline void nanohub_mask_interrupt(struct nanohub_data *data,
 					  u8 interrupt)
 {
-	// not supported in r11
-	//__nanohub_interrupt_cfg(data, interrupt, true);
+	__nanohub_interrupt_cfg(data, interrupt, true);
 	return;
 }
 
 static inline void nanohub_unmask_interrupt(struct nanohub_data *data,
 					    u8 interrupt)
 {
-	// not supported in r11
-	//__nanohub_interrupt_cfg(data, interrupt, false);
+	__nanohub_interrupt_cfg(data, interrupt, false);
 	return;
 }
 
