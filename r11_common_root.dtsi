@@ -354,3 +354,7 @@ gpio_keys {
 		wakeup-event-action = <0>;
 	};
 };
+
+acpm_ipc {
+	logging-period = <0>;
+};
