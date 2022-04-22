@@ -346,6 +346,14 @@ static int wf012fbm_doze(struct exynos_panel_device *panel)
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
+	/* Page select 0x21 */
+	dsim_write_data_seq(dsim, false, 0xff, 0x21);
+	/* Set for brightness ramp/dim timing */
+	// Ramp/dim timing: DIM_OTP = 1, step = 60
+	// -> ramp/dim duration = 60 frames (1s @60Hz, 2s @30Hz)
+	dsim_write_data_seq(dsim, false, 0x57, 0xbc);
+	dsim_write_data_seq(dsim, false, 0x58, 0x3c);
+
 	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 	/* Idle Mode */
@@ -413,6 +421,13 @@ static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
+		/* Page select 0x21 */
+	dsim_write_data_seq(dsim, false, 0xff, 0x21);
+	/* Set for brightness ramp/dim timing */
+	// Ramp/dim timing: DIM_OTP = 1, step = 18
+	// -> ramp/dim duration = 18 frames (300ms @60Hz, 600ms @30Hz)
+	dsim_write_data_seq(dsim, false, 0x57, 0x92);
+	dsim_write_data_seq(dsim, false, 0x58, 0x12);
 	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 	/* Read brightness */
