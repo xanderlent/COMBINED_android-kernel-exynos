@@ -294,7 +294,8 @@ static int spi_bl_wait(const void *data, enum bl_readiness bl_ready_state)
 		delay += 10;
 		udelay(delay);
 	}
-	pr_warn("nanohub: %s timed out waiting for bootloader\n", __func__);
+	pr_warn("nanohub: %s timed out waiting for bootloader (%s)\n", __func__,
+		bl_ready_state ? "write" : "read");
 	return -BL_ERR_TIMEOUT;
 }
 
