@@ -6340,7 +6340,7 @@ static int abox_pm_notifier(struct notifier_block *nb,
 	struct device *dev = data->dev;
 	int ret;
 
-	dev_dbg(dev, "%s(%lu)\n", __func__, action);
+	dev_info(dev, "%s(%lu)\n", __func__, action);
 
 	switch (action) {
 	case PM_SUSPEND_PREPARE:
@@ -6353,10 +6353,6 @@ static int abox_pm_notifier(struct notifier_block *nb,
 						dev->power.runtime_status);
 				return NOTIFY_BAD;
 			}
-			/* clear cpu gears to abox power off */
-			abox_clear_cpu_gear_requests(dev, data);
-			abox_cpu_gear_barrier(data);
-			flush_workqueue(data->ipc_workqueue);
 			if (abox_test_quirk(data, ABOX_QUIRK_OFF_ON_SUSPEND)) {
 				ret = pm_runtime_put_sync(dev);
 				if (ret < 0) {
@@ -6371,22 +6367,20 @@ static int abox_pm_notifier(struct notifier_block *nb,
 					abox_print_power_usage(dev, NULL);
 					return NOTIFY_BAD;
 				}
-				ret = pm_runtime_suspend(dev);
-				if (ret < 0) {
-					dev_info(dev, "runtime suspend: %d\n", ret);
-					abox_print_power_usage(dev, NULL);
-					return NOTIFY_BAD;
-				}
-				atomic_set(&data->suspend_state, 1);
-				dev_info(dev, "(%d)s suspend_state: %d\n", __LINE__,
-						atomic_read(&data->suspend_state));
-			} else {
-				ret = pm_runtime_suspend(dev);
-				if (ret < 0) {
-					dev_info(dev, "runtime suspend: %d\n", ret);
-					return NOTIFY_BAD;
-				}
 			}
+			/* clear cpu gears to abox power off */
+			abox_clear_cpu_gear_requests(dev, data);
+			abox_cpu_gear_barrier(data);
+			flush_workqueue(data->ipc_workqueue);
+			ret = pm_runtime_suspend(dev);
+			if (ret < 0) {
+				dev_info(dev, "runtime suspend: %d\n", ret);
+				abox_print_power_usage(dev, NULL);
+				return NOTIFY_BAD;
+			}
+			atomic_set(&data->suspend_state, 1);
+			dev_info(dev, "(%d)s suspend_state: %d\n", __LINE__,
+					atomic_read(&data->suspend_state));
 		} else {
 			if (!abox_is_clearable(dev, data))
 				dev_info(dev, "abox is not clearable()\n");
