@@ -1156,6 +1156,7 @@ struct decon_device {
 	int irq_ttw;
 	atomic_t displayon_requested;
 	atomic_t in_suspend;
+	atomic_t ttw_allowed;
 	bool ttw_disabled;
 };
 

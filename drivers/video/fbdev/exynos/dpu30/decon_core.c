@@ -1175,6 +1175,11 @@ static void decon_displayoff_timeout(struct work_struct *work)
 {
 	struct decon_device *decon =
 		container_of(work, struct decon_device, displayoff_work.work);
+	// Cover the race condition where UNBLANK occurs in the middle of
+	// decon_spec_powerup after the conditions are already checked
+	if (!atomic_read(&decon->ttw_allowed) ||
+			decon->state == DECON_STATE_OFF)
+		return;
 	decon_err("decon%d: Hit display off timeout!\n", decon->id);
 	decon_displayoff(decon);
 }
@@ -1202,10 +1207,12 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 	switch (blank_mode) {
 	case FB_BLANK_POWERDOWN:
 		ret = decon_displayoff(decon);
+		atomic_set(&decon->ttw_allowed, 1);
 		if (ret)
 			goto blank_exit;
 		break;
 	case FB_BLANK_UNBLANK:
+		atomic_set(&decon->ttw_allowed, 0);
 		cancel_delayed_work_sync(&decon->displayoff_work);
 		queue_work(decon->displayon_wqueue, &decon->displayon_work);
 		flush_work(&decon->displayon_work);
@@ -4250,6 +4257,9 @@ int decon_spec_powerup(void)
 		decon_err("Decon is not fully initialized\n");
 		return -EINVAL;
 	}
+	if (!atomic_read(&decon->ttw_allowed))
+		return 0;
+
 	if (decon->state == DECON_STATE_OFF) {
 		decon_info("decon0: starting speculative display on\n");
 		queue_work(decon->displayon_wqueue, &decon->displayon_work);
