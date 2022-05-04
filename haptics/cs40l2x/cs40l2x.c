@@ -77,6 +77,9 @@ static const unsigned int cs40l2x_event_masks[] = {
 static int cs40l2x_raw_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 			const void *val, size_t val_len, size_t limit);
 
+static int cs40l2x_raw_write_retry(struct cs40l2x_private *cs40l2x,
+			unsigned int reg, const void *val, size_t val_len, size_t limit);
+
 static int cs40l2x_hw_err_rls(struct cs40l2x_private *cs40l2x,
 			unsigned int irq_mask);
 static int cs40l2x_hw_err_chk(struct cs40l2x_private *cs40l2x);
@@ -8569,6 +8572,33 @@ static int cs40l2x_raw_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 	return ret;
 }
 
+static int cs40l2x_raw_write_retry(struct cs40l2x_private *cs40l2x,
+	unsigned int reg, const void *val, size_t val_len, size_t limit)
+{
+	const int kMaxAttempts = 3;
+	int ret = -EIO;
+	int attempts = 0;
+	while(ret)
+	{
+		ret = cs40l2x_raw_write(cs40l2x, reg, val, val_len, limit);
+		if(ret == 0)
+			return 0;
+		dev_err(cs40l2x->dev,
+		"raw_write to reg=%08X, len=%d, span=%d failed with err=%d (%d,%d)\n",
+				reg, val_len, limit, ret, attempts, kMaxAttempts);
+		if(attempts++ >= kMaxAttempts)
+		{
+			dev_err(cs40l2x->dev, "All raw_write retries failed, last err=%d\n", ret);
+			return ret;
+		}
+		else
+		{
+			dev_err(cs40l2x->dev, "Retrying raw_write\n");
+		}
+	}
+	return ret;
+}
+
 int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 			unsigned int write_val, unsigned int reset_val)
 {
@@ -9026,7 +9056,7 @@ static int cs40l2x_firmware_parse(struct cs40l2x_private *cs40l2x,
 		case CS40L2X_WMFW_INFO_TYPE:
 			break;
 		case CS40L2X_PM_PACKED_TYPE:
-			ret = cs40l2x_raw_write(cs40l2x,
+			ret = cs40l2x_raw_write_retry(cs40l2x,
 					CS40L2X_DSP1_PMEM_0
 						+ block_offset * 5,
 					&fw->data[pos], block_length,
@@ -9038,7 +9068,7 @@ static int cs40l2x_firmware_parse(struct cs40l2x_private *cs40l2x,
 			}
 			break;
 		case CS40L2X_XM_PACKED_TYPE:
-			ret = cs40l2x_raw_write(cs40l2x,
+			ret = cs40l2x_raw_write_retry(cs40l2x,
 					CS40L2X_DSP1_XMEM_PACK_0
 						+ block_offset * 3,
 					&fw->data[pos], block_length,
@@ -9050,7 +9080,7 @@ static int cs40l2x_firmware_parse(struct cs40l2x_private *cs40l2x,
 			}
 			break;
 		case CS40L2X_YM_PACKED_TYPE:
-			ret = cs40l2x_raw_write(cs40l2x,
+			ret = cs40l2x_raw_write_retry(cs40l2x,
 					CS40L2X_DSP1_YMEM_PACK_0
 						+ block_offset * 3,
 					&fw->data[pos], block_length,
