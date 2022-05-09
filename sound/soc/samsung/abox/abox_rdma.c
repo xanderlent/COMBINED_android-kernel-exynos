@@ -121,7 +121,7 @@ enum OFFLOAD_IPTYPE {
 static const struct snd_compr_caps abox_rdma_compr_caps = {
 	.direction		= SND_COMPRESS_PLAYBACK,
 	.min_fragment_size	= SZ_4K,
-	.max_fragment_size	= SZ_64K,
+	.max_fragment_size	= SZ_32K,
 	.min_fragments		= 1,
 	.max_fragments		= 5,
 	.num_codecs		= 3,
