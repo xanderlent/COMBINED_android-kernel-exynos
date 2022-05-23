@@ -722,16 +722,25 @@ void nanohub_spi_comms_init(struct nanohub_spi_data *spi_data)
 	sema_init(&spi_data->spi_sem, 1);
 }
 
-static int nanohub_spi_probe(struct spi_device *spi)
-{
-	struct nanohub_spi_data *spi_data;
-	struct iio_dev *iio_dev;
+// Performs a zero length, no cost transaction to set the bus idle state.
+// Required on some systems if manual chip select and CPHA are used together.
+static void spi_set_bus_idle_state(struct nanohub_spi_data *spi_data) {
 	struct spi_message msg;
 	struct spi_transfer xfer = {
 		.len = 0,
 		.tx_buf = NULL,
 		.rx_buf = NULL
 	};
+	spi_message_init_with_transfers(&msg, &xfer, 1);
+	if (spi_sync_locked(spi_data->device, &msg) != 0) {
+		pr_err("nanohub: spi_set_bus_idle: spi_sync_locked failed\n");
+	}
+}
+
+static int nanohub_spi_probe(struct spi_device *spi)
+{
+	struct nanohub_spi_data *spi_data;
+	struct iio_dev *iio_dev;
 	int error;
 
 	iio_dev = iio_device_alloc(sizeof(struct nanohub_spi_data));
@@ -785,8 +794,7 @@ static int nanohub_spi_probe(struct spi_device *spi)
 	spi_data->device->mode = SPI_MODE_3;
 	spi_data->device->bits_per_word = SPI_BITS_PER_WORD;
 	spi_setup(spi_data->device);
-	spi_message_init_with_transfers(&msg, &xfer, 1);
-	spi_sync_locked(spi_data->device, &msg);
+	spi_set_bus_idle_state(spi_data);
 
 	nanohub_start(&spi_data->data);
 
@@ -837,6 +845,7 @@ static int nanohub_spi_resume(struct device *dev)
 	struct iio_dev *iio_dev = spi_get_drvdata(to_spi_device(dev));
 	struct nanohub_spi_data *spi_data = iio_priv(iio_dev);
 
+	spi_set_bus_idle_state(spi_data);
 	up(&spi_data->spi_sem);
 
 	return nanohub_resume(iio_dev);
