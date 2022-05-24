@@ -694,10 +694,11 @@ struct abox_data {
 	int cmpnt_reg_cnt;
 	const char *sram_name;
 	const char *dram_name;
+	bool boot_done;
 };
 /*
 struct abox_compr_data {
-	// compress offload 
+	// compress offload
 	struct snd_compr_stream *cstream;
 
 	void *dma_area;

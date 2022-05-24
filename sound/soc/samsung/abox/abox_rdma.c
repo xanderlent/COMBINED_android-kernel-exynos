@@ -429,11 +429,13 @@ static int abox_rdma_compr_isr_handler(void *priv)
 						data->received_total);
 
 			/* ALSA Framework callback to notify drain complete */
+			abox_rdma_compr_clear_intr_ack(dev);
 			snd_compr_drain_notify(data->cstream);
 			data->eos = 0;
 			dev_info(dev, "%s: DATA_CMD_EOS wake up\n", __func__);
+		} else {
+			abox_rdma_compr_clear_intr_ack(dev);
 		}
-		abox_rdma_compr_clear_intr_ack(dev);
 		break;
 	case INTR_DESTROY:
 		/* check the error */

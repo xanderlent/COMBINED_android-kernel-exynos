@@ -5067,6 +5067,8 @@ static void abox_boot_done_work_func(struct work_struct *work)
 	abox_restore_data(dev);
 	abox_request_cpu_gear(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
 			ABOX_CPU_GEAR_MIN);
+
+	data->boot_done = true;
 }
 
 static void abox_boot_done(struct device *dev, unsigned int version)
@@ -6001,6 +6003,8 @@ static int abox_enable(struct device *dev)
 
 	abox_gic_enable_irq(data->dev_gic);
 
+	data->boot_done = false;
+
 	abox_request_cpu_gear(dev, data, (void *)DEFAULT_CPU_GEAR_ID,
 			ABOX_CPU_GEAR_MAX);
 
@@ -6348,7 +6352,8 @@ static int abox_pm_notifier(struct notifier_block *nb,
 		if (abox_is_clearable(dev, data) &&
 		    !atomic_read(&data->suspend_state)) {
 			pm_runtime_barrier(dev);
-			if (dev->power.runtime_status != 0) {
+			if ((dev->power.runtime_status != 0) &&
+				(data->boot_done == true)) {
 				dev_info(dev, "calliope state: %d\n",
 						dev->power.runtime_status);
 				return NOTIFY_BAD;
