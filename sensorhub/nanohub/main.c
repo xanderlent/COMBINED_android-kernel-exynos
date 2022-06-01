@@ -374,7 +374,6 @@ int request_wakeup_ex(struct nanohub_data *data, long timeout_ms,
 	long timeout;
 	bool priority_lock = lock_mode > LOCK_MODE_NORMAL;
 	struct device *dev = data->io[ID_NANOHUB_COMMS].dev;
-	int ret;
 	ktime_t ktime_delta;
 	ktime_t wakeup_ktime;
 
@@ -404,14 +403,15 @@ int request_wakeup_ex(struct nanohub_data *data, long timeout_ms,
 				&& data->wakeup_err_cnt > WAKEUP_ERR_CNT) {
 				mcu_wakeup_gpio_put_locked(data, priority_lock);
 				spin_unlock(&data->wakeup_wait.lock);
-				dev_info(dev,
-					"wakeup: hard reset due to consistent error\n");
-				ret = nanohub_hw_reset(data);
-				if (ret) {
-					dev_info(dev,
-						"%s: failed to reset nanohub: ret=%d\n",
-						__func__, ret);
-				}
+				dev_info(dev, "wakeup: consistent error\n");
+				// dev_info(dev,
+				// 	"wakeup: hard reset due to consistent error\n");
+				// ret = nanohub_hw_reset(data);
+				// if (ret) {
+				// 	dev_info(dev,
+				// 		"%s: failed to reset nanohub: ret=%d\n",
+				// 		__func__, ret);
+				// }
 				return -ETIME;
 			}
 		}
@@ -1592,14 +1592,15 @@ static int nanohub_kthread(void *arg)
 						data->kthread_err_ktime);
 			if (ktime_to_ns(ktime_delta) > KTHREAD_ERR_TIME_NS
 				&& data->kthread_err_cnt > KTHREAD_ERR_CNT) {
-				dev_info(dev,
-					"kthread: hard reset due to consistent error\n");
-				ret = nanohub_hw_reset(data);
-				if (ret) {
-					dev_info(dev,
-						"%s: failed to reset nanohub: ret=%d\n",
-						__func__, ret);
-				}
+				dev_info(dev, "kthread: consistent error\n");
+				// dev_info(dev,
+				// 	"kthread: hard reset due to consistent error\n");
+				// ret = nanohub_hw_reset(data); //
+				// if (ret) {
+				// 	dev_info(dev,
+				// 		"%s: failed to reset nanohub: ret=%d\n",
+				// 		__func__, ret);
+				// }
 			}
 			msleep_interruptible(WAKEUP_TIMEOUT_MS);
 			nanohub_set_state(data, ST_RUNNING);
