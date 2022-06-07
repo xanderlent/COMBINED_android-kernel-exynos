@@ -28,6 +28,7 @@
 #include <linux/modem_notifier.h>
 #include <linux/sched/clock.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/ktime.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -4050,7 +4051,7 @@ int abox_request_cpu_gear(struct device *dev, struct abox_data *data,
 	const void *old_id;
 	unsigned int old_gear;
 
-	dev_info(dev, "%s(%p, %u)\n", __func__, id, gear);
+	dev_info(dev, "%s(%p, %u) %llu\n", __func__, id, gear, ktime_get());
 
 	for (request = data->cpu_gear_requests;
 			request - data->cpu_gear_requests <

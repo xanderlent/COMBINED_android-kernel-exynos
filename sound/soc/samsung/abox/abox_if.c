@@ -519,16 +519,17 @@ static int abox_uaif_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-			regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
-			dev_info(dev, "%s:s/P %d abox_uaif_ctrl0=%08x\n",
-				__func__, id, val);
-			ret = snd_soc_component_update_bits(cmpnt,
-					ABOX_UAIF_CTRL0(id), mask, 0 << shift);
-			regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
-			dev_info(dev, "%s:e/P abox_uaif_ctrl0=%08x\n",
-				__func__, val);
-		}
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK
+			&& trigger == SNDRV_PCM_TRIGGER_PAUSE_PUSH)
+			break;
+		regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
+		dev_info(dev, "%s:s/P %d abox_uaif_ctrl0=%08x\n",
+			__func__, id, val);
+		ret = snd_soc_component_update_bits(cmpnt,
+				ABOX_UAIF_CTRL0(id), mask, 0 << shift);
+		regmap_read(cmpnt->regmap, ABOX_UAIF_CTRL0(id), &val);
+		dev_info(dev, "%s:e/P abox_uaif_ctrl0=%08x\n",
+			__func__, val);
 		break;
 	default:
 		ret = -EINVAL;
