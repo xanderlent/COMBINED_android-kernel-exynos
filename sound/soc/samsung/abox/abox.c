@@ -5793,6 +5793,8 @@ static void abox_download_work_func(struct work_struct *work)
 
 	dev_info(dev, "%s\n", __func__);
 
+	data->calliope_state = CALLIOPE_ENABLING;
+
 	ret = abox_download_firmware(pdev);
 	if (ret < 0) {
 		if (ret != -EAGAIN)
@@ -5809,7 +5811,6 @@ static void abox_download_work_func(struct work_struct *work)
 
 	abox_cpu_power(true);
 	abox_cpu_enable(true);
-	data->calliope_state = CALLIOPE_ENABLING;
 
 	abox_pad_retention(false);
 #ifdef MANUAL_SECURITY_CHANGE

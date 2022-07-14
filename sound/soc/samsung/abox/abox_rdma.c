@@ -242,6 +242,7 @@ static int abox_rdma_mailbox_send_cmd(struct device *dev, unsigned int cmd)
 	struct abox_dma_data *dma_data = dev_get_drvdata(dev);
 	struct device *dev_abox = dma_data->dev_abox;
 	struct abox_compr_data *data = &dma_data->compr_data;
+	struct abox_data *abox_data = dma_data->abox_data;
 	ABOX_IPC_MSG ipc;
 	int ret, n, ack;
 
@@ -300,7 +301,10 @@ static int abox_rdma_mailbox_send_cmd(struct device *dev, unsigned int cmd)
 
 	abox_rdma_mailbox_write(dev, COMPR_HANDLE_ID, data->handle_id);
 	abox_rdma_mailbox_write(dev, COMPR_CMD_CODE, cmd);
-	ret = abox_request_ipc(dev_abox, IPC_OFFLOAD, &ipc, 0, 1, 1);
+	if (abox_data->calliope_state == CALLIOPE_ENABLED)
+		ret = abox_request_ipc(dev_abox, IPC_OFFLOAD, &ipc, 0, 1, 1);
+	else if (abox_data->calliope_state == CALLIOPE_ENABLING)
+		ret = abox_request_ipc(dev_abox, IPC_OFFLOAD, &ipc, 0, 0, 1);
 
 	for (n = 0, ack = 0; n < 2000; n++) {
 		/* Wait for ACK */
