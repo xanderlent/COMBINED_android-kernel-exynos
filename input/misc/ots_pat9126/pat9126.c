@@ -303,7 +303,9 @@ int pat9126_disable_mot_write_protected(struct i2c_client *client) {
 /* Read motion */
 void pat9126_read_motion(struct i2c_client *client, int16_t *dx16, int16_t *dy16)
 {
-	int8_t deltaX_l = 0, deltaY_l = 0, deltaXY_h = 0;
+	/* Be sure to use unsigned values for the low bytes to
+	   avoid unintended sign extension (b/234361169) */
+	uint8_t deltaX_l = 0, deltaY_l = 0, deltaXY_h = 0;
 	int16_t deltaX_h = 0, deltaY_h = 0;
 	uint8_t motion = 0;
 
@@ -328,8 +330,8 @@ void pat9126_read_motion(struct i2c_client *client, int16_t *dx16, int16_t *dy16
 			deltaY_h |= 0xf000;
 	}
 
-	*dx16 = deltaX_h | deltaX_l;
-	*dy16 = deltaY_h | deltaY_l;
+	*dx16 = deltaX_h | (int16_t) deltaX_l;
+	*dy16 = deltaY_h | (int16_t) deltaY_l;
 }
 
 static void pat9126_work_handler(struct work_struct *work)
@@ -368,7 +370,7 @@ static void pat9126_work_handler(struct work_struct *work)
 
 	if (delta_x != 0) {
 		/* Send delta_x as REL_WHEEL for rotation */
-		input_report_rel(ipdev, REL_WHEEL, (s8) delta_x);
+		input_report_rel(ipdev, REL_WHEEL, delta_x);
 		input_sync(ipdev);
 	}
 
