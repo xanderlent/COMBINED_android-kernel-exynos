@@ -1299,6 +1299,22 @@ out:
 	return ret;
 }
 
+static int nvt_ts_input_open(struct input_dev *dev) {
+	int irq = ts->client->irq;
+
+	NVT_LOG("enabling wake on irq %d\n", irq);
+	enable_irq_wake(irq);
+
+	return 0;
+}
+
+static void nvt_ts_input_close(struct input_dev *dev) {
+	int irq = ts->client->irq;
+
+	NVT_LOG("disabling wake on irq %d\n", irq);
+	disable_irq_wake(irq);
+}
+
 /*******************************************************
 Description:
 	Novatek touchscreen driver probe function.
@@ -1434,6 +1450,9 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	ts->input_dev->name = NVT_TS_NAME;
 	ts->input_dev->phys = ts->phys;
 	ts->input_dev->id.bustype = BUS_I2C;
+
+	ts->input_dev->open = nvt_ts_input_open;
+	ts->input_dev->close = nvt_ts_input_close;
 
 	//---register input device---
 	ret = input_register_device(ts->input_dev);
@@ -1887,13 +1906,9 @@ static int32_t nvt_ts_resume(struct device *dev)
 	return 0;
 }
 
-static int nvt_ts_wake_enable(struct device *dev) {
+static int nvt_ts_irq_disable(struct device *dev) {
 	unsigned long flags;
 	struct nvt_ts_touch_stats local;
-	int irq = ts->client->irq;
-
-	NVT_LOG("enabling wake on irq %d\n", irq);
-	enable_irq_wake(irq);
 
 	// This avoids a race condition where an irq mid-suspend
 	// causes us to read from i2c while it is unavailable
@@ -1917,13 +1932,8 @@ static int nvt_ts_wake_enable(struct device *dev) {
 	return 0;
 }
 
-static int nvt_ts_wake_disable(struct device *dev) {
-	int irq = ts->client->irq;
-
+static int nvt_ts_irq_enable(struct device *dev) {
 	nvt_irq_enable(true);
-
-	NVT_LOG("disabling wake on irq %d\n", irq);
-	disable_irq_wake(irq);
 
 	return 0;
 }
@@ -2022,7 +2032,7 @@ static void nvt_ts_late_resume(struct early_suspend *h)
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(nvt_ts_pm_ops, nvt_ts_wake_enable, nvt_ts_wake_disable);
+static SIMPLE_DEV_PM_OPS(nvt_ts_pm_ops, nvt_ts_irq_disable, nvt_ts_irq_enable);
 
 static const struct i2c_device_id nvt_ts_id[] = {
 	{ NVT_I2C_NAME, 0 },
