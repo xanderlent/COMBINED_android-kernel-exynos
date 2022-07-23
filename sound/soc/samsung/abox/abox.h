@@ -14,6 +14,7 @@
 
 #include <linux/pm_wakeup.h>
 #include <sound/samsung/abox.h>
+#include <linux/wakelock.h>
 
 #define ABOX_MASK(name) (GENMASK(ABOX_##name##_H, ABOX_##name##_L))
 #define ABOX_MASK_ARG(name, x) (GENMASK(ABOX_##name##_H(x), ABOX_##name##_L(x)))
@@ -695,6 +696,7 @@ struct abox_data {
 	const char *sram_name;
 	const char *dram_name;
 	bool boot_done;
+	struct wake_lock mode_in_call_lock;
 };
 /*
 struct abox_compr_data {

@@ -29,6 +29,7 @@
 #include <linux/sched/clock.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/ktime.h>
+#include <linux/wakelock.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -1564,6 +1565,14 @@ static int abox_audio_mode_put_ipc(struct device *dev, enum audio_mode mode)
 	struct IPC_SYSTEM_MSG *system_msg = &msg.msg.system;
 
 	dev_dbg(dev, "%s(%d)\n", __func__, mode);
+
+	/* Grab a wakelock every time we are in MODE_IN_CALL to work around
+	 * the issue observed in b/231630258, and release it in any other mode.
+	 */
+	if (mode == MODE_IN_CALL)
+		wake_lock(&data->mode_in_call_lock);
+	else
+		wake_unlock(&data->mode_in_call_lock);
 
 	msg.ipcid = IPC_SYSTEM;
 	system_msg->msgtype = ABOX_SET_MODE;
@@ -6934,6 +6943,9 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_err(dev, "component register failed:%d\n", ret);
 
+	wake_lock_init(&data->mode_in_call_lock, WAKE_LOCK_SUSPEND,
+		"mode-in-call");
+
 	dev_info(dev, "%s: probe complete\n", __func__);
 
 	of_platform_populate(np, NULL, NULL, dev);
@@ -6947,6 +6959,8 @@ static int samsung_abox_remove(struct platform_device *pdev)
 	struct abox_data *data = platform_get_drvdata(pdev);
 
 	dev_info(dev, "%s\n", __func__);
+
+	wake_lock_destroy(&data->mode_in_call_lock);
 
 	pm_runtime_disable(dev);
 #ifndef CONFIG_PM
