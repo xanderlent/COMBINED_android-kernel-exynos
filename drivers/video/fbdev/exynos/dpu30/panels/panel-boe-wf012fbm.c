@@ -375,11 +375,25 @@ static int wf012fbm_set_light(struct exynos_panel_device *panel, u32 br_val)
 {
 	u8 data;
 	struct dsim_device *dsim = get_dsim_drvdata(0);
-	mutex_lock(&panel->ops_lock);
-	/* WRDISBV(8bit): 1st DBV[7:0] */
-	data = br_val & 0xFF;
-	dsim_write_data_seq(dsim, false, 0x51, data);
-	mutex_unlock(&panel->ops_lock);
+	/*
+	 * Only set brightness if it's not currently in doze mode as AP
+	 * assumes DBVs are in 650 nits range while in fact it could be
+	 * in 150 nits range if the device already entered doze.
+	 *
+	 * In order to prevent wrong brightness set due to this 650/150
+	 * nits scaling, the MCU will be solely responsible for controlling
+	 * display brightness during doze (150 nits range). Thus, this
+	 * function would do nothing if the device is currently in doze.
+	 */
+	if (dsim->state != DSIM_STATE_DOZE) {
+		mutex_lock(&panel->ops_lock);
+		/* WRDISBV(8bit): 1st DBV[7:0] */
+		data = br_val & 0xFF;
+		dsim_write_data_seq(dsim, false, 0x51, data);
+		mutex_unlock(&panel->ops_lock);
+	} else {
+		DPU_INFO_PANEL("%s: skip doze br=%d\n", __func__, br_val);
+	}
 	return 0;
 }
 
