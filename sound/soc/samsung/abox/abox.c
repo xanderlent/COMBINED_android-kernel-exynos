@@ -5182,6 +5182,7 @@ static void abox_system_ipc_handler(struct device *dev,
 {
 	struct IPC_SYSTEM_MSG *system_msg = &msg->msg.system;
 	int ret;
+	bool abox_crashed = false;
 
 	dev_dbg(dev, "msgtype=%d\n", system_msg->msgtype);
 
@@ -5274,6 +5275,7 @@ static void abox_system_ipc_handler(struct device *dev,
 			break;
 		case 3:
 			type = "os error";
+			abox_crashed = true;
 			break;
 		case 4:
 			type = "vss error";
@@ -5331,6 +5333,9 @@ static void abox_system_ipc_handler(struct device *dev,
 				system_msg->param2, system_msg->param3);
 		break;
 	}
+
+	if (abox_crashed)
+		panic("Fatal error - Abox crashed");
 }
 
 static void abox_playback_ipc_handler(struct device *dev,
