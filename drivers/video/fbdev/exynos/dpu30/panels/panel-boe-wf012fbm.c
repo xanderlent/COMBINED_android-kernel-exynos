@@ -35,6 +35,7 @@ static int wf012fbm_suspend(struct exynos_panel_device *panel)
 	dsim_write_data_seq(dsim, false, MIPI_DCS_ENTER_SLEEP_MODE);
 	usleep_range(70000, 70000);
 
+	panel->doze_brightness_normalized = false;
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;
@@ -334,6 +335,7 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 	}
 	/* Exit Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_IDLE_MODE);
+	panel->doze_brightness_normalized = false;
 
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
@@ -343,21 +345,50 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 static int wf012fbm_doze(struct exynos_panel_device *panel)
 {
 	struct dsim_device *dsim = get_dsim_drvdata(0);
+	u8 aod_brightness = 0;
+	u8 interactive_brightness = 0;
+	u16 brightness_u16 = 0;
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
-	/* Page select 0x21 */
-	dsim_write_data_seq(dsim, false, 0xff, 0x21);
-	/* Set for brightness ramp/dim timing */
-	// Ramp/dim timing: DIM_OTP = 1, step = 60
-	// -> ramp/dim duration = 60 frames (1s @60Hz, 2s @30Hz)
-	dsim_write_data_seq(dsim, false, 0x57, 0xbc);
-	dsim_write_data_seq(dsim, false, 0x58, 0x3c);
-
 	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
+	/* Calculate normalized brightness */
+	interactive_brightness = panel->bl->props.brightness;
+	if (interactive_brightness > 0) {
+		brightness_u16 =
+			DIV_ROUND_CLOSEST(interactive_brightness * 650, 150);
+		/* If normalized brightness is set late after mode-change
+		frame finish, it could cause a dip when interactive brightness
+		gets scaled down (150/650) and rises back up to the normalized
+		level. To cover for this case, let's scale down the normalized
+		brightness by 90% so that it doesn't rise back up. This should
+		only apply to brighter level (i.e. > 20/255) where the dip
+		could be seen easily. */
+		if (interactive_brightness > 20) {
+			brightness_u16 = brightness_u16 * 90 / 100;
+		}
+		aod_brightness = brightness_u16 > 255 ? 255 : brightness_u16;
+	}
+
 	/* Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_ENTER_IDLE_MODE);
+	/* Set normalized brightness */
+	if (!panel->doze_brightness_normalized && aod_brightness != 0) {
+		/* Delay until mode-change frame.
+		This requires an exact delay of 1 frame after exit-doze cmd */
+		usleep_range(16667, 16667);
+		/* Disable brightness dimming */
+		dsim_write_data_seq(dsim, false, 0x53, 0x20);
+		/* Set normalized brightness */
+		dsim_write_data_seq(dsim, false, 0x51, aod_brightness);
+		/* Delay until mode-change frame ends */
+		usleep_range(16667, 16667);
+		/* Enable brightness dimming */
+		dsim_write_data_seq(dsim, false, 0x53, 0x28);
+		panel->doze_brightness_normalized = true;
+	}
+
 	/* Exit HBM in case it's on */
 	dsim_write_data_seq(dsim, false, 0x66, 0x00);
 
@@ -435,14 +466,6 @@ static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
-		/* Page select 0x21 */
-	dsim_write_data_seq(dsim, false, 0xff, 0x21);
-	/* Set for brightness ramp/dim timing */
-	// Ramp/dim timing: DIM_OTP = 1, step = 18
-	// -> ramp/dim duration = 18 frames (300ms @60Hz, 600ms @30Hz)
-	dsim_write_data_seq(dsim, false, 0x57, 0x92);
-	dsim_write_data_seq(dsim, false, 0x58, 0x12);
-	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 	/* Read brightness */
 	dsim_read_data(dsim, MIPI_DSI_DCS_READ,
@@ -455,23 +478,31 @@ static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 		this can be done by scaling with the max brightness nits
 		(150 nits for AOD and 650 nits for interactive at DBV255) */
 		normalized_brightness = DIV_ROUND_CLOSEST(buf[0] * 150, 650);
+		/* If normalized brightness is set late after mode-change
+		frame finish, it could cause a spike when AOD brightness gets
+		scaled up (650/150) and dip back down to the normalized level.
+		To cover for this case, let's scale up the normalized
+		brightness by 120% so that it doesn't dip back down */
+		normalized_brightness = normalized_brightness * 120 / 100;
 	}
 	/* Exit Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_IDLE_MODE);
 	/* Flatten mode-change brightness ramp */
 	if (normalized_brightness != 0) {
+		panel->bl->props.brightness = normalized_brightness;
 		/* Delay until mode-change frame.
-		This requires an exact delay of 16.6ms after exit-doze cmd */
-		usleep_range(16600, 16600);
+		This requires an exact delay of 1 frame after exit-doze cmd */
+		usleep_range(16667, 16667);
 		/* Disable brightness dimming */
 		dsim_write_data_seq(dsim, false, 0x53, 0x20);
 		/* Set normalized brightness */
 		dsim_write_data_seq(dsim, false, 0x51, normalized_brightness);
 		/* Delay until mode-change frame ends */
-		usleep_range(17000, 17000);
+		usleep_range(16667, 16667);
 		/* Enable brightness dimming */
 		dsim_write_data_seq(dsim, false, 0x53, 0x28);
 	}
+	panel->doze_brightness_normalized = false;
 	mutex_unlock(&panel->ops_lock);
 	DPU_INFO_PANEL("%s -\n", __func__);
 	return 0;

@@ -116,6 +116,7 @@ struct exynos_panel_device {
 	struct exynos_panel_ops *ops;
 	bool cabc_enabled;
 	enum power_mode power_mode;
+	bool doze_brightness_normalized;
 };
 
 static inline struct exynos_panel_device *get_panel_drvdata(void)
