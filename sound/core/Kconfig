@@ -184,4 +184,8 @@ config SND_DMA_SGBUF
 	def_bool y
 	depends on X86
 
+config SDN_NO_XRUN_GOOGLE
+	bool "Don't report underrun to avoid start/stop triggers"
+	default n
+
 source "sound/core/seq/Kconfig"
