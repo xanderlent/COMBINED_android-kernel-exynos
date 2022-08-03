@@ -504,6 +504,12 @@ static int abox_uaif_trigger(struct snd_pcm_substream *substream,
 	}
 
 	regcache_cache_bypass(cmpnt->regmap, true);
+
+	if (trigger == SNDRV_PCM_TRIGGER_STOP && id == 0)
+		snd_soc_component_update_bits(cmpnt, ABOX_SPUS_CTRL2,
+					ABOX_SPUS_MIXP_FLUSH_MASK,
+					1 << ABOX_SPUS_MIXP_FLUSH_L);
+
 	switch (trigger) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
