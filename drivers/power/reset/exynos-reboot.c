@@ -132,6 +132,7 @@ static void exynos_power_off(void)
 #define EXYNOS_PMU_SYSIP_DAT0		(0x0810)
 #define REBOOT_MODE_NORMAL		(0x00)
 #define REBOOT_MODE_CHARGE		(0x0A)
+#define REBOOT_MODE_SHIPMODE		(0x0B)
 #define REBOOT_MODE_DMVERITY_CORRUPTED	(0x50)
 #define REBOOT_MODE_SHUTDOWN_THERMAL	(0x51)
 #define REBOOT_MODE_RESCUE		(0xF9)
@@ -149,6 +150,8 @@ static void exynos_reboot_parse(void *cmd)
 
 		if (!strcmp(cmd, "charge"))
 			value = REBOOT_MODE_CHARGE;
+		else if (!strcmp(cmd, "shipmode"))
+			value = REBOOT_MODE_SHIPMODE;
 		else if (!strcmp(cmd, "bootloader"))
 			value = REBOOT_MODE_BOOTLOADER;
 		else if (!strcmp(cmd, "fastboot"))
