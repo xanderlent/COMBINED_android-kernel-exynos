@@ -47,6 +47,7 @@
 #define DEFAULT_CHARGE_STOP_LEVEL	100
 #define DEFAULT_CHARGE_START_LEVEL	0
 #define MS_TO_US (1000)
+#define HUNDREDTHS_OF_PERCENT 100
 
 static char *bat_status_str[] = {
 	"Unknown",
@@ -859,6 +860,12 @@ static int battery_handle_notification(struct notifier_block *nb,
 	if (battery->status != old_status) {
 		power_supply_changed(battery->psy_battery);
 		alarm_cancel(&battery->monitor_alarm);
+		if (power_supply_type == POWER_SUPPLY_TYPE_MAINS &&
+		    (old_status == POWER_SUPPLY_STATUS_NOT_CHARGING ||
+		     old_status == POWER_SUPPLY_STATUS_DISCHARGING) &&
+		    battery->status == POWER_SUPPLY_STATUS_CHARGING) {
+			battery->soc_spoof_full = 100 * HUNDREDTHS_OF_PERCENT;
+		}
 	}
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 	return 0;
@@ -1310,6 +1317,8 @@ static void battery_external_power_changed(struct power_supply *psy) {
 			}
 			if (value.intval) {
 				battery->wlc_authentic = true;
+				battery->soc_spoof_full =
+					100 * HUNDREDTHS_OF_PERCENT;
 			} else {
 				dev_info(battery->dev, "WLC inauthentic\n");
 				battery->wlc_authentic = false;
@@ -2108,8 +2117,7 @@ static int google_battery_probe(struct platform_device *pdev)
 		goto err_unreg_wireless;
 	}
 	power_supply_put(psy);
-	// Assume lower bound of charge full spoofing
-	battery->soc_spoof_full = battery->pdata->chg_recharge_soc * 100;
+	battery->soc_spoof_full = 100 * HUNDREDTHS_OF_PERCENT;
 	/* Initialize battery level */
 	get_battery_info(battery);
 
