@@ -1564,7 +1564,7 @@ static int abox_audio_mode_put_ipc(struct device *dev, enum audio_mode mode)
 	ABOX_IPC_MSG msg;
 	struct IPC_SYSTEM_MSG *system_msg = &msg.msg.system;
 
-	dev_dbg(dev, "%s(%d)\n", __func__, mode);
+	dev_info(dev, "%s(%d)\n", __func__, mode);
 
 	/* Grab a wakelock every time we are in MODE_IN_CALL to work around
 	 * the issue observed in b/231630258, and release it in any other mode.
