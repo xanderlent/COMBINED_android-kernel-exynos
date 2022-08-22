@@ -205,6 +205,9 @@ int snd_pcm_update_state(struct snd_pcm_substream *substream,
 		}
 	} else {
 		if (avail >= runtime->stop_threshold) {
+			pcm_warn(substream->pcm,
+				"%s: Underrunning! avail: %d, stop_threshold: %d\n",
+				__func__, avail, runtime->stop_threshold);
 			__snd_pcm_xrun(substream);
 			return -EPIPE;
 		}
