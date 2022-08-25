@@ -5127,6 +5127,10 @@ static irqreturn_t abox_dma_irq_handler(int irq, struct abox_data *data)
 		id = 3;
 		dev_dma = data->dev_rdma;
 		break;
+	case RDMA7_BUF_EMPTY:
+		id = 7;
+		dev_dma = data->dev_rdma;
+		break;
 	case WDMA0_BUF_FULL:
 		id = 0;
 		dev_dma = data->dev_wdma;

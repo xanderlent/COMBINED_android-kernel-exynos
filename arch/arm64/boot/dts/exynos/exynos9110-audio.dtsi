@@ -129,7 +129,7 @@
 			reg = <0x0 0x14A51700 0x100>;
 			reg-names = "sfr";
 			samsung,id = <7>;
-			samsung,type = "realtime";
+			samsung,type = "normal";
 			samsung,buffer_type = "dma";
 			#sound-dai-cells = <1>;
 			sound-name-prefix = "ABOX";
