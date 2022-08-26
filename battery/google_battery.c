@@ -48,6 +48,7 @@
 #define DEFAULT_CHARGE_START_LEVEL	0
 #define MS_TO_US (1000)
 #define HUNDREDTHS_OF_PERCENT 100
+#define DEFAULT_BATT_CHG_DELAY_MS 0
 
 static char *bat_status_str[] = {
 	"Unknown",
@@ -125,6 +126,12 @@ enum thermal_trip_level {
 	THERMAL_TRIP_HIGH = 2,
 };
 
+enum delayed_charging_state {
+	DELAYED_CHARGING_READY = 0,
+	DELAYED_CHARGING_WAITING = 1,
+	DELAYED_CHARGING_FIRED = 2,
+};
+
 typedef struct battery_platform_data {
 	char *charger_name;
 	char *fuelgauge_name;
@@ -147,6 +154,8 @@ typedef struct battery_platform_data {
 	int wlc_vout_min;
 	int wlc_vout_max;
 	int wlc_reset_soc;
+	/* delay between charger detection and charging start */
+	u32 charge_delay_ms;
 
 	/* full check */
 	unsigned int full_check_count;
@@ -259,6 +268,9 @@ struct battery_info {
 	int charging_state_override;
 	int charging_current_override;
 
+	struct wake_lock delayed_charging_wake_lock;
+	struct delayed_work delayed_charging_work;
+	atomic_t delay_charge_start;
 };
 
 static int calculate_cc_index(struct battery_info *battery, int temp_index, int voltage_index) {
@@ -476,6 +488,13 @@ static int set_wlc_online(struct battery_info *battery)
 	return 0;
 }
 
+static inline bool delayed_charging_wait(struct battery_info *battery)
+{
+	if (atomic_read(&battery->delay_charge_start) ==
+		DELAYED_CHARGING_WAITING) return true;
+
+	return false;
+}
 
 /*
  * set_charger_mode(): charger_mode must have one of following values.
@@ -498,6 +517,12 @@ static int set_charger_mode(
 	struct power_supply *psy;
 		int ret;
 
+	if ((charger_mode == BAT_CHG_MODE_CHARGING) &&
+		(delayed_charging_wait(battery))){
+		/* block transitioning to charging */
+		return 0;
+	}
+
 	if (charger_mode !=	BAT_CHG_MODE_CHARGING)
 		battery->full_check_cnt = 0;
 
@@ -512,6 +537,58 @@ static int set_charger_mode(
 
 	power_supply_put(psy);
 	return 0;
+}
+
+static void delayed_charging_work_fn(struct work_struct *work)
+{
+	struct battery_info *battery = container_of(work, struct battery_info,
+						delayed_charging_work.work);
+
+	dev_dbg(battery->dev, "Delayed charging fired!\n");
+
+	/* stop blocking battery charge */
+	atomic_set(&battery->delay_charge_start, DELAYED_CHARGING_FIRED);
+	if (battery->status == POWER_SUPPLY_STATUS_CHARGING)
+		set_charger_mode(battery, BAT_CHG_MODE_CHARGING);
+
+	wake_unlock(&battery->delayed_charging_wake_lock);
+}
+
+static void delayed_charging_reset(struct battery_info *battery)
+{
+	cancel_delayed_work_sync(&battery->delayed_charging_work);
+	atomic_set(&battery->delay_charge_start, DELAYED_CHARGING_READY);
+	wake_unlock(&battery->delayed_charging_wake_lock);
+}
+
+static void delayed_charging_start(struct battery_info *battery)
+{
+	u32 chg_delay_ms = battery->pdata->charge_delay_ms;
+
+	if (chg_delay_ms == 0) return;
+
+	/* make sure charging is off */
+	set_charger_mode(battery, BAT_CHG_MODE_CHARGING_OFF);
+	wake_lock(&battery->delayed_charging_wake_lock);
+	atomic_set(&battery->delay_charge_start, DELAYED_CHARGING_WAITING);
+	schedule_delayed_work(&battery->delayed_charging_work,
+			msecs_to_jiffies(chg_delay_ms));
+}
+
+static void delayed_charging_ps_changed(struct battery_info *battery)
+{
+	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
+		delayed_charging_reset(battery);
+		/* This ends up being quasi-persistent so this is  making sure
+		   that charging is enabled if the system hangs or reboots */
+		set_charger_mode(battery, BAT_CHG_MODE_CHARGING);
+		return;
+	}
+
+	if (atomic_read(&battery->delay_charge_start) ==
+		DELAYED_CHARGING_READY) {
+		delayed_charging_start(battery);
+	}
 }
 
 static int set_wlc_status(struct battery_info *battery,
@@ -868,6 +945,7 @@ static int battery_handle_notification(struct notifier_block *nb,
 		}
 	}
 	queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
+	delayed_charging_ps_changed(battery);
 	return 0;
 }
 #endif
@@ -1298,6 +1376,7 @@ static void battery_external_power_changed(struct power_supply *psy) {
 	bool old_wlc_connected = battery->wlc_connected;
 	bool old_wlc_authentic = battery->wlc_authentic;
 	mutex_lock(&battery->wlc_state_lock);
+
 	wlc_psy = power_supply_get_by_name(battery->pdata->wlc_name);
 	if (!wlc_psy) {
 		pr_err("Failed to get WLC PSY\n");
@@ -1337,6 +1416,7 @@ static void battery_external_power_changed(struct power_supply *psy) {
 		power_supply_changed(battery->psy_battery);
 external_power_changed_fail:
 	power_supply_put(wlc_psy);
+	delayed_charging_ps_changed(battery);
 	mutex_unlock(&battery->wlc_state_lock);
 }
 
@@ -1666,6 +1746,15 @@ static int google_battery_parse_dt(struct device *dev,
 	if (ret) {
 		pr_info("%s : charge_full_design is empty\n", __func__);
 		pdata->charge_full_design = 300000;
+	}
+
+	ret = of_property_read_u32(np, "battery,charge_delay_ms", &temp);
+	if (ret) {
+		pr_info("%s : charge_delay_ms is empty using %d\n", __func__,
+			DEFAULT_BATT_CHG_DELAY_MS);
+		pdata->charge_delay_ms = DEFAULT_BATT_CHG_DELAY_MS;
+	} else {
+		pdata->charge_delay_ms = (u32)temp;
 	}
 
 	pr_info("%s:DT parsing is done, vendor : %s\n",
@@ -2007,6 +2096,9 @@ static int google_battery_probe(struct platform_device *pdev)
 	wake_lock_init(&battery->vbus_wake_lock, WAKE_LOCK_SUSPEND,
 			"sec-battery-vbus");
 
+	wake_lock_init(&battery->delayed_charging_wake_lock,
+		WAKE_LOCK_SUSPEND, "delay-battery-charge");
+
 	/* Inintialization of battery information */
 	battery->status = POWER_SUPPLY_STATUS_DISCHARGING;
 	battery->health = POWER_SUPPLY_HEALTH_GOOD;
@@ -2045,6 +2137,9 @@ static int google_battery_probe(struct platform_device *pdev)
 			battery->battery_valid = true;
 	}
 	power_supply_put(psy);
+
+	atomic_set(&battery->delay_charge_start, 0);
+	INIT_DELAYED_WORK(&battery->delayed_charging_work, delayed_charging_work_fn);
 
 	/* Register battery as "POWER_SUPPLY_TYPE_BATTERY" */
 	battery->psy_battery_desc.name = "battery";
@@ -2187,6 +2282,7 @@ err_workqueue:
 	destroy_workqueue(battery->monitor_wqueue);
 err_irr:
 	wake_lock_destroy(&battery->vbus_wake_lock);
+	wake_lock_destroy(&battery->delayed_charging_wake_lock);
 	mutex_destroy(&battery->iolock);
 err_parse_dt_nomem:
 	kfree(battery->pdata);

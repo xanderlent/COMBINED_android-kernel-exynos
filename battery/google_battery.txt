@@ -23,6 +23,7 @@ Optional Properties:
 - battery,temp_hysteresis: Temperature in dC to use as hysteresis when stepping up in current. This is to avoid major charge current fluctuation when the temperature is close to a threshold.
 - battery,voltage_hyteresis: Voltage in mV to use as hysteresis when moving down a voltage tier. This is to avoid voltage tier fluctuation because lowering the charge current may cause a voltage drop.
 - battery,max_rawsoc: In units of 0.001%. Default value to use as the Max SOC. Generally should be 10000.
+- battery,charge_delay_ms: In ms, delay between charger connect and battery charge start, defaults to 10000. Set to 0 to disable.
 
 Example:
 
