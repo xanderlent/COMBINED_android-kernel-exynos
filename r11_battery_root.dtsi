@@ -50,6 +50,8 @@ google_battery: battery {
 	battery,voltage_hysteresis = <100>; // 100 mV
 	battery,max_rawsoc = <10000>; /* In units of 0.01% */
 	battery,charge_full_design = <279000>; /* 279000 uAh */
+
+	battery,charge_delay_ms = <2000>;
 };
 
 wlc_cool_dev: wlc_cool_dev {
