@@ -419,6 +419,9 @@ static void dbg_snapshot_init_desc(struct device *dev)
 
 	if (!of_property_read_u32(dev->of_node, "panic_to_wdt", &val))
 		dss_desc.panic_to_wdt = val;
+
+	if (!of_property_read_u32(dev->of_node, "forced_panic", &val))
+		dss_desc.forced_panic = val;
 }
 
 static void dbg_snapshot_fixmap(void)
@@ -713,7 +716,7 @@ static ssize_t dss_panic_to_wdt_store(struct device *dev,
 static ssize_t dss_dpm_none_dump_mode_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "currnet DPM dump_mode: %x, "
+	return scnprintf(buf, PAGE_SIZE, "current DPM dump_mode: %x, "
 			"DPM none dump_mode: %x\n",
 			dss_dpm.dump_mode, dss_dpm.dump_mode_none);
 }
@@ -762,14 +765,35 @@ out:
 	return n;
 }
 
+static ssize_t dss_forced_panic_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%sabled\n",
+			dss_desc.forced_panic ? "En" : "Dis");
+}
+
+static ssize_t dss_forced_panic_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long mode;
+
+	if (!kstrtoul(buf, 10, &mode))
+		dss_desc.forced_panic = !!mode;
+
+	return count;
+}
+
 DEVICE_ATTR_RW(dss_panic_to_wdt);
 DEVICE_ATTR_RW(dss_dpm_none_dump_mode);
 DEVICE_ATTR_RO(dss_logging_item);
+DEVICE_ATTR_RW(dss_forced_panic);
 
 static struct attribute *dss_sysfs_attrs[] = {
 	&dev_attr_dss_dpm_none_dump_mode.attr,
 	&dev_attr_dss_logging_item.attr,
 	&dev_attr_dss_panic_to_wdt.attr,
+	&dev_attr_dss_forced_panic.attr,
 	NULL,
 };
 

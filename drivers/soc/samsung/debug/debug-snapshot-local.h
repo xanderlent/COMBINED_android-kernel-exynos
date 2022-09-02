@@ -52,6 +52,7 @@ struct dbg_snapshot_desc {
 	raw_spinlock_t ctrl_lock;
 	int sjtag_status;
 	bool panic_to_wdt;
+	bool forced_panic;
 };
 
 struct dbg_snapshot_dpm {

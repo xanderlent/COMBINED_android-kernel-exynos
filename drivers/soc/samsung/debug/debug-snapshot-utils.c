@@ -707,7 +707,7 @@ static void dbg_snanpshot_event(struct input_handle *handle, unsigned int type,
 	static int loopcount;
 	static ktime_t start;
 
-	if (!is_event_supported(type, code))
+	if (!dss_desc.forced_panic || !is_event_supported(type, code))
 		return;
 
 	dev_info(dss_desc.dev, "KEY(%d) %s\n", code, value ? "pressed" : "released");
