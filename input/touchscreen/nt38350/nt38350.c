@@ -1455,26 +1455,14 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	ts->input_dev->close = nvt_ts_input_close;
 
 	//---register input device---
+	// Be sure to initialize client->irq prior to registering the input device
+	// Once the device is registered nvt_ts_input_open can be called, which
+	// makes use of client->irq
+	client->irq = gpio_to_irq(ts->irq_gpio);
 	ret = input_register_device(ts->input_dev);
 	if (ret) {
 		NVT_ERR("register input device (%s) failed. ret=%d\n", ts->input_dev->name, ret);
 		goto err_input_register_device_failed;
-	}
-
-	//---set int-pin & request irq---
-	client->irq = gpio_to_irq(ts->irq_gpio);
-	if (client->irq) {
-		NVT_LOG("int_trigger_type=%d\n", ts->int_trigger_type);
-		ts->irq_enabled = true;
-		ret = request_threaded_irq(client->irq, NULL, nvt_ts_work_func,
-				ts->int_trigger_type | IRQF_ONESHOT, NVT_I2C_NAME, ts);
-		if (ret != 0) {
-			NVT_ERR("request irq failed. ret=%d\n", ret);
-			goto err_int_request_failed;
-		} else {
-			nvt_irq_enable(false);
-			NVT_LOG("request irq %d succeed\n", client->irq);
-		}
 	}
 
 	if (gpio_is_valid(ts->nfc_gpio) && ts->nfc_active_jiffies > 0) {
@@ -1570,12 +1558,25 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	bTouchIsAwake = 1;
 	ts->idle_mode = false;
 
-	NVT_LOG("end\n");
+	//---set int-pin & request irq---
+	if (client->irq) {
+		NVT_LOG("int_trigger_type=%d\n", ts->int_trigger_type);
+		ts->irq_enabled = true;
+		ret = request_threaded_irq(client->irq, NULL, nvt_ts_work_func,
+				ts->int_trigger_type | IRQF_ONESHOT, NVT_I2C_NAME, ts);
+		if (ret != 0) {
+			NVT_ERR("request irq failed. ret=%d\n", ret);
+			goto err_int_request_failed;
+		} else {
+			NVT_LOG("request irq %d succeed\n", client->irq);
+		}
+	}
 
-	nvt_irq_enable(true);
+	NVT_LOG("end\n");
 
 	return 0;
 
+err_int_request_failed:
 #if defined(CONFIG_FB)
 #ifdef _MSM_DRM_NOTIFY_H_
 	if (msm_drm_unregister_client(&ts->drm_notif))
@@ -1621,8 +1622,6 @@ err_create_nvt_fwu_wq_failed:
 #if WAKEUP_GESTURE
 	device_init_wakeup(&ts->input_dev->dev, 0);
 #endif
-	free_irq(client->irq, ts);
-err_int_request_failed:
 	input_unregister_device(ts->input_dev);
 	ts->input_dev = NULL;
 err_input_register_device_failed:
