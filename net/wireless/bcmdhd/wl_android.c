@@ -10226,11 +10226,11 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 	}
 	else if (strnicmp(command, CMD_RXFILTER_ADD, strlen(CMD_RXFILTER_ADD)) == 0) {
 		int filter_num = *(command + strlen(CMD_RXFILTER_ADD) + 1) - '0';
-		bytes_written = net_os_rxfilter_add_remove(net, TRUE, filter_num);
+		bytes_written = net_os_rxfilter_add_remove(net, FALSE, filter_num);
 	}
 	else if (strnicmp(command, CMD_RXFILTER_REMOVE, strlen(CMD_RXFILTER_REMOVE)) == 0) {
 		int filter_num = *(command + strlen(CMD_RXFILTER_REMOVE) + 1) - '0';
-		bytes_written = net_os_rxfilter_add_remove(net, FALSE, filter_num);
+		bytes_written = net_os_rxfilter_add_remove(net, TRUE, filter_num);
 	}
 #endif /* PKT_FILTER_SUPPORT */
 	else if (strnicmp(command, CMD_BTCOEXSCAN_START, strlen(CMD_BTCOEXSCAN_START)) == 0) {
