@@ -17,8 +17,9 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 
-#define NTC_AUTOSUSPEND_DELAY		3000 /* autosuspend delay 3000ms */
+#define NTC_AUTOSUSPEND_DELAY		10000 /* autosuspend delay 10000ms */
 #define NTC_MAX_RETRIES			5
+#define NTC_ERROR_DIFFERENCE		1000
 
 struct ntc_device;
 
@@ -26,6 +27,7 @@ struct ntc_sensor {
 	struct ntc_device *ntcdev;
 	struct thermal_zone_device *tz_dev;
 	struct iio_channel *channel;
+	int prev_temp;
 };
 
 struct adc_temp_pair {
@@ -79,6 +81,7 @@ static int ntc_thermal_try_temp(struct ntc_sensor *ntc_sensor, int* temp)
 	int val;
 	s64 long_val;
 	int ret;
+	int diff;
 
 	mutex_lock(&ntcdev->gpiolock);
 	pm_runtime_get_sync(ntcdev->dev);
@@ -96,9 +99,13 @@ static int ntc_thermal_try_temp(struct ntc_sensor *ntc_sensor, int* temp)
 	long_val = mult_frac(long_val, ntcdev->reference_voltage, 0xfff);
 	*temp = ntc_thermal_adc_to_temp(ntcdev, long_val);
 
-	if (*temp == ntcdev->lookup_table[ntcdev->nlookup_table - 1].temp) {
-		dev_err(ntcdev->dev, "IIO channel returned unusual temperature %d\n", *temp);
-		// Treat maximum temperature as a NTC error
+	if (*temp > ntc_sensor->prev_temp)
+		diff = *temp - ntc_sensor->prev_temp;
+	else
+		diff = ntc_sensor->prev_temp - *temp;
+	if (ntc_sensor->prev_temp != -INT_MIN && diff > NTC_ERROR_DIFFERENCE) {
+		dev_err(ntcdev->dev, "IIO channel returned unusual temperature %d, prev_temp %d\n", *temp, ntc_sensor->prev_temp);
+		// Treat too different of a temperature as a NTC error
 		return -EINVAL;
 	}
 
@@ -118,6 +125,7 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 		msleep(10);
 		ret = ntc_thermal_try_temp(ntc_sensor, temp);
 	}
+	ntc_sensor->prev_temp = *temp;
 
 	if (ret < 0) {
 		return ret;
@@ -217,6 +225,7 @@ static int ntc_thermal_probe(struct platform_device *pdev)
 
 	for (id = 0; id < ntc_device->num_sensors; id++) {
 		ntc_sensor = &ntc_device->sensors[id];
+		ntc_sensor->prev_temp = INT_MIN;
 		ntc_sensor->ntcdev = ntc_device;
 		ntc_sensor->channel = &channels[id];
 		ntc_sensor->tz_dev = devm_thermal_zone_of_sensor_register(&pdev->dev, id,
