@@ -11,6 +11,8 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "ok";
+	gpio_scl = <&gpm16 0 0x1>;
+	gpio_sda = <&gpm17 0 0x1>;
 
 	pat9126: pat9126@75 {
 		compatible="pixart,pat9126";
