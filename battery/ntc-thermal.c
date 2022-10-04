@@ -103,10 +103,17 @@ static int ntc_thermal_try_temp(struct ntc_sensor *ntc_sensor, int* temp)
 		diff = *temp - ntc_sensor->prev_temp;
 	else
 		diff = ntc_sensor->prev_temp - *temp;
-	if (ntc_sensor->prev_temp != -INT_MIN && diff > NTC_ERROR_DIFFERENCE) {
-		dev_err(ntcdev->dev, "IIO channel returned unusual temperature %d, prev_temp %d\n", *temp, ntc_sensor->prev_temp);
-		// Treat too different of a temperature as a NTC error
-		return -EINVAL;
+	if (*temp == ntcdev->lookup_table[ntcdev->nlookup_table - 1].temp) {
+		// Always treat max NTC value as a NTC error
+		dev_err(ntcdev->dev, "IIO channel returned unusual temperature %d\n", *temp);
+		ret = -EINVAL;
+	} else {
+		if (ntc_sensor->prev_temp != -INT_MIN && diff > NTC_ERROR_DIFFERENCE) {
+			dev_err(ntcdev->dev, "IIO channel returned unusual temperature %d, prev_temp %d\n", *temp, ntc_sensor->prev_temp);
+			// Treat too different of a temperature as a NTC error
+			ret = -EINVAL;
+		}
+		ntc_sensor->prev_temp = *temp;
 	}
 
 	return ret;
@@ -125,7 +132,6 @@ static int ntc_thermal_get_temp(void *data, int *temp)
 		msleep(10);
 		ret = ntc_thermal_try_temp(ntc_sensor, temp);
 	}
-	ntc_sensor->prev_temp = *temp;
 
 	if (ret < 0) {
 		return ret;
