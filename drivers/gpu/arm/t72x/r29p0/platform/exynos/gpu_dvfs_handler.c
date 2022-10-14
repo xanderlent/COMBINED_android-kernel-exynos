@@ -25,22 +25,29 @@
 extern struct kbase_device *pkbdev;
 
 #ifdef CONFIG_MALI_DVFS
+
+/* Create the trace points (otherwise we just get code to call a tracepoint) */
+#define CREATE_TRACE_POINTS
+#include "mali_linux_trace_power.h"
+
 int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation)
 {
 	struct exynos_context *platform;
+	int clk = 0;
+
 	platform = (struct exynos_context *) kbdev->platform_context;
 
 	DVFS_ASSERT(platform);
 
 	mutex_lock(&platform->gpu_dvfs_handler_lock);
 	if (gpu_control_is_power_on(kbdev)) {
-		int clk = 0;
 		gpu_dvfs_calculate_env_data(kbdev);
 		clk = gpu_dvfs_decide_next_freq(kbdev, platform->env_data.utilization);
 		gpu_set_target_clk_vol(clk, true);
 	}
 	mutex_unlock(&platform->gpu_dvfs_handler_lock);
 
+	trace_gpu_frequency((unsigned int)clk, 0ul);
 	GPU_LOG(DVFS_DEBUG, DUMMY, 0u, 0u, "dvfs hanlder is called\n");
 
 	return 0;
