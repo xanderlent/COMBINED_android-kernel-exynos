@@ -184,7 +184,7 @@
 			reg = <0x0 0x14A52400 0x100>;
 			reg-names = "sfr";
 			samsung,id = <4>;
-			samsung,type = "vi-sensing";
+			samsung,type = "realtime";
 			samsung,buffer_type = "dma";
 			#sound-dai-cells = <1>;
 			sound-name-prefix = "ABOX";
