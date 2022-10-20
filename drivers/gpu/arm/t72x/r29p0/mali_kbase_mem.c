@@ -1263,7 +1263,8 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 			/* The allocation could still have active mappings. */
 			if (user_buf->current_mapping_usage_count == 0) {
 				kbase_jd_user_buf_unmap(kctx, reg->gpu_alloc,
-					(reg->flags & KBASE_REG_GPU_WR));
+					(reg->flags & (KBASE_REG_CPU_WR |
+							KBASE_REG_GPU_WR)));
 			}
 		}
 	}
@@ -3395,6 +3396,7 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 	unsigned long offset;
 	unsigned long local_size;
 	unsigned long gwt_mask = ~0;
+	int write;
 
 	alloc = reg->gpu_alloc;
 	pa = kbase_get_gpu_phy_pages(reg);
@@ -3405,30 +3407,28 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 
 	pages = alloc->imported.user_buf.pages;
 
+	write = reg->flags & (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	pinned_pages = get_user_pages(NULL, mm,
 			address,
 			alloc->imported.user_buf.nr_pages,
-			reg->flags & KBASE_REG_GPU_WR,
-			0, pages, NULL);
+			write, 0, pages, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0)
 	pinned_pages = get_user_pages_remote(NULL, mm,
 			address,
 			alloc->imported.user_buf.nr_pages,
-			reg->flags & KBASE_REG_GPU_WR,
-			0, pages, NULL);
+			write, 0, pages, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 	pinned_pages = get_user_pages_remote(NULL, mm,
 			address,
 			alloc->imported.user_buf.nr_pages,
-			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,
-			pages, NULL);
+			write ? FOLL_WRITE : 0, pages, NULL);
 #else
 	pinned_pages = get_user_pages_remote(NULL, mm,
 			address,
 			alloc->imported.user_buf.nr_pages,
-			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,
-			pages, NULL, NULL);
+			write ? FOLL_WRITE : 0, pages, NULL, NULL);
 #endif
 
 	if (pinned_pages <= 0)
@@ -3713,7 +3713,7 @@ void kbase_unmap_external_resource(struct kbase_context *kctx,
 						kbase_reg_current_backed_size(reg),
 						kctx->as_nr);
 
-			if (reg && ((reg->flags & KBASE_REG_GPU_WR) == 0))
+			if (reg && ((reg->flags & (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR)) == 0))
 				writeable = false;
 
 			kbase_jd_user_buf_unmap(kctx, alloc, writeable);
