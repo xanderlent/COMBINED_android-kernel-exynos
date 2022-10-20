@@ -97,13 +97,35 @@ struct kbase_aliased {
 #define KBASE_MEM_PHY_ALLOC_ACCESSED_CACHED  (1ul << 0)
 #define KBASE_MEM_PHY_ALLOC_LARGE            (1ul << 1)
 
-/* physical pages tracking object.
+/* struct kbase_mem_phy_alloc - Physical pages tracking object.
+ *
  * Set up to track N pages.
  * N not stored here, the creator holds that info.
  * This object only tracks how many elements are actually valid (present).
- * Changing of nents or *pages should only happen if the kbase_mem_phy_alloc is not
- * shared with another region or client. CPU mappings are OK to exist when changing, as
- * long as the tracked mappings objects are updated as part of the change.
+ * Changing of nents or *pages should only happen if the kbase_mem_phy_alloc
+ * is not shared with another region or client. CPU mappings are OK to
+ * exist when changing, as long as the tracked mappings objects are
+ * updated as part of the change.
+ *
+ * @kref: number of users of this alloc
+ * @gpu_mappings: count number of times mapped on the GPU. Indicates the number
+ *                of references there are to the physical pages from different
+ *                GPU VA regions.
+ * @nents: 0..N
+ * @pages: N elements, only 0..nents are valid
+ * @mappings: List of CPU mappings of this physical memory allocation.
+ * @evict_node: Node used to store this allocation on the eviction list
+ * @evicted: Physical backing size when the pages where evicted
+ * @reg: Back reference to the region structure which created this
+ *       allocation, or NULL if it has been freed.
+ * @type: type of buffer
+ * @permanent_map: Kernel side mapping of the alloc, shall never be
+ *                 referred directly. kbase_phy_alloc_mapping_get() &
+ *                 kbase_phy_alloc_mapping_put() pair should be used
+ *                 around access to the kernel-side CPU mapping so that
+ *                 mapping doesn't disappear whilst it is being accessed.
+ * @properties: Bitmask of properties, e.g. KBASE_MEM_PHY_ALLOC_LARGE.
+ * @imported: member in union valid based on @a type
  */
 struct kbase_mem_phy_alloc {
 	struct kref           kref; /* number of users of this alloc */
