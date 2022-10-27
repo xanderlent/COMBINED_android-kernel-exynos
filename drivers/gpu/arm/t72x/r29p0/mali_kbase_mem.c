@@ -1399,7 +1399,8 @@ bad_insert:
 KBASE_EXPORT_TEST_API(kbase_gpu_mmap);
 
 static void kbase_jd_user_buf_unmap(struct kbase_context *kctx,
-		struct kbase_mem_phy_alloc *alloc, bool writeable);
+		struct kbase_mem_phy_alloc *alloc, struct kbase_va_region *reg,
+		bool writeable);
 
 int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 {
@@ -1434,7 +1435,7 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 			/* The allocation could still have active mappings. */
 			if (user_buf->current_mapping_usage_count == 0) {
 				kbase_jd_user_buf_unmap(kctx, reg->gpu_alloc,
-					(reg->flags & (KBASE_REG_CPU_WR |
+					reg, (reg->flags & (KBASE_REG_CPU_WR |
 							KBASE_REG_GPU_WR)));
 			}
 		}
@@ -3544,21 +3545,22 @@ void kbase_jit_term(struct kbase_context *kctx)
 static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 		struct kbase_va_region *reg)
 {
-	long pinned_pages;
+	long pinned_pages = 0;
 	struct kbase_mem_phy_alloc *alloc;
 	struct page **pages;
 	struct tagged_addr *pa;
-	long i;
+	long i, dma_mapped_pages;
 	int err = -ENOMEM;
 	unsigned long address;
 	struct mm_struct *mm;
 	struct device *dev;
-	unsigned long offset;
-	unsigned long local_size;
+	unsigned long offset_within_page;
+	unsigned long remaining_size;
 	unsigned long gwt_mask = ~0;
 	int write;
 
 	alloc = reg->gpu_alloc;
+	lockdep_assert_held(&kctx->reg_lock);
 	pa = kbase_get_gpu_phy_pages(reg);
 	address = alloc->imported.user_buf.address;
 	mm = alloc->imported.user_buf.mm;
@@ -3601,25 +3603,25 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 	}
 
 	dev = kctx->kbdev->dev;
-	offset = address & ~PAGE_MASK;
-	local_size = alloc->imported.user_buf.size;
+	offset_within_page = address & ~PAGE_MASK;
+	remaining_size = alloc->imported.user_buf.size;
 
 	for (i = 0; i < pinned_pages; i++) {
-		dma_addr_t dma_addr;
-		unsigned long min;
-
-		min = MIN(PAGE_SIZE - offset, local_size);
-		dma_addr = dma_map_page(dev, pages[i],
-				offset, min,
+		unsigned long map_size =
+			MIN(PAGE_SIZE - offset_within_page, remaining_size);
+		dma_addr_t dma_addr = dma_map_page(dev, pages[i],
+				offset_within_page, map_size,
 				DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(dev, dma_addr))
+
+		err = dma_mapping_error(dev, dma_addr);
+		if (err)
 			goto unwind;
 
 		alloc->imported.user_buf.dma_addrs[i] = dma_addr;
 		pa[i] = as_tagged(page_to_phys(pages[i]));
 
-		local_size -= min;
-		offset = 0;
+		remaining_size -= map_size;
+		offset_within_page = 0;
 	}
 
 	alloc->nents = pinned_pages;
@@ -3637,13 +3639,29 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 	alloc->nents = 0;
 	/* fall down */
 unwind:
-	while (i--) {
+	alloc->nents = 0;
+	offset_within_page = address & ~PAGE_MASK;
+	remaining_size = alloc->imported.user_buf.size;
+	dma_mapped_pages = i;
+	/* Run the unmap loop in the same order as map loop */
+	for (i = 0; i < dma_mapped_pages; i++) {
+		unsigned long unmap_size =
+			MIN(PAGE_SIZE - offset_within_page, remaining_size);
+
 		dma_unmap_page(kctx->kbdev->dev,
 				alloc->imported.user_buf.dma_addrs[i],
-				PAGE_SIZE, DMA_BIDIRECTIONAL);
+				unmap_size, DMA_BIDIRECTIONAL);
+		remaining_size -= unmap_size;
+		offset_within_page = 0;
 	}
 
-	while (++i < pinned_pages) {
+	/* The user buffer could already have been previously pinned before
+	 * entering this function, and hence there could potentially be CPU
+	 * mappings of it
+	 */
+	kbase_mem_shrink_cpu_mapping(kctx, reg, 0, pinned_pages);
+
+	for (i = 0; i < pinned_pages; i++) {
 		put_page(pages[i]);
 		pages[i] = NULL;
 	}
@@ -3652,27 +3670,36 @@ unwind:
 }
 
 static void kbase_jd_user_buf_unmap(struct kbase_context *kctx,
-		struct kbase_mem_phy_alloc *alloc, bool writeable)
+		struct kbase_mem_phy_alloc *alloc, struct kbase_va_region *reg,
+		bool writeable)
 {
 	long i;
 	struct page **pages;
-	unsigned long size = alloc->imported.user_buf.size;
+	unsigned long offset_within_page =
+				alloc->imported.user_buf.address & ~PAGE_MASK;
+	unsigned long remaining_size = alloc->imported.user_buf.size;
+
+	lockdep_assert_held(&kctx->reg_lock);
 
 	KBASE_DEBUG_ASSERT(alloc->type == KBASE_MEM_TYPE_IMPORTED_USER_BUF);
 	pages = alloc->imported.user_buf.pages;
+
+	kbase_mem_shrink_cpu_mapping(kctx, reg, 0, alloc->nents);
+
 	for (i = 0; i < alloc->imported.user_buf.nr_pages; i++) {
-		unsigned long local_size;
+		unsigned long unmap_size =
+			MIN(remaining_size, PAGE_SIZE - offset_within_page);
 		dma_addr_t dma_addr = alloc->imported.user_buf.dma_addrs[i];
 
-		local_size = MIN(size, PAGE_SIZE - (dma_addr & ~PAGE_MASK));
-		dma_unmap_page(kctx->kbdev->dev, dma_addr, local_size,
+		dma_unmap_page(kctx->kbdev->dev, dma_addr, unmap_size,
 				DMA_BIDIRECTIONAL);
 		if (writeable)
 			set_page_dirty_lock(pages[i]);
 		put_page(pages[i]);
 		pages[i] = NULL;
 
-		size -= local_size;
+		remaining_size -= unmap_size;
+		offset_within_page = 0;
 	}
 	alloc->nents = 0;
 }
@@ -3789,24 +3816,24 @@ static void kbase_jd_umm_unmap(struct kbase_context *kctx,
 }
 #endif				/* CONFIG_DMA_SHARED_BUFFER */
 
-struct kbase_mem_phy_alloc *kbase_map_external_resource(
-		struct kbase_context *kctx, struct kbase_va_region *reg,
-		struct mm_struct *locked_mm)
+int kbase_map_external_resource(struct kbase_context *kctx,
+		struct kbase_va_region *reg, struct mm_struct *locked_mm)
 {
-	int err;
+	int err = 0;
+	struct kbase_mem_phy_alloc *alloc = reg->gpu_alloc;
 
 	/* decide what needs to happen for this resource */
 	switch (reg->gpu_alloc->type) {
 	case KBASE_MEM_TYPE_IMPORTED_USER_BUF: {
 		if (reg->gpu_alloc->imported.user_buf.mm != locked_mm)
-			goto exit;
+			return -EINVAL;
 
 		reg->gpu_alloc->imported.user_buf.current_mapping_usage_count++;
 		if (1 == reg->gpu_alloc->imported.user_buf.current_mapping_usage_count) {
 			err = kbase_jd_user_buf_map(kctx, reg);
 			if (err) {
 				reg->gpu_alloc->imported.user_buf.current_mapping_usage_count--;
-				goto exit;
+				return err;
 			}
 		}
 	}
@@ -3818,24 +3845,33 @@ struct kbase_mem_phy_alloc *kbase_map_external_resource(
 			err = kbase_jd_umm_map(kctx, reg);
 			if (err) {
 				reg->gpu_alloc->imported.umm.current_mapping_usage_count--;
-				goto exit;
+				return err;
 			}
 		}
 		break;
 	}
 #endif
 	default:
-		goto exit;
+		WARN(1, "Invalid external resource GPU allocation type (%x) on mapping",
+		     alloc->type);
+		return -EINVAL;
 	}
 
-	return kbase_mem_phy_alloc_get(reg->gpu_alloc);
-exit:
-	return NULL;
+	kbase_va_region_alloc_get(kctx, reg);
+	kbase_mem_phy_alloc_get(alloc);
+	return err;
 }
 
 void kbase_unmap_external_resource(struct kbase_context *kctx,
-		struct kbase_va_region *reg, struct kbase_mem_phy_alloc *alloc)
+				struct kbase_va_region *reg)
 {
+	/* gpu_alloc was used in kbase_map_external_resources, so we need to
+	 * use it for the unmapping operation.
+	 */
+	struct kbase_mem_phy_alloc *alloc = reg->gpu_alloc;
+
+	lockdep_assert_held(&kctx->reg_lock);
+
 	switch (alloc->type) {
 #ifdef CONFIG_DMA_SHARED_BUFFER
 	case KBASE_MEM_TYPE_IMPORTED_UMM: {
@@ -3873,17 +3909,26 @@ void kbase_unmap_external_resource(struct kbase_context *kctx,
 						kbase_reg_current_backed_size(reg),
 						kctx->as_nr);
 
-			if (reg && ((reg->flags & (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR)) == 0))
+			if ((reg->flags &
+				(KBASE_REG_CPU_WR | KBASE_REG_GPU_WR)) == 0)
 				writeable = false;
 
-			kbase_jd_user_buf_unmap(kctx, alloc, writeable);
+			kbase_jd_user_buf_unmap(kctx, alloc, reg, writeable);
 		}
 	}
 	break;
 	default:
-	break;
+		WARN(1, "Invalid external resource GPU allocation type (%x) on unmapping",
+			alloc->type);
+		return;
 	}
 	kbase_mem_phy_alloc_put(alloc);
+	kbase_va_region_alloc_put(kctx, reg);
+}
+
+static inline u64 kbasep_get_va_gpu_addr(struct kbase_va_region *reg)
+{
+	return reg->start_pfn << PAGE_SHIFT;
 }
 
 struct kbase_ctx_ext_res_meta *kbase_sticky_resource_acquire(
@@ -3899,7 +3944,7 @@ struct kbase_ctx_ext_res_meta *kbase_sticky_resource_acquire(
 	 * metadata which matches the region which is being acquired.
 	 */
 	list_for_each_entry(walker, &kctx->ext_res_meta_head, ext_res_node) {
-		if (walker->gpu_addr == gpu_addr) {
+		if (kbasep_get_va_gpu_addr(walker->reg) == gpu_addr) {
 			meta = walker;
 			break;
 		}
@@ -3910,8 +3955,8 @@ struct kbase_ctx_ext_res_meta *kbase_sticky_resource_acquire(
 		struct kbase_va_region *reg;
 
 		/* Find the region */
-		reg = kbase_region_tracker_find_region_enclosing_address(
-				kctx, gpu_addr);
+		reg = kbase_region_tracker_find_region_enclosing_address(kctx,
+								gpu_addr);
 		if (kbase_is_region_invalid_or_free(reg))
 			goto failed;
 
@@ -3919,17 +3964,17 @@ struct kbase_ctx_ext_res_meta *kbase_sticky_resource_acquire(
 		meta = kzalloc(sizeof(*meta), GFP_KERNEL);
 		if (!meta)
 			goto failed;
-
 		/*
 		 * Fill in the metadata object and acquire a reference
 		 * for the physical resource.
 		 */
-		meta->alloc = kbase_map_external_resource(kctx, reg, NULL);
+		meta->reg = reg;
 
-		if (!meta->alloc)
+		/* Map the external resource to the GPU allocation of the region
+		 * and acquire the reference to the VA region
+		 */
+		if (kbase_map_external_resource(kctx, meta->reg, NULL))
 			goto fail_map;
-
-		meta->gpu_addr = reg->start_pfn << PAGE_SHIFT;
 
 		list_add(&meta->ext_res_node, &kctx->ext_res_meta_head);
 	}
@@ -3946,7 +3991,6 @@ bool kbase_sticky_resource_release(struct kbase_context *kctx,
 		struct kbase_ctx_ext_res_meta *meta, u64 gpu_addr)
 {
 	struct kbase_ctx_ext_res_meta *walker;
-	struct kbase_va_region *reg;
 
 	lockdep_assert_held(&kctx->reg_lock);
 
@@ -3958,7 +4002,7 @@ bool kbase_sticky_resource_release(struct kbase_context *kctx,
 		 */
 		list_for_each_entry(walker, &kctx->ext_res_meta_head,
 				ext_res_node) {
-			if (walker->gpu_addr == gpu_addr) {
+			if (kbasep_get_va_gpu_addr(walker->reg) == gpu_addr) {
 				meta = walker;
 				break;
 			}
@@ -3970,11 +4014,7 @@ bool kbase_sticky_resource_release(struct kbase_context *kctx,
 		return false;
 
 	/* Drop the physical memory reference and free the metadata. */
-	reg = kbase_region_tracker_find_region_enclosing_address(
-			kctx,
-			meta->gpu_addr);
-
-	kbase_unmap_external_resource(kctx, reg, meta->alloc);
+	kbase_unmap_external_resource(kctx, meta->reg);
 	list_del(&meta->ext_res_node);
 	kfree(meta);
 

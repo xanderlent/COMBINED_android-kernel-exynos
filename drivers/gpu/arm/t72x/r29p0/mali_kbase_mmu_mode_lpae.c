@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018, 2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -190,9 +190,12 @@ static void entry_set_pte(u64 *entry, phys_addr_t phy)
 	page_table_entry_set(entry, (phy & ~0xFFF) | ENTRY_IS_PTE);
 }
 
-static void entry_invalidate(u64 *entry)
+static void entries_invalidate(u64 *entry, u32 count)
 {
-	page_table_entry_set(entry, ENTRY_IS_INVAL);
+	u32 i;
+
+	for (i = 0; i < count; i++)
+		page_table_entry_set(entry + i, ENTRY_IS_INVAL);
 }
 
 static struct kbase_mmu_mode const lpae_mode = {
@@ -204,7 +207,7 @@ static struct kbase_mmu_mode const lpae_mode = {
 	.pte_is_valid = pte_is_valid,
 	.entry_set_ate = entry_set_ate,
 	.entry_set_pte = entry_set_pte,
-	.entry_invalidate = entry_invalidate,
+	.entries_invalidate = entries_invalidate,
 	.flags = 0
 };
 
