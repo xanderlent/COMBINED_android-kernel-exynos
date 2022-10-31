@@ -56,6 +56,11 @@ int wf012fbm_panel_init(struct dsim_device *dsim)
 {
 	int ret;
 	unsigned char buf[1];
+
+	dsim_write_data_seq(dsim, false, 0xFF, 0x25);
+	dsim_write_data_seq(dsim, false, 0xFB, 0x01);
+	dsim_write_data_seq(dsim, false, 0xCE, 0x1C);
+
 	/* Page Select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 
