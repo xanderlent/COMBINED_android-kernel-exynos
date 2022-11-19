@@ -579,7 +579,8 @@ static void delayed_charging_start(struct battery_info *battery)
 
 static void delayed_charging_ps_changed(struct battery_info *battery)
 {
-	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
+	if ((battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) &&
+	    (battery->wlc_connected == false)) {
 		delayed_charging_reset(battery);
 		/* This ends up being quasi-persistent so this is  making sure
 		   that charging is enabled if the system hangs or reboots */
