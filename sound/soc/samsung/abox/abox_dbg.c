@@ -338,6 +338,9 @@ static atomic_t abox_error_count = ATOMIC_INIT(0);
 
 void abox_dbg_dump_suspend(struct device *dev, struct abox_data *data)
 {
+	if (!data->dbg_suspend_dmp_en)
+		return;
+
 	int i;
 	dev_info(dev, "%s\n", __func__);
 

@@ -697,6 +697,7 @@ struct abox_data {
 	const char *dram_name;
 	bool boot_done;
 	struct wake_lock mode_in_call_lock;
+	bool dbg_suspend_dmp_en;
 };
 /*
 struct abox_compr_data {

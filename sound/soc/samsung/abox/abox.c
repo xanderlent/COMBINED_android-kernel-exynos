@@ -6543,9 +6543,40 @@ static ssize_t calliope_cmd_store(struct device *dev,
 	return count;
 }
 
+static ssize_t dbg_suspend_dmp_en_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct abox_data *data = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", ((data->dbg_suspend_dmp_en)?1:0));
+}
+
+static ssize_t dbg_suspend_dmp_en_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (count <= 0)
+		return -EINVAL;
+
+	struct abox_data *data = dev_get_drvdata(dev);
+
+	switch (buf[0]) {
+	case '1': {
+		data->dbg_suspend_dmp_en = true;
+		return count;
+	}
+	case '0': {
+		data->dbg_suspend_dmp_en = false;
+		return count;
+	}
+	default: return -EINVAL;
+	}
+}
+
 static DEVICE_ATTR_RO(calliope_version);
 static DEVICE_ATTR_WO(calliope_debug);
 static DEVICE_ATTR_WO(calliope_cmd);
+
+static DEVICE_ATTR_RW(dbg_suspend_dmp_en);
 
 static struct reserved_mem *abox_dram_rmem;
 static int __init abox_dram_rmem_setup(struct reserved_mem *rmem)
@@ -6850,6 +6881,9 @@ static int samsung_abox_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	data->dbg_suspend_dmp_en = of_property_read_bool(np,
+						"samsung,abox-debug-enable");
+
 //	if (abox_test_quirk(data, ABOX_QUIRK_SHARE_//VTS_SRAM)) {
 //		np_tmp = of_parse_phandle(np, "vts", 0);
 //		if (!np_tmp) {
@@ -6943,6 +6977,11 @@ static int samsung_abox_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_calliope_cmd);
 	if (ret < 0)
 		dev_warn(dev, "Failed to create file: %s\n", "cmd");
+
+	ret = device_create_file(dev, &dev_attr_dbg_suspend_dmp_en);
+	if (ret < 0)
+		dev_warn(dev, "Failed to create file: %s\n",
+			"dbg_suspend_dmp_en");
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 			&abox_panic_notifier);
