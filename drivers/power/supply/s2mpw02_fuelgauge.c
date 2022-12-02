@@ -186,14 +186,16 @@ static int s2mpw02_init_regs(struct s2mpw02_fuelgauge_data *fuelgauge)
 static void s2mpw02_alert_init(struct s2mpw02_fuelgauge_data *fuelgauge)
 {
 	u8 data[2];
+	if (s2mpw02_fg_read_reg(fuelgauge->i2c, S2MPW02_FG_REG_IRQ_LVL, data) <
+		0)
+		return;
 
-	/* VBAT Threshold setting: 3.55V */
+	/* VBAT Threshold setting: 2.8V */
 	data[0] = 0x00;
 
 	/* SOC Threshold setting */
 	data[0] = data[0] | (fuelgauge->pdata->fuel_alert_soc << SOC_L_LVL_SHIFT);
 
-	data[1] = 0x00;
 	s2mpw02_fg_write_reg(fuelgauge->i2c, S2MPW02_FG_REG_IRQ_LVL, data);
 }
 
