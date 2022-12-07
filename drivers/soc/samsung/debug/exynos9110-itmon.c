@@ -1200,6 +1200,12 @@ void itmon_notifier_chain_register(struct notifier_block *block)
 	atomic_notifier_chain_register(&itmon_notifier_list, block);
 }
 
+void itmon_notifier_chain_unregister(struct notifier_block *block)
+{
+	if (block)
+		atomic_notifier_chain_unregister(&itmon_notifier_list, block);
+}
+
 static struct bus_type itmon_subsys = {
 	.name = "itmon",
 	.dev_name = "itmon",
