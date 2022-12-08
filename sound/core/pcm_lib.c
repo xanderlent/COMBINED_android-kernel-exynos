@@ -190,6 +190,10 @@ void __snd_pcm_xrun(struct snd_pcm_substream *substream)
 
 #endif
 
+#ifdef CONFIG_SDN_NO_XRUN_GOOGLE
+#define NO_XRUN_MULTIPLIER (10)
+#endif
+
 int snd_pcm_update_state(struct snd_pcm_substream *substream,
 			 struct snd_pcm_runtime *runtime)
 {
@@ -204,15 +208,20 @@ int snd_pcm_update_state(struct snd_pcm_substream *substream,
 			return -EPIPE;
 		}
 	} else {
-		if (avail >= runtime->stop_threshold) {
 #ifdef CONFIG_SDN_NO_XRUN_GOOGLE
+		// The goal is to reduce the number of underruns being reported
+		// to help with the interrupt storm in the abox leading to it
+		// crashing. However, if the underrun becomes out of control,
+		// we still report it.
+		if (avail >= (runtime->stop_threshold * NO_XRUN_MULTIPLIER)) {
 			pcm_warn(substream->pcm,
-				"%s: Underrunning! avail: %d, stop_threshold: %d\n",
+				"%s: Underrunning! avail: %lu, stop_threshold: %lu\n",
 				__func__, avail, runtime->stop_threshold);
 #else
+		if (avail >= runtime->stop_threshold) {
+#endif
 			__snd_pcm_xrun(substream);
 			return -EPIPE;
-#endif
 		}
 	}
 	if (runtime->twake) {
