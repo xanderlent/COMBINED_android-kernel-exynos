@@ -673,18 +673,23 @@ Description:
 return:
 	n.a.
 *******************************************************/
-void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
+uint32_t nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 {
 	uint32_t keycode = 0;
 	uint8_t func_type = data[2];
 	uint8_t func_id = data[3];
 
 	/* support fw specifal data protocol */
-	if ((gesture_id == DATA_PROTOCOL) && (func_type == FUNCPAGE_GESTURE)) {
-		gesture_id = func_id;
+	if (gesture_id == DATA_PROTOCOL) {
+		if (func_type == FUNCPAGE_GESTURE) {
+			gesture_id = func_id;
+		} else {
+			NVT_ERR("func_type %d is invalid, func_id=%d\n", func_type, func_id);
+			return 0;
+		}
 	} else if (gesture_id > DATA_PROTOCOL) {
 		NVT_ERR("gesture_id %d is invalid, func_type=%d, func_id=%d\n", gesture_id, func_type, func_id);
-		return;
+		return 0;
 	}
 
 	NVT_LOG("gesture_id = %d\n", gesture_id);
@@ -743,15 +748,12 @@ void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 			keycode = gesture_key_array[12];
 			break;
 		default:
+			NVT_LOG("Gesture : UNKNOWN!, func_type=%d, func_id=%d\n",
+				func_type, func_id);
 			break;
 	}
 
-	if (keycode > 0) {
-		input_report_key(ts->input_dev, keycode, 1);
-		input_sync(ts->input_dev);
-		input_report_key(ts->input_dev, keycode, 0);
-		input_sync(ts->input_dev);
-	}
+	return keycode;
 }
 #endif
 
@@ -909,12 +911,14 @@ void stats_timer_func(struct timer_list *arg) {
 
 	spin_lock_irqsave(&ts->stats_lock, flags);
 	local = ts->stats;
-	ts->stats.count = 0;
+	ts->stats.interrupts = 0;
+	ts->stats.events = 0;
+	ts->stats.errors = 0;
 	spin_unlock_irqrestore(&ts->stats_lock, flags);
 
-	if (local.count) {
-		NVT_LOG("%u touch events in %u ms (last was %u ms ago)\n",
-		        local.count,
+	if (local.interrupts) {
+		NVT_LOG("interrupts: %u events: %u errors: %u in %u ms (last was %u ms ago)\n",
+		        local.interrupts, local.events, local.errors,
 		        jiffies_to_msecs((long)local.last - (long)local.first),
 		        jiffies_to_msecs((long)jiffies - (long)local.last));
 	}
@@ -947,6 +951,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	unsigned long nfc_inactive_time;
 	unsigned long flags;
 	unsigned long current_time;
+	bool event = false, error = false;
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
@@ -955,16 +960,6 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #endif
 
 	current_time = jiffies;
-	spin_lock_irqsave(&ts->stats_lock, flags);
-
-	if (ts->stats.count == 0) {
-		ts->stats.first = current_time;
-	}
-	ts->stats.last = current_time;
-	ts->stats.count += 1;
-
-	spin_unlock_irqrestore(&ts->stats_lock, flags);
-
 	mod_timer(&ts->stats_timer, jiffies + TOUCH_CLUSTER_GAP_JIFFIES);
 
 	mutex_lock(&ts->lock);
@@ -972,18 +967,18 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	ret = CTP_I2C_READ(ts->client, I2C_FW_Address, point_data, POINT_DATA_LEN + 1);
 	if (ret < 0) {
 		NVT_ERR("CTP_I2C_READ failed.(%d)\n", ret);
-		goto XFER_ERROR;
+		error = true;
+		goto out;
 	}
 
 	/* Ignore any ghost touches introduced by NFC */
 	log_skipped_touch = atomic_xchg(&ts->log_skipped_touch, false);
 	nfc_inactive_time = atomic64_read(&ts->nfc_inactive_time);
-	if (nfc_inactive_time && time_before(jiffies, nfc_inactive_time)) {
+	if (nfc_inactive_time && time_before(current_time, nfc_inactive_time)) {
 		if (log_skipped_touch) {
 			NVT_LOG("Touch event discarded (NFC active)\n");
 		}
-		mutex_unlock(&ts->lock);
-		return IRQ_HANDLED;
+		goto out;
 	}
 
 /*
@@ -999,7 +994,8 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #if NVT_TOUCH_ESD_PROTECT
 		nvt_esd_check_enable(true);
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
-		goto XFER_ERROR;
+		error = true;
+		goto out;
 	}
 
 #if PALM_GESTURE
@@ -1011,23 +1007,31 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 			input_sync(ts->input_dev);
 			input_report_key(ts->input_dev, KEY_SLEEP, 0);
 			input_sync(ts->input_dev);
+			event = true;
 		}
-		mutex_unlock(&ts->lock);
-		return IRQ_HANDLED;
+		goto out;
 	}
 #endif
 
 #if WAKEUP_GESTURE
 	if ((bTouchIsAwake == 0) || (ts->idle_mode)) {
-		if (bTouchIsAwake == 1 && ts->idle_mode) {
-			ts->idle_mode = false;
-			NVT_LOG("Disabling idle mode due to wakeup gesture");
-		}
+		uint32_t keycode;
 
 		input_id = (uint8_t)(point_data[1] >> 3);
-		nvt_ts_wakeup_gesture_report(input_id, point_data);
-		mutex_unlock(&ts->lock);
-		return IRQ_HANDLED;
+		keycode = nvt_ts_wakeup_gesture_report(input_id, point_data);
+		if (keycode > 0) {
+			if (bTouchIsAwake == 1 && ts->idle_mode) {
+				ts->idle_mode = false;
+				NVT_LOG("Disabling idle mode due to wakeup gesture");
+			}
+
+			input_report_key(ts->input_dev, keycode, 1);
+			input_sync(ts->input_dev);
+			input_report_key(ts->input_dev, keycode, 0);
+			input_sync(ts->input_dev);
+			event = true;
+		}
+		goto out;
 	}
 #endif
 
@@ -1083,6 +1087,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #endif /* MT_PROTOCOL_B */
 
 			finger_cnt++;
+			event = true;
 		}
 	}
 
@@ -1101,6 +1106,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	if (finger_cnt == 0) {
 		input_report_key(ts->input_dev, BTN_TOUCH, 0);
 		input_mt_sync(ts->input_dev);
+		event = true;
 	}
 #endif /* MT_PROTOCOL_B */
 
@@ -1122,9 +1128,22 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 	input_sync(ts->input_dev);
 
-XFER_ERROR:
-
+out:
 	mutex_unlock(&ts->lock);
+
+	spin_lock_irqsave(&ts->stats_lock, flags);
+
+	if (ts->stats.interrupts == 0) {
+		ts->stats.first = current_time;
+	}
+	ts->stats.last = current_time;
+	ts->stats.interrupts ++;
+	if (event)
+		ts->stats.events ++;
+	if (error)
+		ts->stats.errors ++;
+
+	spin_unlock_irqrestore(&ts->stats_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -1917,12 +1936,14 @@ static int nvt_ts_irq_disable(struct device *dev) {
 
 	spin_lock_irqsave(&ts->stats_lock, flags);
 	local = ts->stats;
-	ts->stats.count = 0;
+	ts->stats.interrupts = 0;
+	ts->stats.events = 0;
+	ts->stats.errors = 0;
 	spin_unlock_irqrestore(&ts->stats_lock, flags);
 
-	if (local.count) {
-		NVT_LOG("%u touch events in %u ms (last was %u ms ago)\n",
-		        local.count,
+	if (local.interrupts) {
+		NVT_LOG("interrupts: %u events: %u errors: %u in %u ms (last was %u ms ago)\n",
+		        local.interrupts, local.events, local.errors,
 		        jiffies_to_msecs((long)local.last - (long)local.first),
 		        jiffies_to_msecs((long)jiffies - (long)local.last));
 		del_timer(&ts->stats_timer);
