@@ -6166,6 +6166,7 @@ dhd_prot_ioctcmplt_process(dhd_pub_t *dhd, void *msg)
 	void *pkt;
 	unsigned long flags;
 	dhd_dma_buf_t retbuf;
+	int ret = 0;
 
 	/* Check for ioctl timeout induce flag, which is set by firing
 	 * dhd iovar to induce IOCTL timeout. If flag is set,
@@ -6246,11 +6247,18 @@ dhd_prot_ioctcmplt_process(dhd_pub_t *dhd, void *msg)
 		pkt_id, xt_id, prot->ioctl_status, prot->ioctl_resplen));
 
 	if (prot->ioctl_resplen > 0) {
+		uint16 copy_len = MIN(prot->ioctl_resplen, prot->retbuf.len);
 #ifndef IOCTLRESP_USE_CONSTMEM
-		bcopy(PKTDATA(dhd->osh, pkt), prot->retbuf.va, prot->ioctl_resplen);
+		ret = memcpy_s(prot->retbuf.va, prot->retbuf.len, PKTDATA(dhd->osh, pkt), copy_len);
 #else
-		bcopy(pkt, prot->retbuf.va, prot->ioctl_resplen);
+		ret = memcpy_s(prot->retbuf.va, prot->retbuf.len, pkt, copy_len);
 #endif /* !IOCTLRESP_USE_CONSTMEM */
+		if (ret) {
+			DHD_ERROR(("memcpy failed:%d, destsz:%d, n:%u\n",
+				ret, prot->retbuf.len, copy_len));
+			dhd_wakeup_ioctl_event(dhd, IOCTL_RETURN_ON_ERROR);
+			goto exit;
+		}
 	}
 
 	/* wake up any dhd_os_ioctl_resp_wait() */
