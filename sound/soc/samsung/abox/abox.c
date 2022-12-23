@@ -5890,19 +5890,31 @@ static void __abox_control_l2c(struct abox_data *data, bool enable)
 		abox_request_ipc(dev, msg.ipcid, &msg, sizeof(msg), 1, 0);
 		wait_event_timeout(data->ipc_wait_queue,
 				data->l2c_controlled, LIMIT_IN_JIFFIES);
-		if (!data->l2c_controlled)
+		if (!data->l2c_controlled) {
 			dev_err(dev, "l2c enable failed\n");
+			goto l2c_failure;
+		}
 	} else {
 		abox_request_ipc(dev, msg.ipcid, &msg, sizeof(msg), 1, 0);
 		wait_event_timeout(data->ipc_wait_queue,
 				data->l2c_controlled, LIMIT_IN_JIFFIES);
-		if (!data->l2c_controlled)
+		if (!data->l2c_controlled) {
 			dev_err(dev, "l2c disable failed\n");
+			goto l2c_failure;
+		}
 
 		vts_release_sram(data->pdev_vts, 0);
 	}
 
 	data->l2c_enabled = enable;
+
+	return;
+
+l2c_failure:
+	abox_dbg_print_gpr(dev, data);
+	abox_dbg_dump_gpr(dev, data, ABOX_DBG_DUMP_FIRMWARE, "l2c");
+	abox_dbg_dump_mem(dev, data, ABOX_DBG_DUMP_FIRMWARE, "l2c");
+	panic("Fatal error - l2c %s failed", enable ? "enable" : "disable");
 }
 
 static void abox_l2c_work_func(struct work_struct *work)
@@ -6117,6 +6129,7 @@ static void abox_wait_suspend_done(struct device *dev, struct abox_data *data)
 		}
 		dev_warn_ratelimited(dev, "abox wait suspend timeout\n");
 		abox_dbg_dump_simple(dev, data, "wait suspend timeout");
+		panic("Fatal error - Abox wait suspend timeout");
 		break;
 	}
 
