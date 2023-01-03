@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -333,8 +333,10 @@ struct kbase_va_region {
  * Extent must be a power of 2 */
 #define KBASE_REG_TILER_ALIGN_TOP   (1ul << 23)
 
-/* Memory is handled by JIT - user space should not be able to free it */
-#define KBASE_REG_JIT               (1ul << 24)
+/* Whilst this flag is set the GPU allocation is not supposed to be freed by
+ * user space. The flag will remain set for the lifetime of JIT allocations.
+ */
+#define KBASE_REG_NO_USER_FREE      (1ul << 24)
 
 #ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
 /* MALI_SEC_SECURE_RENDERING */
