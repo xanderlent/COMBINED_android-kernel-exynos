@@ -1399,8 +1399,11 @@ static void battery_external_power_changed(struct power_supply *psy) {
 		pr_err("%s: Fail to execute WLC present property\n", __func__);
 	} else {
 		if (value.intval) {
-			if (!battery->wlc_connected)
+			if (!battery->wlc_connected) {
 				dev_info(battery->dev, "WLC connected\n");
+				battery->soc_spoof_full =
+					100 * HUNDREDTHS_OF_PERCENT;
+			}
 			battery->wlc_connected = true;
 			ret = power_supply_get_property(wlc_psy, POWER_SUPPLY_PROP_AUTHENTIC, &value);
 			if (ret < 0) {
@@ -1408,8 +1411,6 @@ static void battery_external_power_changed(struct power_supply *psy) {
 			}
 			if (value.intval) {
 				battery->wlc_authentic = true;
-				battery->soc_spoof_full =
-					100 * HUNDREDTHS_OF_PERCENT;
 			} else {
 				dev_info(battery->dev, "WLC inauthentic\n");
 				battery->wlc_authentic = false;
