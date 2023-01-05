@@ -430,6 +430,7 @@ static void cs40l2x_set_state(struct cs40l2x_private *cs40l2x, bool state)
 {
 	if (cs40l2x->vibe_state != state) {
 		cs40l2x->vibe_state = state;
+		dev_info(cs40l2x->dev, "Vibration state: %d \n", state);
 		cs40l2x_sysfs_notify(cs40l2x, "vibe_state");
 	}
 }

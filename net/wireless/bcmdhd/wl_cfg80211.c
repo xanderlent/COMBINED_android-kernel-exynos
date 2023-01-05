@@ -7606,6 +7606,16 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		WL_DBG(("Buffering WEP Keys \n"));
 		memcpy(&cfg->wep_key, &key, sizeof(struct wl_wsec_key));
 	}
+
+	if (params->seq && params->seq_len == 6) {
+		/* rx iv */
+		const u8 *ivptr;
+		ivptr = (const u8 *) params->seq;
+		key.rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
+			(ivptr[3] << 8) | ivptr[2];
+		key.rxiv.lo = (ivptr[1] << 8) | ivptr[0];
+		key.iv_initialized = true;
+	}
 	err = wldev_iovar_setbuf_bsscfg(dev, "wsec_key", &key, sizeof(key), cfg->ioctl_buf,
 		WLC_IOCTL_MAXLEN, bssidx, &cfg->ioctl_buf_sync);
 	if (unlikely(err)) {

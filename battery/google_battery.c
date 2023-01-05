@@ -240,6 +240,8 @@ struct battery_info {
 	int wlc_current;	/* current (mA) */
 	int wlc_voltage;	/* voltage (mV) */
 
+	int voltage_ocv;	/* OCV voltage read from the fuel gauge (mV) */
+
 #if defined(CONFIG_MUIC_NOTIFIER)
 	struct notifier_block cable_check;
 #endif
@@ -577,7 +579,8 @@ static void delayed_charging_start(struct battery_info *battery)
 
 static void delayed_charging_ps_changed(struct battery_info *battery)
 {
-	if (battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) {
+	if ((battery->power_supply_type == POWER_SUPPLY_TYPE_BATTERY) &&
+	    (battery->wlc_connected == false)) {
 		delayed_charging_reset(battery);
 		/* This ends up being quasi-persistent so this is  making sure
 		   that charging is enabled if the system hangs or reboots */
@@ -854,7 +857,7 @@ static int wireless_get_property(struct power_supply *psy,
 	switch(psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 	case POWER_SUPPLY_PROP_PRESENT:
-		if (battery->power_supply_type == POWER_SUPPLY_TYPE_WIRELESS || battery->wlc_connected)
+		if (battery->wlc_connected)
 			val->intval = 1;
 		else
 			val->intval = 0;
@@ -915,9 +918,7 @@ static int battery_handle_notification(struct notifier_block *nb,
 
 	mutex_lock(&battery->wlc_state_lock);
 
-	if (battery->wlc_connected) {
-		set_wlc_online(battery);
-	}
+	set_wlc_online(battery);
 	old_status = battery->status;
 	set_bat_status_by_cable(battery);
 	mutex_unlock(&battery->wlc_state_lock);
@@ -1076,17 +1077,28 @@ static int get_battery_info(struct battery_info *battery)
 		}
 	}
 
+	// Get the OCV value
+	value.intval = BATTERY_VOLTAGE_OCV;
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_AVG, &value);
+	if (ret < 0) {
+		pr_err("%s: Fail to execute property\n", __func__);
+	}
+	else {
+		battery->voltage_ocv = value.intval;
+	}
+
 	power_supply_put(psy);
 	get_battery_capacity(battery);
 
 	if (old_capacity != battery->capacity || old_spoof != battery->soc_spoof) {
 		// Log data about battery state on % changes
-		dev_info(battery->dev, "%s: Time(%lu), SOC(%u), FG SOC(%u), UI SOC(%u), rawsoc(%d), max_rawsoc(%u), soc_spoof_full(%u), voltage(%u), current(%d), temp(%u), status(%s)\n",
+		dev_info(battery->dev, "%s: Time(%lu), SOC(%u), FG SOC(%u), UI SOC(%u), rawsoc(%d), max_rawsoc(%u), soc_spoof_full(%u), voltage(%u), current(%d), ocv(%u), temp(%u), status(%s)\n",
 				__func__,
 				ktime_get_real_ns() / 1000000000, battery->capacity, battery->soc_fg,
 				battery->soc_spoof, battery->rawsoc, battery->max_rawsoc,
 				battery->soc_spoof_full, battery->voltage_now, battery->current_now,
-				battery->temperature, bat_status_str[battery->status]);
+				battery->voltage_ocv, battery->temperature,
+				bat_status_str[battery->status]);
 	}
 
 	return 0;

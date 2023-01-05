@@ -177,6 +177,12 @@ typedef struct ftm_status_map_host_entry {
 	rtt_reason_t rtt_reason;
 } ftm_status_map_host_entry_t;
 
+typedef struct rtt_event_data_info {
+	wl_proxd_ftm_session_status_t *session_status;
+	rtt_result_t *rtt_result;
+	bcm_xtlv_t *tlv;
+} rtt_event_data_info_t;
+
 static uint16
 rtt_result_ver(uint16 tlvid, const uint8 *p_data);
 
@@ -803,24 +809,32 @@ rtt_collect_data_event_ver(uint16 len)
 	}
 }
 
-static void
-rtt_collect_event_data_display(uint8 ver, void *ctx, const uint8 *p_data, uint16 len)
+static int
+rtt_collect_event_data_display(uint8 ver, bcm_xtlv_t *tlv, const uint8 *p_data, uint16 len)
 {
 	int i;
+	int ret = BCME_OK;
 	wl_proxd_collect_event_data_v1_t *p_collect_data_v1 = NULL;
 	wl_proxd_collect_event_data_v2_t *p_collect_data_v2 = NULL;
 	wl_proxd_collect_event_data_v3_t *p_collect_data_v3 = NULL;
 	wl_proxd_collect_event_data_v4_t *p_collect_data_v4 = NULL;
 
-	if (!ctx || !p_data) {
-		return;
+	if (!tlv || !p_data) {
+		return BCME_ERROR;
+	}
+	if (!(len < BCM_XTLV_MAX_DATA_SIZE_EX(BCM_XTLV_OPTION_NONE))) {
+		return BCME_BUFTOOLONG;
 	}
 
 	switch (ver) {
 	case WL_PROXD_COLLECT_EVENT_DATA_VERSION_1:
 		DHD_RTT(("\tVERSION_1\n"));
-		memcpy(ctx, p_data, sizeof(wl_proxd_collect_event_data_v1_t));
-		p_collect_data_v1 = (wl_proxd_collect_event_data_v1_t *)ctx;
+		ret = memcpy_s(tlv->data, tlv->len, p_data,
+				sizeof(wl_proxd_collect_event_data_v1_t));
+		if (ret != BCME_OK) {
+			break;
+		}
+		p_collect_data_v1 = (wl_proxd_collect_event_data_v1_t *)tlv->data;
 		DHD_RTT(("\tH_RX\n"));
 		for (i = 0; i < K_TOF_COLLECT_H_SIZE_20MHZ; i++) {
 			p_collect_data_v1->H_RX[i] = ltoh32_ua(&p_collect_data_v1->H_RX[i]);
@@ -841,8 +855,12 @@ rtt_collect_event_data_display(uint8 ver, void *ctx, const uint8 *p_data, uint16
 		DHD_RTT(("\tphy_err_mask=0x%x\n", p_collect_data_v1->phy_err_mask));
 		break;
 	case WL_PROXD_COLLECT_EVENT_DATA_VERSION_2:
-		memcpy(ctx, p_data, sizeof(wl_proxd_collect_event_data_v2_t));
-		p_collect_data_v2 = (wl_proxd_collect_event_data_v2_t *)ctx;
+		ret = memcpy_s(tlv->data, tlv->len, p_data,
+				sizeof(wl_proxd_collect_event_data_v2_t));
+		if (ret != BCME_OK) {
+			break;
+		}
+		p_collect_data_v2 = (wl_proxd_collect_event_data_v2_t *)tlv->data;
 		DHD_RTT(("\tH_RX\n"));
 		for (i = 0; i < K_TOF_COLLECT_H_SIZE_20MHZ; i++) {
 			p_collect_data_v2->H_RX[i] = ltoh32_ua(&p_collect_data_v2->H_RX[i]);
@@ -863,8 +881,12 @@ rtt_collect_event_data_display(uint8 ver, void *ctx, const uint8 *p_data, uint16
 		DHD_RTT(("\tphy_err_mask=0x%x\n", p_collect_data_v2->phy_err_mask));
 		break;
 	case WL_PROXD_COLLECT_EVENT_DATA_VERSION_3:
-		memcpy(ctx, p_data, sizeof(wl_proxd_collect_event_data_v3_t));
-		p_collect_data_v3 = (wl_proxd_collect_event_data_v3_t *)ctx;
+		ret = memcpy_s(tlv->data, tlv->len, p_data,
+				sizeof(wl_proxd_collect_event_data_v3_t));
+		if (ret != BCME_OK) {
+			break;
+		}
+		p_collect_data_v3 = (wl_proxd_collect_event_data_v3_t *)tlv->data;
 		switch (p_collect_data_v3->version) {
 		case WL_PROXD_COLLECT_EVENT_DATA_VERSION_3:
 			if (p_collect_data_v3->length !=
@@ -898,8 +920,12 @@ rtt_collect_event_data_display(uint8 ver, void *ctx, const uint8 *p_data, uint16
 		}
 		break;
 	case WL_PROXD_COLLECT_EVENT_DATA_VERSION_4:
-		memcpy(ctx, p_data, sizeof(wl_proxd_collect_event_data_v4_t));
-		p_collect_data_v4 = (wl_proxd_collect_event_data_v4_t *)ctx;
+		ret = memcpy_s(tlv->data, tlv->len, p_data,
+				sizeof(wl_proxd_collect_event_data_v4_t));
+		if (ret != BCME_OK) {
+			break;
+		}
+		p_collect_data_v4 = (wl_proxd_collect_event_data_v4_t *)tlv->data;
 		switch (p_collect_data_v4->version) {
 		case WL_PROXD_COLLECT_EVENT_DATA_VERSION_4:
 			if (p_collect_data_v4->length !=
@@ -933,6 +959,7 @@ rtt_collect_event_data_display(uint8 ver, void *ctx, const uint8 *p_data, uint16
 		}
 		break;
 	}
+	return ret;
 }
 
 static uint16
@@ -1008,6 +1035,10 @@ rtt_unpack_xtlv_cbfn(void *ctx, const uint8 *p_data, uint16 tlvid, uint16 len)
 	uint32 chan_data_entry = 0;
 	uint16 expected_rtt_result_ver = 0;
 
+	rtt_event_data_info_t *rtt_event_data_info = (rtt_event_data_info_t *)ctx;
+	rtt_result_t *rtt_result = rtt_event_data_info->rtt_result;
+	bcm_xtlv_t *tlv = rtt_event_data_info->tlv;
+
 	BCM_REFERENCE(p_data_info);
 
 	switch (tlvid) {
@@ -1015,13 +1046,17 @@ rtt_unpack_xtlv_cbfn(void *ctx, const uint8 *p_data, uint16 tlvid, uint16 len)
 	case WL_PROXD_TLV_ID_RTT_RESULT_V2:
 		DHD_RTT(("WL_PROXD_TLV_ID_RTT_RESULT\n"));
 		expected_rtt_result_ver = rtt_result_ver(tlvid, p_data);
+		if (rtt_result == NULL) {
+			ret = BCME_ERROR;
+			break;
+		}
 		switch (expected_rtt_result_ver) {
 		case WL_PROXD_RTT_RESULT_VERSION_1:
-			ret = dhd_rtt_convert_results_to_host_v1((rtt_result_t *)ctx,
+			ret = dhd_rtt_convert_results_to_host_v1(rtt_result,
 					p_data, tlvid, len);
 			break;
 		case WL_PROXD_RTT_RESULT_VERSION_2:
-			ret = dhd_rtt_convert_results_to_host_v2((rtt_result_t *)ctx,
+			ret = dhd_rtt_convert_results_to_host_v2(rtt_result,
 					p_data, tlvid, len);
 			break;
 		default:
@@ -1032,8 +1067,17 @@ rtt_unpack_xtlv_cbfn(void *ctx, const uint8 *p_data, uint16 tlvid, uint16 len)
 		break;
 	case WL_PROXD_TLV_ID_SESSION_STATUS:
 		DHD_RTT(("WL_PROXD_TLV_ID_SESSION_STATUS\n"));
-		memcpy(ctx, p_data, sizeof(wl_proxd_ftm_session_status_t));
-		p_data_info = (wl_proxd_ftm_session_status_t *)ctx;
+		if (rtt_event_data_info->session_status == NULL) {
+			ret = BCME_ERROR;
+			break;
+		}
+		ret = memcpy_s(rtt_event_data_info->session_status,
+				sizeof(wl_proxd_ftm_session_status_t), p_data, len);
+		if (ret != BCME_OK) {
+			ret = BCME_BUFTOOSHORT;
+			break;
+		}
+		p_data_info = (wl_proxd_ftm_session_status_t *)rtt_event_data_info->session_status;
 		p_data_info->sid = ltoh16_ua(&p_data_info->sid);
 		p_data_info->state = ltoh16_ua(&p_data_info->state);
 		p_data_info->status = ltoh32_ua(&p_data_info->status);
@@ -1048,9 +1092,9 @@ rtt_unpack_xtlv_cbfn(void *ctx, const uint8 *p_data, uint16 tlvid, uint16 len)
 		/* we do not have handle to wl in the context of
 		 * xtlv callback without changing the xtlv API.
 		 */
-		rtt_collect_event_data_display(
+		ret = rtt_collect_event_data_display(
 			rtt_collect_data_event_ver(len),
-			ctx, p_data, len);
+			tlv, p_data, len);
 		break;
 	case WL_PROXD_TLV_ID_COLLECT_CHAN_DATA:
 		GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
@@ -3579,9 +3623,12 @@ dhd_rtt_parse_result_event(wl_proxd_event_t *proxd_ev_data,
 	int tlvs_len, rtt_result_t *rtt_result)
 {
 	int ret = BCME_OK;
+	rtt_event_data_info_t rtt_event_data_info;
+	memset(&rtt_event_data_info, 0, sizeof(rtt_event_data_info_t));
 
+	rtt_event_data_info.rtt_result = rtt_result;
 	/* unpack TLVs and invokes the cbfn to print the event content TLVs */
-	ret = bcm_unpack_xtlv_buf((void *) rtt_result,
+	ret = bcm_unpack_xtlv_buf((void *) &rtt_event_data_info,
 			(uint8 *)&proxd_ev_data->tlvs[0], tlvs_len,
 			BCM_XTLV_OPTION_ALIGN32, rtt_unpack_xtlv_cbfn);
 	if (ret != BCME_OK) {
@@ -3810,7 +3857,6 @@ dhd_rtt_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
 	uint16 version;
 	wl_proxd_event_t *p_event;
 	wl_proxd_event_type_t event_type;
-	wl_proxd_ftm_session_status_t session_status;
 	const ftm_strmap_entry_t *p_loginfo;
 	rtt_result_t *rtt_result;
 #ifdef WL_CFG80211
@@ -3819,6 +3865,7 @@ dhd_rtt_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
 	bool is_new = TRUE;
 	rtt_target_info_t *target = NULL;
 #endif /* WL_CFG80211 */
+	rtt_event_data_info_t rtt_event_data_info;
 
 	DHD_RTT(("Enter %s \n", __FUNCTION__));
 	NULL_CHECK(dhd, "dhd is NULL", ret);
@@ -3948,9 +3995,17 @@ dhd_rtt_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
 #endif /* WL_CFG80211 */
 		if (tlvs_len > 0) {
 			/* unpack TLVs and invokes the cbfn to print the event content TLVs */
-			ret = bcm_unpack_xtlv_buf((void *) &session_status,
+			rtt_event_data_info.session_status =  (wl_proxd_ftm_session_status_t *)
+				MALLOCZ(dhd->osh, sizeof(wl_proxd_ftm_session_status_t));
+			if (!rtt_event_data_info.session_status) {
+				ret = -ENOMEM;
+				goto exit;
+			}
+			ret = bcm_unpack_xtlv_buf((void *) &rtt_event_data_info,
 				(uint8 *)&p_event->tlvs[0], tlvs_len,
 				BCM_XTLV_OPTION_ALIGN32, rtt_unpack_xtlv_cbfn);
+			MFREE(dhd->osh, rtt_event_data_info.session_status,
+					sizeof(wl_proxd_ftm_session_status_t));
 			if (ret != BCME_OK) {
 				DHD_RTT_ERR(("%s : Failed to unpack xtlv for an event\n",
 					__FUNCTION__));
@@ -3991,16 +4046,16 @@ dhd_rtt_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
 	case WL_PROXD_EVENT_COLLECT:
 		DHD_RTT(("WL_PROXD_EVENT_COLLECT\n"));
 		if (tlvs_len > 0) {
-			void *buffer = NULL;
-			if (!(buffer = (void *)MALLOCZ(dhd->osh, tlvs_len))) {
+			if (!(rtt_event_data_info.tlv = (void *)MALLOCZ(dhd->osh, tlvs_len))) {
 				ret = -ENOMEM;
 				goto exit;
 			}
+			rtt_event_data_info.tlv->len = tlvs_len - BCM_XTLV_HDR_SIZE;
 			/* unpack TLVs and invokes the cbfn to print the event content TLVs */
-			ret = bcm_unpack_xtlv_buf(buffer,
+			ret = bcm_unpack_xtlv_buf(&rtt_event_data_info,
 				(uint8 *)&p_event->tlvs[0], tlvs_len,
 				BCM_XTLV_OPTION_NONE, rtt_unpack_xtlv_cbfn);
-			MFREE(dhd->osh, buffer, tlvs_len);
+			MFREE(dhd->osh, rtt_event_data_info.tlv, tlvs_len);
 			if (ret != BCME_OK) {
 				DHD_RTT_ERR(("%s : Failed to unpack xtlv for event %d\n",
 					__FUNCTION__, event_type));
@@ -4011,16 +4066,16 @@ dhd_rtt_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
 	case WL_PROXD_EVENT_MF_STATS:
 		DHD_RTT(("WL_PROXD_EVENT_MF_STATS\n"));
 		if (tlvs_len > 0) {
-			void *buffer = NULL;
-			if (!(buffer = (void *)MALLOCZ(dhd->osh, tlvs_len))) {
+			if (!(rtt_event_data_info.tlv = (void *)MALLOCZ(dhd->osh, tlvs_len))) {
 				ret = -ENOMEM;
 				goto exit;
 			}
+			rtt_event_data_info.tlv->len = tlvs_len - BCM_XTLV_HDR_SIZE;
 			/* unpack TLVs and invokes the cbfn to print the event content TLVs */
-			ret = bcm_unpack_xtlv_buf(buffer,
+			ret = bcm_unpack_xtlv_buf(&rtt_event_data_info,
 				(uint8 *)&p_event->tlvs[0], tlvs_len,
 				BCM_XTLV_OPTION_NONE, rtt_unpack_xtlv_cbfn);
-			MFREE(dhd->osh, buffer, tlvs_len);
+			MFREE(dhd->osh, rtt_event_data_info.tlv, tlvs_len);
 			if (ret != BCME_OK) {
 				DHD_RTT_ERR(("%s : Failed to unpack xtlv for event %d\n",
 					__FUNCTION__, event_type));

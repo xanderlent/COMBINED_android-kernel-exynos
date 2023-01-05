@@ -26,6 +26,9 @@
 #include <linux/rtc.h>
 #include <linux/string.h>
 
+#define WAKE_SENSITIVITY 1
+#define SENSITIVITY_LEN  4 /* range "0" - "255" */
+
 struct pixart_pat9126_data {
 	struct i2c_client *client;
 	struct input_dev *input;
@@ -38,6 +41,7 @@ struct pixart_pat9126_data {
 	bool inverse_y;
 	int state;
 	int display_mode;
+	u8 crown_sensitivity;
 	struct work_struct work;
 	struct workqueue_struct *workqueue;
 	struct delayed_work polling_work;
@@ -47,7 +51,7 @@ struct pixart_pat9126_data {
 };
 
 //#define PAT9126_WAKE_IRQ
-#define PAT9126_STATE_OFF 0
+#define PAT9126_STATE_SUSPEND 0
 #define PAT9126_STATE_ON 1
 #define PAT9126_STATE_RESUMING 2
 
@@ -345,14 +349,8 @@ static void pat9126_work_handler(struct work_struct *work)
 
 	mutex_lock(&data->mtx);
 
-	if (data->state != PAT9126_STATE_ON) {
-		if (data->state == PAT9126_STATE_RESUMING) {
-			pr_warn("[PAT9126] %s: work handler run before resume complete\n", __func__);
-		} else {
-			// PAT9126_STATE_OFF
-			pr_warn("[PAT9126] %s: work handler run with device suspended\n", __func__);
-		}
-
+	if (data->state == PAT9126_STATE_RESUMING) {
+		pr_warn("[PAT9126] %s: work handler run before resume complete\n", __func__);
 		goto end_work_handler;
 	}
 
@@ -402,19 +400,26 @@ static irqreturn_t pat9126_irq(int irq, void *dev_data)
 	return IRQ_HANDLED;
 }
 
-static ssize_t pat9126_sensitivity_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf,
-				    size_t count) {
-	u8 sensitivity;
-
+static void pat9126_sensitivity_write(struct device *dev,
+                                      u8 sensitivity) {
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
 
-	if (!kstrtou8(buf, 0, &sensitivity)) {
-		dev_dbg(dev, "RES_X: %d, 0x%x\n", sensitivity, sensitivity);
-		pat9126_write(client, PIXART_PAT9126_SET_CPI_RES_X_REG, sensitivity);
+	pr_info("[PAT9126] set sensitivity: %d\n", sensitivity);
+	pat9126_write(client, PIXART_PAT9126_SET_CPI_RES_X_REG, sensitivity);
+}
+
+static ssize_t pat9126_sensitivity_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t count) {
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+
+	if (!kstrtou8(buf, 0, &data->crown_sensitivity)) {
+		pat9126_sensitivity_write(dev, data->crown_sensitivity);
 	}
 
 	return count;
@@ -627,7 +632,6 @@ static void pat9126_complete_resume(struct work_struct *work) {
 	pat9126_enable_mot_write_protected(data->client);
 
 	data->state = PAT9126_STATE_ON;
-	enable_irq(data->client->irq);
 
 end_complete_resume:
 	mutex_unlock(&data->mtx);
@@ -750,6 +754,7 @@ static int pat9126_i2c_probe(struct i2c_client *client,
 	mutex_init(&data->mtx);
 	data->state = PAT9126_STATE_ON;
 	data->display_mode = FB_BLANK_UNBLANK;
+	data->crown_sensitivity = PIXART_PAT9126_CPI_RESOLUTION_X;
 
 #if !defined(PAT9126_WAKE_IRQ)
 	data->fb_notif.notifier_call = pat9126_fb_callback;
@@ -835,7 +840,7 @@ static int pat9126_display_suspend(struct device *dev)
 
 	pr_debug("[PAT9126] %s\n", __func__);
 	if(data->state != PAT9126_STATE_ON) {
-		if (data->state == PAT9126_STATE_OFF) {
+		if (data->state == PAT9126_STATE_SUSPEND) {
 			pr_warn("[PAT9126] %s: Redundant call to suspend\n", __func__);
 		} else {
 			// PAT9126_STATE_RESUMING
@@ -845,11 +850,14 @@ static int pat9126_display_suspend(struct device *dev)
 		goto end_suspend;
 	}
 
-	disable_irq(data->client->irq);
+	/* Set low sensitivity */
+	pat9126_sensitivity_write(dev, WAKE_SENSITIVITY);
+
+	enable_irq_wake(data->client->irq);
 	pat9126_disable_mot_write_protected(data->client);
 
 end_suspend:
-	data->state = PAT9126_STATE_OFF;
+	data->state = PAT9126_STATE_SUSPEND;
 	mutex_unlock(&data->mtx);
 	return 0;
 }
@@ -862,13 +870,16 @@ static int pat9126_display_resume(struct device *dev)
 	pr_debug("[PAT9126] %s\n", __func__);
 
 	mutex_lock(&data->mtx);
-
-	if (data->state != PAT9126_STATE_OFF) {
+	if (data->state != PAT9126_STATE_SUSPEND) {
 		pr_warn("[PAT9126] %s: Redundant call to resume\n", __func__);
 		mutex_unlock(&data->mtx);
 		return 0;
 	}
 
+	/* Set regular sensitivity */
+	pat9126_sensitivity_write(dev, data->crown_sensitivity);
+
+	disable_irq_wake(data->client->irq);
 	data->state = PAT9126_STATE_RESUMING;
 	mutex_unlock(&data->mtx);
 

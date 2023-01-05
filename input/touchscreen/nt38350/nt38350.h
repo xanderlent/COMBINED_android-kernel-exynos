@@ -100,7 +100,9 @@ extern const uint16_t gesture_key_array[];
 struct nvt_ts_touch_stats {
 	unsigned long first; // Time of first touch in jiffies
 	unsigned long last; // Time of last touch in jiffies
-	uint32_t count; // Number of events in cluster
+	uint32_t interrupts; // Number of interrupts in cluster
+	uint32_t events; // Number of events in cluster
+	uint32_t errors; // Number of errors in cluster
 };
 
 struct nvt_ts_data {
