@@ -1060,11 +1060,16 @@ int s5000ap_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 
 	/* Register CP_WDT */
 	irq_num = platform_get_irq(pdev, 0);
+	if (irq_num < 0) {
+		mif_err("platform_get_irq failed with(%d)", irq_num);
+		ret = irq_num;
+		goto err_irq;
+	}
 	mif_init_irq(&mc->irq_cp_wdt, irq_num, "cp_wdt", flags);
 	ret = mif_request_irq(&mc->irq_cp_wdt, cp_wdt_handler, mc);
 	if (ret) {
 		mif_err("Failed to request_irq with(%d)", ret);
-		return ret;
+		goto err_irq;
 	}
 	/* CP_WDT interrupt must be enabled only after CP booting */
 	mif_disable_irq(&mc->irq_cp_wdt);
@@ -1074,7 +1079,7 @@ int s5000ap_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	if (ret) {
 		mif_err("Failed to mbox_request_irq %u with(%d)",
 				mc->irq_phone_active, ret);
-		return ret;
+		goto err_mbox_register;
 	}
 
 	init_completion(&mc->init_cmpl);
@@ -1087,12 +1092,17 @@ int s5000ap_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 		mc->ap2cp_cfg_ioaddr = devm_ioremap(mc->dev, mc->ap2cp_cfg_addr, SZ_64);
 		if (mc->ap2cp_cfg_ioaddr == NULL) {
 			mif_err("%s: AP2CP_CFG ioremap failed.\n", __func__);
-			return -EACCES;
+			ret = -EACCES;
+			goto err_ioremap;
 		}
 	}
 #if defined(CONFIG_SEC_MODEM_S5000AP) && defined(CONFIG_SEC_MODEM_S5100)
 	mc->modem_nb.notifier_call = s5000ap_modem_notifier;
-	register_modem_event_notifier(&mc->modem_nb);
+	ret = register_modem_event_notifier(&mc->modem_nb);
+	if (ret < 0) {
+		mif_err("failed to register event notifier_call\n");
+		goto err_ioremap;
+	}
 #endif
 #ifndef CONFIG_GPIO_DS_DETECT
 	if (sysfs_create_group(&pdev->dev.kobj, &sim_group))
@@ -1105,6 +1115,31 @@ int s5000ap_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 #endif
 	mif_info("---\n");
 	return 0;
+
+err_ioremap:
+	mbox_unregister_irq(MCU_CP, mc->irq_phone_active, cp_active_handler);
+err_mbox_register:
+	mif_free_irq(&mc->irq_cp_wdt, mc);
+err_irq:
+	g_mc = NULL;
+	return ret;
+}
+
+void s5000ap_uninit_modemctl_device(struct modem_ctl *mc,
+		struct modem_data *pdata)
+{
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
+	itmon_notifier_chain_unregister(&mc->itmon_nb);
+#endif
+#if !IS_ENABLED(CONFIG_GPIO_DS_DIRECT)
+	sysfs_remove_group(&mc->dev->kobj, &sim_group);
+#endif
+#if defined(CONFIG_SEC_MODEM_S5000AP) && defined(CONFIG_SEC_MODEM_S5100)
+	unregister_modem_event_notifier(&mc->modem_nb);
+#endif
+	mbox_unregister_irq(MCU_CP, mc->irq_phone_active, cp_active_handler);
+	mif_free_irq(&mc->irq_cp_wdt, mc);
+	g_mc = NULL;
 }
 
 #ifdef CONFIG_USB_CONFIGFS_F_MBIM

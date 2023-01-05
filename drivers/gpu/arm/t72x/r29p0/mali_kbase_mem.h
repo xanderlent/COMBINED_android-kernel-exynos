@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -333,8 +333,10 @@ struct kbase_va_region {
  * Extent must be a power of 2 */
 #define KBASE_REG_TILER_ALIGN_TOP   (1ul << 23)
 
-/* Memory is handled by JIT - user space should not be able to free it */
-#define KBASE_REG_JIT               (1ul << 24)
+/* Whilst this flag is set the GPU allocation is not supposed to be freed by
+ * user space. The flag will remain set for the lifetime of JIT allocations.
+ */
+#define KBASE_REG_NO_USER_FREE      (1ul << 24)
 
 #ifdef CONFIG_MALI_SEC_ASP_SECURE_BUF_CTRL
 /* MALI_SEC_SECURE_RENDERING */
@@ -1121,6 +1123,7 @@ void kbase_mmu_disable_as(struct kbase_device *kbdev, int as_nr);
 
 void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat);
 
+#if defined(CONFIG_MALI_VECTOR_DUMP)
 /** Dump the MMU tables to a buffer
  *
  * This function allocates a buffer (of @c nr_pages pages) to hold a dump of the MMU tables and fills it. If the
@@ -1137,6 +1140,7 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat);
  * small)
  */
 void *kbase_mmu_dump(struct kbase_context *kctx, int nr_pages);
+#endif
 
 /**
  * kbase_sync_now - Perform cache maintenance on a memory region
@@ -1512,24 +1516,29 @@ bool kbase_has_exec_va_zone(struct kbase_context *kctx);
 /**
  * kbase_map_external_resource - Map an external resource to the GPU.
  * @kctx:              kbase context.
- * @reg:               The region to map.
+ * @reg:               External resource to map.
  * @locked_mm:         The mm_struct which has been locked for this operation.
  *
- * Return: The physical allocation which backs the region on success or NULL
- * on failure.
+ * On successful mapping, the VA region and the gpu_alloc refcounts will be
+ * increased, making it safe to use and store both values directly.
+ *
+ * Return: Zero on success, or negative error code.
  */
-struct kbase_mem_phy_alloc *kbase_map_external_resource(
-		struct kbase_context *kctx, struct kbase_va_region *reg,
-		struct mm_struct *locked_mm);
+int kbase_map_external_resource(struct kbase_context *kctx,
+		struct kbase_va_region *reg, struct mm_struct *locked_mm);
 
 /**
  * kbase_unmap_external_resource - Unmap an external resource from the GPU.
  * @kctx:  kbase context.
- * @reg:   The region to unmap or NULL if it has already been released.
- * @alloc: The physical allocation being unmapped.
+ * @reg:   VA region corresponding to external resource
+ *
+ * On successful unmapping, the VA region and the gpu_alloc refcounts will
+ * be decreased. If the refcount reaches zero, both @reg and the corresponding
+ * allocation may be freed, so using them after returning from this function
+ * requires the caller to explicitly check their state.
  */
 void kbase_unmap_external_resource(struct kbase_context *kctx,
-		struct kbase_va_region *reg, struct kbase_mem_phy_alloc *alloc);
+		struct kbase_va_region *reg);
 
 /**
  * kbase_sticky_resource_init - Initialize sticky resource management.

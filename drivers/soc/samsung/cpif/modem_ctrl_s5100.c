@@ -1524,9 +1524,10 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	mc->ws = cpif_cpif_wake_lock_register(pdev->dev, "s5100_cpif_wake_lock");
 	if (mc->ws == NULL) {
 		mif_err("s5100_cpif_wake_lock: wakeup_source_register fail\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_wake_lock_register;
 	}
-	
+
 	mutex_init(&mc->pcie_onoff_lock);
 	mutex_init(&mc->pcie_check_lock);
 	spin_lock_init(&mc->pcie_tx_lock);
@@ -1541,13 +1542,15 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	mc->apwake_irq_chip = irq_get_chip(mc->s5100_irq_ap_wakeup.num);
 	if (mc->apwake_irq_chip == NULL) {
 		mif_err("Can't get irq_chip structure!!!!\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_irq_get_chip;
 	}
 
 	mc->wakeup_wq = create_singlethread_workqueue("cp2ap_wakeup_wq");
 	if (!mc->wakeup_wq) {
 		mif_err("%s: ERR! fail to create wakeup_wq\n", mc->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_irq_get_chip;
 	}
 	INIT_WORK(&mc->wakeup_work, cp2ap_wakeup_work);
 	INIT_WORK(&mc->suspend_work, cp2ap_suspend_work);
@@ -1555,24 +1558,33 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	mc->crash_wq = create_singlethread_workqueue("trigger_cp_crash_wq");
 	if (!mc->crash_wq) {
 		mif_err("%s: ERR! fail to create crash_wq\n", mc->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_crash_wq;
 	}
 	INIT_WORK(&mc->crash_work, trigger_cp_crash_work);
 
 	mc->reboot_nb.notifier_call = s5100_reboot_handler;
-	register_reboot_notifier(&mc->reboot_nb);
+	ret = register_reboot_notifier(&mc->reboot_nb);
+	if (ret) {
+		mif_err("failed to register reboot notifier\n");
+		goto err_reboot_notifier;
+	}
 
 	/* Register PM notifier_call */
 	mc->pm_notifier.notifier_call = s5100_pm_notifier;
 	ret = register_pm_notifier(&mc->pm_notifier);
 	if (ret) {
 		mif_err("failed to register PM notifier_call\n");
-		return ret;
+		goto err_pm_notifier;
 	}
 
 #if defined(CONFIG_SEC_MODEM_S5000AP) && defined(CONFIG_SEC_MODEM_S5100)
 	mc->modem_nb.notifier_call = s5100_modem_notifier;
-	register_modem_event_notifier(&mc->modem_nb);
+	ret = register_modem_event_notifier(&mc->modem_nb);
+	if (ret < 0) {
+		mif_err("failed to register sec event notifier\n");
+		goto err_sec_notifier;
+	}
 #endif
 
 #if defined(CONFIG_SUSPEND_DURING_VOICE_CALL)
@@ -1580,7 +1592,11 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	INIT_WORK(&mc->call_off_work, voice_call_off_work);
 
 	mc->abox_call_state_nb.notifier_call = s5100_abox_call_state_notifier;
-	register_abox_call_event_notifier(&mc->abox_call_state_nb);
+	ret = register_abox_call_event_notifier(&mc->abox_call_state_nb);
+	if (ret < 0) {
+		mif_err("failed to register abox call event notifier\n");
+		goto err_abox_call_notifier;
+	}
 #endif
 
 	if (sysfs_create_group(&pdev->dev.kobj, &sim_group))
@@ -1589,4 +1605,46 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	mif_err("---\n");
 
 	return 0;
+
+#if defined(CONFIG_SUSPEND_DURING_VOICE_CALL)
+err_abox_call_notifier:
+#endif
+#if defined(CONFIG_SEC_MODEM_S5000AP) && defined(CONFIG_SEC_MODEM_S5100)
+	unregister_modem_event_notifier(&mc->modem_nb);
+err_sec_notifier:
+#endif
+	unregister_pm_notifier(&mc->pm_notifier);
+err_pm_notifier:
+	unregister_reboot_notifier(&mc->reboot_nb);
+err_reboot_notifier:
+	destroy_workqueue(mc->crash_wq);
+err_crash_wq:
+	destroy_workqueue(mc->wakeup_wq);
+err_irq_get_chip:
+	cpif_wake_lock_unregister(mc->ws);
+err_wake_lock_register:
+	g_mc = NULL;
+	return ret;
+}
+
+void s5100_uninit_modemctl_device(struct modem_ctl *mc,
+		struct modem_data *pdata)
+{
+	struct device *dev = mc->dev;
+
+	sysfs_remove_group(&dev->kobj, &sim_group);
+#if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
+	unregister_abox_call_event_notifier(&mc->call_state_nb);
+#endif
+#if defined(CONFIG_SEC_MODEM_S5000AP) && defined(CONFIG_SEC_MODEM_S5100)
+	unregister_modem_event_notifier(&mc->modem_nb);
+#endif
+	unregister_pm_notifier(&mc->pm_notifier);
+	unregister_reboot_notifier(&mc->reboot_nb);
+	destroy_workqueue(mc->crash_wq);
+	destroy_workqueue(mc->wakeup_wq);
+	mutex_destroy(&mc->pcie_check_lock);
+	mutex_destroy(&mc->pcie_onoff_lock);
+	cpif_wake_lock_unregister(mc->ws);
+	g_mc = NULL;
 }

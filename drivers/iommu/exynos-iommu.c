@@ -606,14 +606,17 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 		sysmmu_drvdata_list->next = data;
 	}
 
+	ret = iommu_device_sysfs_add(&data->iommu, &pdev->dev, NULL,
+				     dev_name(data->sysmmu));
+	if (ret)
+		return ret;
+
 	iommu_device_set_ops(&data->iommu, &exynos_iommu_ops);
 	iommu_device_set_fwnode(&data->iommu, &dev->of_node->fwnode);
 
 	ret = iommu_device_register(&data->iommu);
-	if (ret) {
-		dev_err(dev, "Failed to register device\n");
-		return ret;
-	}
+	if (ret)
+		goto err_iommu_register;
 
 	pm_runtime_enable(dev);
 
@@ -626,6 +629,10 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 			MMU_REV_VER(data->version));
 
 	return 0;
+
+err_iommu_register:
+	iommu_device_sysfs_remove(&data->iommu);
+	return ret;
 }
 
 static bool __sysmmu_disable(struct sysmmu_drvdata *drvdata)

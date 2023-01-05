@@ -87,11 +87,12 @@ static struct modem_shared *create_modem_shared_data(
 	msd->iodevs_tree_fmt = RB_ROOT;
 
 	msd->storage.cnt = 0;
-	msd->storage.addr = devm_kzalloc(dev, MAX_MIF_BUFF_SIZE +
-		(MAX_MIF_SEPA_SIZE * 2), GFP_KERNEL);
+	msd->storage.addr = devm_kcalloc(dev, MAX_MIF_BUFF_SIZE +
+		(MAX_MIF_SEPA_SIZE * 2), sizeof(*msd->storage.addr),
+		GFP_KERNEL);
 	if (!msd->storage.addr) {
 		mif_err("IPC logger buff alloc failed!!\n");
-		kfree(msd);
+		devm_kfree(dev, msd);
 		return NULL;
 	}
 	memset(msd->storage.addr, 0, size + (MAX_MIF_SEPA_SIZE * 2));
@@ -973,11 +974,10 @@ static int cpif_probe(struct platform_device *pdev)
 {
 	int i;
 	struct device *dev = &pdev->dev;
-	struct modem_data *pdata = dev->platform_data;
+	struct modem_data *pdata = NULL;
 	struct modem_shared *msd;
 	struct modem_ctl *modemctl;
 	struct io_device **iod;
-	size_t size;
 	struct link_device *ld;
 	enum mif_sim_mode sim_mode;
 	int err;
@@ -1028,8 +1028,11 @@ static int cpif_probe(struct platform_device *pdev)
 	sim_mode = get_sim_mode(dev->of_node);
 
 	/* create io deivces and connect to modemctl device */
-	size = sizeof(struct io_device *) * pdata->num_iodevs;
-	iod = kzalloc(size, GFP_KERNEL);
+	iod = kcalloc(pdata->num_iodevs, sizeof(*iod), GFP_KERNEL);
+	if (!iod) {
+		mif_err("kcalloc() err\n");
+		goto free_mc;
+	}
 	for (i = 0; i < pdata->num_iodevs; i++) {
 		if (sim_mode < MIF_SIM_DUAL &&
 			pdata->iodevs[i].attrs & IODEV_ATTR(ATTR_DUALSIM))
@@ -1114,8 +1117,10 @@ free_iod:
 	kfree(iod);
 
 free_mc:
-	if (modemctl)
+	if (modemctl) {
+		call_modem_uninit_func(modemctl, pdata);
 		devm_kfree(dev, modemctl);
+	}
 
 	if (msd)
 		devm_kfree(dev, msd);
