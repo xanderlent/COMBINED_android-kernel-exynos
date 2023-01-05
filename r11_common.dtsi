@@ -20,6 +20,7 @@
 	#address-cells = <2>;
 	#size-cells = <1>;
 	samsung,abox-bootargs = "init=ab0x vss=1 offload=1";
+	samsung,abox-debug-enable;
 	abox_vss@0 {
 		compatible = "samsung,abox-vss";
 		magic_offset = <0x300000>;
