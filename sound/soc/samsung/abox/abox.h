@@ -691,6 +691,7 @@ struct abox_data {
 	const char *bootargs;
 	atomic_t suspend_state;
 	atomic_t completion_running;
+	atomic_t cpu_gear_pm_cnt;
 	struct completion abox_enabled;
 	int cmpnt_reg_cnt;
 	const char *sram_name;

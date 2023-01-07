@@ -3988,7 +3988,7 @@ static void abox_change_cpu_gear(struct device *dev, struct abox_data *data)
 	unsigned int gear = UINT_MAX;
 	s32 freq;
 
-	dev_dbg(dev, "%s\n", __func__);
+	dev_info(dev, "%s\n", __func__);
 
 	for (request = data->cpu_gear_requests;
 			request - data->cpu_gear_requests <
@@ -4013,7 +4013,8 @@ static void abox_change_cpu_gear(struct device *dev, struct abox_data *data)
 			(gear < ABOX_CPU_GEAR_MIN)) {
 		/* first cpu gear request */
 		clk_set_rate(data->clk_pll, AUD_PLL_RATE_HZ_FOR_48000);
-		dev_info(dev, "pll clock: %lu\n", clk_get_rate(data->clk_pll));
+		dev_info(dev, "(r) pll clock: %lu\n", clk_get_rate(data->clk_pll));
+		atomic_inc(&data->cpu_gear_pm_cnt);
 		pm_runtime_get(dev);
 	}
 
@@ -4035,8 +4036,9 @@ static void abox_change_cpu_gear(struct device *dev, struct abox_data *data)
 		/* no more cpu gear request */
 		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
+		atomic_dec(&data->cpu_gear_pm_cnt);
 		clk_set_rate(data->clk_pll, 0);
-		dev_info(dev, "pll clock: %lu\n", clk_get_rate(data->clk_pll));
+		dev_info(dev, "(s) pll clock: %lu\n", clk_get_rate(data->clk_pll));
 	}
 
 	data->cpu_gear = gear;
@@ -6370,12 +6372,15 @@ static void abox_resume_work_func(struct work_struct *work)
 }
 static DECLARE_DELAYED_WORK(abox_resume_work, abox_resume_work_func);
 
+#define MAX_UC_RETRY (10)
 static int abox_pm_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
 	struct abox_data *data = container_of(nb, struct abox_data, pm_nb);
 	struct device *dev = data->dev;
 	int ret;
+	static int uc_retry_count;
+	static bool uc_got_reset;
 
 	dev_info(dev, "%s(%lu)\n", __func__, action);
 
@@ -6387,24 +6392,59 @@ static int abox_pm_notifier(struct notifier_block *nb,
 			pm_runtime_barrier(dev);
 			if ((dev->power.runtime_status != 0) &&
 				(data->boot_done == true)) {
-				dev_info(dev, "calliope state: %d\n",
-						dev->power.runtime_status);
+				dev_warn(dev, "runtime_status: %d, boot_done: %d\n",
+					dev->power.runtime_status, data->boot_done);
 				return NOTIFY_BAD;
 			}
 			if (abox_test_quirk(data, ABOX_QUIRK_OFF_ON_SUSPEND)) {
 				ret = pm_runtime_put_sync(dev);
 				if (ret < 0) {
 					pm_runtime_get(dev);
-					dev_info(dev, "runtime put sync: %d\n", ret);
+					dev_err(dev, "runtime put sync: %d\n", ret);
 					abox_print_power_usage(dev, NULL);
 					return NOTIFY_BAD;
 				} else if (ret == 0 && atomic_read(&dev->power.usage_count) > 0) {
-					dev_info(dev, "runtime put sync: %d uc(%d)\n",
-							ret, atomic_read(&dev->power.usage_count));
-					pm_runtime_get(dev);
-					abox_print_power_usage(dev, NULL);
-					return NOTIFY_BAD;
+					if (uc_retry_count < MAX_UC_RETRY) {
+						uc_retry_count++;
+						dev_warn(dev, "runtime put sync. uc: %d, retry: %d\n",
+							atomic_read(&dev->power.usage_count), uc_retry_count);
+						pm_runtime_get(dev);
+						abox_print_power_usage(dev, NULL);
+						return NOTIFY_BAD;
+					} else {
+						/*
+						If we get here, it means something got out of sync and
+						is preventing further suspends - likely CPU gear requests.
+						*/
+						dev_info(dev, "cpu_gear_pm_cnt: %d\n",
+							atomic_read(&data->cpu_gear_pm_cnt));
+						if (atomic_read(&data->cpu_gear_pm_cnt) > 0) {
+							dev_warn(dev, "Clear all and request ABOX_CPU_GEAR_MIN\n");
+							/* Clear eventual CPU gear requests */
+							abox_clear_cpu_gear_requests(dev, data);
+							/*
+							Request ABOX_CPU_GEAR_MIN to force a
+							call on pm_runtime_put_autosuspend */
+							abox_request_cpu_gear(dev, data,
+								(void *)DEFAULT_CPU_GEAR_ID,
+								ABOX_CPU_GEAR_MIN);
+							/* Wait for the CPU gear request to complete */
+							abox_cpu_gear_barrier(data);
+						} else {
+							/*
+							Reason of the out of sync usage_count is unknown.
+							Should absolutely not get here, but if we do, reset
+							the usage_count in an attempt to allow the system
+							to suspend again and avoid bad baterry drain.
+							*/
+							dev_warn(dev, "Reset uc and allow suspend.\n");
+							atomic_set(&dev->power.usage_count, 0);
+							uc_got_reset = true;
+						}
+					}
 				}
+				/* Useful for debugging */
+				abox_print_power_usage(dev, NULL);
 			}
 			/* clear cpu gears to abox power off */
 			abox_clear_cpu_gear_requests(dev, data);
@@ -6412,7 +6452,7 @@ static int abox_pm_notifier(struct notifier_block *nb,
 			flush_workqueue(data->ipc_workqueue);
 			ret = pm_runtime_suspend(dev);
 			if (ret < 0) {
-				dev_info(dev, "runtime suspend: %d\n", ret);
+				dev_err(dev, "runtime suspend: %d\n", ret);
 				abox_print_power_usage(dev, NULL);
 				return NOTIFY_BAD;
 			}
@@ -6423,8 +6463,22 @@ static int abox_pm_notifier(struct notifier_block *nb,
 			if (!abox_is_clearable(dev, data))
 				dev_info(dev, "abox is not clearable()\n");
 		}
+		uc_retry_count = 0;
 		break;
 	case PM_POST_SUSPEND:
+		/* Useful for debugging */
+		abox_print_power_usage(dev, NULL);
+		/*
+		In the event we had to force reset the usage_count, we
+		reset it again at resume time because it could have got
+		into a case where it got decremented after it was reset
+		and is now negative.
+		*/
+		if (uc_got_reset) {
+			atomic_set(&dev->power.usage_count, 0);
+			uc_got_reset = false;
+			dev_info(dev, "Resumed and reset uc.\n");
+		}
 		if (abox_test_quirk(data, ABOX_QUIRK_OFF_ON_SUSPEND)) {
 			dev_info(dev, "(%d)r suspend_state: %d\n", __LINE__,
 					atomic_read(&data->suspend_state));
@@ -6567,10 +6621,10 @@ static ssize_t dbg_suspend_dmp_en_show(struct device *dev,
 static ssize_t dbg_suspend_dmp_en_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
+	struct abox_data *data = dev_get_drvdata(dev);
+
 	if (count <= 0)
 		return -EINVAL;
-
-	struct abox_data *data = dev_get_drvdata(dev);
 
 	switch (buf[0]) {
 	case '1': {
