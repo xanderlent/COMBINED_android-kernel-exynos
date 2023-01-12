@@ -19,6 +19,28 @@
 
 #define PANEL_MAX_TRIES 3
 
+// Look up table to convert between AOD and Interactive DBV that would
+// yield the same display nits, defined in go/rh-eos-dbv-lut
+const static u8 InteractiveToAodDbvLUT[] = {
+	0,   3,   5,   5,   8,   15,  16,  21,  25,  30,  33,  38,  43,
+	47,  51,  56,  59,  69,  69,  72,  77,  79,  81,  83,  86,  88,
+	90,  92,  94,  96,  98,  101, 103, 106, 110, 112, 114, 116, 120,
+	122, 125, 128, 130, 134, 136, 140, 143, 146, 149, 152, 155, 158,
+	162, 166, 169, 174, 178, 182, 186, 188, 192, 196, 201, 205, 211,
+	215, 220, 225, 228, 232, 237, 241, 246, 251
+};
+
+static u8 interactive_to_aod_brightness(u8 interactive_brightness)
+{
+	if (interactive_brightness >= sizeof(InteractiveToAodDbvLUT)) {
+		// This means Interactive brightness (nits) is already saturated
+		// if converted to Doze brightness (i.e. > max AOD 150 nits).
+		// Let's return the maximum DBV here, which is 255.
+		return 255;
+	}
+	return InteractiveToAodDbvLUT[interactive_brightness];
+}
+
 static int wf012fbm_suspend(struct exynos_panel_device *panel)
 {
 	struct dsim_device *dsim = get_dsim_drvdata(0);
@@ -79,6 +101,19 @@ int wf012fbm_panel_init(struct dsim_device *dsim)
 	dsim_write_data_seq(dsim, false, 0xff, 0xf0);
 	dsim_write_data_seq(dsim, false, 0xfb, 0x01);
 	dsim_write_data_seq(dsim, false, 0x57, 0x30);
+	dsim_write_data_seq(dsim, false, 0xff, 0x10);
+
+	/* Disable master DBV control mode */
+	dsim_write_data_seq(dsim, false, 0xff, 0x21);
+	dsim_write_data_seq(dsim, false, 0xfb, 0x01);
+	dsim_write_data_seq(dsim, false, 0x5d, 0x00);
+	dsim_write_data_seq(dsim, false, 0xff, 0x10);
+
+	/* No gradual DBV change during the mode transition */
+	dsim_write_data_seq(dsim, false, 0xff, 0x25);
+	dsim_write_data_seq(dsim, false, 0xfb, 0x01);
+	dsim_write_data_seq(dsim, false, 0x74, 0xa1);
+	dsim_write_data_seq(dsim, false, 0x76, 0x51);
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
 
 	/* Write sequence for setting the PWM frequency if necessary*/
@@ -350,50 +385,13 @@ static int wf012fbm_displayon(struct exynos_panel_device *panel)
 static int wf012fbm_doze(struct exynos_panel_device *panel)
 {
 	struct dsim_device *dsim = get_dsim_drvdata(0);
-	u8 aod_brightness = 0;
-	u8 interactive_brightness = 0;
-	u16 brightness_u16 = 0;
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
 	/* Page select */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
-	/* Calculate normalized brightness */
-	interactive_brightness = panel->bl->props.brightness;
-	if (interactive_brightness > 0) {
-		brightness_u16 =
-			DIV_ROUND_CLOSEST(interactive_brightness * 650, 150);
-		/* If normalized brightness is set late after mode-change
-		frame finish, it could cause a dip when interactive brightness
-		gets scaled down (150/650) and rises back up to the normalized
-		level. To cover for this case, let's scale down the normalized
-		brightness by 90% so that it doesn't rise back up. This should
-		only apply to brighter level (i.e. > 20/255) where the dip
-		could be seen easily. */
-		if (interactive_brightness > 20) {
-			brightness_u16 = brightness_u16 * 90 / 100;
-		}
-		aod_brightness = brightness_u16 > 255 ? 255 : brightness_u16;
-	}
-
 	/* Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_ENTER_IDLE_MODE);
-	/* Set normalized brightness */
-	if (!panel->doze_brightness_normalized && aod_brightness != 0) {
-		/* Delay until mode-change frame.
-		This requires an exact delay of 1 frame after exit-doze cmd */
-		usleep_range(16667, 16667);
-		/* Disable brightness dimming */
-		dsim_write_data_seq(dsim, false, 0x53, 0x20);
-		/* Set normalized brightness */
-		dsim_write_data_seq(dsim, false, 0x51, aod_brightness);
-		/* Delay until mode-change frame ends */
-		usleep_range(16667, 16667);
-		/* Enable brightness dimming */
-		dsim_write_data_seq(dsim, false, 0x53, 0x28);
-		panel->doze_brightness_normalized = true;
-	}
-
 	/* Exit HBM in case it's on */
 	dsim_write_data_seq(dsim, false, 0x66, 0x00);
 
@@ -409,7 +407,8 @@ static int wf012fbm_doze_suspend(struct exynos_panel_device *panel)
 
 static int wf012fbm_set_light(struct exynos_panel_device *panel, u32 br_val)
 {
-	u8 data;
+	u8 interactive_brightness;
+	u8 aod_brightness;
 	struct dsim_device *dsim = get_dsim_drvdata(0);
 	/*
 	 * Only set brightness if it's not currently in doze mode as AP
@@ -424,9 +423,14 @@ static int wf012fbm_set_light(struct exynos_panel_device *panel, u32 br_val)
 	if (dsim->state != DSIM_STATE_DOZE) {
 		mutex_lock(&panel->ops_lock);
 		/* WRDISBV(8bit): 1st DBV[7:0] */
-		data = br_val & 0xFF;
-		dsim_write_data_seq(dsim, false, 0x51, data);
+		interactive_brightness = br_val & 0xFF;
+		aod_brightness =
+			interactive_to_aod_brightness(interactive_brightness);
+		dsim_write_data_seq(dsim, false, 0x51, interactive_brightness);
+		dsim_write_data_seq(dsim, false, 0x61, aod_brightness);
 		mutex_unlock(&panel->ops_lock);
+		DPU_INFO_PANEL("%s: set brightness (i=%d, aod=%d)\n", __func__,
+			       interactive_brightness, aod_brightness);
 	} else {
 		DPU_INFO_PANEL("%s: skip doze br=%d\n", __func__, br_val);
 	}
@@ -466,50 +470,22 @@ static int wf012fbm_exit_hbm(struct exynos_panel_device *panel)
 static int wf012fbm_exit_doze(struct exynos_panel_device *panel)
 {
 	struct dsim_device *dsim = get_dsim_drvdata(0);
-	unsigned char buf[1] = {0};
-	u8 normalized_brightness = 0;
+	u8 brightness = 0;
 
 	DPU_INFO_PANEL("%s +\n", __func__);
 	mutex_lock(&panel->ops_lock);
+	/* page select 0x10 */
 	dsim_write_data_seq(dsim, false, 0xff, 0x10);
-	/* Read brightness */
-	dsim_read_data(dsim, MIPI_DSI_DCS_READ,
-			MIPI_DCS_GET_DISPLAY_BRIGHTNESS, sizeof(buf), buf);
-	if (buf[0] != 0) {
-		panel->bl->props.brightness = buf[0];
-		/* Calculate interactive DBV that would yield the same
-		brightness nits to the current AOD DBV.
-		As both interactive and AOD DBV-nits conversion are linear,
-		this can be done by scaling with the max brightness nits
-		(150 nits for AOD and 650 nits for interactive at DBV255) */
-		normalized_brightness = DIV_ROUND_CLOSEST(buf[0] * 150, 650);
-		/* If normalized brightness is set late after mode-change
-		frame finish, it could cause a spike when AOD brightness gets
-		scaled up (650/150) and dip back down to the normalized level.
-		To cover for this case, let's scale up the normalized
-		brightness by 120% so that it doesn't dip back down */
-		normalized_brightness = normalized_brightness * 120 / 100;
+	/* Read interactive brightness */
+	dsim_read_data(dsim, MIPI_DSI_DCS_READ, 0x51,
+			sizeof(brightness), &brightness);
+	if (brightness != 0) {
+		panel->bl->props.brightness = brightness;
 	}
 	/* Exit Idle Mode */
 	dsim_write_data_seq(dsim, false, MIPI_DCS_EXIT_IDLE_MODE);
-	/* Flatten mode-change brightness ramp */
-	if (normalized_brightness != 0) {
-		panel->bl->props.brightness = normalized_brightness;
-		/* Delay until mode-change frame.
-		This requires an exact delay of 1 frame after exit-doze cmd */
-		usleep_range(16667, 16667);
-		/* Disable brightness dimming */
-		dsim_write_data_seq(dsim, false, 0x53, 0x20);
-		/* Set normalized brightness */
-		dsim_write_data_seq(dsim, false, 0x51, normalized_brightness);
-		/* Delay until mode-change frame ends */
-		usleep_range(16667, 16667);
-		/* Enable brightness dimming */
-		dsim_write_data_seq(dsim, false, 0x53, 0x28);
-	}
-	panel->doze_brightness_normalized = false;
 	mutex_unlock(&panel->ops_lock);
-	DPU_INFO_PANEL("%s -\n", __func__);
+	DPU_INFO_PANEL("%s - read br=%d\n", __func__, brightness);
 	return 0;
 }
 
