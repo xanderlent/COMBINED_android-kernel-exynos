@@ -10,9 +10,6 @@
 #define PAT9126_DEV_NAME	"pixart_pat9126"
 #define BUF_SIZE		2
 #define RESET_DELAY_US		1000
-#define PINCTRL_STATE_ACTIVE	"pmx_rot_switch_active"
-#define PINCTRL_STATE_SUSPEND	"pmx_rot_switch_suspend"
-#define PINCTRL_STATE_RELEASE	"pmx_rot_switch_release"
 #define VDD_VTG_MIN_UV		1800000
 #define VDD_VTG_MAX_UV		1800000
 #define VDD_ACTIVE_LOAD_UA	10000

@@ -50,7 +50,6 @@ struct pixart_pat9126_data {
 	struct mutex mtx;
 };
 
-//#define PAT9126_WAKE_IRQ
 #define PAT9126_STATE_SUSPEND 0
 #define PAT9126_STATE_ON 1
 #define PAT9126_STATE_RESUMING 2
@@ -65,14 +64,9 @@ struct rw_reg_info {
 struct rw_reg_info pat9126_reg_info;
 
 /* Declaration of suspend and resume functions */
-#if !defined(PAT9126_WAKE_IRQ)
 static int pat9126_fb_callback(struct notifier_block *nb, unsigned long type, void *arg);
 static int pat9126_display_suspend(struct device *dev);
 static int pat9126_display_resume(struct device *dev);
-#else
-static int pat9126_enable_irq_wake(struct device *dev);
-static int pat9126_disable_irq_wake(struct device *dev);
-#endif
 
 static int pat9126_write(struct i2c_client *client, u8 addr, u8 data)
 {
@@ -109,7 +103,7 @@ static int pat9126_read(struct i2c_client *client, u8 addr, u8 *data)
 	};
 
 	if (i2c_transfer(client->adapter, msg, 2) != 2) {
-		dev_err(dev, "%s Failed: writing to reg 0x%x\n", __func__,
+		dev_err(dev, "%s Failed: reading reg 0x%x\n", __func__,
 			addr);
 		return -EIO;
 	}
@@ -416,7 +410,6 @@ static ssize_t pat9126_sensitivity_store(struct device *dev,
 				    size_t count) {
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 
 	if (!kstrtou8(buf, 0, &data->crown_sensitivity)) {
 		pat9126_sensitivity_write(dev, data->crown_sensitivity);
@@ -756,10 +749,8 @@ static int pat9126_i2c_probe(struct i2c_client *client,
 	data->display_mode = FB_BLANK_UNBLANK;
 	data->crown_sensitivity = PIXART_PAT9126_CPI_RESOLUTION_X;
 
-#if !defined(PAT9126_WAKE_IRQ)
 	data->fb_notif.notifier_call = pat9126_fb_callback;
 	ret = fb_register_client(&data->fb_notif);
-#endif
 
 	if (ret) {
 		pr_err("[PAT9126]: Failed to register FB callback\n");
@@ -799,7 +790,6 @@ static int pat9126_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if !defined(PAT9126_WAKE_IRQ)
 static int pat9126_fb_callback(struct notifier_block *nb, unsigned long type, void *arg) {
 	struct fb_event *event_data = arg;
 	struct pixart_pat9126_data *data =
@@ -894,28 +884,25 @@ static int pat9126_display_resume(struct device *dev)
 	return 0;
 }
 
-#else // PAT9126_WAKE_IRQ
-
-static int pat9126_enable_irq_wake(struct device *dev)
+static int pat9126_pm_suspend(struct device *dev)
 {
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
-	enable_irq_wake(data->client->irq);
+	mutex_lock(&data->mtx);
 
 	return 0;
 }
 
-static int pat9126_disable_irq_wake(struct device *dev)
+static int pat9126_pm_resume(struct device *dev)
 {
 	struct pixart_pat9126_data *data =
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
-	disable_irq_wake(data->client->irq);
+	mutex_unlock(&data->mtx);
 
 	return 0;
 }
-#endif
 
 static const struct i2c_device_id pat9126_device_id[] = {
 	{PAT9126_DEV_NAME, 0},
@@ -923,12 +910,10 @@ static const struct i2c_device_id pat9126_device_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pat9126_device_id);
 
-#if defined(PAT9126_WAKE_IRQ)
 static const struct dev_pm_ops pat9126_pm_ops = {
-	.suspend = pat9126_enable_irq_wake,
-	.resume = pat9126_disable_irq_wake
+	.suspend = pat9126_pm_suspend,
+	.resume  = pat9126_pm_resume
 };
-#endif
 
 static const struct of_device_id pixart_pat9126_match_table[] = {
 	{ .compatible = "pixart,pat9126",},
@@ -939,9 +924,7 @@ static struct i2c_driver pat9126_i2c_driver = {
 	.driver = {
 		   .name = PAT9126_DEV_NAME,
 		   .owner = THIS_MODULE,
-#if defined(PAT9126_WAKE_IRQ)
 		   .pm = &pat9126_pm_ops,
-#endif
 		   .of_match_table = pixart_pat9126_match_table,
 		   },
 	.probe = pat9126_i2c_probe,
