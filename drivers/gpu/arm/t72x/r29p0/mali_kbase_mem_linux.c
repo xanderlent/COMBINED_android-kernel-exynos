@@ -1687,6 +1687,9 @@ int kbase_mem_commit(struct kbase_context *kctx, u64 gpu_addr, u64 new_pages)
 	if (reg->flags & KBASE_REG_DONT_NEED)
 		goto out_unlock;
 
+	if (reg->flags & KBASE_REG_NO_USER_FREE)
+		goto out_unlock;
+
 	if (new_pages == reg->gpu_alloc->nents) {
 		/* no change */
 		res = 0;
