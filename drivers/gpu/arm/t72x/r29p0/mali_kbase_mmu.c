@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2019, 2022-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1912,6 +1912,10 @@ int kbase_mmu_init(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
 
 void kbase_mmu_term(struct kbase_device *kbdev, struct kbase_mmu_table *mmut)
 {
+	WARN((mmut->kctx) && (mmut->kctx->as_nr != KBASEP_AS_NR_INVALID),
+			"kctx-%d_%d must first be scheduled out to flush GPU caches+tlbs before tearing down MMU tables",
+			mmut->kctx->tgid, mmut->kctx->id);
+
 	if (mmut->pgd) {
 		mutex_lock(&mmut->mmu_lock);
 		mmu_teardown_level(kbdev, mmut, mmut->pgd, MIDGARD_MMU_TOPLEVEL,

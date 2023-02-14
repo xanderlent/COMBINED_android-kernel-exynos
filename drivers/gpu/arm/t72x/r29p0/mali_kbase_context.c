@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 2020-2021, 2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -51,8 +51,6 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	kbase_disjoint_event(kbdev);
 
 	kctx->kbdev = kbdev;
-	kctx->as_nr = KBASEP_AS_NR_INVALID;
-	atomic_set(&kctx->refcount, 0);
 	if (is_compat)
 		kbase_ctx_flag_set(kctx, KCTX_COMPAT);
 #if defined(CONFIG_64BIT)
@@ -208,7 +206,6 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	struct kbase_device *kbdev;
 	int pages;
 	unsigned long pending_regions_to_clean;
-	unsigned long flags;
 	struct page *p;
 
 	/* MALI_SEC_INTEGRATION */
@@ -306,12 +303,6 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	kbasep_js_kctx_term(kctx);
 
 	kbase_dma_fence_term(kctx);
-
-	mutex_lock(&kbdev->mmu_hw_mutex);
-	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, flags);
-	kbase_ctx_sched_remove_ctx(kctx);
-	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, flags);
-	mutex_unlock(&kbdev->mmu_hw_mutex);
 
 	kbase_mmu_term(kbdev, &kctx->mmu);
 

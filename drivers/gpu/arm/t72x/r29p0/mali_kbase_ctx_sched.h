@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2018, 2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -50,6 +50,15 @@
  * Return: 0 for success, otherwise failure
  */
 int kbase_ctx_sched_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_ctx_sched_init_ctx - Initialize per-context data fields for scheduling
+ * @kctx: The context to initialize
+ *
+ * This must be called during context initialization before any other context
+ * scheduling functions are called on @kctx
+*/
+void kbase_ctx_sched_init_ctx(struct kbase_context *kctx);
 
 /**
  * kbase_ctx_sched_term - Terminate the context scheduler
@@ -115,8 +124,6 @@ void kbase_ctx_sched_release_ctx(struct kbase_context *kctx);
  * context must no longer have any reference. If it has been assigned an
  * address space before then the AS will be unprogrammed.
  *
- * The kbase_device::mmu_hw_mutex and kbase_device::hwaccess_lock locks must be
- * held whilst calling this function.
  */
 void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx);
 
