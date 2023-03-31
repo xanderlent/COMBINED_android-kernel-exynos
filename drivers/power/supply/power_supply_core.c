@@ -801,9 +801,9 @@ create_triggers_failed:
 register_cooler_failed:
 	psy_unregister_thermal(psy);
 register_thermal_failed:
+wakeup_init_failed:
 	device_del(dev);
 device_add_failed:
-wakeup_init_failed:
 check_supplies_failed:
 dev_set_name_failed:
 	put_device(dev);
