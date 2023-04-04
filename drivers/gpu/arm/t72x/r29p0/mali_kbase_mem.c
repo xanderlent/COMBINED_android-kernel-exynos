@@ -667,9 +667,6 @@ static void kbase_region_tracker_erase_rbtree(struct rb_root *rbtree)
 
 void kbase_region_tracker_term(struct kbase_context *kctx)
 {
-	WARN(kctx->as_nr != KBASEP_AS_NR_INVALID,
-			"kctx-%d_%d must first be scheduled out to flush GPU caches+tlbs before erasing remaining regions",
-			kctx->tgid, kctx->id);
 
 	kbase_region_tracker_erase_rbtree(&kctx->reg_rbtree_same);
 	kbase_region_tracker_erase_rbtree(&kctx->reg_rbtree_custom);
