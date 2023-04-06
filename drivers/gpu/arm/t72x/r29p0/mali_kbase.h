@@ -326,8 +326,8 @@ void kbase_mem_copy_from_extres_page(struct kbase_context *kctx,
  *		pages pertaining to the external resource, number of
  *		pages to copy.
  */
-int kbase_mem_copy_from_extres(struct kbase_context *kctx,
-		struct kbase_debug_copy_buffer *buf_data);
+//int kbase_mem_copy_from_extres(struct kbase_context *kctx,
+//		struct kbase_debug_copy_buffer *buf_data);
 int kbase_process_soft_job(struct kbase_jd_atom *katom);
 int kbase_prepare_soft_job(struct kbase_jd_atom *katom);
 void kbase_finish_soft_job(struct kbase_jd_atom *katom);
