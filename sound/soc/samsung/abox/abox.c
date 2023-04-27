@@ -2065,20 +2065,47 @@ static int abox_flush_sifs2(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+#define MAX_TRY_NUM 30
 static int abox_flush_recp(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
 	struct device *dev = cmpnt->dev;
+	struct abox_data *data = dev_get_drvdata(dev);
+	struct abox_dma_data *dma_data = dev_get_drvdata(data->dev_wdma[0]);
+	u32 stat;
+	bool prog;
+	unsigned int count = 0;
 
-	dev_dbg(dev, "%s\n", __func__);
+	if (snd_soc_dapm_connected_output_ep(w, NULL))
+		return 0;
 
-	if (!snd_soc_dapm_connected_output_ep(w, NULL)) {
+	dev_info(dev, "%s(%d)\n", __func__, event);
+
+	if (event == SND_SOC_DAPM_PRE_PMU) {
 		dev_info(dev, "%s: flush\n", __func__);
-		snd_soc_component_update_bits(cmpnt, ABOX_SPUM_CTRL2,
-				ABOX_SPUM_RECP_FLUSH_MASK,
-				1 << ABOX_SPUM_RECP_FLUSH_L);
+		snd_soc_component_update_bits(cmpnt,
+			ABOX_SPUM_CTRL2,
+			ABOX_SPUM_RECP_FLUSH_MASK,
+			1 << ABOX_SPUM_RECP_FLUSH_L);
+		return 0;
+	} else if (event == SND_SOC_DAPM_POST_PMD) {
+		while (count++ < MAX_TRY_NUM) {
+			stat = readl(dma_data->sfr_base + ABOX_WDMA_STATUS);
+			prog = (stat & ABOX_WDMA_PROGRESS_MASK) ? true : false;
+			if (!prog) {
+				dev_info(dev, "%s: flush\n", __func__);
+				snd_soc_component_update_bits(cmpnt,
+					ABOX_SPUM_CTRL2,
+					ABOX_SPUM_RECP_FLUSH_MASK,
+					1 << ABOX_SPUM_RECP_FLUSH_L);
+				return 0;
+			}
+			mdelay(1);
+		}
 	}
+
+	dev_info(dev, "%s: flush time out(%d)\n", __func__, count);
 
 	return 0;
 }
