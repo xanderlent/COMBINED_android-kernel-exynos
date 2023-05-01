@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2013 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -584,6 +584,55 @@ static const struct tp_desc tp_desc_aux[] = {
 	}
 };
 
+static int kbase_unprivileged_global_profiling;
+
+/**
+ * kbase_unprivileged_global_profiling_set - set permissions for unprivileged processes
+ *
+ * @val: String containing value to set. Only strings representing positive
+ *       integers are accepted as valid; any non-positive integer (including 0)
+ *       is rejected.
+ * @kp: Module parameter associated with this method.
+ *
+ * This method can only be used to enable permissions for unprivileged processes,
+ * if they are disabled: for this reason, the only values which are accepted are
+ * strings representing positive integers. Since it's impossible to disable
+ * permissions once they're set, any integer which is non-positive is rejected,
+ * including 0.
+ *
+ * Return: 0 if success, otherwise error code.
+ */
+static int kbase_unprivileged_global_profiling_set(const char *val, const struct kernel_param *kp)
+{
+	int new_val;
+	int ret = kstrtoint(val, 0, &new_val);
+
+	if (ret == 0) {
+		if (new_val < 1)
+			return -EINVAL;
+
+		kbase_unprivileged_global_profiling = 1;
+	}
+
+	return ret;
+}
+
+static const struct kernel_param_ops kbase_global_unprivileged_profiling_ops = {
+	.get = param_get_int,
+	.set = kbase_unprivileged_global_profiling_set,
+};
+
+module_param_cb(kbase_unprivileged_global_profiling, &kbase_global_unprivileged_profiling_ops,
+		&kbase_unprivileged_global_profiling, 0600);
+
+static bool timeline_is_permitted(void)
+{
+#if KERNEL_VERSION(5, 8, 0) <= LINUX_VERSION_CODE
+	return kbase_unprivileged_global_profiling || perfmon_capable();
+#else
+	return kbase_unprivileged_global_profiling || capable(CAP_SYS_ADMIN);
+#endif
+}
 #if MALI_UNIT_TEST
 /* Number of bytes read by user. */
 static atomic_t tlstream_bytes_collected = {0};
@@ -1463,6 +1512,9 @@ int kbase_tlstream_acquire(struct kbase_context *kctx, u32 flags)
 {
 	int ret;
 	u32 tlstream_enabled = TLSTREAM_ENABLED | flags;
+
+	if (!timeline_is_permitted())
+		return -EPERM;
 
 	if (0 == atomic_cmpxchg(&kbase_tlstream_enabled, 0, tlstream_enabled)) {
 		int rcode;

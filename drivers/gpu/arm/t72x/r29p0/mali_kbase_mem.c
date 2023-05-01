@@ -336,7 +336,7 @@ int kbase_remove_va_region(struct kbase_va_region *reg)
 	struct rb_node *rbnext;
 	struct kbase_va_region *next = NULL;
 	struct rb_root *reg_rbtree = NULL;
-
+	struct kbase_va_region *orig_reg = reg;
 	int merged_front = 0;
 	int merged_back = 0;
 	int err = 0;
@@ -396,6 +396,12 @@ int kbase_remove_va_region(struct kbase_va_region *reg)
 		}
 		rb_replace_node(&(reg->rblink), &(free_reg->rblink), reg_rbtree);
 	}
+
+	/* This operation is always safe because the function never frees
+	* the region. If the region has been merged to both front and back,
+	* then it's the previous region that is supposed to be freed.
+	*/
+	orig_reg->start_pfn = 0;
 
  out:
 	return err;
@@ -1346,7 +1352,8 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 						reg->flags & gwt_mask,
 						kctx->as_nr);
 				if (err)
-					goto bad_insert;
+					goto bad_aliased_insert;
+
 				/* Note: mapping count is tracked at alias
 				 * creation time
 				 */
@@ -1358,7 +1365,7 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 					(reg->flags & mask & gwt_mask) | attr);
 
 				if (err)
-					goto bad_insert;
+					goto bad_aliased_insert;
 			}
 		}
 	} else {
@@ -1369,6 +1376,7 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 				kbase_reg_current_backed_size(reg),
 				reg->flags & gwt_mask,
 				kctx->as_nr);
+
 		if (err)
 			goto bad_insert;
 		kbase_mem_phy_alloc_gpu_mapped(reg->gpu_alloc);
@@ -1376,7 +1384,7 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 
 	return err;
 
-bad_insert:
+bad_aliased_insert:
 	if (reg->gpu_alloc->type == KBASE_MEM_TYPE_ALIAS) {
 		u64 stride;
 
@@ -1391,7 +1399,7 @@ bad_insert:
 					kctx->as_nr);
 			}
 	}
-
+bad_insert:
 	kbase_remove_va_region(reg);
 
 	return err;
