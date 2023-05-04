@@ -394,10 +394,8 @@ static irqreturn_t pat9126_irq(int irq, void *dev_data)
 	return IRQ_HANDLED;
 }
 
-static void pat9126_sensitivity_write(struct device *dev,
+static void pat9126_sensitivity_write(struct pixart_pat9126_data *data,
                                       u8 sensitivity) {
-	struct pixart_pat9126_data *data =
-		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
 
 	pr_info("[PAT9126] set sensitivity: %d\n", sensitivity);
@@ -412,7 +410,7 @@ static ssize_t pat9126_sensitivity_store(struct device *dev,
 		(struct pixart_pat9126_data *) dev_get_drvdata(dev);
 
 	if (!kstrtou8(buf, 0, &data->crown_sensitivity)) {
-		pat9126_sensitivity_write(dev, data->crown_sensitivity);
+		pat9126_sensitivity_write(data, data->crown_sensitivity);
 	}
 
 	return count;
@@ -682,6 +680,49 @@ static int pat9126_parse_dt(struct device *dev,
 	return 0;
 }
 
+static int pixart_input_open(struct input_dev *dev) {
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) input_get_drvdata(dev);
+
+	mutex_lock(&data->mtx);
+
+	if (data->display_mode == FB_BLANK_UNBLANK) {
+		// Display On
+		pat9126_sensitivity_write(data, data->crown_sensitivity);
+		pat9126_enable_mot_write_protected(data->client);
+		data->state = PAT9126_STATE_ON;
+	} else {
+		// Display Suspended
+		pat9126_sensitivity_write(data, WAKE_SENSITIVITY);
+		enable_irq_wake(data->client->irq);
+		pat9126_disable_mot_write_protected(data->client);
+		data->state = PAT9126_STATE_SUSPEND;
+	}
+
+	mutex_unlock(&data->mtx);
+
+	return 0;
+}
+
+static void pixart_input_close(struct input_dev *dev) {
+	struct pixart_pat9126_data *data =
+		(struct pixart_pat9126_data *) input_get_drvdata(dev);
+
+	pr_info("[PAT9126]: disabling wake on irq %d", data->client->irq);
+	mutex_lock(&data->mtx);
+
+	if (data->state == PAT9126_STATE_SUSPEND) {
+		// Wake irq was enabled in pat9126_display_suspend so we need to disable the irq
+		disable_irq_wake(data->client->irq);
+	} else {
+		// Wake irq wasn't enabled in pat9126_display_suspend nor was the device disabled
+		// so we need to put the pat9126 device into sleep2 mode
+		pat9126_disable_mot_write_protected(data->client);
+	}
+
+	mutex_unlock(&data->mtx);
+}
+
 static int pat9126_i2c_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -720,6 +761,8 @@ static int pat9126_i2c_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 	input_set_drvdata(input, data);
 	input->name = PAT9126_DEV_NAME;
+	input->open = pixart_input_open;
+	input->close = pixart_input_close;
 
 	data->input = input;
 	ret = input_register_device(data->input);
@@ -829,7 +872,12 @@ static int pat9126_display_suspend(struct device *dev)
 	mutex_lock(&data->mtx);
 
 	pr_debug("[PAT9126] %s\n", __func__);
-	if(data->state != PAT9126_STATE_ON) {
+
+	if (data->input->users == 0) {
+		goto end_suspend;
+	}
+
+	if (data->state != PAT9126_STATE_ON) {
 		if (data->state == PAT9126_STATE_SUSPEND) {
 			pr_warn("[PAT9126] %s: Redundant call to suspend\n", __func__);
 		} else {
@@ -841,7 +889,7 @@ static int pat9126_display_suspend(struct device *dev)
 	}
 
 	/* Set low sensitivity */
-	pat9126_sensitivity_write(dev, WAKE_SENSITIVITY);
+	pat9126_sensitivity_write(data, WAKE_SENSITIVITY);
 
 	enable_irq_wake(data->client->irq);
 	pat9126_disable_mot_write_protected(data->client);
@@ -866,8 +914,14 @@ static int pat9126_display_resume(struct device *dev)
 		return 0;
 	}
 
+	/* Skip if input device is closed */
+	if (data->input->users == 0) {
+		mutex_unlock(&data->mtx);
+		return 0;
+	}
+
 	/* Set regular sensitivity */
-	pat9126_sensitivity_write(dev, data->crown_sensitivity);
+	pat9126_sensitivity_write(data, data->crown_sensitivity);
 
 	disable_irq_wake(data->client->irq);
 	data->state = PAT9126_STATE_RESUMING;
