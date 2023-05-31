@@ -38,10 +38,6 @@
 #include <linux/jiffies.h>
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
-/* Set tap_coordinates module parameter for coordinates on Tap-to-Wake gesture instead of keycode */
-static int tap_coordinates=0;
-module_param(tap_coordinates, int, 0660);
-
 #if NVT_TOUCH_ESD_PROTECT
 static struct delayed_work nvt_esd_check_work;
 static struct workqueue_struct *nvt_esd_check_wq;
@@ -711,45 +707,40 @@ uint32_t nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 			NVT_LOG("Gesture : Word-V.\n");
 			keycode = gesture_key_array[2];
 			break;
-		case GESTURE_TAP_TO_WAKE:
-			if (tap_coordinates) {
-				uint32_t input_x = (uint32_t)(data[4] << 4) + (uint32_t) (data[6] >> 4);
-				uint32_t input_y = (uint32_t)(data[5] << 4) + (uint32_t) (data[6] & 0x0F);
+		case GESTURE_TAP_TO_WAKE: {
+			uint32_t input_x = (uint32_t)(data[4] << 4) + (uint32_t)(data[6] >> 4);
+			uint32_t input_y = (uint32_t)(data[5] << 4) + (uint32_t)(data[6] & 0x0F);
 
-				if ((input_x > ts->abs_x_max) || (input_y > ts->abs_y_max)) {
-					NVT_LOG("Gesture : Tap to Wake, invalid coordinates\n");
-					keycode = gesture_key_array[3];
-					break;
-				}
-
-				NVT_LOG("Gesture : Tap to Wake, coordinates instead of keycode\n");
-
-				/* Send finger down */
-				input_mt_slot(ts->input_dev, 0);
-				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
-				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
-				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);
-				/* Placeholder pressure value, without this the
-				 * touch is interpreted as a hover.
-				 */
-				input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0x300);
-				input_report_key(ts->input_dev, BTN_TOUCH, 1);
-				input_sync(ts->input_dev);
-
-				/* Send finger up */
-				input_mt_slot(ts->input_dev, 0);
-				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
-				input_report_key(ts->input_dev, BTN_TOUCH, 0);
-				input_sync(ts->input_dev);
-
-				keycode = KEY_UNKNOWN;
+			if ((input_x > ts->abs_x_max) || (input_y > ts->abs_y_max)) {
+				NVT_LOG("Gesture : Tap to Wake, invalid coordinates\n");
+				keycode = gesture_key_array[3];
 				break;
 			}
 
-			NVT_LOG("Gesture : Tap to Wake.\n");
-			keycode = gesture_key_array[3];
+			NVT_LOG("Gesture : Tap to Wake, coordinates instead of keycode\n");
+
+			/* Send finger down */
+			input_mt_slot(ts->input_dev, 0);
+			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
+			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);
+			/* Placeholder pressure value, without this the
+			 * touch is interpreted as a hover.
+			 */
+			input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0x300);
+			input_report_key(ts->input_dev, BTN_TOUCH, 1);
+			input_sync(ts->input_dev);
+
+			/* Send finger up */
+			input_mt_slot(ts->input_dev, 0);
+			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
+			input_report_key(ts->input_dev, BTN_TOUCH, 0);
+			input_sync(ts->input_dev);
+
+			keycode = KEY_UNKNOWN;
 			break;
+		}
 		case GESTURE_WORD_Z:
 			NVT_LOG("Gesture : Word-Z.\n");
 			keycode = gesture_key_array[4];
