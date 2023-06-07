@@ -8709,6 +8709,15 @@ wl_cfgvendor_custom_mapping_of_dscp_reset(struct wiphy *wiphy,
 }
 #endif /* WL_CUSTOM_MAPPING_OF_DSCP */
 
+static int
+wl_cfgvendor_trigger_ssr(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	WL_INFORM_MEM(("trigger subsystem recovery\n"));
+
+	return BCME_OK;
+}
+
 static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 	{
 		{
@@ -9395,7 +9404,14 @@ static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_tx_power_scenario
 	},
 #endif /* WL_SAR_TX_POWER */
-
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = WIFI_SUBCMD_TRIGGER_SSR
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_trigger_ssr
+	},
 #ifdef WL_CUSTOM_MAPPING_OF_DSCP
 	{
 		{
