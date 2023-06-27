@@ -4,6 +4,11 @@
 
 comment "Broadcom BCM477XX module"
 
+config GPS_BCM477XX
+    tristate "Broadcom BCM477XX GNSS and sensor hub chip"
+    help
+        Google Pixel Watch GPS and sensor hub driver.
+
 config GPS_BCM_SENSORS_SSP
     bool "SPI"
     depends on SPI
@@ -13,21 +18,29 @@ config GPS_BCM_SENSORS_SSP
         the sensor hub.
         To compile this driver as a module, choose M here: the
         module will be called ssp.
+        This description doesn't seem to match reality.
 
 config GPS_BCM_TTY
     bool  "TTY"
     depends on TTY
     help
         Support for BCM GPS UART driver.
+        Driver sources missing.
 
 config GPS_BCM_I2C
     bool "I2C"
     depends on I2C
     help
         Support for BCM GPS I2C driver.
+        Driver sources missing.
 
-config GPS_BCM_SPI
+config BCM_GPS_SPI_DRIVER
     bool "SPI"
     depends on SPI
     help
         Support for BCM GPS SPI driver.
+
+config GPS_BCM_HOSTWAKE
+    bool "Hostwake"
+    help
+        Purpose unknown. Driver sources missing.

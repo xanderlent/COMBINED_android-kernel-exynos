@@ -2,7 +2,8 @@
 # Makefile for kernel BCM477xx GNSS driver.
 #
 
-bcm477xx-y := bcm477xx.o
+# This causes a circular dependency
+#bcm477xx-y := bcm477xx.o
 bcm477xx-$(CONFIG_GPS_BCM_TTY) += bcm_gps_tty.o
 bcm477xx-$(CONFIG_GPS_BCM_I2C) += bcm_gps_i2c.o
 bcm477xx-$(CONFIG_BCM_GPS_SPI_DRIVER) += bcm_gps_spi.o
