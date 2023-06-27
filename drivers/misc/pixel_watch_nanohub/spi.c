@@ -21,11 +21,11 @@
 #include "main.h"
 #include "comms.h"
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 #include "bl_st.h"
 #endif
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 #include "bl_nxp.h"
 #endif
 
@@ -45,7 +45,7 @@ struct nanohub_spi_data {
 	uint16_t rx_offset;
 };
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 static uint8_t bl_checksum(const uint8_t *bytes, int length)
 {
 	int i;
@@ -244,7 +244,7 @@ void nanohub_spi_bl_init(struct nanohub_spi_data *spi_data)
 #endif
 
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 
 #define CRC_POLY 0x1021
 
@@ -772,7 +772,7 @@ static int nanohub_spi_probe(struct spi_device *spi)
 	spi_data->data.max_speed_hz = spi->max_speed_hz ? : SPI_MAX_SPEED_HZ;
 	nanohub_spi_comms_init(spi_data);
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 	spi_data->data.bl.cmd_erase = CMD_ERASE;
 	spi_data->data.bl.cmd_read_memory = CMD_READ_MEMORY;
 	spi_data->data.bl.cmd_write_memory = CMD_WRITE_MEMORY;
@@ -784,7 +784,7 @@ static int nanohub_spi_probe(struct spi_device *spi)
 	nanohub_spi_bl_init(spi_data);
 #endif
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 	nanohub_spi_bl_init(spi_data);
 #endif
 

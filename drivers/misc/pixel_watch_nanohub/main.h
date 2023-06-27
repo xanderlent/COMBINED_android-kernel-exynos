@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef _NANOHUB_MAIN_H
-#define _NANOHUB_MAIN_H
+#ifndef _PIXEL_WATCH_NANOHUB_MAIN_H
+#define _PIXEL_WATCH_NANOHUB_MAIN_H
 
 #include <linux/kernel.h>
 #include <linux/cdev.h>
@@ -24,11 +24,11 @@
 
 #include "comms.h"
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 #include "bl_st.h"
 #endif
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 #include "bl_nxp.h"
 #endif
 
@@ -52,7 +52,7 @@ struct nanohub_io {
 	uint8_t id;
 };
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 enum fw_state {
 	FW_IDLE,
 	FW_PENDING,
@@ -124,7 +124,7 @@ struct nanohub_data {
 
 	int wakeup_event_msec;
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 	struct firmware_request firmware_request;
 #endif
 };

@@ -39,16 +39,16 @@
 #include <uapi/linux/sched/types.h>
 
 #include "nanohub.h"
-#include "nanohub_exports.h"
+#include <misc/pixel_watch_nanohub_exports.h>
 #include "main.h"
 #include "comms.h"
 #include "spi.h"
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 #include "bl_st.h"
 #endif
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 #include "bl_nxp.h"
 #endif
 
@@ -732,7 +732,7 @@ static inline int nanohub_wakeup_lock(struct nanohub_data *data, int mode)
 		return ret;
 	}
 
-#if defined(CONFIG_NANOHUB_BL_ST) || defined(CONFIG_NANOHUB_BL_NXP)
+#if defined(CONFIG_PIXEL_WATCH_NANOHUB_BL_ST) || defined(CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP)
 	if (mode == LOCK_MODE_IO || mode == LOCK_MODE_IO_BL)
 		ret = nanohub_bl_open(data);
 	if (ret < 0) {
@@ -757,7 +757,7 @@ static inline int nanohub_wakeup_unlock(struct nanohub_data *data)
 	atomic_set(&data->lock_mode, LOCK_MODE_NONE);
 	if (mode != LOCK_MODE_SUSPEND_RESUME)
 		enable_irq(data->irq1);
-#if defined(CONFIG_NANOHUB_BL_ST) || defined(CONFIG_NANOHUB_BL_NXP)
+#if defined(CONFIG_PIXEL_WATCH_NANOHUB_BL_ST) || defined(CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP)
 	if (mode == LOCK_MODE_IO || mode == LOCK_MODE_IO_BL)
 		nanohub_bl_close(data);
 #endif
@@ -812,7 +812,7 @@ static ssize_t nanohub_try_hw_reset(struct device *dev,
 	return ret < 0 ? ret : count;
 }
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 static ssize_t nanohub_erase_shared(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
@@ -917,7 +917,7 @@ static ssize_t nanohub_download_kernel(struct device *dev,
 
 }
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 static ssize_t nanohub_download_kernel_bl(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
@@ -963,7 +963,7 @@ static ssize_t nanohub_download_kernel_bl(struct device *dev,
 }
 #endif
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 
 static ssize_t nanohub_download_firmware_request(struct device *dev,
 						 struct device_attribute *attr,
@@ -1137,7 +1137,7 @@ static ssize_t nanohub_download_app(struct device *dev,
 	return count;
 }
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 static ssize_t nanohub_lock_bl(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
@@ -1216,26 +1216,26 @@ static struct device_attribute attributes[] = {
 	__ATTR(firmware_version, 0440, nanohub_firmware_query, NULL),
 	__ATTR(time_sync, 0440, nanohub_time_sync, NULL),
 	__ATTR(wake_lock, 0220, NULL, nanohub_mcu_wake_lock),
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 	__ATTR(download_bl, 0220, NULL, nanohub_download_bl),
 #endif
 	__ATTR(download_kernel, 0220, NULL, nanohub_download_kernel),
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 	__ATTR(download_kernel_bl, 0220, NULL, nanohub_download_kernel_bl),
 #endif
 	__ATTR(download_app, 0220, NULL, nanohub_download_app),
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 	__ATTR(erase_shared, 0220, NULL, nanohub_erase_shared),
 	__ATTR(erase_shared_bl, 0220, NULL, nanohub_erase_shared_bl),
 #endif
 	__ATTR(hw_reset, 0220, NULL, nanohub_try_hw_reset),
 	__ATTR(nreset, 0660, nanohub_pin_nreset_get, nanohub_pin_nreset_set),
 	__ATTR(boot0, 0660, nanohub_pin_boot0_get, nanohub_pin_boot0_set),
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 	__ATTR(lock, 0220, NULL, nanohub_lock_bl),
 	__ATTR(unlock, 0220, NULL, nanohub_unlock_bl),
 #endif
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 	__ATTR(download_firmware, 0220, NULL, nanohub_download_firmware_request),
 #endif
 	__ATTR(wakeup_event_msec, 0660, nanohub_wakeup_event_msec_get, nanohub_wakeup_event_msec_set),
@@ -1610,7 +1610,7 @@ static int nanohub_kthread(void *arg)
 		}
 		atomic_set(&data->kthread_run, 0);
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 		if (atomic_read(&data->firmware_request.state) == FW_REQUESTED) {
 			nanohub_download_firmware(dev);
 			nanohub_set_state(data, ST_IDLE);
@@ -1699,7 +1699,7 @@ static struct nanohub_platform_data *nanohub_parse_dt(struct device *dev)
 {
 	struct nanohub_platform_data *pdata;
 	struct device_node *dt = dev->of_node;
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 	const uint32_t *tmp;
 	struct property *prop;
 	uint32_t u, i;
@@ -1745,7 +1745,7 @@ static struct nanohub_platform_data *nanohub_parse_dt(struct device *dev)
 	/* optional (spi) */
 	pdata->spi_cs_gpio = of_get_named_gpio(dt, "sensorhub,spi-cs-gpio", 0);
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 	/* optional (bl-max-frequency) */
 	pdata->bl_max_speed_hz = BL_MAX_SPEED_HZ;
 	ret = of_property_read_u32(dt, "sensorhub,bl-max-frequency", &u);
@@ -1824,7 +1824,7 @@ static struct nanohub_platform_data *nanohub_parse_dt(struct device *dev)
 
 	return pdata;
 
-#ifdef CONFIG_NANOHUB_BL_ST
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_ST
 no_mem_shared:
 	devm_kfree(dev, pdata->flash_banks);
 no_mem:
@@ -2017,7 +2017,7 @@ struct iio_dev *nanohub_probe(struct device *dev, struct iio_dev *iio_dev)
 	if (ret)
 		goto fail_dev;
 
-#ifdef CONFIG_NANOHUB_BL_NXP
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_BL_NXP
 	atomic_set(&data->firmware_request.state, FW_IDLE);
 	init_completion(&data->firmware_request.fw_complete);
 #endif
@@ -2152,7 +2152,7 @@ static int __init nanohub_init(void)
 		pr_err("nanohub: can't register; err=%d\n", ret);
 	}
 
-#ifdef CONFIG_NANOHUB_SPI
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_SPI
 	if (ret == 0)
 		ret = nanohub_spi_init();
 #endif
@@ -2162,7 +2162,7 @@ static int __init nanohub_init(void)
 
 static void __exit nanohub_cleanup(void)
 {
-#ifdef CONFIG_NANOHUB_SPI
+#ifdef CONFIG_PIXEL_WATCH_NANOHUB_SPI
 	nanohub_spi_cleanup();
 #endif
 	__unregister_chrdev(major, 0, ID_NANOHUB_MAX, "nanohub");

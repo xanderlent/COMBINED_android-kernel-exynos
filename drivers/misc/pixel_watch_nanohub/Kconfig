@@ -1,0 +1,46 @@
+config PIXEL_WATCH_NANOHUB
+	tristate "Pixel Watch Nanohub"
+	select IIO
+	default N
+	# In-tree Samsung NANOHUB driver in drivers/staging/nanohub is NOT what we want
+	depends on !NANOHUB
+	# TODO: This driver depends on some Samsung SoC stuff?
+	help
+	  Enable support for the nanohub sensorhub driver for the Google Pixel Watch.
+
+	  This driver supports the android nanohub sensorhub.
+
+	  If in doubt, say N here.
+
+if PIXEL_WATCH_NANOHUB
+
+config PIXEL_WATCH_NANOHUB_SPI
+	bool "Pixel Watch Nanohub SPI"
+	default Y
+	help
+	  Enable nanohub SPI support for the Google Pixel Watch.
+
+	  If in doubt, say Y here.
+
+config PIXEL_WATCH_NANOHUB_BL_NXP
+	bool "Pixel Watch Nanohub NXP Bootloader"
+	default Y
+	help
+	  Enable nanohub NXP Bootloader support for the Google Pixel Watch.
+
+	  Mutually exclusive with PIXEL_WATCH_NANOHUB_BL_ST.
+
+	  If in doubt, say Y here.
+
+config PIXEL_WATCH_NANOHUB_BL_ST
+	bool "Pixel Watch Nanohub ST Bootloader"
+	default N
+	depends on !PIXEL_WATCH_NANOHUB_BL_NXP
+	help
+	  Enable nanohub ST Bootloader support for the Google Pixel Watch.
+
+	  Mutually exclusive with PIXEL_WATCH_NANOHUB_BL_NXP.
+
+	  If in doubt, say N here.
+
+endif # PIXEL_WATCH_NANOHUB
