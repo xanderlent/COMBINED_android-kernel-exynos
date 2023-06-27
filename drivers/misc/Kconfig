@@ -556,4 +556,5 @@ source "drivers/misc/ocxl/Kconfig"
 source "drivers/misc/cardreader/Kconfig"
 source "drivers/misc/uart_sel/Kconfig"
 source "drivers/misc/pixel_watch_nanohub/Kconfig"
+source "drivers/misc/bcm477xx/Kconfig"
 endmenu
