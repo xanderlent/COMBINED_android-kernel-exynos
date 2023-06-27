@@ -61,3 +61,4 @@ obj-$(CONFIG_MISC_RTSX)		+= cardreader/
 obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
 obj-$(CONFIG_UART_SEL)		+= uart_sel/
 obj-$(CONFIG_GOOGLE_LOGBUFFER)	+= logbuffer.o
+obj-$(CONFIG_PIXEL_WATCH_NANOHUB)	+= pixel_watch_nanohub/

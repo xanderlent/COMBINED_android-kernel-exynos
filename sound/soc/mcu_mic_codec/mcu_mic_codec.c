@@ -26,7 +26,8 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#define NANOHUB_AUDIO_CHANNEL_ID 16
+// The Pixel Watch Nanohub driver provides NANOHUB_AUDIO_CHANNEL_ID and nanohub_send_message
+#include <misc/pixel_watch_nanohub_exports.h>
 
 // Values here should match MCU FW values defined in audio_services.cc
 #define DMIC_MCU_MESSAGE_VERSION 1
@@ -56,9 +57,6 @@ static const unsigned int mcu_dmic_channel_enum_values[] = {
 SOC_VALUE_ENUM_SINGLE_DECL(mcu_dmic_channel_enum, SND_SOC_NOPM, 0, 0,
 			   mcu_dmic_channel_enum_texts,
 			   mcu_dmic_channel_enum_values);
-
-extern ssize_t nanohub_send_message(int channel_id, const char *buffer,
-				    size_t length);
 
 struct mcu_mic_codec_data {
 	int mic_on;

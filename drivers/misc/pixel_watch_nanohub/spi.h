@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef _NANOHUB_SPI_H
-#define _NANOHUB_SPI_H
+#ifndef _PIXEL_WATCH_NANOHUB_SPI_H
+#define _PIXEL_WATCH_NANOHUB_SPI_H
 
 int __init nanohub_spi_init(void);
 void nanohub_spi_cleanup(void);

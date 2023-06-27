@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef _NANOHUB_BL_NXP_H
-#define _NANOHUB_BL_NXP_H
+#ifndef _PIXEL_WATCH_NANOHUB_BL_NXP_H
+#define _PIXEL_WATCH_NANOHUB_BL_NXP_H
 
 #include "nanohub.h"
 
