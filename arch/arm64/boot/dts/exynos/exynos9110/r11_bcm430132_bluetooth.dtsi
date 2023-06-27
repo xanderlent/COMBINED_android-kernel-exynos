@@ -1,0 +1,95 @@
+/*
+* Device Tree config for the BCM430132 chip - BT
+*/
+
+/*************/
+/* UART & BT */
+/*************/
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+&pinctrl_0 {
+	/* BT_HOST_WAKE */
+	bt_host_wake: bt-host-wake {
+		samsung,pins = "gpa1-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;	/* WEINTEINT_GPA1[1] */
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <0>;		/* 1x */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&pinctrl_5 {
+	/* BT_REG_ON */
+	bt_reg_on: bt-reg-on  {
+		samsung,pins = "gpg5-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;		/* 1x */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	/* BT_DEV_WAKE */
+	bt_dev_wake: bt-dev-wake {
+		samsung,pins = "gpg4-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;		/* 1x */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+
+	uart5_bus_rts: uart5-bus-rts {
+		samsung,pins = "gpc0-2";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-val = <1>;
+		samsung,pin-con-pdn = <1>;
+		samsung,pin-pud-pdn = <3>;
+	};
+
+	uart5_bus_tx_dat: uart5-bus-tx-dat {
+		samsung,pins = "gpc0-1";
+		samsung,pin-val = <1>;
+	};
+
+	uart5_bus_tx_con: uart5-bus-tx-con {
+		samsung,pins = "gpc0-1";
+		samsung,pin-function = <1>;
+		samsung,pin-con-pdn = <1>;
+		samsung,pin-pud-pdn = <3>;
+	};
+
+	uart5_bus_cts_rx_pdn: uart5-bus-cts-rx-pdn {
+		samsung,pins = "gpc0-0", "gpc0-3";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <3>;
+		samsung,pin-con-pdn = <2>;
+		samsung,pin-pud-pdn = <3>;
+	};
+};
+
+&serial_5 {
+	pinctrl-names = "default", "rts", "tx_dat";
+	pinctrl-0 = <&uart5_bus_single>;
+	pinctrl-1 = <&uart5_bus_rts &uart5_bus_tx_con &uart5_bus_cts_rx_pdn>;
+	pinctrl-2 = <&uart5_bus_tx_dat>;
+	samsung,rts-gpio-control;
+	samsung,uart-logging;
+	status = "okay";
+};
+
+&odm {
+	btbcm: btbcm {
+		compatible = "goog,nitrous";
+		pinctrl-0 = <&bt_reg_on &bt_dev_wake &bt_host_wake>;
+		pinctrl-names = "default";
+		shutdown-gpios = <&gpg5 1 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpa1 1 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpg4 1 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
