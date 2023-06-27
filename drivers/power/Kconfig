@@ -3,4 +3,10 @@ source "drivers/power/reset/Kconfig"
 source "drivers/power/supply/Kconfig"
 
 source "drivers/power/battery/Kconfig"
+
+config NITROUS
+	tristate "Nitrous Oxide Driver for Bluetooth"
+	help
+	 The Google Pixel Watch version of the Google Nitrous Bluetooth Power Management driver.
+
 source "drivers/power/wlc/Kconfig"
