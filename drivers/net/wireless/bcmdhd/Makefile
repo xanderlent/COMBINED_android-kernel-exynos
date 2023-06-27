@@ -25,6 +25,10 @@
 ################################
 DHDCFLAGS += $(KCFLAGS)
 
+# Set a variable that isn't being parsed correctly... (upstream has this problem, too?)
+# If you are using this kernel tree for anything other than the Google Pixel Watch, you are having a bad day.
+CONFIG_BCM43013=y
+
 #####################
 # SDIO Basic feature
 #####################
@@ -38,7 +42,7 @@ DHDCFLAGS += -Wall -Wstrict-prototypes -Wno-parentheses-equality -Dlinux -DLINUX
 	-DEMBEDDED_PLATFORM -DPNO_SUPPORT                     \
 	-DGET_CUSTOM_MAC_ENABLE -DSEC_ENHANCEMENT
 
-DHDCFLAGS += -DOEM_ANDROID
+DHDCFLAGS += -DOEM_ANDROID -DANDROID_PLATFORM_VERSION=11
 
 #################
 # Common feature
@@ -697,6 +701,7 @@ ifneq ($(CONFIG_BCMDHD_DEBUG),)
 endif
 
 EXTRA_CFLAGS += $(DHDCFLAGS)
+BCMDHD_ROOT = "drivers/net/wireless/bcmdhd"
 EXTRA_CFLAGS += -DDHD_COMPILED=\"$(BCMDHD_ROOT)\"
 EXTRA_CFLAGS += -I$(BCMDHD_ROOT)/include/ -I$(BCMDHD_ROOT)/
 KBUILD_CFLAGS += -I$(LINUXDIR)/include -I$(CURDIR) -Wno-date-time
