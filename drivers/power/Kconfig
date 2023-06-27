@@ -1,3 +1,6 @@
 source "drivers/power/avs/Kconfig"
 source "drivers/power/reset/Kconfig"
 source "drivers/power/supply/Kconfig"
+
+source "drivers/power/battery/Kconfig"
+source "drivers/power/wlc/Kconfig"
