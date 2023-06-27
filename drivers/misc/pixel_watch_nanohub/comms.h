@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef _NANOHUB_COMMS_H
-#define _NANOHUB_COMMS_H
+#ifndef _PIXEL_WATCH_NANOHUB_COMMS_H
+#define _PIXEL_WATCH_NANOHUB_COMMS_H
 
 struct __attribute__ ((__packed__)) nanohub_packet {
 	uint8_t sync;

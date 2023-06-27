@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef _NANOHUB_BL_H
-#define _NANOHUB_BL_H
+#ifndef _PIXEL_WATCH_NANOHUB_BL_H
+#define _PIXEL_WATCH_NANOHUB_BL_H
 
 #include "nanohub.h"
 #include <linux/spi/spi.h>

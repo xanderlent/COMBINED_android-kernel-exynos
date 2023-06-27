@@ -1,5 +1,5 @@
-#ifndef _NANOHUB_EXPORTS_H_
-#define _NANOHUB_EXPORTS_H_
+#ifndef _PIXEL_WATCH_NANOHUB_EXPORTS_H_
+#define _PIXEL_WATCH_NANOHUB_EXPORTS_H_
 
 // Exported symbols available to other kernel modules.
 //
@@ -31,4 +31,4 @@
 extern ssize_t nanohub_send_message(int channel_id, const char *buffer,
                                     size_t length);
 
-#endif /* _NANOHUB_EXPORTS_H_ */
+#endif /* _PIXEL_WATCH_NANOHUB_EXPORTS_H_ */
