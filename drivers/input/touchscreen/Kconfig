@@ -1308,4 +1308,8 @@ config TOUCHSCREEN_ZXT_ZTM620
 	  To compile this driver as a module, choose M here: the
 	  module will be called ZXT_ZTM620.
 
+source "drivers/input/touchscreen/nt38350/Kconfig"
+
+source "drivers/input/touchscreen/raydium/Kconfig"
+
 endif
