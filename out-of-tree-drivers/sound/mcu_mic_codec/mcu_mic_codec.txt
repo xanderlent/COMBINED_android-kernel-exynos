@@ -1,0 +1,12 @@
+MCU Microphone ASOC DAI codec
+
+Required properties:
+
+  - compatible : "google,mcu_mic_codec"
+
+Example:
+
+mcu_mic_codec: audio_codec {
+	status = "okay";
+	compatible = "google,mcu_mic_codec";
+};

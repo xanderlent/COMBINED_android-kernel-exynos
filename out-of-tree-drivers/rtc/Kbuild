@@ -1,0 +1,2 @@
+obj-$(CONFIG_RTC_DRV_S3C_ALT)	+= rtc-s3c-alt.o
+
