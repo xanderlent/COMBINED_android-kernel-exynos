@@ -1,5 +1,0 @@
-#
-# Makefile for the kernel ASOC R11 sound card (machine) driver.
-#
-
-obj-$(CONFIG_SND_SOC_EXYNOS9110_SOUND_R11) += exynos9110_sound_r11.o

@@ -67,3 +67,4 @@ obj-$(CONFIG_SND_SOC_ODROID) += snd-soc-odroid.o
 obj-$(CONFIG_SND_SOC_ARNDALE_RT5631_ALC5631) += snd-soc-arndale-rt5631.o
 obj-$(CONFIG_SND_SOC_SAMSUNG_TM2_WM5110) += snd-soc-tm2-wm5110.o
 obj-$(CONFIG_SND_SOC_SAMSUNG_EXYNOS9110_COD9005) += exynos9110_sound.o 
+obj-$(CONFIG_SND_SOC_EXYNOS9110_SOUND_R11) += exynos9110_sound_r11.o
