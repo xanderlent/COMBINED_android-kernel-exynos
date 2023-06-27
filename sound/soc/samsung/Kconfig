@@ -213,6 +213,11 @@ config SND_SOC_SAMSUNG_EXYNOS9110_COD9005
 	tristate "S.LSI audio codec COD9005 support on exynos9110"
 	select SND_SOC_COD9005X
 
+config SND_SOC_EXYNOS9110_SOUND_R11
+        tristate "ASOC R11 sound card (machine) driver"
+        help
+          ASOC R11 sound card (machine) driver
+
 source "sound/soc/samsung/abox/Kconfig"
 source "sound/soc/samsung/vts/Kconfig"
 
