@@ -1,5 +1,5 @@
-select SND_SOC_CS35L41_SPI if SPI_MASTER
-select SND_SOC_CS35L41_I2C if I2C
+#select SND_SOC_CS35L41_SPI if SPI_MASTER
+#select SND_SOC_CS35L41_I2C if I2C
 
 config SND_SOC_CS35L41
         tristate "Cirrus Logic CS35L41 CODEC"
@@ -16,3 +16,9 @@ config SND_SOC_CS35L41_I2C
 	tristate "Cirrus Logic CS35L41 CODEC (I2C)"
 	depends on I2C
 	select SND_SOC_CS35L41
+
+config SND_SOC_CS35L41_TABLE
+	tristate "Cirrus Logic CS35L41 CODEC (Table)"
+
+config SND_SOC_CS35L41_ADSP
+	tristate "Cirrus Logic CS35L41 CODEC (ADSP)"
