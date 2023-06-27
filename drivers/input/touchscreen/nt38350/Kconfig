@@ -2,7 +2,7 @@
 # Novatek NT38350 touchscreen driver configuration
 #
 config TOUCHSCREEN_NT38350
-	bool "Novatek NT38350"
+	tristate "Novatek NT38350"
 	default y
 	help
 	  Say Y here if you have a Novatek NT38350 touchscreen connected
