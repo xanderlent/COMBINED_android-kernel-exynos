@@ -27,7 +27,7 @@ if [ ${soc_cnt} -ne 1 ]; then
 fi
 
 # extract dtbo, rev and id
-mkdtimg dump ${DTBO} -b overlay.dtbo > dtbo.info
+mkdtboimg dump ${DTBO} -b overlay.dtbo > dtbo.info
 id_arr=(`grep dtbo.info -e "id" | sed 's/.*id = \([0-9a-f]\+\)/\1/'`)
 rev_arr=(`grep dtbo.info -e "rev" | sed 's/.*rev = \([0-9a-f]\+\)/\1/'`)
 
