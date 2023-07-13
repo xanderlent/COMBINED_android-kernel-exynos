@@ -1,0 +1,11 @@
+EXTRA_CFLAGS += -I$(SOUND_ROOT)/include
+KBUILD_CFLAGS += -I$(LINUXDIR)/include -Isound/soc/codecs/ -I$(CURDIR)
+
+
+cs35l41-mod-y := cs35l41.o
+cs35l41-mod-$(CONFIG_SND_SOC_CS35L41_TABLE)	+= cs35l41-tables.o
+cs35l41-mod-$(CONFIG_SND_SOC_CS35L41_SPI)	+= cs35l41-spi.o
+cs35l41-mod-$(CONFIG_SND_SOC_CS35L41_I2C)	+= cs35l41-i2c.o
+cs35l41-mod-$(CONFIG_SND_SOC_CS35L41_ADSP)	+= wm_adsp.o
+
+obj-$(CONFIG_SND_SOC_CS35L41) := cs35l41-mod.o
