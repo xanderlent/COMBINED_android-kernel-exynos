@@ -1,0 +1,98 @@
+/*
+ * Device Tree config for nanohub
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+
+&spi_4 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sensorhub_spi4_clk_mosi &sensorhub_spi4_miso>;
+	dma-mode;
+	dmas = <&pdma0 2 &pdma0 3>;
+
+	sensorhub_spi4: sensorhub-spi4@0 {
+		compatible = "nanohub";
+		reg = <0>;
+		spi-max-frequency = <33333333>;
+		spi-cpol;
+		spi-cpha;
+		sensorhub,wakeup-gpio = <&gpg4 0 0>;
+		sensorhub,nreset-gpio = <&gpg3 0 0>;
+		sensorhub,boot0-gpio = <&gpg7 2 0>;
+		sensorhub,irq1-gpio = <&gpa0 7 0>;
+		sensorhub,spi-cs-gpio = <&gpp4 3 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sensorhub_spi4_nreset &sensorhub_spi4_boot0 &sensorhub_spi4_wakeup &sensorhub_spi4_irq1 &sensorhub_spi4_cs>;
+		status = "disabled";
+
+		controller-data {
+			samsung,spi-chip-select-mode = <0>;
+		};
+	};
+};
+
+&pinctrl_0 {
+	sensorhub_spi4_irq1: sensorhub-spi4-irq1 {
+		samsung,pins = "gpa0-7";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+	sensorhub_spi4_irq2: sensorhub-spi4-irq2 {
+		samsung,pins = "gpa0-6";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+};
+
+&pinctrl_5 {
+	sensorhub_spi4_clk_mosi: sensorhub-spi4-clk-mosi {
+		samsung,pins = "gpp4-0", "gpp4-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+	};
+	sensorhub_spi4_miso: sensorhub-spi4-miso {
+		samsung,pins = "gpp4-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	sensorhub_spi4_cs: sensorhub-spi4-cs {
+		samsung,pins = "gpp4-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;  /* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	sensorhub_spi4_nreset: sensorhub-spi4-nreset {
+		samsung,pins = "gpg3-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	sensorhub_spi4_wakeup: sensorhub-spi4-wakeup {
+		samsung,pins = "gpg4-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	sensorhub_spi4_boot0: sensorhub-spi4-boot0 {
+		samsung,pins = "gpg7-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;	/* LVL1 DRV */
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};

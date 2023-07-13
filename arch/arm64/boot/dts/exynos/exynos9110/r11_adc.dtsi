@@ -1,0 +1,3 @@
+&exynos_adc {
+	status = "okay";
+};
