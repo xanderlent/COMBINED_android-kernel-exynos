@@ -10,9 +10,11 @@ The above copyright notice and this permission notice (including the next paragr
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
-# Linux kernel for the Google Pixel Watch (r11/r11btwifi) derived from AOSP
+# Linux kernel for the Google Pixel Watch derived from AOSP
 
-This project exists to streamline the process of compiling Linux kernels for the Google Pixel Watch (r11/r11btwifi) from AOSP sources.
+This project exists to streamline the process of compiling Linux kernels for the Google Pixel Watch ([r11/r11btwifi](https://developers.google.com/android/images-watch) a.k.a. [rohan](https://groups.google.com/g/android-building/c/ALQP58NCpEM)) from AOSP sources.
+
+This kernel should work for both models of the device, variously called [r11, Google Pixel Watch (LTE), r11btwifi, Google Pixel Watch (Bluetooth/Wi-Fi)](https://developers.google.com/android/images-watch), [Google Pixel Watch LTE, Google Pixel Watch Wi-Fi](https://support.google.com/googlepixelwatch/answer/12674814?hl=en&ref_topic=12652267), or [just Google Pixel Watch with the option to "Choose connectivity" between "Bluetooth®/Wi-Fi", and "4G LTE + Bluetooth®/Wi-Fi"](https://store.google.com/product/google_pixel_watch?hl=en-US).
 
 It attempts to combine the multiple source repositories used by AOSP into a single repository with minimal differences to AOSP, to allow an Android-like kernel to be built without using Android's kernel build system.
 
@@ -25,27 +27,41 @@ For information about this project, please see the [About "`COMBINED_`" Branches
 __WARNING:__ This kernel _has not been tested on actual hardware._  
 It is provided with __ABSOLUTELY NO WARRANTY__ and you use it __AT YOUR OWN RISK__.
 
-This kernel release is: `COMBINED_REV0_android-wear-11.0.0_r0.10`
+This kernel release is: `COMBINED_REV0_android-wear-11.0.0_r0.11`
 
-This is the first combined kernel release for the Google Pixel Watch (r11/r11btwifi) based on AOSP sources for `android-wear-11.0.0_r0.10` ("Android Wear 11.0.0 Release 0.10 (RWDC.230605.004)").
+This is the first combined kernel release for the Google Pixel Watch (r11/r11btwifi) based on AOSP sources for `android-wear-11.0.0_r0.11` ("Android wear 11.0.0 release 0.11").
 
 This kernel is based on Linux v4.19.279 and the Android Common Kernel v4.19. It incorporates the kernel content of Android Security Patch Level 2023-04-05 and earlier via Android Common Kernel tag `ASB-2023-04-05_4.19-stable` as well as assorted security fixes for the ARM Mali Midgard GPU driver.
 
+### Change Log
+
+This is the second overall release of this project.
+
+- `COMBINED_REV0_android-wear-11.0.0_r0.11`: Second "`COMBINED`" project release. First release based on AOSP `android-wear-11.0.0_r0.11`, the July 2023 GPL software release for the Google Pixel Watch.
+	- Upstream AOSP changes from `android-wear-11.0.0_r0.10`:
+		- A single commit fixing an issue in the `kernel/exynos` repository: `07e8f4e40feb Revert "Revert "mm/rmap: Fix anon_vma->degree ambiguity leading to double-reuse""`
+		- No changes to each of the three `kernel/exynos-modules`.
+	- Downstream changes from `COMBINED_REV0_android-wear-11.0.0_r0.10`:
+		- Updates to README.md.
+- `COMBINED_REV0_android-wear-11.0.0_r0.10`: First "`COMBINED`" project release. First release based on AOSP `android-wear-11.0.0_r0.10`, the June 2023 GPL software release for the Google Pixel Watch.
+
 ## Upstream AOSP Sources
 
-This kernel was created by merging together the branch named `android-exynos-r11-4.19-android11-wear-jr3-qpr2` when its head was at the commit tagged `android-wear-11.0.0_r0.10` in each of the four principal Linux kernel source repositories for Samsung Exynos SoCs in AOSP:  
+This kernel was created by merging together the branch named `android-exynos-r11-4.19-android11-wear-jr3-qpr2-dr` when its head was at the commit tagged `android-wear-11.0.0_r0.11` in each of the four principal Linux kernel source repositories for Samsung Exynos SoCs in AOSP:  
 (The Google Pixel Watch uses a Samsung Exynos 9110 SoC, which is designed for smartwatches.)
 
-- [`android/kernel/exynos`](https://android.googlesource.com/kernel/exynos/+/refs/tags/android-wear-11.0.0_r0.10)
-- [`android/kernel/exynos-modules/config`](https://android.googlesource.com/kernel/exynos-modules/config/+/refs/tags/android-wear-11.0.0_r0.10)
-- [`android/kernel/exynos-modules/devicetree`](https://android.googlesource.com/kernel/exynos-modules/devicetree/+/refs/tags/android-wear-11.0.0_r0.10)
-- [`android/kernel/exynos-modules/drivers`](https://android.googlesource.com/kernel/exynos-modules/drivers/+/refs/tags/android-wear-11.0.0_r0.10)
+- [`android/kernel/exynos`](https://android.googlesource.com/kernel/exynos/+/refs/tags/android-wear-11.0.0_r0.11)
+- [`android/kernel/exynos-modules/config`](https://android.googlesource.com/kernel/exynos-modules/config/+/refs/tags/android-wear-11.0.0_r0.11)
+- [`android/kernel/exynos-modules/devicetree`](https://android.googlesource.com/kernel/exynos-modules/devicetree/+/refs/tags/android-wear-11.0.0_r0.11)
+- [`android/kernel/exynos-modules/drivers`](https://android.googlesource.com/kernel/exynos-modules/drivers/+/refs/tags/android-wear-11.0.0_r0.11)
 
 First, the `COMBINED_...` branch was reset to the target branch of `android/kernel/exynos`, the main kernel tree for the device.
 
 The `config` and `devicetree` repositories were merged in following the file renames specified in the [corresponding AOSP kernel manifest](https://android.googlesource.com/kernel/manifest/+/refs/tags/android-wear-11.0.0_r0.6/default.xml). (Note that Google has not released a kernel manifest corresponding to the tag used, so an older manifest version was used instead.) Additionally, two commits ignoring these files in the main tree were reverted and two minor were fixes applied to make the kernel compile more convenient on typical distributions.
 
-The largest and final change is the merge of the out-of-tree `drivers`. In AOSP, these modules are compiled outside the kernel tree. They were merged into the kernel tree to make compiling a useful kernel simpler, but it is unclear how much deviation from AOSP this introduces to the codebase.
+The largest and final change is the merge of the out-of-tree `drivers`. In AOSP, these modules are compiled outside the kernel tree. They were merged into the kernel tree to make compiling a useful kernel simpler, but compiling modules in-tree creates some deviation in output files from AOSP.
+
+Since the changes to the previous downstream version were minimal, all of the downstream non-merge commits were either cherry-picked to save time or trivially recreated.
 
 ## About "`COMBINED_`" Branches &amp; Tags
 Anyone using this repository should use the tags. Tags identify releases that correspond to code derived from upstream AOSP tagged releases. Branches are used only for development purposes.
