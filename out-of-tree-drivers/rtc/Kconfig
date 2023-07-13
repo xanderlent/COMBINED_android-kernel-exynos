@@ -1,0 +1,8 @@
+config RTC_DRV_S3C_ALT
+	bool "Samsung S3C series SoC RTC (Alternate Driver)"
+	depends on ARCH_S3C64XX || HAVE_S3C_RTC || COMPILE_TEST
+	help
+	  This alternate driver for the Samsung S3C RTC driver does
+	  not register with the Linux RTC framework and instead acts
+	  as a persistent clock source for timekeeping across suspend.
+
