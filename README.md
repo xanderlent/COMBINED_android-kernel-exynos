@@ -27,41 +27,62 @@ For information about this project, please see the [About "`COMBINED_`" Branches
 __WARNING:__ This kernel _has not been tested on actual hardware._  
 It is provided with __ABSOLUTELY NO WARRANTY__ and you use it __AT YOUR OWN RISK__.
 
-This kernel release is: `COMBINED_REV0_android-wear-11.0.0_r0.11`
+This kernel release is: `COMBINED_REV0_android-wear-13.0.0_r0.1`
 
-This is the first combined kernel release for the Google Pixel Watch (r11/r11btwifi) based on AOSP sources for `android-wear-11.0.0_r0.11` ("Android wear 11.0.0 release 0.11").
+This is the first combined kernel release for the Google Pixel Watch (r11/r11btwifi) based on AOSP sources for `android-wear-13.0.0_r0.1` ("Android wear 13.0.0 release 0.1").
 
 This kernel is based on Linux v4.19.279 and the Android Common Kernel v4.19. It incorporates the kernel content of Android Security Patch Level 2023-04-05 and earlier via Android Common Kernel tag `ASB-2023-04-05_4.19-stable` as well as assorted security fixes for the ARM Mali Midgard GPU driver.
 
 ### Change Log
 
-This is the second overall release of this project.
+This is the third overall release of this project.
 
-- `COMBINED_REV0_android-wear-11.0.0_r0.11`: Second "`COMBINED`" project release. First release based on AOSP `android-wear-11.0.0_r0.11`, the July 2023 GPL software release for the Google Pixel Watch.
+- `COMBINED_REV0_android-wear-13.0.0_r0.1`: Third combined kernel release. First release based on AOSP `android-wear-13.0.0_r0.1`, the July 2023 Wear OS 4 GPL software release for the Google Pixel Watch, corresponding with an image that has not yet been publicly released.
+	- Upstream AOSP changes from `android-wear-11.0.0_r0.11`:
+		- A few `kernel/exynos` updates:
+			- A fix to an audio driver attempting to limit battery drain: `392305365a8e abox: Try to recover from an out of sync usage_count`
+			- An improvement to the display/backlight driver to smooth state transitions: `8a2aa72152cb Brightness: smooth brightness transition during enter/exit doze.`
+			- Several fixes and improvements to Android's binder driver: `3885af07a216`, `effb8203d595`, `1c5e51f39499`, `a398eea8f7c1`, `41ce925ff987` ,`2a68d748146e`
+			- A fix to the tracefs driver: `bea6ae3d03ad`
+		- An update to the configs in `kernel/exynos-modules/config`: `965354f0207 Add new user build config that disables DEBUG_FS`
+		- No updates to the DeviceTrees in `kernel/exynos-modules/devicetree`.
+		- Several updates to the drivers in `kernel/exynos-modules/drivers`:
+			- A fix preventing spurious wakeups from the crown: `a446e9ee1895 Fix unintentional wake on RSB in suitable modes`
+			- A fix to the Wi-Fi driver: `86e1deb487b7 Fix CtsWifiTestCases #testRestartWifiSubsystem`
+			- New functionality that requires new touchscreen firmware to report the coordinates of a tap-to-wake:
+				- `a52522faa086 nt38350: enable tap_coordinates by default`
+				- `0ab36c51e0ac nt38350: Add tap to wake coordinate reporting`
+	- Downstream changes from `COMBINED_REV0_android-wear-11.0.0_r0.11`:
+		- Unset `CONFIG_DEBUG_FS` in `r11_defconfig`, corresponding with the upstream `build.config.user` change mentioned above.
+		- Updates to this file, `README.md`.
+- `COMBINED_REV0_android-wear-11.0.0_r0.11`: Second combined kernel release. First release based on AOSP `android-wear-11.0.0_r0.11`, the July 2023 GPL software release (stable, Wear OS 3.5) for the Google Pixel Watch.
 	- Upstream AOSP changes from `android-wear-11.0.0_r0.10`:
-		- A single commit fixing an issue in the `kernel/exynos` repository: `07e8f4e40feb Revert "Revert "mm/rmap: Fix anon_vma->degree ambiguity leading to double-reuse""`
+		- A single commit fixing an issue in the `kernel/exynos` repository: `07e8f4e40feb`
 		- No changes to each of the three `kernel/exynos-modules`.
 	- Downstream changes from `COMBINED_REV0_android-wear-11.0.0_r0.10`:
-		- Updates to README.md.
-- `COMBINED_REV0_android-wear-11.0.0_r0.10`: First "`COMBINED`" project release. First release based on AOSP `android-wear-11.0.0_r0.10`, the June 2023 GPL software release for the Google Pixel Watch.
+		- Updates to this file, `README.md`.
+- `COMBINED_REV0_android-wear-11.0.0_r0.10`: First combined kernel release. First release based on AOSP `android-wear-11.0.0_r0.10`, the June 2023 GPL software release for the Google Pixel Watch.
 
 ## Upstream AOSP Sources
 
-This kernel was created by merging together the branch named `android-exynos-r11-4.19-android11-wear-jr3-qpr2-dr` when its head was at the commit tagged `android-wear-11.0.0_r0.11` in each of the four principal Linux kernel source repositories for Samsung Exynos SoCs in AOSP:  
+This kernel was created by merging together
+the branch named `android-exynos-r11-4.19-android13-wear-kr3-qpr3-dr`
+when its head was at the commit tagged `android-wear-13.0.0_r0.1`
+in each of the four principal Linux kernel source repositories for Samsung Exynos SoCs in AOSP:  
 (The Google Pixel Watch uses a Samsung Exynos 9110 SoC, which is designed for smartwatches.)
 
-- [`android/kernel/exynos`](https://android.googlesource.com/kernel/exynos/+/refs/tags/android-wear-11.0.0_r0.11)
-- [`android/kernel/exynos-modules/config`](https://android.googlesource.com/kernel/exynos-modules/config/+/refs/tags/android-wear-11.0.0_r0.11)
-- [`android/kernel/exynos-modules/devicetree`](https://android.googlesource.com/kernel/exynos-modules/devicetree/+/refs/tags/android-wear-11.0.0_r0.11)
-- [`android/kernel/exynos-modules/drivers`](https://android.googlesource.com/kernel/exynos-modules/drivers/+/refs/tags/android-wear-11.0.0_r0.11)
+- [`android/kernel/exynos`](https://android.googlesource.com/kernel/exynos/+/refs/tags/android-wear-13.0.0_r0.1)
+- [`android/kernel/exynos-modules/config`](https://android.googlesource.com/kernel/exynos-modules/config/+/refs/tags/android-wear-13.0.0_r0.1)
+- [`android/kernel/exynos-modules/devicetree`](https://android.googlesource.com/kernel/exynos-modules/devicetree/+/refs/tags/android-wear-13.0.0_r0.1)
+- [`android/kernel/exynos-modules/drivers`](https://android.googlesource.com/kernel/exynos-modules/drivers/+/refs/tags/android-wear-13.0.0_r0.1)
 
 First, the `COMBINED_...` branch was reset to the target branch of `android/kernel/exynos`, the main kernel tree for the device.
 
-The `config` and `devicetree` repositories were merged in following the file renames specified in the [corresponding AOSP kernel manifest](https://android.googlesource.com/kernel/manifest/+/refs/tags/android-wear-11.0.0_r0.6/default.xml). (Note that Google has not released a kernel manifest corresponding to the tag used, so an older manifest version was used instead.) Additionally, two commits ignoring these files in the main tree were reverted and two minor were fixes applied to make the kernel compile more convenient on typical distributions.
+The `config` and `devicetree` repositories were merged in following the file renames specified in the [corresponding AOSP kernel manifest](https://android.googlesource.com/kernel/manifest/+/refs/heads/android-exynos-r11-4.19-android13-wear-kr3-qpr3-dr/default.xml). Additionally, two commits ignoring these files in the main tree were reverted and two minor fixes were applied to make the kernel compile more convenient on typical distributions.
 
 The largest and final change is the merge of the out-of-tree `drivers`. In AOSP, these modules are compiled outside the kernel tree. They were merged into the kernel tree to make compiling a useful kernel simpler, but compiling modules in-tree creates some deviation in output files from AOSP.
 
-Since the changes to the previous downstream version were minimal, all of the downstream non-merge commits were either cherry-picked to save time or trivially recreated.
+Since the changes to the previous downstream version were minimal, all of the downstream non-merge commits were either cherry-picked to save time or trivially recreated. More time-consuming tasks included manually merging each of the repositories into the new development branch, compiling the resulting code, and editing this README.
 
 ## About "`COMBINED_`" Branches &amp; Tags
 Anyone using this repository should use the tags. Tags identify releases that correspond to code derived from upstream AOSP tagged releases. Branches are used only for development purposes.
